@@ -65,6 +65,13 @@ const (
 	PushesDeniedFile = "pushes_denied.csv"
 	// PushCommitsFile is the name of the file of the commits each push brought.
 	PushCommitsFile = "push_commits.csv"
+	// PushesCutFile is the name, next to the history, of the file that notes
+	// each repository whose push read stopped at the page cap, and the oldest
+	// push time that read reached (forsgren#583, step 1).
+	PushesCutFile = "pushes_cut.csv"
+	// PushesCheckedFile is the name, next to the history, of the file that
+	// notes each repository whose one-time reach check ran (forsgren#583).
+	PushesCheckedFile = "pushes_checked.csv"
 )
 
 // pushesFile is the path of the pushes file next to o's history.
@@ -79,6 +86,9 @@ func (o Options) pushCommitsFile() string {
 func (o Options) pushesReadFile() string {
 	return filepath.Join(filepath.Dir(o.History), PushesReadFile)
 }
+
+// pushesCutFile is the path of the pushes cut file next to o's history.
+func (o Options) pushesCutFile() string { return filepath.Join(filepath.Dir(o.History), PushesCutFile) }
 
 // pushesDeniedFile is the path of the pushes denied file next to o's history.
 func (o Options) pushesDeniedFile() string {
@@ -100,6 +110,7 @@ func (o Options) loadPushes(h held) (held, error) {
 	for _, p := range stored {
 		h.pushes[p.Key()] = true
 	}
+	h.oldestPush = oldestPushes(stored)
 	h.legacyMerges = legacyMerges(stored, lines)
 	return h, nil
 }
@@ -116,6 +127,7 @@ func (o Options) pushesSince(h held, repo string) time.Time {
 // collectPushes reads repo's pushes to main, stores the new ones and says how
 // many it stored; see the top of this file for what ends the read.
 func (o Options) collectPushes(ctx context.Context, h held, repo string) (int, error) {
+	_, readBefore := h.pushesRead[strings.ToLower(repo)]
 	read, truncated, err := o.readPushes(ctx, h, repo)
 	if _, serr := history.AppendPushCommits(o.pushCommitsFile(), read.commits); serr != nil {
 		return 0, serr
@@ -124,7 +136,20 @@ func (o Options) collectPushes(ctx context.Context, h held, repo string) (int, e
 	if serr != nil {
 		return stored, serr
 	}
+	if err == nil {
+		o.checkReach(ctx, h, repo, readEnd{truncated: truncated, first: !readBefore, oldest: read.oldest})
+	}
 	return stored, o.endPushes(h, repo, truncated, err)
+}
+
+// notePushesCut notes where repo's push read stopped at the page cap, the
+// oldest push time it reached, unless a cut is noted already: the first one
+// says how far the stored pushes reach (forsgren#583, step 1).
+func (o Options) notePushesCut(h held, repo string, oldest time.Time) {
+	key := strings.ToLower(repo)
+	if _, noted := h.pushesCut[key]; !noted && !oldest.IsZero() {
+		h.pushesCut[key] = wholeSecond(oldest)
+	}
 }
 
 // endPushes moves repo's marks after a read that ended on err, nil included,
@@ -166,6 +191,8 @@ func (o Options) notePushesDenied(h held, repo string) {
 type pushesRead struct {
 	pushes  []history.Push
 	commits []history.PushCommit
+	// oldest is the time of the oldest push the list gave, stored or not.
+	oldest time.Time
 }
 
 // readPushes is repo's activity on its default branch since its mark, up to
@@ -182,6 +209,7 @@ func (o Options) readPushes(ctx context.Context, h held, repo string) (pushesRea
 	}
 	for _, a := range activities {
 		push := pushOf(repo, a)
+		read.oldest = push.PushedAt
 		if h.pushes[push.Key()] {
 			continue
 		}

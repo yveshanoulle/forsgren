@@ -11,8 +11,9 @@ import (
 // missing PushesUncollected says so), the commits they brought
 // (data/push_commits.csv) and the repositories whose push read GitHub refused
 // (data/pushes_denied.csv) and the repositories whose fill of the merge
-// pushes' lines is done (data/push_commits_filled.csv, forsgren#470); a
-// missing file of the last three holds none. An
+// pushes' lines is done (data/push_commits_filled.csv, forsgren#470) and the
+// repositories whose push read stopped at the page cap (data/pushes_cut.csv,
+// forsgren#583); a missing file of the last four holds none. An
 // unknown or malformed file of any fails the render.
 func withPushes(data metrics.Data, path string) (metrics.Data, error) {
 	pushes, err := loadOrNone(beside(path, collect.PushesFile), history.LoadPushes)
@@ -31,7 +32,11 @@ func withPushes(data metrics.Data, path string) (metrics.Data, error) {
 	if err != nil {
 		return metrics.Data{}, err
 	}
-	data.PushesFilled = filled
+	cut, err := history.LoadPushesCut(beside(path, collect.PushesCutFile))
+	if err != nil {
+		return metrics.Data{}, err
+	}
+	data.PushesFilled, data.PushesCut = filled, cut
 	data.Pushes, data.PushCommits, data.PushesDenied = pushes, commits, denied.Times()
 	data.PushesUncollected = absent(beside(path, collect.PushesFile))
 	return data, nil

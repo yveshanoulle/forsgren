@@ -71,6 +71,9 @@ type held struct {
 	pushesRead     history.Reach             // see pushes.go
 	pushesDenied   history.Reach             // see pushes.go: the refused push reads
 	pushesDeniedBy map[string]string         // see pushes.go: the token name of each, with pushesDenied
+	pushesCut      history.Reach             // see pushes.go: where a push read stopped at the page cap
+	pushesChecked  history.Reach             // see pushesreach.go: the repositories whose reach was checked
+	oldestPush     map[string]time.Time      // see pushesreach.go: the oldest stored push per repository
 	backfilled     history.Reach             // see legacybackfill.go
 	pullsFilled    history.Reach             // see pullsfill.go
 	mergesFilled   history.Reach             // see pushesfill.go

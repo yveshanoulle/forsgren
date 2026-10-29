@@ -1521,8 +1521,13 @@ A project's date is the earliest over its repositories. A cell with nothing
 stored reads `-`. A date after Report Start, the start of the `dora_days`
 window the footer names, is marked `▲ 2026-09-21`, with a visually hidden
 "(after Report Start)" for a screen reader: the window is only partly
-covered, and the metrics of that kind count from that date on. One line above
-the table says what the marker means. A service or rule row has its own
+covered, and the metrics of that kind count from that date on. A date that
+is only where a repository's push read stopped at its page limit (its line in
+`data/pushes_cut.csv`, forsgren#583) is marked `… 2026-07-09`, with a visually
+hidden "(earlier data not yet read)": older pushes are not read yet, so the
+repository did not start there. It marks Pushes, and Commits when the pushed
+commits give the date; a late date carries both markers, `▲ … 2026-10-02`.
+The line above the table says what both markers mean. A service or rule row has its own
 deployments and deployed commits; issues, pushes and merged pull requests are
 read per repository, so its cells for them read `Per repository`. The first stored date is what forsgren collected, not when
 the repository started.

@@ -298,6 +298,12 @@
   shown: ["Report Start", "Report End"]
   definition: "The first and the last minute of the window, in UTC; Report End is the Calculated at time."
   from: "The footer of every page."
+- name: "Earlier data not yet read"
+  kind: term
+  definition: >-
+    On the Data page, a date marked … is only where a repository's push read stopped at its page limit:
+    older pushes, and the commits they brought, are not read yet, so the repository did not start there.
+  from: "Repositories of data/pushes_cut.csv, each with the oldest push time its cut read reached."
 - name: "Volume"
   kind: term
   definition: "The TBD group of the four counts Commits, Pushes, Deployments and Deployed commits."

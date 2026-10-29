@@ -29,7 +29,7 @@ func dataPageData() Data {
 			{Level: metrics.ProjectRow, Name: "Acme Shop", Project: "Acme Shop",
 				Deployments: metrics.DataStart{At: stored(time.March, 2)},
 				Commits:     metrics.DataStart{At: stored(time.February, 27)},
-				Pushes:      metrics.DataStart{At: stored(time.September, 1)},
+				Pushes:      metrics.DataStart{At: stored(time.September, 1), Cut: true},
 				Pulls:       metrics.DataStart{At: stored(time.September, 21)},
 				Issues:      metrics.DataStart{At: stored(time.January, 5)}},
 			{Level: metrics.LabelRow, Name: "API", Project: "Acme Shop",
@@ -99,7 +99,7 @@ func TestDataPageColumnsStartWithIssues(t *testing.T) {
           </tr>`,
 		`<td>2026-01-05</td>
             <td>2026-02-27</td>
-            <td>2026-09-01</td>
+            <td class="cut">… 2026-09-01<span class="visually-hidden"> (earlier data not yet read)</span></td>
             <td>2026-03-02</td>
             <td class="late">▲ 2026-09-21`)
 }
@@ -123,4 +123,21 @@ func TestDataPageIsLinkedInTheFooterOnlyWhenOn(t *testing.T) {
 	got := rendered(t, "data.html", data)
 	wantNone(t, "data.html unlisted", got, `data.html">Data</a>`)
 	wantAll(t, "data.html unlisted", got, `<meta name="robots" content="noindex">`)
+}
+
+// TestDataPageMarksADateWhereThePushReadStopped (forsgren#583, step 1): a
+// date that is only where the push read stopped at the page cap carries … for
+// the eye and "earlier data not yet read" for a screen reader, after the ▲ of
+// a late one; the line above the table says what … means.
+func TestDataPageMarksADateWhereThePushReadStopped(t *testing.T) {
+	data := dataPageData()
+	shop := &data.DataStarts.Rows[0]
+	shop.Pushes.Cut, shop.Commits.Cut, shop.Pulls.Cut = true, true, true
+	got := rendered(t, "data.html", data)
+	wantAll(t, "data.html", got,
+		`<td class="cut">… 2026-02-27<span class="visually-hidden"> (earlier data not yet read)</span></td>`,
+		`<td class="late cut">▲ … 2026-09-21<span class="visually-hidden"> (after Report Start)</span>`+
+			`<span class="visually-hidden"> (earlier data not yet read)</span></td>`,
+		"A date marked … is where the read stopped at its page limit: earlier data is not yet read, "+
+			"so the date is not where the repository started.")
 }

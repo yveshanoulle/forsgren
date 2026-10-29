@@ -5,13 +5,13 @@
   {
    "path": "internal/collect/fake_test.go",
    "score": 9.09,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-29",
    "minScore": 9.0
   },
   {
    "path": "internal/collect/pushes_test.go",
    "score": 9.09,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-29",
    "minScore": 9.0
   },
   {
@@ -809,7 +809,7 @@
   {
    "path": "internal/metrics/rows.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {
@@ -1205,7 +1205,7 @@
   {
    "path": "internal/collect/failuresread.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {
@@ -1223,7 +1223,7 @@
   {
    "path": "internal/history/readat_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {
@@ -2243,7 +2243,7 @@
   {
    "path": "internal/collect/pushes.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {
@@ -2267,7 +2267,7 @@
   {
    "path": "internal/history/pushesmarks.go",
    "score": 10.0,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {
@@ -2279,7 +2279,7 @@
   {
    "path": "internal/collect/held.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {
@@ -2333,7 +2333,7 @@
   {
    "path": "cmd/forsgren/renderpushes.go",
    "score": 10.0,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {
@@ -2567,7 +2567,7 @@
   {
    "path": "cmd/forsgren/render_pushes_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {
@@ -3034,6 +3034,30 @@
   },
   {
    "path": "internal/installerdoc/data_page_docs_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-29",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/pushesreach.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-29",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/pushes_reach_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-29",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/oldestactivity.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-29",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/oldestactivity_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-29",
    "minScore": 10.0

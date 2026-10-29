@@ -108,6 +108,7 @@ func TestCollectStoresEachPushWithTheCommitsItAddedToTheFirstParentChain(t *test
 		linePush(pushTime2, shaD, shaF, "pr_merge", "true", "1"))
 	data.want(t, PushesReadFile, pushesReadNow)
 	data.want(t, PushesDeniedFile, "")
+	data.want(t, PushesCutFile, "")
 	data.want(t, PushCommitsFile, pushCommitsHeader+
 		linePC(shaD, shaB, "", "2026-09-20T08:00:00Z", 1)+linePC(shaD, shaC, "", "2026-09-20T09:00:00Z", 1)+
 		linePC(shaD, shaD, "", "2026-09-20T10:00:00Z", 1)+
@@ -357,6 +358,25 @@ func TestAPushListCutAtThePageLimitIsNamedAndTheMarkMoves(t *testing.T) {
 		t.Errorf("want the incomplete read named and no error, got %v, %q", r.err, r.stderr)
 	}
 	dataOf(path).want(t, PushesReadFile, pushesReadNow)
+	dataOf(path).want(t, PushesCutFile, pushesCutHdr+"acme/app,"+pushTime1+"\n")
+}
+
+// pushesCutHdr is the header of data/pushes_cut.csv (forsgren#583, step 1).
+const pushesCutHdr = "# forsgren pushes cut v1\nrepository,cut_at\n"
+
+// TestAPushListCutAgainKeepsTheFirstCutMark (forsgren#583, step 1): the mark
+// says where the first history read stopped at the page cap; a later cut
+// read does not move it.
+func TestAPushListCutAgainKeepsTheFirstCutMark(t *testing.T) {
+	g := pushesOnly(t, activityOf("push", pushTime2, shaA, shaB))
+	g.bodies[comparePath(shaA, shaB)] = chain(shaA, shaB)
+	g.paged[activityPath] = true
+	path := historyPath(t)
+	dataOf(path).write(t, PushesCutFile, pushesCutHdr+"acme/app,2026-09-01T00:00:00Z\n")
+	if r := g.collect(t, shop(production), path, 1); r.err != nil {
+		t.Fatal(r.err)
+	}
+	dataOf(path).want(t, PushesCutFile, pushesCutHdr+"acme/app,2026-09-01T00:00:00Z\n")
 }
 
 // TestTheFirstParentCountEndsAtARootCommitAndAtACycle: a chain that reaches

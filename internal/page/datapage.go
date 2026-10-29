@@ -1,6 +1,7 @@
 package page
 
 import (
+	"strings"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/metrics"
@@ -56,11 +57,24 @@ type DataRow struct {
 // project's total.
 func (r DataRow) IsLabel() bool { return r.Level == metrics.LabelRow }
 
-// DataCell is one cell of a kind: its text, and Late when the date is after
-// Report Start.
+// DataCell is one cell of a kind: its text, Late when the date is after
+// Report Start, and Cut when it is only where the push read stopped at the
+// page cap (forsgren#583).
 type DataCell struct {
-	Text string
-	Late bool
+	Text      string
+	Late, Cut bool
+}
+
+// Class is the cell's class: late, cut, both or none.
+func (c DataCell) Class() string {
+	var classes []string
+	if c.Late {
+		classes = append(classes, "late")
+	}
+	if c.Cut {
+		classes = append(classes, "cut")
+	}
+	return strings.Join(classes, " ")
 }
 
 // Cells are the row's cells, one per kind of dataKinds.
@@ -82,7 +96,7 @@ func dataCell(s metrics.DataStart, start time.Time) DataCell {
 	case !s.Stored():
 		return DataCell{Text: noData}
 	}
-	return DataCell{Text: s.At.UTC().Format(dateLayout), Late: s.Late(start)}
+	return DataCell{Text: s.At.UTC().Format(dateLayout), Late: s.Late(start), Cut: s.Cut}
 }
 
 // DataRows are the rows of the Data table, in the order of Data.DataStarts:

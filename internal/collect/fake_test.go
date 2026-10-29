@@ -133,17 +133,32 @@ const (
 	// (forsgren#126); an unset one is an empty list.
 	bugIssues     = "#bug"
 	bugIssuesPath = issuesPath + bugIssues
+	// oldestFirst marks the answers to the activity list read oldest first,
+	// the one-time reach check (forsgren#583); an unset one is an empty list.
+	oldestFirst = "#asc"
 )
 
 // keyOf is the key in bodies, status and paged of the answer to r: its path,
 // with bugIssues for the list of the bug label, and for a list of issues without a labels parameter that path with
-// allIssues, or with fullIssues when it asks for no since.
+// allIssues, or with fullIssues when it asks for no since, and for the
+// activity list read oldest first that path with oldestFirst (forsgren#583).
 func keyOf(r *http.Request) string {
+	switch {
+	case strings.HasSuffix(r.URL.Path, "/issues"):
+		return issuesKeyOf(r)
+	case strings.HasSuffix(r.URL.Path, "/activity") && r.URL.Query().Get("direction") == "asc":
+		return r.URL.Path + oldestFirst
+	}
+	return r.URL.Path
+}
+
+// issuesKeyOf is keyOf for a list of issues.
+func issuesKeyOf(r *http.Request) string {
 	query := r.URL.Query()
 	switch {
-	case strings.HasSuffix(r.URL.Path, "/issues") && query.Get("labels") == "bug":
+	case query.Get("labels") == "bug":
 		return r.URL.Path + bugIssues
-	case !strings.HasSuffix(r.URL.Path, "/issues") || query.Has("labels"):
+	case query.Has("labels"):
 		return r.URL.Path
 	case query.Has("since"):
 		return r.URL.Path + allIssues

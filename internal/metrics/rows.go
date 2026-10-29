@@ -79,6 +79,11 @@ type Data struct {
 	PushCommits       []history.PushCommit
 	PushesDenied      history.Reach
 	PushesUncollected bool
+	// PushesCut are the repositories whose push read stopped at the page
+	// cap, and the oldest push time it reached, from data/pushes_cut.csv
+	// (forsgren#583): their stored pushes start there because older ones
+	// are not read yet.
+	PushesCut history.Reach
 	// PullCommits are the commits of the merged pull requests of
 	// data/pull_commits.csv, for Mainline Lead Time (forsgren#463).
 	PullCommits []history.PullCommit

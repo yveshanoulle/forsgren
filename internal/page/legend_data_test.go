@@ -15,6 +15,9 @@ var legendDataText = []string{
 	"A date marked ▲ is after Report Start: the window is only partly covered, " +
 		"and the metrics of that kind count from that date on.",
 	"A dash means nothing of that kind is stored.",
+	"A date marked … is only where the read of a repository's pushes stopped at its page limit: " +
+		"earlier data is not yet read, so it does not mean the repository started on that date. " +
+		"It marks Pushes, and Commits when the pushed commits give its date.",
 	"Commits is the oldest author date over the deployed commits and the pushed commits; " +
 		"a service or rule row has its own deployed commits only.",
 	"A service or rule row reads Per repository for Issues, Pushes and Merged pull requests, " +

@@ -105,6 +105,28 @@ func TestRenderSaysThePushesAreNotReadableForARefusedRepository(t *testing.T) {
 	}
 }
 
+// pushesCutH is the head of the pushes cut format v1 (forsgren#583).
+const pushesCutH = "# forsgren pushes cut v1\nrepository,cut_at\n"
+
+// TestRenderMarksThePushesOfARepositoryCutAtThePageCap (forsgren#583, step
+// 1): a line of pushes_cut.csv beside --data marks the Data page's Pushes of
+// the project with that repository, and its Commits, which the push commit
+// gives; without the file nothing is cut.
+func TestRenderMarksThePushesOfARepositoryCutAtThePageCap(t *testing.T) {
+	data := writeHistory(t, acmeHistory())
+	writePushes(t, data)
+	if row := pushData(t, data).DataStarts.Rows[0]; row.Pushes.Cut {
+		t.Errorf("want nothing cut without pushes_cut.csv, got %+v", row.Pushes)
+	}
+	cut := pushesCutH + "ACME/Api,2026-10-02T10:00:00Z\n"
+	if err := os.WriteFile(filepath.Join(filepath.Dir(data), "pushes_cut.csv"), []byte(cut), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if row := pushData(t, data).DataStarts.Rows[0]; !row.Pushes.Cut {
+		t.Errorf("want Acme Shop's pushes cut, got %+v", row.Pushes)
+	}
+}
+
 // TestRenderRefusesABadPushFile: a malformed or unknown-version pushes file,
 // push commits file or pushes denied file fails render with its own message,
 // naming it, as the other data files do; never read as none.
@@ -121,6 +143,10 @@ func TestRenderRefusesABadPushFile(t *testing.T) {
 		"unknown version": {"# forsgren pushes denied v3\n", "unknown history format version"},
 		"malformed line":  {pushesDeniedH + "acme/api\n", "line 3: malformed history"},
 		"a token value":   {pushesDeniedH2 + "acme/api,2026-10-01T00:00:00Z,ghp_abc\n", "line 3: malformed history"},
+	})
+	wantBadFileRefused(t, "pushes_cut.csv", map[string]badFile{
+		"unknown version": {"# forsgren pushes cut v2\n", "unknown history format version"},
+		"malformed line":  {pushesCutH + "acme/api\n", "line 3: malformed history"},
 	})
 }
 

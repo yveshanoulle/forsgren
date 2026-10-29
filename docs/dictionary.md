@@ -36,6 +36,12 @@ The DevOps Research and Assessment programme, whose five delivery metrics and ba
 
 From: DORA Quick Check, dora.dev.
 
+### Earlier data not yet read
+
+On the Data page, a date marked … is only where a repository's push read stopped at its page limit: older pushes, and the commits they brought, are not read yet, so the repository did not start there.
+
+From: Repositories of data/pushes\_cut.csv, each with the oldest push time its cut read reached.
+
 ### Final deployment
 
 A deployment that ended as a success or a failure, created in the window. One still running is not stored yet, and one that ended in another way, such as a cancelled run, is not final here. It is not the last deployment: every such deployment of the window counts. Final deployments are the base of Change fail rate.

@@ -197,3 +197,42 @@ func TestDataStartsCommitsKeepAnOlderDeployedCommit(t *testing.T) {
 	row := startsRow(t, DataStartsOf(weekProjects(), data, events, now), "Acme Shop")
 	wantStart(t, "Acme Shop commits", row.Commits, utc(time.September, 18, 8, 0))
 }
+
+// TestDataStartsMarkPushesCutAtThePageCap (forsgren#583, step 1): a row with
+// a repository whose push read stopped at the page cap has its Pushes cut,
+// and its Commits too when the push commits give the oldest date; a
+// repository label row of another repository is not cut, and a service row
+// reads Per repository for pushes and its own deployed commits.
+func TestDataStartsMarkPushesCutAtThePageCap(t *testing.T) {
+	data, events := startsData()
+	data.PushCommits = []history.PushCommit{
+		{Repository: "acme/app", After: "a9", SHA: "p1", AuthoredAt: utc(time.September, 15, 8, 0)},
+	}
+	data.PushesCut = history.Reach{"acme/app": utc(time.September, 15, 9, 0)}
+	starts := DataStartsOf(weekProjects(), data, events, now)
+	shop := startsRow(t, starts, "Acme Shop")
+	if !shop.Pushes.Cut || !shop.Commits.Cut {
+		t.Errorf("want Acme Shop's pushes and commits cut, got %+v and %+v", shop.Pushes, shop.Commits)
+	}
+	if web := startsRow(t, starts, "Website"); web.Pushes.Cut {
+		t.Errorf("want Website's pushes not cut, got %+v", web.Pushes)
+	}
+	if api := startsRow(t, starts, "API"); api.Commits.Cut || api.Pushes.Cut {
+		t.Errorf("want API not cut, got %+v and %+v", api.Commits, api.Pushes)
+	}
+}
+
+// TestDataStartsCommitsAreNotCutWhenADeployedCommitIsOlder (forsgren#583,
+// step 1): the deployed commits give the date, which the push read does not
+// limit.
+func TestDataStartsCommitsAreNotCutWhenADeployedCommitIsOlder(t *testing.T) {
+	data, events := startsData()
+	data.PushCommits = []history.PushCommit{
+		{Repository: "acme/app", After: "a9", SHA: "p1", AuthoredAt: utc(time.September, 19, 8, 0)},
+	}
+	data.PushesCut = history.Reach{"acme/app": utc(time.September, 19, 9, 0)}
+	shop := startsRow(t, DataStartsOf(weekProjects(), data, events, now), "Acme Shop")
+	if shop.Commits.Cut || !shop.Pushes.Cut {
+		t.Errorf("want Acme Shop's pushes cut and its commits not, got %+v and %+v", shop.Pushes, shop.Commits)
+	}
+}

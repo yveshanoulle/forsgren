@@ -18,6 +18,9 @@ import (
 type DataStart struct {
 	At            time.Time
 	PerRepository bool
+	// Cut says At is only where a push read stopped at the page cap: earlier
+	// data is not read yet (forsgren#583).
+	Cut bool
 }
 
 // Stored says data of the kind is stored.
@@ -83,6 +86,10 @@ func (s startsSource) row(level Level, p config.Project, project string) DataRow
 	row.Commits = earliestOf(row.Commits, pushed)
 	row.Pushes = earliest(s.data.Pushes, in,
 		func(p history.Push) (string, time.Time) { return p.Repository, p.PushedAt })
+	if pushesCut(s.data.PushesCut, in) {
+		row.Pushes.Cut = row.Pushes.Stored()
+		row.Commits.Cut = pushed.Stored() && row.Commits.At.Equal(pushed.At)
+	}
 	row.Pulls = earliest(s.data.Pulls, in,
 		func(p history.PullRequest) (string, time.Time) { return p.Repository, p.MergedAt })
 	row.Issues = earliest(s.events, in,
@@ -111,6 +118,18 @@ func deployedStarts(data Data, in map[string]bool) (deployments, commits DataSta
 	commits = earliest(data.Commits, in,
 		func(c history.Commit) (string, time.Time) { return c.Repository, c.AuthoredAt })
 	return deployments, commits
+}
+
+// pushesCut says a repository in has its push read stopped at the page cap
+// (forsgren#583): the pushes, and the commits they brought, may reach further
+// back than stored.
+func pushesCut(cut history.Reach, in map[string]bool) bool {
+	for repository := range cut {
+		if in[strings.ToLower(repository)] {
+			return true
+		}
+	}
+	return false
 }
 
 // earliestOf is the older of two starts, either one when the other has

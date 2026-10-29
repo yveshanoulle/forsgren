@@ -37,7 +37,7 @@ type markFile struct {
 	save func(path string, r history.Reach) error
 }
 
-// markFiles are h's fifteen marks, in the order they are loaded and saved: how
+// markFiles are h's seventeen marks, in the order they are loaded and saved: how
 // far each repository was read (reach, chunk.go), when its issues were last
 // read (read), whether they were read in full (full, issueevents.go) and
 // where its bug read was cut (cut, bugflags.go) and since when it has been
@@ -52,7 +52,9 @@ type markFile struct {
 // stored pull requests filled (pullsFilled, pullsfill.go) and which had the lines
 // of their stored merge pushes filled (mergesFilled, pushesfill.go) and which had
 // the bot status of their stored pull requests filled (botsFilled, pullsbotfill.go)
-// and which had the files of their stored commits read (filesFilled, commitfiles.go).
+// and which had the files of their stored commits read (filesFilled, commitfiles.go)
+// and where a push read stopped at the page cap (pushesCut, pushes.go, forsgren#583)
+// and which repositories had their push reach checked once (pushesChecked, pushesreach.go).
 func (o Options) markFiles(h *held) []markFile {
 	return []markFile{
 		{&h.reach, o.reachFile(), history.LoadReach, history.SaveReach},
@@ -71,6 +73,8 @@ func (o Options) markFiles(h *held) []markFile {
 		{&h.mergesFilled, o.pushCommitsFilledFile(), history.LoadPushCommitsFilled, history.SavePushCommitsFilled},
 		{&h.botsFilled, o.pullsBotFilledFile(), history.LoadPullsBotFilled, history.SavePullsBotFilled},
 		{&h.filesFilled, o.commitFilesFilledFile(), history.LoadCommitFilesFilled, history.SaveCommitFilesFilled},
+		{&h.pushesCut, o.pushesCutFile(), history.LoadPushesCut, history.SavePushesCut},
+		{&h.pushesChecked, o.pushesCheckedFile(), history.LoadPushesChecked, history.SavePushesChecked},
 	}
 }
 

@@ -794,6 +794,77 @@ acme/app,2026-10-23T06:00:00Z,FORSGREN_TOKEN
   not ignore, outside `testdata/` blocks the commit, like the other data
   files.
 
+**The pushes cut mark** (forsgren#583) is kept in `data/pushes_cut.csv`,
+next to the history, with its own format version (the pushes cut format v1):
+one line per repository whose push read stopped at the page limit.
+
+```
+# forsgren pushes cut v1
+repository,cut_at
+acme/app,2026-07-09T15:03:48Z
+```
+
+- `cut_at` is the time of the oldest push that cut read reached, in UTC, to
+  the second: the stored pushes of the repository start there only because
+  older ones are not read yet. Lines are sorted by repository.
+- Written after a push read that ended without an error but was cut at the
+  page limit (10 pages of 100 activities), when the repository has no line
+  yet: the first cut, the one of the history read, is kept, and a later cut
+  read does not move it. `cut_at` is then the oldest push that read reached.
+- Also written by the one-time reach check (see the pushes checked mark
+  below), for a repository whose read was cut before this file existed:
+  `cut_at` is then the oldest stored push.
+- The Data page reads it: a project or repository row with a repository named
+  here marks its Pushes date, and its Commits date when the pushed commits
+  give it, with `…` and "earlier data not yet read" (see
+  [The Data page](pages-and-views.md#the-data-page)).
+- Rewritten whole like `data/reach.csv`, and only when a line changed. A
+  missing file notes no repository. An unknown version or a malformed line
+  refuses the collect run before GitHub is asked anything, and fails the
+  render, naming the file.
+- The data guard knows its name: a `pushes_cut.csv` that git tracks or does
+  not ignore, outside `testdata/` blocks the commit, like the other data
+  files.
+
+**The pushes checked mark** (forsgren#583) is kept in
+`data/pushes_checked.csv`, next to the history, with its own format version
+(the pushes checked format v1): one line per repository whose reach was
+checked once, so a push read cut before `data/pushes_cut.csv` existed is
+found and marked on the next run.
+
+```
+# forsgren pushes checked v1
+repository,checked_at
+acme/app,2026-10-30T06:00:00Z
+```
+
+- `checked_at` is the start of the run that checked the repository, in UTC,
+  to the second. Lines are sorted by repository.
+- A repository with stored pushes, no line in `data/pushes_cut.csv` and no
+  line here is checked after its push read: one request of its activity list
+  oldest first (`direction=asc`, the first page only, inside the request
+  budget; GitHub's list pages by a cursor, so a page number cannot jump past
+  the stored pushes). When GitHub's oldest push, pull request merge or force
+  push is older than the oldest stored push, and that stored push is more
+  than a day after `history_days` back, the stored pushes do not reach back:
+  the repository gets a line in `data/pushes_cut.csv` at its oldest stored
+  push. Either way it gets a line here and is not checked again.
+- A first read that ended by itself (no read mark before it) is checked
+  without a request; a cut read notes its cut and needs no check.
+- A refused or failing request, or the request budget, writes nothing here or
+  in `data/pushes_cut.csv`: stderr says so and the next run checks again. It
+  never fails the repository.
+- A repository that was quiet for a while after `history_days` back and had
+  pushes before it can be marked though nothing in the window is missing; the
+  marker then says something true (GitHub holds older pushes forsgren has not
+  read), and the later backfill clears it when it reaches `history_days`.
+- Rewritten whole like `data/reach.csv`, and only when a line changed. A
+  missing file notes no repository. An unknown version or a malformed line
+  refuses the collect run before GitHub is asked anything, naming the file.
+- The data guard knows its name: a `pushes_checked.csv` that git tracks or
+  does not ignore, outside `testdata/` blocks the commit, like the other data
+  files.
+
 **The two history fill marks** (forsgren#470) are kept in
 `data/pull_commits_filled.csv` and `data/push_commits_filled.csv`, next to the
 history, each with its own format version (the pull commits filled format v1
@@ -1352,7 +1423,11 @@ not compared again.
   `pushes-cut` line of the cut report says so (see below). A
   first read of a busy repository costs one compare request per push.
 - A list cut at the page limit is an incomplete read: stderr says so, and
-  that older pushes may be skipped for good, since the mark moves.
+  that older pushes may be skipped for good, since the mark moves; the first
+  such cut of a repository is noted in `data/pushes_cut.csv` with the oldest
+  push time it reached (forsgren#583, see [History](#history)). A repository
+  read before that file existed is checked once with one request (the
+  pushes checked mark, `data/pushes_checked.csv`).
 - Any other error fails the repository, after its deployments, issues and
   pull requests were stored.
 - The branch read is the repository's default branch, asked of GitHub once

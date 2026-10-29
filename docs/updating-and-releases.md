@@ -757,6 +757,18 @@ write it. Nothing new is needed: no permission, secret or file. An agent
 following [agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing
 about it.
 
+**Upgrading to 1.32.0, which marks history not yet read** (forsgren#583). A
+minor release. On the Data page a date marked … is only where the read of a
+repository's pushes stopped at its page limit: earlier data is not yet read,
+so the repository did not start there. It marks Pushes, and Commits when the
+pushed commits give the date; the legend explains it. `collect` notes such a
+repository in a new mark file, `data/pushes_cut.csv` (see
+[History](data-files.md#history)). A repository whose first push read was cut
+before this release is found on the next run by a one-time check of one
+request, so its date is marked straight away. Nothing new is needed: no
+permission, secret or file. An agent following
+[agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing about it.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`
