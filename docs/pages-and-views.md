@@ -724,6 +724,15 @@ a path on github.com (forsgren#172):
   installation, and a test holds that each figure and term the pages show has an
   entry and each entry names something the pages show. The language gate takes
   the entry names as allowed terms.
+  The legend links to the entries (forsgren#370 step 3): the first mention of each
+  entry in each section of the legend (each heading of level 2, and the text before
+  the first) is a link to its anchor on the dictionary page. A mention is one of the
+  entry's labels (its name, or the labels it is shown as), a whole word written
+  exactly as the label is, the longest label first; nothing is linked inside a
+  heading or inside a link. `legendlinks.go` makes the links from the dictionary
+  when the legend is rendered, so no anchor is typed in a template and a renamed
+  entry cannot leave a dead link; tests hold that every link points at an anchor of
+  the dictionary page and that each section links once every entry it mentions.
 - **The settings page** (`settings.html`, forsgren#84, a table since forsgren#141)
   tabulates each optional config key under Parameter, Current value, Possible
   values and Default, see [Configuration](configuration.md#configuration).

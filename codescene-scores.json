@@ -2941,6 +2941,18 @@
    "score": 10.0,
    "checkedAt": "2026-10-29",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/page/legendlinks.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-29",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/legendlinks_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-29",
+   "minScore": 10.0
   }
  ]
 }

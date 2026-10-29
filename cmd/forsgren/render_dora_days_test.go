@@ -52,8 +52,8 @@ func TestRenderTreatsARejectedWindowAsTheDefault(t *testing.T) {
 func TestRenderLegendFollowsTheWindow(t *testing.T) {
 	pinNow(t)
 	cases := []struct{ keys, window, edge string }{
-		{"dora_days: 90\n", "The window is 90 days (dora_days in forsgren.config.yml).", "721 and more in 90 days"},
-		{"dora_days: 60\n", "The window is 30 days (the default; dora_days is not set in forsgren.config.yml).",
+		{"dora_days: 90\n", windowLink + " is 90 days (dora_days in forsgren.config.yml).", "721 and more in 90 days"},
+		{"dora_days: 60\n", windowLink + " is 30 days (the default; dora_days is not set in forsgren.config.yml).",
 			"241 and more in 30 days"},
 	}
 	for _, c := range cases {
@@ -70,3 +70,7 @@ func TestRenderLegendFollowsTheWindow(t *testing.T) {
 		}
 	}
 }
+
+// windowLink is how the legend opens its window sentence: the first mention of
+// the window, linked to its entry on the Dictionary page (forsgren#370).
+const windowLink = `The <a href="dictionary.html#window">window</a>`

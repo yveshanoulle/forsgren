@@ -1348,6 +1348,17 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:historyKind": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:narrowed": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:failuresOf": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:withFailures": 100.0
+    "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:withFailures": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/legendlinks.go:linkEntries": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/legendlinks.go:splitTag": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/legendlinks.go:labelsOf": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/legendlinks.go:note": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/legendlinks.go:step": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/legendlinks.go:text": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/legendlinks.go:link": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/legendlinks.go:mentionAt": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/legendlinks.go:inWord": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/legendlinks.go:withEntryLinks": 83.2,
+    "github.com/yveshanoulle/forsgren/internal/page/legendlinks.go:countSkipping": 100.0
   }
 }

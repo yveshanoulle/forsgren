@@ -380,14 +380,16 @@ func TestDaysPageMenuIgnoresTheConfiguredView(t *testing.T) {
 	}
 }
 
-// rendered is the page name rendered with data.
+// rendered is the page name rendered with data, less the links to the
+// dictionary's entries the legend carries (entryLink, forsgren#370 step 3), so
+// the wording tests read the sentences as written.
 func rendered(t *testing.T, name string, data Data) string {
 	t.Helper()
 	var got bytes.Buffer
 	if err := Render(&got, name, data); err != nil {
 		t.Fatalf("Render %s: %v", name, err)
 	}
-	return got.String()
+	return entryLink.ReplaceAllString(got.String(), "$1")
 }
 
 // wantOnEveryPage fails for each page of PageNames, rendered with data, that
