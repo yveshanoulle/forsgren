@@ -33,6 +33,8 @@ cd "$(dirname "$0")/.." || exit 1
 source Scripts/lib_selftest.sh
 # shellcheck source=Scripts/lib_summary_writers.sh
 source Scripts/lib_summary_writers.sh
+# shellcheck source=Scripts/lib_parallel_mutants.sh
+source Scripts/lib_parallel_mutants.sh
 selftest_begin "step summary isolation"
 
 SELF="test_step_summary_isolation.sh"
@@ -47,7 +49,7 @@ self_tests() { summary_selftests "$SELF" "$@"; }
 # leak <script>: run it with GITHUB_STEP_SUMMARY on a decoy, in the child
 # only; print the number of bytes that reached the decoy.
 leak() {
-  local decoy="${TMP}/decoy.$$.$RANDOM"
+  local decoy="${MUTANT_DIR:-$TMP}/decoy.$$.$RANDOM"
   : > "$decoy"
   GITHUB_STEP_SUMMARY="$decoy" bash "$1" > /dev/null 2>&1
   wc -c < "$decoy" | tr -d ' '
@@ -69,14 +71,23 @@ if [[ "${#TESTS[@]}" -eq 0 ]]; then
   selftest_abort "no self-test names a script that writes the step summary: the list is empty"
 fi
 
-for t in "${TESTS[@]}"; do
+# The self-tests are independent (each makes its own temp root), so they run side by
+# side through Scripts/lib_parallel_mutants.sh (forsgren#569), each with a decoy in a
+# folder of its own; mutants_wait prints them in the order of TESTS.
+check_leak() {
+  local t="$1" bytes
   bytes="$(leak "$t")"
   if [[ "$bytes" == "0" ]]; then
     echo "  ok: ${t} leaves the ambient step summary alone"
   else
     fail "${t} wrote ${bytes} bytes to the ambient GITHUB_STEP_SUMMARY: on the Quality run that is the real run page, ahead of the headline"
   fi
+}
+mutants_init "$TMP"
+for t in "${TESTS[@]}"; do
+  mutant_run check_leak "$t"
 done
+mutants_wait
 
 # Mutation proofs, with throwaway self-tests that write to the summary.
 mkdir -p "${TMP}/proof"

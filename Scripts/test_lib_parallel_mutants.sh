@@ -25,6 +25,10 @@
 #   (h) Scripts/test_gate_browser.sh sources the library and runs its mutation proofs
 #       through it (mutants_init, mutant_run, mutants_wait), and keeps no
 #       selftest_mutant proof outside a mutant function
+#   (k) Scripts/test_quality_jobs.sh runs its mutation proofs through the library, and
+#       Scripts/test_step_summary_isolation.sh its self-test runs (forsgren#569), each
+#       started with mutant_run and collected with mutants_wait, none run in a loop of
+#       its own
 #
 # Local invocation: ./Scripts/test_lib_parallel_mutants.sh
 set -euo pipefail
@@ -233,5 +237,16 @@ file_has "(h) it calls mutants_wait" "$BROWSER_TEST" "mutants_wait"
 # one after the other, outside the library.
 outside="$(awk '/^mutant_[a-z0-9_]*\(\) \{/ {inside=1} /^\}/ {inside=0} /selftest_mutant / && !inside {print}' "$BROWSER_TEST")"
 check "(h) no selftest_mutant call outside a mutant function" "" "$outside"
+
+# (k) the quality jobs pin and the step summary isolation gate run through the library.
+for QJ in Scripts/test_quality_jobs.sh Scripts/test_step_summary_isolation.sh; do
+  file_has "(k) ${QJ} sources lib_parallel_mutants.sh" "$QJ" "source Scripts/lib_parallel_mutants.sh"
+  file_has "(k) ${QJ} calls mutants_init" "$QJ" "mutants_init"
+  file_has "(k) ${QJ} starts its cases with mutant_run" "$QJ" "mutant_run "
+  file_has "(k) ${QJ} calls mutants_wait" "$QJ" "mutants_wait"
+done
+# The quality jobs pin's inline judge has a name of its own: the bare name `mutant`
+# starts it through the library.
+file_has "(k) the inline judge is mutant_case" "Scripts/test_quality_jobs.sh" 'mutant_case() {'
 
 selftest_end "the parallel mutants library self-test failed" "parallel mutants library: concurrency, order, failures, cap and the browser gate use hold"

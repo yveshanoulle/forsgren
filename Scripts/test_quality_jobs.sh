@@ -103,7 +103,14 @@ source Scripts/lib_has.sh
 source Scripts/lib_selftest.sh
 # shellcheck source=Scripts/lib_workflow_steps.sh
 source Scripts/lib_workflow_steps.sh
+# shellcheck source=Scripts/lib_parallel_mutants.sh
+source Scripts/lib_parallel_mutants.sh
 selftest_begin "quality jobs pin"
+
+# The folder the job files of one findings run are cut into (job_findings): the temp
+# root for the real file, a folder of its own for each mutant (forsgren#569), so
+# mutants run side by side never share a path.
+JOBS_TMP="$TMP"
 
 WORKFLOW=".github/workflows/quality.yml"
 GROUPS_FILE="Scripts/ci_job_groups.txt"
@@ -182,7 +189,7 @@ setup_findings() {
     return 0
   fi
   grep -qxF "    runs-on: ${runner}" "$job" || echo "runs-on: the ${id} job is not on ${runner}"
-  want="$(pin_of "${TMP}/main.yml")"
+  want="$(pin_of "${JOBS_TMP}/main.yml")"
   got="$(pin_of "$job")"
   [[ -n "$want" && "$got" == "$want" ]] || echo "pin of checkout: the ${id} job has ${got:-none}, the main job ${want:-none}"
   grep -qF 'fetch-depth: 0' "$job" || echo "checkout: the ${id} job does not fetch the full history, as the main job does"
@@ -311,19 +318,19 @@ phase_calls() {
 # job_findings <file>: pins 1 to 5.
 job_findings() {
   local wf="$1" main q2 lnt iso sum b1 brw wfl rep calls id others needs listed pre_line build_line post_line n
-  main="${TMP}/main.yml"
-  q2="${TMP}/quality_2.yml"
-  lnt="${TMP}/lint.yml"
-  sum="${TMP}/summary.yml"
-  b1="${TMP}/browser_1.yml"
-  brw="${TMP}/browser.yml"
-  wfl="${TMP}/workflows.yml"
-  rep="${TMP}/report.yml"
+  main="${JOBS_TMP}/main.yml"
+  q2="${JOBS_TMP}/quality_2.yml"
+  lnt="${JOBS_TMP}/lint.yml"
+  sum="${JOBS_TMP}/summary.yml"
+  b1="${JOBS_TMP}/browser_1.yml"
+  brw="${JOBS_TMP}/browser.yml"
+  wfl="${JOBS_TMP}/workflows.yml"
+  rep="${JOBS_TMP}/report.yml"
   job_of "$wf" quality > "$main"
   job_of "$wf" quality_2 > "$q2"
   job_of "$wf" lint > "$lnt"
   for n in 1 2; do
-    job_of "$wf" "isolation_${n}" > "${TMP}/isolation_${n}.yml"
+    job_of "$wf" "isolation_${n}" > "${JOBS_TMP}/isolation_${n}.yml"
   done
   job_of "$wf" summary > "$sum"
   job_of "$wf" browser_1 > "$b1"
@@ -336,7 +343,7 @@ job_findings() {
     || echo "tools: the main job must run the full ./Scripts/install_tools.sh with no tools file: it runs the language gate, the secret scan and the exit-trap gate"
   setup_findings "$lnt" lint ubuntu-latest "Scripts/install_tools_linux.sh Scripts/required_tools_linux.txt"
   for n in 1 2; do
-    setup_findings "${TMP}/isolation_${n}.yml" "isolation_${n}" ubuntu-latest "$LINUX_GATES_INSTALL"
+    setup_findings "${JOBS_TMP}/isolation_${n}.yml" "isolation_${n}" ubuntu-latest "$LINUX_GATES_INSTALL"
   done
   setup_findings "$sum" summary ubuntu-latest "$LINUX_GATES_INSTALL"
   setup_findings "$b1" browser_1 macos-latest "Scripts/install_tools.sh $(tools_file_of browser_1)"
@@ -346,7 +353,7 @@ job_findings() {
   handover_findings "$q2" quality_2
   handover_findings "$lnt" lint
   for n in 1 2; do
-    handover_findings "${TMP}/isolation_${n}.yml" "isolation_${n}"
+    handover_findings "${JOBS_TMP}/isolation_${n}.yml" "isolation_${n}"
   done
   handover_findings "$sum" summary
   handover_findings "$b1" browser_1
@@ -380,7 +387,7 @@ job_findings() {
   [[ "$(grep -cE " \"[$]DETAILS\" main( |\$)" <<< "$calls")" == 2 ]] \
     || echo "main: both run_ci_phase.sh calls of the main job must end with the job name main, got: ${calls:-none}"
   for n in 1 2; do
-    iso="${TMP}/isolation_${n}.yml"
+    iso="${JOBS_TMP}/isolation_${n}.yml"
     if [[ -s "$iso" ]]; then
       calls="$(phase_calls "$iso")"
       [[ "$calls" == *"run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" isolation_${n}" && "$(wc -l <<< "$calls" | tr -d ' ')" == 1 ]] \
@@ -567,9 +574,11 @@ else
   fail "the tools lists break a pin:"$'\n'"$OUT"
 fi
 
-# mutant <name> <sed-expression> <finding>
-mutant() {
-  local file="${TMP}/$1.yml"
+# mutant_case <name> <sed-expression> <finding>: one mutation proof, in the folder of
+# its own (MUTANT_DIR) that Scripts/lib_parallel_mutants.sh gives it.
+mutant_case() {
+  local file="${MUTANT_DIR}/mutated.yml"
+  JOBS_TMP="$MUTANT_DIR"
   sed "$2" "$WORKFLOW" > "$file"
   if cmp -s "$WORKFLOW" "$file"; then
     fail "the mutation $2 changed nothing: the proof of '$1' would be vacuous"
@@ -581,6 +590,13 @@ mutant() {
   else
     fail "mutation proof: '$1' was not named '$3'. Findings: ${OUT:-none}"
   fi
+}
+
+# mutant <name> <sed-expression> <finding>: starts the proof side by side with the
+# others (mutants_wait below prints them in this order).
+mutants_init "$TMP"
+mutant() {
+  mutant_run mutant_case "$@"
 }
 
 Q='/^  quality:/,/^  quality_2:/'
@@ -722,6 +738,7 @@ for j in quality_2:"$Q2" browser_1:"$B1" browser:"$B"; do
 done
 mutant "main installing a short tool list" "${Q}"'s#\./Scripts/install_tools\.sh#./Scripts/install_tools.sh Scripts/required_tools_browser_gates.txt#' \
   "tools: the main job must run the full ./Scripts/install_tools.sh"
+mutants_wait
 
 # expect_named <what> <finding>: OUT, the findings of the last mutant, names it.
 expect_named() {
