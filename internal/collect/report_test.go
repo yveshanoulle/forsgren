@@ -27,6 +27,7 @@ func sampleReport() Report {
 		PullFillCut:    []string{"acme/fill"},
 		PushFillCut:    []string{"acme/fill"},
 		PullBotFillCut: []string{"acme/fill"},
+		PushesFillCut:  []string{"acme/old"},
 		FilesCut:       []string{"acme/svc"},
 		ServiceUnmatched: []UnmatchedService{
 			{"acme/app", 43, ServiceUnknown, "Web shop"}, {"acme/api", 7, ServiceAmbiguous, "Web"},
@@ -46,6 +47,7 @@ const sampleText = "# forsgren collect report v1\n" +
 	"pull-commits-fill-cut acme/fill\n" +
 	"push-commits-fill-cut acme/fill\n" +
 	"pulls-bot-fill-cut acme/fill\n" +
+	"pushes-fill-cut acme/old\n" +
 	"commit-files-cut acme/svc\n" +
 	"failure-service acme/app 43 unknown Web+shop\n" +
 	"failure-service acme/api 7 ambiguous Web\n" +
@@ -82,6 +84,7 @@ func TestAReportIsIncompleteForOneKindOfCutAlone(t *testing.T) {
 		"pull-commits-fill-cut acme/app\n": {PullFillCut: []string{"acme/app"}, Reset: reset},
 		"push-commits-fill-cut acme/app\n": {PushFillCut: []string{"acme/app"}, Reset: reset},
 		"pulls-bot-fill-cut acme/app\n":    {PullBotFillCut: []string{"acme/app"}, Reset: reset},
+		"pushes-fill-cut acme/app\n":       {PushesFillCut: []string{"acme/app"}, Reset: reset},
 		"commit-files-cut acme/app\n":      {FilesCut: []string{"acme/app"}, Reset: reset},
 	} {
 		if got := r.Render(); got != head+line {

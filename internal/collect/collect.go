@@ -264,7 +264,10 @@ func (o Options) backfillThenPushes(ctx context.Context, h held, repo string, pu
 	if err != nil {
 		return pushes, err
 	}
-	return pushes, o.fillPullBots(ctx, h, repo, pullsWhole)
+	if err := o.fillPullBots(ctx, h, repo, pullsWhole); err != nil {
+		return pushes, err
+	}
+	return pushes, o.fillPushes(ctx, h, repo)
 }
 
 // issueLines is what one repository's issues give to store: its failure

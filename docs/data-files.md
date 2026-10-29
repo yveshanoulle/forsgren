@@ -744,8 +744,8 @@ acme/app,2026-10-23T06:00:00Z
   `history_days`.
 - The line moves only after a read that ended: a read that a missing
   permission, the request budget or an error stopped keeps the line as it
-  was. A list cut at the page limit moves it, with a note on stderr that
-  older pushes may be skipped for good.
+  was. A list cut at the page limit moves it, with a note on stderr that the
+  older pushes are left to the fill of the older pushes (forsgren#583).
 - Rewritten whole like `data/reach.csv`, and only when a line changed. A
   missing file notes no repository. An unknown version or a malformed line
   refuses the collect run before GitHub is asked anything, naming the file.
@@ -863,6 +863,30 @@ acme/app,2026-10-30T06:00:00Z
   refuses the collect run before GitHub is asked anything, naming the file.
 - The data guard knows its name: a `pushes_checked.csv` that git tracks or
   does not ignore, outside `testdata/` blocks the commit, like the other data
+  files.
+
+**The pushes fill mark** (forsgren#583) is kept in `data/pushes_fill.csv`,
+next to the history, with its own format version (the pushes fill format
+v1): one line per repository whose fill of its older pushes has begun.
+
+```
+# forsgren pushes fill v1
+repository,filled_at,cursor
+acme/app,2026-10-30T06:00:00Z,Y3Vyc29yOnYyOpK7MjAyNi0xMC0yNlQxMDo0NjoxOS4wMDAwMDBazwAAAAsh1nw8
+```
+
+- `filled_at` is the start of the run that last moved the fill, in UTC, to
+  the second; `cursor` is GitHub's `after` cursor of the next page of the
+  activity list to read, kept as GitHub gave it (it holds its place across
+  runs). Only its shape is checked: letters, digits and the signs of base64,
+  at most 512 of them; anything else refuses the file. Lines are sorted by
+  repository.
+- Rewritten whole like `data/reach.csv`, and only when a line changed. A
+  missing file notes no repository: a fill without a line starts at the top
+  of the list. An unknown version or a malformed line refuses the collect run
+  before GitHub is asked anything, naming the file.
+- The data guard knows its name: a `pushes_fill.csv` that git tracks or does
+  not ignore, outside `testdata/` blocks the commit, like the other data
   files.
 
 **The two history fill marks** (forsgren#470) are kept in
@@ -1423,7 +1447,7 @@ not compared again.
   `pushes-cut` line of the cut report says so (see below). A
   first read of a busy repository costs one compare request per push.
 - A list cut at the page limit is an incomplete read: stderr says so, and
-  that older pushes may be skipped for good, since the mark moves; the first
+  that older pushes are left to the fill below, since the mark moves; the first
   such cut of a repository is noted in `data/pushes_cut.csv` with the oldest
   push time it reached (forsgren#583, see [History](#history)). A repository
   read before that file existed is checked once with one request (the
@@ -1432,6 +1456,36 @@ not compared again.
   pull requests were stored.
 - The branch read is the repository's default branch, asked of GitHub once
   per repository and run (the `workflow=` rule shares the request).
+
+**The fill of the older pushes** (forsgren#583). A repository with a line in
+`data/pushes_cut.csv` holds pushes older than its stored ones that no read
+reached. After its push read and the fill of the pull request openers, and
+before the read of the commit files, each run reads more of its activity
+list, newest first, one page (100 activities, one request) at a time after
+the cursor in `data/pushes_fill.csv`, up to the page limit (10 pages) per
+run.
+
+- Each push not stored yet is compared and stored as a new one of the push
+  read (`data/push_commits.csv` first, then `data/pushes.csv`); a stored push
+  costs no compare and is never stored twice.
+- A fill without a cursor starts at the top of the list: its first pages hold
+  the stored pushes and cost a request each, once.
+- The fill stops at the first push older than `history_days` back, which it
+  neither compares nor stores, and when the list ends.
+- After each page the cut line moves to the oldest push read so far and the
+  cursor to the next page; a run stopped inside a page reads that page again
+  next time, at most one page more, skipping what it stored.
+- A 403 writes `data/pushes_denied.csv`, as the push read does; the request
+  budget stores what was compared, keeps the cursor and writes a
+  `pushes-fill-cut` line in the cut report. Neither fails the run; any other
+  error fails the repository after storing.
+- It runs before the read of the commit files on purpose: its cost is bounded
+  per run (10 page requests and at most 1000 compares), while the first read
+  of the commit files can take thousands of requests, so both progress every
+  day; it runs after the push read so it never holds fresh data back.
+- The cut line stays when the fill reaches the end of the list or
+  `history_days`; telling those two ends apart and removing the line is the
+  next step of forsgren#583.
 
 **The history fill** (forsgren#470). Data stored before forsgren#463 lacks
 what the Mainline Lead Time needs: the commit lists of merged pull requests
@@ -1519,6 +1573,7 @@ pushes-cut acme/api
 pull-commits-fill-cut acme/lib
 push-commits-fill-cut acme/lib
 pulls-bot-fill-cut acme/lib
+pushes-fill-cut acme/lib
 failed acme/web secondary-rate-limit
 ```
 
@@ -1553,6 +1608,11 @@ failed acme/web secondary-rate-limit
   (forsgren#500): incomplete, never failed, and the job summary says `acme/lib
   history fill cut short (the next run continues)`. What was filled is stored,
   and the next run continues.
+- A `pushes-fill-cut` line names a repository whose fill of its older pushes
+  (forsgren#583) the request budget cut short: incomplete, never failed, and
+  the job summary says `acme/lib history fill cut short (the next run
+  continues)`. The pushes compared are stored, the cursor stays at the page
+  that was cut, and the next run reads that page again.
 - A `pull-commits-fill-cut` and a `push-commits-fill-cut` line name a
   repository whose history fill of the stored pull requests' commits, or of
   the stored merge pushes' lines, the request budget cut short (forsgren#470):

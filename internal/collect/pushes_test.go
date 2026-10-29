@@ -346,15 +346,15 @@ func TestAPushesFileThatCannotBeWrittenFailsTheRepository(t *testing.T) {
 }
 
 // TestAPushListCutAtThePageLimitIsNamedAndTheMarkMoves: the list is newest
-// first, so the same mark would read the same pages; stderr says older
-// pushes may be skipped for good.
+// first, so the same mark would read the same pages; stderr says the older
+// pushes are left to the push fill (forsgren#583).
 func TestAPushListCutAtThePageLimitIsNamedAndTheMarkMoves(t *testing.T) {
 	g := pushesOnly(t, activityOf("push", pushTime1, shaA, shaB))
 	g.bodies[comparePath(shaA, shaB)] = chain(shaA, shaB)
 	g.paged[activityPath] = true
 	path := historyPath(t)
 	r := g.collect(t, shop(production), path, 1)
-	if r.err != nil || !strings.Contains(r.stderr, "push read is incomplete") {
+	if r.err != nil || !strings.Contains(r.stderr, "push read is incomplete; the older pushes are left to the push fill") {
 		t.Errorf("want the incomplete read named and no error, got %v, %q", r.err, r.stderr)
 	}
 	dataOf(path).want(t, PushesReadFile, pushesReadNow)

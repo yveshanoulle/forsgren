@@ -72,6 +72,9 @@ const (
 	// PushesCheckedFile is the name, next to the history, of the file that
 	// notes each repository whose one-time reach check ran (forsgren#583).
 	PushesCheckedFile = "pushes_checked.csv"
+	// PushesFillFile is the name, next to the history, of the file that keeps
+	// where each repository's fill of its older pushes goes on (forsgren#583).
+	PushesFillFile = "pushes_fill.csv"
 )
 
 // pushesFile is the path of the pushes file next to o's history.
@@ -170,8 +173,8 @@ func (o Options) endPushes(h held, repo string, truncated bool, err error) error
 		return err
 	}
 	if truncated {
-		o.warn("collect: %s: the push read is incomplete: only the newest %d page(s) were read, "+
-			"and older pushes may be skipped for good, since the read mark moves on\n", repo, o.Client.MaxPages())
+		o.warn("collect: %s: the push read is incomplete; the older pushes are left to the push fill "+
+			"of the next runs: only the newest %d page(s) were read\n", repo, o.Client.MaxPages())
 	}
 	h.pushesRead[key] = wholeSecond(o.Now)
 	delete(h.pushesDenied, key)

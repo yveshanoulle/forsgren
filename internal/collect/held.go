@@ -74,6 +74,8 @@ type held struct {
 	pushesCut      history.Reach             // see pushes.go: where a push read stopped at the page cap
 	pushesChecked  history.Reach             // see pushesreach.go: the repositories whose reach was checked
 	oldestPush     map[string]time.Time      // see pushesreach.go: the oldest stored push per repository
+	pushesFilledAt history.Reach             // see pushesbackfill.go: when each push fill last moved
+	fillCursors    map[string]string         // see pushesbackfill.go: the cursor of each, with pushesFilledAt
 	backfilled     history.Reach             // see legacybackfill.go
 	pullsFilled    history.Reach             // see pullsfill.go
 	mergesFilled   history.Reach             // see pushesfill.go

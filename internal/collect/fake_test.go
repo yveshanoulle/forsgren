@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -36,11 +37,15 @@ const (
 // list: collect reads every repository's failure issues (forsgren#18) and
 // pull requests (forsgren#255), and a test about deployments has none.
 type gitHub struct {
-	srv     *httptest.Server
-	mu      sync.Mutex
-	bodies  map[string]string
-	status  map[string]int
-	paged   map[string]bool
+	srv    *httptest.Server
+	mu     sync.Mutex
+	bodies map[string]string
+	status map[string]int
+	paged  map[string]bool
+	// after maps a key to the after cursor of its next page: its answer gets
+	// a Link to the path with that cursor, GitHub's activity paging
+	// (forsgren#583); the answer to that page is the key path + afterKey(c).
+	after   map[string]string
 	limited map[string]bool // paths answered with Retry-After: 60, GitHub's secondary rate limit
 	left    map[string]int  // paths answered with X-RateLimit-Remaining: n, of 5000, resetting at resetAt
 	resetAt time.Time
@@ -60,6 +65,7 @@ type gitHub struct {
 func newGitHub(t *testing.T) *gitHub {
 	t.Helper()
 	g := &gitHub{bodies: map[string]string{}, status: map[string]int{}, paged: map[string]bool{},
+		after:   map[string]string{},
 		limited: map[string]bool{}, left: map[string]int{},
 		resetAt: time.Now().Add(40 * time.Minute).Truncate(time.Second)}
 	g.srv = httptest.NewServer(http.HandlerFunc(g.serve))
@@ -73,6 +79,10 @@ func (g *gitHub) setHeaders(w http.ResponseWriter, r *http.Request, key string) 
 	if g.paged[key] {
 		next := r.URL.Query()
 		next.Set("page", "2")
+		w.Header().Set("Link", "<"+g.srv.URL+r.URL.Path+"?"+next.Encode()+`>; rel="next"`)
+	}
+	if cursor, ok := g.after[key]; ok {
+		next := url.Values{"ref": {r.URL.Query().Get("ref")}, "per_page": {"100"}, "after": {cursor}}
 		w.Header().Set("Link", "<"+g.srv.URL+r.URL.Path+"?"+next.Encode()+`>; rel="next"`)
 	}
 	if g.limited[key] {
@@ -146,11 +156,27 @@ func keyOf(r *http.Request) string {
 	switch {
 	case strings.HasSuffix(r.URL.Path, "/issues"):
 		return issuesKeyOf(r)
-	case strings.HasSuffix(r.URL.Path, "/activity") && r.URL.Query().Get("direction") == "asc":
-		return r.URL.Path + oldestFirst
+	case strings.HasSuffix(r.URL.Path, "/activity"):
+		return activityKeyOf(r)
 	}
 	return r.URL.Path
 }
+
+// activityKeyOf is keyOf for the activity list: read oldest first, after a
+// cursor, or from the top.
+func activityKeyOf(r *http.Request) string {
+	query := r.URL.Query()
+	switch {
+	case query.Get("direction") == "asc":
+		return r.URL.Path + oldestFirst
+	case query.Has("after"):
+		return r.URL.Path + afterKey(query.Get("after"))
+	}
+	return r.URL.Path
+}
+
+// afterKey marks the answer to the page of the activity list after cursor.
+func afterKey(cursor string) string { return "#after=" + cursor }
 
 // issuesKeyOf is keyOf for a list of issues.
 func issuesKeyOf(r *http.Request) string {

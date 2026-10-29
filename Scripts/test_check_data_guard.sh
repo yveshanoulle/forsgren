@@ -44,8 +44,8 @@
 #  18. a pushes.csv, a pushes_read.csv, a        -> red, each named
 #      pushes_denied.csv, a push_commits.csv,
 #      a push_commits_filled.csv, a
-#      pushes_cut.csv and a pushes_checked.csv
-#      elsewhere
+#      pushes_cut.csv, a pushes_checked.csv and
+#      a pushes_fill.csv elsewhere
 #      (forsgren#397, forsgren#470, forsgren#583)
 #  19. a pulls_bot_filled.csv elsewhere         -> red, named (forsgren#500)
 #  20. a commit_files.csv and a                  -> red, each named
@@ -80,7 +80,7 @@
 #   - case 17: with the pulls_denied.csv arm deleted, a repository holding
 #     only ops/pulls_denied.csv must turn green.
 #   - case 18: with the pushes.csv, pushes_read.csv, pushes_denied.csv,
-#     push_commits.csv, push_commits_filled.csv, pushes_cut.csv or pushes_checked.csv arm deleted, a repository holding only ops/ of that file must turn green.
+#     push_commits.csv, push_commits_filled.csv, pushes_cut.csv, pushes_checked.csv or pushes_fill.csv arm deleted, a repository holding only ops/ of that file must turn green.
 #   - case 19: with the pulls_bot_filled.csv arm deleted, a repository holding
 #     only ops/pulls_bot_filled.csv must turn green.
 #   - case 20: with the commit_files.csv or commit_files_filled.csv arm
@@ -333,6 +333,7 @@ write_file "ops/push_commits.csv" $'# forsgren push commits v1\n' track
 write_file "ops/push_commits_filled.csv" $'# forsgren push commits filled v1\n' track
 write_file "ops/pushes_cut.csv" $'# forsgren pushes cut v1\n' track
 write_file "ops/pushes_checked.csv" $'# forsgren pushes checked v1\n' track
+write_file "ops/pushes_fill.csv" $'# forsgren pushes fill v1\n' track
 run_gate
 want_red "a pushes.csv outside data/ is red and named (forsgren#397)" "❌ FAIL: ops/pushes.csv"
 want_said "a pushes_read.csv outside data/ is red and named (forsgren#397)" "❌ FAIL: ops/pushes_read.csv"
@@ -341,6 +342,7 @@ want_said "a push_commits.csv outside data/ is red and named (forsgren#397)" "�
 want_said "a push_commits_filled.csv outside data/ is red and named (forsgren#470)" "❌ FAIL: ops/push_commits_filled.csv"
 want_said "a pushes_cut.csv outside data/ is red and named (forsgren#583)" "❌ FAIL: ops/pushes_cut.csv"
 want_said "a pushes_checked.csv outside data/ is red and named (forsgren#583)" "❌ FAIL: ops/pushes_checked.csv"
+want_said "a pushes_fill.csv outside data/ is red and named (forsgren#583)" "❌ FAIL: ops/pushes_fill.csv"
 new_repo "pushes-elsewhere-pushes"
 write_file "ops/pushes.csv" $'# forsgren pushes v1\n' track
 new_repo "pushes-elsewhere-read"
@@ -355,6 +357,8 @@ new_repo "pushes-elsewhere-cut"
 write_file "ops/pushes_cut.csv" $'# forsgren pushes cut v1\n' track
 new_repo "pushes-elsewhere-checked"
 write_file "ops/pushes_checked.csv" $'# forsgren pushes checked v1\n' track
+new_repo "pushes-elsewhere-fill"
+write_file "ops/pushes_fill.csv" $'# forsgren pushes fill v1\n' track
 
 new_repo "pulls-bot-filled-elsewhere"
 write_file "ops/pulls_bot_filled.csv" $'# forsgren pulls bot filled v1\n' track
@@ -473,6 +477,8 @@ arm_deleted_proof 18 "pushes_cut.csv" '^[[:space:]]*pushes_cut\.csv\) why=' \
   "${TMP}/check_data_guard_nopushescut.sh" "pushes-elsewhere-cut" "ops/pushes_cut.csv"
 arm_deleted_proof 18 "pushes_checked.csv" '^[[:space:]]*pushes_checked\.csv\) why=' \
   "${TMP}/check_data_guard_nopusheschecked.sh" "pushes-elsewhere-checked" "ops/pushes_checked.csv"
+arm_deleted_proof 18 "pushes_fill.csv" '^[[:space:]]*pushes_fill\.csv\) why=' \
+  "${TMP}/check_data_guard_nopushesfill.sh" "pushes-elsewhere-fill" "ops/pushes_fill.csv"
 arm_deleted_proof 19 "pulls_bot_filled.csv" '^[[:space:]]*pulls_bot_filled\.csv\) why=' \
   "${TMP}/check_data_guard_nopullsbotfilled.sh" "pulls-bot-filled-elsewhere" "ops/pulls_bot_filled.csv"
 arm_deleted_proof 20 "commit_files.csv" '^[[:space:]]*commit_files\.csv\) why=' \

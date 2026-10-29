@@ -62,7 +62,7 @@ func (f *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	f.requests = append(f.requests, r.Clone(r.Context()))
 	f.bodies[r.Method+" "+r.URL.Path] = string(body)
-	rep, ok := f.replies[pageKey(r.URL.Path, r.URL.Query().Get("page"))]
+	rep, ok := f.replies[pageKey(r.URL.Path, cmp.Or(r.URL.Query().Get("page"), r.URL.Query().Get("after")))]
 	f.mu.Unlock()
 	if !ok {
 		rep = reply{status: http.StatusNotFound, body: `{"message":"Not Found"}`}

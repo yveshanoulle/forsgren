@@ -15,6 +15,7 @@ package collect
 //	pull-commits-fill-cut acme/lib
 //	push-commits-fill-cut acme/lib
 //	pulls-bot-fill-cut acme/lib
+//	pushes-fill-cut acme/lib
 //	commit-files-cut acme/lib
 //	failed acme/web secondary-rate-limit
 //
@@ -41,6 +42,8 @@ package collect
 // A `pulls-bot-fill-cut` line names a repository whose one-time fill of the
 // bot status of the stored pull requests the budget cut short: the same
 // (forsgren#500).
+// A `pushes-fill-cut` line names a repository whose fill of the older pushes
+// below a page-cap cut the budget cut short: the same (forsgren#583).
 // A `commit-files-cut` line names a repository whose read of the changed
 // files of its deployed commits the budget cut short: incomplete, never
 // failed, continued by the next run (forsgren#496).
@@ -125,6 +128,9 @@ type Report struct {
 	// status of the stored pull requests was cut short at the request
 	// budget (forsgren#500).
 	PullBotFillCut []string
+	// PushesFillCut names the repositories whose fill of the older pushes
+	// below a page-cap cut was cut short at the request budget (forsgren#583).
+	PushesFillCut []string
 	// FilesCut names the repositories whose read of the files of their
 	// deployed commits was cut short at the request budget (forsgren#496).
 	FilesCut []string
@@ -156,6 +162,7 @@ func (r Report) Render() string {
 	writeRepositories(&b, "pull-commits-fill-cut", r.PullFillCut)
 	writeRepositories(&b, "push-commits-fill-cut", r.PushFillCut)
 	writeRepositories(&b, "pulls-bot-fill-cut", r.PullBotFillCut)
+	writeRepositories(&b, "pushes-fill-cut", r.PushesFillCut)
 	writeRepositories(&b, "commit-files-cut", r.FilesCut)
 	for _, u := range r.ServiceUnmatched {
 		fmt.Fprintf(&b, "failure-service %s %d %s %s\n", u.Repository, u.Issue, u.Reason, url.QueryEscape(u.Label))
@@ -186,7 +193,8 @@ func (c Cut) line() string {
 // its backfill of the legacy commits or its pushes short.
 func (r Report) incomplete() bool {
 	for _, repos := range [][]string{
-		r.PullsCut, r.BackfillCut, r.PushesCut, r.PullFillCut, r.PushFillCut, r.PullBotFillCut, r.FilesCut,
+		r.PullsCut, r.BackfillCut, r.PushesCut, r.PullFillCut, r.PushFillCut, r.PullBotFillCut, r.PushesFillCut,
+		r.FilesCut,
 	} {
 		if len(repos) > 0 {
 			return true
@@ -264,6 +272,10 @@ var lineKinds = map[string]lineKind{
 	}},
 	"pulls-bot-fill-cut": {2, func(r *Report, f []string) error {
 		r.PullBotFillCut = append(r.PullBotFillCut, f[0])
+		return nil
+	}},
+	"pushes-fill-cut": {2, func(r *Report, f []string) error {
+		r.PushesFillCut = append(r.PushesFillCut, f[0])
 		return nil
 	}},
 	"commit-files-cut": {2, func(r *Report, f []string) error {

@@ -78,7 +78,7 @@ func serviceWords(report collect.Report) []string {
 // files it cut short (forsgren#496).
 func budgetWords(report collect.Report) []string {
 	var words []string
-	fills := slices.Concat(report.PullFillCut, report.PushFillCut, report.PullBotFillCut)
+	fills := slices.Concat(report.PullFillCut, report.PushFillCut, report.PullBotFillCut, report.PushesFillCut)
 	for _, c := range report.Cuts {
 		words = append(words, cutWords(c))
 	}

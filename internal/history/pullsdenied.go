@@ -156,15 +156,23 @@ func SavePushesDenied(path string, d Denied) error { return saveDenied(path, d, 
 func saveDenied(path string, d Denied, f format[deniedRow, string]) error {
 	rows := make([]deniedRow, 0, len(d))
 	for repository, denial := range d {
-		row := deniedRow{repository, denial}
-		if err := row.validate(); err != nil {
+		rows = append(rows, deniedRow{repository, denial})
+	}
+	return saveRows(path, rows, f)
+}
+
+// saveRows writes rows to path whole in the format f, sorted by its compare,
+// like SaveReach; a row the format cannot store is refused before anything
+// is written.
+func saveRows[R any](path string, rows []R, f format[R, string]) error {
+	for _, row := range rows {
+		if err := f.validate(row); err != nil {
 			return fmt.Errorf("%s: %w", path, err)
 		}
-		rows = append(rows, row)
 	}
 	slices.SortFunc(rows, f.compare)
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
-	return replaceWhole(path, f.payload(store[deniedRow]{}, rows))
+	return replaceWhole(path, f.payload(store[R]{}, rows))
 }
