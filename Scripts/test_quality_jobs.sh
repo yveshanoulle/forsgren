@@ -56,7 +56,8 @@
 #      and their mutations, the metrics, release, starter page, vulncheck,
 #      auto-update and preview workflow pins and this pin, and, since
 #      forsgren#447 step 6, go mod tidy and the Go test duplication and Go
-#      vulnerabilities self-tests), about 260 s and 85 s that the
+#      vulnerabilities self-tests, and, since step 8b, eleven Linux-safe tail
+#      gates of the main job, 85 s), about 260 s, 85 s and 85 s that the
 #      main job no longer runs, so the main job is no longer the critical path
 #   3e. the quality_2 job (forsgren#447) has the same setup and runs exactly
 #      run_ci_phase.sh pre for the job `quality_2`; no step names one of its
@@ -463,11 +464,15 @@ groups_findings() {
     'workflows|starter page workflow' 'workflows|quality jobs pin' 'workflows|preview workflow' \
     'workflows|vulncheck workflow' 'workflows|auto-update workflow' \
     'workflows|go mod tidy' 'workflows|Go test duplication self-test' 'workflows|Go vulnerabilities self-test' \
+    'workflows|release pins self-test' 'workflows|browser gate selection self-test' 'workflows|Go tests self-test' \
+    'workflows|release precheck self-test' 'workflows|community-files self-test' 'workflows|DCO sign-off self-test' \
+    'workflows|sfl drives from the order file' 'workflows|release plan self-test' 'workflows|release report self-test' \
+    'workflows|release check self-test' 'workflows|release metrics self-test' \
     | LC_ALL=C sort | tr '\n' ';')"
   [[ -f "$GROUPS_FILE" ]] || { echo "groups: ${GROUPS_FILE} does not exist"; return 0; }
   rows="$(grep -v '^#' "$GROUPS_FILE" | grep . | LC_ALL=C sort | tr '\n' ';')"
   [[ "$rows" == "$labels" ]] \
-    || echo "groups: ${GROUPS_FILE} must give the two isolation jobs the git sandbox isolation self-test, one shard each (isolation_1 with --shard 1/2, isolation_2 with --shard 2/2), the summary job the step summary isolation gate, the browser_1 job the browser gate self-test and the browser gate (fixture site) self-test, the browser job the two browser gates and the process self-test, the lint job actionlint, shellcheck, yamllint and zizmor with their self-tests and Go lint with its self-test, the quality_2 job the eleven gates of forsgren#447 (the Go tests with the Go coverage gate, nine more), and the workflows job gate wiring, the checkout pins mutations and the pins of the metrics, release, starter page, vulncheck, auto-update and preview workflows and of this job layout, go mod tidy and the Go test duplication and Go vulnerabilities self-tests, got: ${rows:-none}"
+    || echo "groups: ${GROUPS_FILE} must give the two isolation jobs the git sandbox isolation self-test, one shard each (isolation_1 with --shard 1/2, isolation_2 with --shard 2/2), the summary job the step summary isolation gate, the browser_1 job the browser gate self-test and the browser gate (fixture site) self-test, the browser job the two browser gates and the process self-test, the lint job actionlint, shellcheck, yamllint and zizmor with their self-tests and Go lint with its self-test, the quality_2 job the eleven gates of forsgren#447 (the Go tests with the Go coverage gate, nine more), and the workflows job gate wiring, the checkout pins mutations and the pins of the metrics, release, starter page, vulncheck, auto-update and preview workflows and of this job layout, go mod tidy, the Go test duplication and Go vulnerabilities self-tests and, since step 8b, eleven Linux-safe tail gates of the main job (release pins, browser gate selection, Go tests, release precheck, community-files, DCO sign-off, release plan, release report, release check and release metrics self-tests, and sfl drives from the order file), got: ${rows:-none}"
   while IFS='|' read -r job label _args; do
     awk -F'|' -v l="$label" '$1 == l && ($3 == "pre" || $3 == "post")' <(grep -v '^#' "$ORDER") | has . \
       || echo "groups: '${label}' is no pre or post row of ${ORDER}"

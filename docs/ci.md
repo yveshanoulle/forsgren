@@ -246,6 +246,18 @@ minutes less 2 (measured 9.3, 7.5, 9.7), Quality gates about 1.4 minutes less,
 Lint and Workflow gates about 2 and 1.4 minutes more (Workflow gates measured
 4.8, 3.4, 5.4).
 
+Eleven more tail gates left the main job in step 8b of forsgren#447 for the
+`workflows` job (about 85 s on the Mac, 100 s at most): the release pins,
+browser gate selection, Go tests, release precheck, community-files, DCO
+sign-off, release plan, release report, release check and release metrics
+self-tests, and the check that sfl drives from the order file. All read files
+and run bash, grep, awk, sed, jq and fixture repositories (or `go test` on a
+fixture module), with no BSD-only flag and no secret, so the Linux tools list
+does not change. After step 8 the main job measured 9.6, 10.0, 9.1 and 9.3
+minutes and Workflow gates 6.6, 6.6, 6.1 and 7.1. Expected: Quality gates about
+1.5 minutes less (7.6 to 8.5), Workflow gates about 1.5 minutes more (7.6 to
+8.6, a little less if the Linux runner is faster than the Mac).
+
 The three baselines steps stay in the main job: they read the built site.
 `Scripts/test_quality_jobs.sh` pins the layout.
 

@@ -100,6 +100,26 @@ workflows|go mod tidy
 workflows|Go test duplication self-test
 workflows|Go vulnerabilities self-test
 #
+# Eleven Linux-safe tail gates of the main job (forsgren#447, step 8b), about
+# 85 s on the Mac (100 s at most; 8 to 15 s the longest): the main job, still
+# 9.1 to 10.0 minutes after step 8, keeps the full macOS install and a long
+# tail of 3 to 12 s gates. All are PRE rows that run bash, grep, awk, sed and jq
+# against fixtures or stubs (the release scripts, the DCO check, the gate
+# selection, the order file reader, and Go tests on a fixture module), with no
+# BSD-only flag, no secret and no site. Their fixture repositories are
+# temporary ones from the sandbox library, and the checkout has fetch-depth 0.
+workflows|release pins self-test
+workflows|browser gate selection self-test
+workflows|Go tests self-test
+workflows|release precheck self-test
+workflows|community-files self-test
+workflows|DCO sign-off self-test
+workflows|sfl drives from the order file
+workflows|release plan self-test
+workflows|release report self-test
+workflows|release check self-test
+workflows|release metrics self-test
+#
 # The quality_2 job (forsgren#447): nine of the longest gates of the main
 # job, with Go tests and Go coverage (the Go lint pair moved to the lint job,
 # step 5), about 180 s together after step 5 (measured in forsgren#447 on three green Quality
