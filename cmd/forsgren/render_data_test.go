@@ -18,7 +18,8 @@ import (
 // the internal/update package in this test package.)
 // footerAt1200 is the footer's last sentence for a render at 2026-10-03 12:00
 // UTC with the default 30-day window (forsgren#542).
-const footerAt1200 = "Calculated at 2026-10-03 12:00 UTC <strong>Report Start</strong> 2026-09-03 12:00 <strong>Report End</strong> 2026-10-03 12:00</p>"
+const footerAt1200 = "Calculated at 2026-10-03 12:00 UTC <strong>Report Start</strong> 2026-09-03 12:00 " +
+	"<strong>Report End</strong> 2026-10-03 12:00</p>"
 
 var updateGoldens = flag.Bool("update", false, "rewrite the goldens wantGolden compares")
 
@@ -220,7 +221,8 @@ func TestRenderDataNeedsConfig(t *testing.T) {
 func TestRenderFooterNamesTheReportPeriodOfDoraDays(t *testing.T) {
 	pinClock(t, time.Date(2026, 10, 27, 22, 29, 59, 0, time.UTC))
 	_, _, index := renderWith(t, "--config", writeAllPagesConfig(t, validConfig+"dora_days: 90\n"))
-	const want = "Calculated at 2026-10-27 22:29 UTC <strong>Report Start</strong> 2026-07-29 22:29 <strong>Report End</strong> 2026-10-27 22:29</p>"
+	const want = "Calculated at 2026-10-27 22:29 UTC <strong>Report Start</strong> 2026-07-29 22:29 " +
+		"<strong>Report End</strong> 2026-10-27 22:29</p>"
 	if !strings.Contains(index, want) {
 		t.Errorf("want %q in the footer, got:\n%s", want, index)
 	}
@@ -234,7 +236,8 @@ func TestRenderShowsTheMinuteOfTheCalculationInUTC(t *testing.T) {
 	zone := time.FixedZone("CEST", 2*60*60)
 	pinClock(t, time.Date(2026, 10, 4, 1, 19, 59, 0, zone))
 	_, _, index := renderWith(t, "--config", writeAllPagesConfig(t, validConfig), "--data", writeHistory(t, acmeHistory()))
-	const want = "Calculated at 2026-10-03 23:19 UTC <strong>Report Start</strong> 2026-09-03 23:19 <strong>Report End</strong> 2026-10-03 23:19</p>"
+	const want = "Calculated at 2026-10-03 23:19 UTC <strong>Report Start</strong> 2026-09-03 23:19 " +
+		"<strong>Report End</strong> 2026-10-03 23:19</p>"
 	if !strings.Contains(index, want) {
 		t.Errorf("want %q in the footer, got:\n%s", want, index)
 	}

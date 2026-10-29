@@ -13,7 +13,8 @@ import (
 // the flag out is how render is told there is none.
 // footerAtEpoch is the footer's last sentence for a render at second 0
 // (forsgren#542).
-const footerAtEpoch = "Calculated at 1970-01-01 00:00 UTC <strong>Report Start</strong> 1969-12-02 00:00 <strong>Report End</strong> 1970-01-01 00:00</p>"
+const footerAtEpoch = "Calculated at 1970-01-01 00:00 UTC <strong>Report Start</strong> 1969-12-02 00:00 " +
+	"<strong>Report End</strong> 1970-01-01 00:00</p>"
 
 func TestRenderRefusesAWaitingPRThatIsNoPullRequest(t *testing.T) {
 	for _, number := range []string{"0", "-3"} {
