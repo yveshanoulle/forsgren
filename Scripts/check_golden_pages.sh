@@ -10,7 +10,7 @@
 # scan .build/site, only ever see the placeholder, never the page WITH data
 # (each project's deployment frequency) or the no-projects line. The golden
 # pages of internal/page/testdata are those pages: the Go tests pin each one
-# byte for byte to what forsgren renders (internal/page/page_test.go, and
+# byte for byte to what forsgren renders (internal/page/page_golden_test.go, and
 # cmd/forsgren/render_data_test.go for the page with data, from a made-up
 # history).
 #

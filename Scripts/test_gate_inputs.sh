@@ -266,9 +266,9 @@ capture guard "$ROOT"
 want_red "mutation proof C: a go:embed of a testdata file" "problem: internal/page/zz_embed.go embeds a test file or testdata: //go:embed testdata/legend.golden"
 rm -f "${ROOT}/internal/page/zz_embed.go"
 
-printf 'package page\n\nimport _ "embed"\n\n//go:embed page_test.go\nvar zz string\n' > "${ROOT}/internal/page/zz_embed.go"
+printf 'package page\n\nimport _ "embed"\n\n//go:embed page_helpers_test.go\nvar zz string\n' > "${ROOT}/internal/page/zz_embed.go"
 capture guard "$ROOT"
-want_red "mutation proof F: a go:embed of a _test.go file" "problem: internal/page/zz_embed.go embeds a test file or testdata: //go:embed page_test.go"
+want_red "mutation proof F: a go:embed of a _test.go file" "problem: internal/page/zz_embed.go embeds a test file or testdata: //go:embed page_helpers_test.go"
 rm -f "${ROOT}/internal/page/zz_embed.go"
 
 # G: a directory pattern (//go:embed templates) that now holds a testdata file: the
