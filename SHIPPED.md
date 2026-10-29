@@ -9,6 +9,19 @@ Active work lives in
 
 ---
 
+## 2026-10-29 — The dictionary is in the documentation ([#578](https://github.com/yveshanoulle/forsgren/issues/578), 2 steps)
+
+forsgren issue 578. The dictionary was only a page of each installation's
+site; forsgren.be's documentation list (the README) did not have it.
+`docs/dictionary.md` is now generated from `internal/dictionary/dictionary.yml`
+by `dictionary.Markdown()`, read through `Section` as the Dictionary page reads
+it: a generated-file warning, Terms then Numbers, each alphabetical, each entry's
+heading, definition and From line. `TestDocsDictionaryIsTheGeneratedMarkdown`
+compares the committed file with it, so a hand edit or a stale file is red; `go
+test ./internal/dictionary -run TestDocsDictionaryIsTheGeneratedMarkdown
+-update` rewrites it. The README links it. The page itself lists Terms first
+since forsgren issue 577.
+
 ## 2026-10-29 — Every Quality job runs in under 8 minutes ([#447](https://github.com/yveshanoulle/forsgren/issues/447), 10 steps)
 
 forsgren issue 447, tools: no release. Quality's slowest jobs ran 10 to 13

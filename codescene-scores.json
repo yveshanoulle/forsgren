@@ -2949,6 +2949,18 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/dictionary/markdown.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-29",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/dictionary/markdown_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-29",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/dictionary/dictionary_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-28",

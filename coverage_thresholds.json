@@ -6,6 +6,8 @@
     "github.com/yveshanoulle/forsgren/internal/dictionary/dictionary.go:Anchor": 100.0,
     "github.com/yveshanoulle/forsgren/internal/dictionary/dictionary.go:Heading": 100.0,
     "github.com/yveshanoulle/forsgren/internal/dictionary/dictionary.go:Section": 89.9,
+    "github.com/yveshanoulle/forsgren/internal/dictionary/markdown.go:Markdown": 90.0,
+    "github.com/yveshanoulle/forsgren/internal/dictionary/markdown.go:markdownText": 100.0,
     "github.com/yveshanoulle/forsgren/internal/dictionary/dictionary.go:Entries": 100.0,
     "github.com/yveshanoulle/forsgren/internal/dictionary/dictionary.go:parse": 100.0,
     "github.com/yveshanoulle/forsgren/internal/dictionary/dictionary.go:check": 100.0,
