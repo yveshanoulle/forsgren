@@ -15,19 +15,20 @@ func TestDictionaryPageMatchesGolden(t *testing.T) {
 	checkPageGolden(t, "dictionary.html", "testdata/dictionary.golden.html", calculated())
 }
 
-// TestDictionaryPageHasTwoSectionsOfEntries: Numbers, then Terms, each a
-// heading, and every entry of the dictionary once, in its section, with an
-// anchor id, its name, its definition and its source.
+// TestDictionaryPageHasTwoSectionsOfEntries: Terms, then Numbers (forsgren#577:
+// a reader meets the words first), each a heading, and every entry of the
+// dictionary once, in its section, with an anchor id, its name, its
+// definition and its source.
 func TestDictionaryPageHasTwoSectionsOfEntries(t *testing.T) {
 	got := rendered(t, "dictionary.html", viewData())
 	wantAll(t, "dictionary.html", got, "<title>Dictionary · forsgren</title>", "<h1>Dictionary</h1>",
-		`<h2 id="numbers">Numbers</h2>`, `<h2 id="terms">Terms</h2>`)
-	terms := strings.Index(got, `<h2 id="terms">`)
-	if numbers := strings.Index(got, `<h2 id="numbers">`); numbers < 0 || terms < numbers {
-		t.Fatalf("want the Numbers section before the Terms section, got %d and %d", numbers, terms)
+		`<h2 id="terms">Terms</h2>`, `<h2 id="numbers">Numbers</h2>`)
+	numbers := strings.Index(got, `<h2 id="numbers">`)
+	if terms := strings.Index(got, `<h2 id="terms">`); terms < 0 || numbers < terms {
+		t.Fatalf("want the Terms section before the Numbers section, got %d and %d", terms, numbers)
 	}
-	wantSection(t, got, dictionary.KindNumber, [2]int{0, terms})
-	wantSection(t, got, dictionary.KindTerm, [2]int{terms, len(got)})
+	wantSection(t, got, dictionary.KindTerm, [2]int{0, numbers})
+	wantSection(t, got, dictionary.KindNumber, [2]int{numbers, len(got)})
 	if n, want := strings.Count(got, "<dt id="), len(dictionaryEntries(t)); n != want {
 		t.Errorf("want %d entries on the page, got %d", want, n)
 	}

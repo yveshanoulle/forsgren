@@ -716,7 +716,7 @@ a path on github.com (forsgren#172):
   missing, unknown or malformed file. The two pages share one table template
   (`templates/layout/issuestable.html`).
 - **The dictionary page** (`dictionary.html`, titled "Dictionary", forsgren#370) defines every number
-  and every term the pages show, in two sections, Numbers and Terms, each in
+  and every term the pages show, in two sections, Terms and then Numbers (forsgren#577), each in
   alphabetical order. An entry has an anchor id (its name in lower case, other
   characters as hyphens), a heading, one definition and a line "From:" that says
   the data file or the window it is counted over. The page is generated from the one
