@@ -33,7 +33,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 
 | # | Label | Script | Phase | Class |
 |---|-------|--------|-------|-------|
-| 1 | secret-scan self-test | `test_check_secrets.sh` | pre | required, `test_check_secrets v1` |
+| 1 | secret-scan self-test | `test_check_secrets.sh` | pre, secret-class | required, `test_check_secrets v1` |
 | 2 | secret scan | `check_secrets.sh` | pre, secret-class | required, `check_secrets v1` |
 | 3 | data guard self-test | `test_check_data_guard.sh` | pre | required |
 | 4 | data guard | `check_data_guard.sh` | pre, secret-class | required |

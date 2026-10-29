@@ -40,8 +40,8 @@ phase is green.
 An ordinary red still commits locally, with the subject
 `*** RED ****` and the message in the body, so work is never lost, and
 skips the push. 
-A secret-class red (the secret scan, the data guard or the private-names gate)
-commits nothing at all. `./FBP.sh --no-commit` runs the gates and the build
+A secret-class red (the secret scan and its self-test, the data guard or the
+private-names gate) commits nothing at all. `./FBP.sh --no-commit` runs the gates and the build
 only. 
 `./FBP.sh --no-push "<message>"` runs the same and commits, but does not push;
 it is for changes that only touch FBP.sh, sfl.sh, local-only scripts or their

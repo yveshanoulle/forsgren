@@ -61,7 +61,10 @@ mark_gate() {
 # file below, fake gates. The static gate "static bad" runs <static gate
 # script>. Variants (forsgren#441): midred = the red gate is a plain row after
 # a green block; secret = a red secret-class row before the block; postred =
-# a red POST row followed by a marking one.
+# a red POST row followed by a marking one; realsecret = the real order file's
+# rows up to and including `secret scan` (forsgren#570), the row labelled
+# `secret-scan self-test` running <static gate script>, every other one a green
+# gate.
 make_root() {
   local root="${TMP}/$1"
   mkdir -p "${root}/Scripts" "${root}/.build"
@@ -101,6 +104,18 @@ static later|Scripts/gate_static_later.sh|pre|
 later one|Scripts/gate_later_one.sh|pre|
 later two|Scripts/gate_later_two.sh|pre|
 ORDER
+    ;;
+    realsecret)
+      awk -F'|' '/^#/ || /^$/ { next } { print } $1 == "secret scan" { exit }' \
+        "${REPO}/Scripts/gate_report_order.txt" > "${root}/Scripts/gate_report_order.txt"
+      local _label _script _rest
+      while IFS='|' read -r _label _script _rest; do
+        if [[ "$_label" == "secret-scan self-test" ]]; then
+          cp "${root}/Scripts/${2}" "${root}/${_script}"
+        else
+          cp "${root}/Scripts/gate_ok.sh" "${root}/${_script}"
+        fi
+      done < "${root}/Scripts/gate_report_order.txt"
     ;;
     postred) cat > "${root}/Scripts/gate_report_order.txt" <<ORDER
 later one|Scripts/gate_later_one.sh|pre|
@@ -286,6 +301,16 @@ if [[ "$FBP_SANDBOX_COMMIT_MSG" == *"*** RED ****"* ]]; then echo "  ok: 12. the
 FBP_SANDBOX_FBP_OVERRIDE="$FBP_UNDER_TEST" FBP_SANDBOX_ORDER_FILE="$ORDER_FOR_FBP" FBP_SANDBOX_SFL_PRE_RC=2 FBP_SANDBOX_SFL_PRE_OUTPUT=$'Errors:\n  secret scan ❌\n' \
   fbp_sandbox_run 3 "secret stop"
 if [[ "$FBP_SANDBOX_RC" == 1 && -z "$FBP_SANDBOX_COMMIT_SHA" ]]; then echo "  ok: 13. a secret-class red commits nothing"; else fail "13. rc ${FBP_SANDBOX_RC}, commit '${FBP_SANDBOX_COMMIT_MSG}'"; fi
+
+# Case 16 (forsgren#570): a leak caught by the secret-scan SELF-TEST (its first
+# case scans the real tree) commits nothing, as one caught by `secret scan`
+# does: the real order file's secret pair, the self-test red. sfl stops at the
+# first red, so the self-test row itself must be secret-class: exit 2, no stop
+# sink (FBP.sh reads exit 2 as "do not commit", case 13).
+root="$(make_root realsecret gate_bad.sh realsecret)"
+run_sfl "$root" pre
+want_exit "16. a leak caught by the secret-scan self-test exits 2" 2 "SECRET-CLASS"
+if [[ -e "${root}/.build/sfl-static-stop.log" ]]; then fail "16. a red secret-scan self-test wrote the stop sink: FBP.sh would commit the leak"; else echo "  ok: 16. no stop sink for a red secret-scan self-test"; fi
 
 # Case 14: --all reaches both sfl phases of FBP.sh (the stub prints its arguments).
 FBP_SANDBOX_FBP_OVERRIDE="$FBP_UNDER_TEST" FBP_SANDBOX_SFL_LOG_ARGS=1 fbp_sandbox_run 3 "all flag" --all --no-commit

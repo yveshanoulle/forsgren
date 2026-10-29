@@ -195,6 +195,17 @@ fi
 # names row's tier stripped must be rejected.
 tier_stripping_proof 7 "private names" "private-names " "the private names row's secret-class tier"
 
+# Pin 8: the SECRET-SCAN SELF-TEST carries the tier as well (forsgren#570). Its
+# first case scans the real working tree, so a real leak turns it red BEFORE
+# `secret scan` runs; sfl stops at the first red gate, and as an ordinary row
+# it would let FBP.sh commit the leak as a RED commit.
+if ! grep -qE '^secret-scan self-test\|[^|]+\|pre\|secret-class$' "$ORDER"; then
+  fail "the secret-scan self-test row does not carry the PRE secret-class tier — a leak in the real tree turns it red first, sfl stops there, and FBP.sh would commit the leak as a RED commit"
+fi
+
+# Non-vacuity for pin 8, as for pins 5 to 7.
+tier_stripping_proof 8 "secret-scan self-test" "secret-scan-self-test " "the secret-scan self-test's secret-class tier"
+
 COMPLETED=1
 
 if [[ "$failed" -ne 0 ]]; then

@@ -68,7 +68,12 @@
 # The secret scan is a secret-class row: a failure on it makes sfl exit 2
 # and FBP.sh refuse to commit. It is one of two; the data guard below is the
 # other.
-secret-scan self-test|Scripts/test_check_secrets.sh|pre|
+# The SELF-TEST is secret-class too (forsgren#570): its first case scans the
+# real working tree, so a real leak turns the self-test red first, sfl stops
+# at the first red gate and `secret scan` never runs. As an ordinary row it
+# would let FBP.sh make a RED commit holding the leak. Only this self-test:
+# the other self-tests run on made-up fixtures and stay ordinary-class.
+secret-scan self-test|Scripts/test_check_secrets.sh|pre|secret-class
 secret scan|Scripts/check_secrets.sh|pre|secret-class
 #
 # THE DATA GUARD (forsgren#1, ladder step 6). Not canon: forsgren's own rule

@@ -17,7 +17,9 @@ in their own `lint` job, its own red/green check (forsgren#282;
 red first, and FBP (fail fast, forsgren#441) is the check (forsgren#439).
 
 Three PRE gates come first and are secret-class, so a finding blocks the
-commit itself:
+commit itself (the secret scan's self-test is secret-class too, because its
+first case scans the real working tree and sfl stops at the first red:
+forsgren#570):
 
 - **secret scan** (`Scripts/check_secrets.sh`, the estate's gitleaks gate):
   gitleaks over the working tree, before anything is staged, under `.gitleaks.toml`
