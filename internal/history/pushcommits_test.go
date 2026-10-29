@@ -138,13 +138,15 @@ func TestAV1PushCommitsFileIsReadAsFirstParentWithUnknownParents(t *testing.T) {
 }
 
 // TestAPushCommitsFileWithABadFirstParentOrParentsIsRefusedOnRead names the
-// line and the column.
+// line and the column. A parents count above 2147483647 is refused too, so a
+// file reads the same on a 32-bit build (forsgren#576).
 func TestAPushCommitsFileWithABadFirstParentOrParentsIsRefusedOnRead(t *testing.T) {
 	base := "acme/app," + pushAfter + "," + pushCommitSHA + ",acme-dev,2026-09-02T08:30:00Z,"
 	for name, c := range map[string]struct{ tail, word string }{
 		"first_parent": {"yes,1\n", "first_parent"},
 		"negative":     {"true,-1\n", "parents"},
 		"word":         {"true,two\n", "parents"},
+		"above int32":  {"true,2147483648\n", "parents"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "push_commits.csv")
