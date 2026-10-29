@@ -1526,8 +1526,17 @@ is only where a repository's push read stopped at its page limit (its line in
 `data/pushes_cut.csv`, forsgren#583) is marked `… 2026-07-09`, with a visually
 hidden "(earlier data not yet read)": older pushes are not read yet, so the
 repository did not start there. It marks Pushes, and Commits when the pushed
-commits give the date; a late date carries both markers, `▲ … 2026-10-02`.
-The line above the table says what both markers mean. A service or rule row has its own
+commits give the date, and it is red (Yves's option A on forsgren#583: the
+Data page's own `.cut` rule in `styles.css`, held at 4.5:1 or more in light
+and dark by its own test; the `…` and the hidden text say it without the
+colour); a late date carries both markers, `▲ … 2026-10-02`. A date that is
+as far back as GitHub keeps a repository's activity (its line in
+`data/pushes_github_end.csv`: the list ends there without the creation of the
+branch) is marked `⇤ 2023-12-28`, with a visually hidden "(GitHub keeps no
+older activity)": it is not complete, and not where the repository started.
+The line above the table explains only the markers the table shows, one
+sentence each, and is left out when no date carries one (Yves on
+forsgren#583); the legend explains all three always. A service or rule row has its own
 deployments and deployed commits; issues, pushes and merged pull requests are
 read per repository, so its cells for them read `Per repository`. The first stored date is what forsgren collected, not when
 the repository started.

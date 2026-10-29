@@ -48,6 +48,12 @@ A deployment that ended as a success or a failure, created in the window. One st
 
 From: Deployments of data/deployments.csv.
 
+### GitHub keeps no older activity
+
+On the Data page, a date marked ⇤ is as far back as GitHub's activity list of a repository reaches: the list ends there without the creation of the branch, so GitHub keeps no older pushes and forsgren cannot read them. It is not a complete history, and not where the repository started.
+
+From: The repositories whose activity list collect found ending without the creation of the branch, each with the oldest push GitHub keeps.
+
 ### Lead time
 
 The time from a start to the event that finishes it. Three are told apart: deployment lead time, Lead time for changes, from a commit's author date to the successful deployment that shipped it; issue lead time, from an issue's creation to its completed close; and PR lead time, from the first commit of a pull request to its merge. Mainline Lead Time is a fourth clock, from a commit's author date to the push that brought it to main.

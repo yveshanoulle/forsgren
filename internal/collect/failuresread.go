@@ -37,7 +37,7 @@ type markFile struct {
 	save func(path string, r history.Reach) error
 }
 
-// markFiles are h's eighteen marks, in the order they are loaded and saved: how
+// markFiles are h's nineteen marks, in the order they are loaded and saved: how
 // far each repository was read (reach, chunk.go), when its issues were last
 // read (read), whether they were read in full (full, issueevents.go) and
 // where its bug read was cut (cut, bugflags.go) and since when it has been
@@ -55,7 +55,8 @@ type markFile struct {
 // and which had the files of their stored commits read (filesFilled, commitfiles.go)
 // and where a push read stopped at the page cap (pushesCut, pushes.go, forsgren#583)
 // and which repositories had their push reach checked once (pushesChecked, pushesreach.go)
-// and where each fill of the older pushes goes on (pushesFilledAt, pushesbackfill.go).
+// and where each fill of the older pushes goes on (pushesFilledAt, pushesbackfill.go)
+// and where GitHub keeps no older activity (githubEnd, pushesbackfill.go).
 func (o Options) markFiles(h *held) []markFile {
 	return []markFile{
 		{&h.reach, o.reachFile(), history.LoadReach, history.SaveReach},
@@ -77,6 +78,7 @@ func (o Options) markFiles(h *held) []markFile {
 		{&h.pushesCut, o.pushesCutFile(), history.LoadPushesCut, history.SavePushesCut},
 		{&h.pushesChecked, o.pushesCheckedFile(), history.LoadPushesChecked, history.SavePushesChecked},
 		fillFile(&h.pushesFilledAt, &h.fillCursors, o.pushesFillFile()),
+		{&h.githubEnd, o.pushesGitHubEndFile(), history.LoadPushesGitHubEnd, history.SavePushesGitHubEnd},
 	}
 }
 

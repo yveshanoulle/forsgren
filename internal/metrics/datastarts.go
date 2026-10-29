@@ -21,6 +21,10 @@ type DataStart struct {
 	// Cut says At is only where a push read stopped at the page cap: earlier
 	// data is not read yet (forsgren#583).
 	Cut bool
+	// GitHubEnd says At is as far back as GitHub keeps the activity list: it
+	// ended there without the branch's creation, so older pushes are gone
+	// from GitHub, not unread (forsgren#583, step 3).
+	GitHubEnd bool
 }
 
 // Stored says data of the kind is stored.
@@ -86,10 +90,7 @@ func (s startsSource) row(level Level, p config.Project, project string) DataRow
 	row.Commits = earliestOf(row.Commits, pushed)
 	row.Pushes = earliest(s.data.Pushes, in,
 		func(p history.Push) (string, time.Time) { return p.Repository, p.PushedAt })
-	if pushesCut(s.data.PushesCut, in) {
-		row.Pushes.Cut = row.Pushes.Stored()
-		row.Commits.Cut = pushed.Stored() && row.Commits.At.Equal(pushed.At)
-	}
+	s.markPushes(&row, pushed, in)
 	row.Pulls = earliest(s.data.Pulls, in,
 		func(p history.PullRequest) (string, time.Time) { return p.Repository, p.MergedAt })
 	row.Issues = earliest(s.events, in,
@@ -120,11 +121,25 @@ func deployedStarts(data Data, in map[string]bool) (deployments, commits DataSta
 	return deployments, commits
 }
 
-// pushesCut says a repository in has its push read stopped at the page cap
-// (forsgren#583): the pushes, and the commits they brought, may reach further
-// back than stored.
-func pushesCut(cut history.Reach, in map[string]bool) bool {
-	for repository := range cut {
+// markPushes marks row's Pushes, and its Commits when the push commits
+// (pushed) give their date, as cut when a repository in has its push read
+// stopped at the page cap, or else as GitHub's end when a repository in has
+// its fill ended where GitHub's list ends (forsgren#583): either way the
+// pushes, and the commits they brought, may reach further back than stored.
+func (s startsSource) markPushes(row *DataRow, pushed DataStart, in map[string]bool) {
+	pushes := row.Pushes.Stored()
+	commits := pushed.Stored() && row.Commits.At.Equal(pushed.At)
+	switch {
+	case anyIn(s.data.PushesCut, in):
+		row.Pushes.Cut, row.Commits.Cut = pushes, commits
+	case anyIn(s.data.PushesGitHubEnd, in):
+		row.Pushes.GitHubEnd, row.Commits.GitHubEnd = pushes, commits
+	}
+}
+
+// anyIn says a repository of marks is in in.
+func anyIn(marks history.Reach, in map[string]bool) bool {
+	for repository := range marks {
 		if in[strings.ToLower(repository)] {
 			return true
 		}

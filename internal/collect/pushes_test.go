@@ -113,7 +113,7 @@ func TestCollectStoresEachPushWithTheCommitsItAddedToTheFirstParentChain(t *test
 		linePC(shaD, shaB, "", "2026-09-20T08:00:00Z", 1)+linePC(shaD, shaC, "", "2026-09-20T09:00:00Z", 1)+
 		linePC(shaD, shaD, "", "2026-09-20T10:00:00Z", 1)+
 		linePCBranch(shaF, shaE, "", "2026-09-21T08:00:00Z", 1)+linePC(shaF, shaF, "acme-dev", "2026-09-21T09:00:00Z", 2))
-	if got := g.seen(activityPath); len(got) != 1 || !strings.Contains(got[0], "ref=refs%2Fheads%2Fmain") {
+	if got := pushReads(g); len(got) != 1 || !strings.Contains(got[0], "ref=refs%2Fheads%2Fmain") {
 		t.Errorf("want one read of main's activity, got %v", got)
 	}
 }
@@ -351,7 +351,7 @@ func TestAPushesFileThatCannotBeWrittenFailsTheRepository(t *testing.T) {
 func TestAPushListCutAtThePageLimitIsNamedAndTheMarkMoves(t *testing.T) {
 	g := pushesOnly(t, activityOf("push", pushTime1, shaA, shaB))
 	g.bodies[comparePath(shaA, shaB)] = chain(shaA, shaB)
-	g.paged[activityPath] = true
+	g.after[activityPath] = "c1"
 	path := historyPath(t)
 	r := g.collect(t, shop(production), path, 1)
 	if r.err != nil || !strings.Contains(r.stderr, "push read is incomplete; the older pushes are left to the push fill") {
@@ -370,7 +370,7 @@ const pushesCutHdr = "# forsgren pushes cut v1\nrepository,cut_at\n"
 func TestAPushListCutAgainKeepsTheFirstCutMark(t *testing.T) {
 	g := pushesOnly(t, activityOf("push", pushTime2, shaA, shaB))
 	g.bodies[comparePath(shaA, shaB)] = chain(shaA, shaB)
-	g.paged[activityPath] = true
+	g.after[activityPath] = "c1"
 	path := historyPath(t)
 	dataOf(path).write(t, PushesCutFile, pushesCutHdr+"acme/app,2026-09-01T00:00:00Z\n")
 	if r := g.collect(t, shop(production), path, 1); r.err != nil {
@@ -412,7 +412,7 @@ func TestThePushesAreReadFromTheRepositorysDefaultBranch(t *testing.T) {
 	path := historyPath(t)
 	r := g.collect(t, shop(production), path, github.DefaultMaxPages)
 	wantStdout(t, r, "acme/app: 0 new, 0 skipped (not final), 0 commits, 1 pushes\n")
-	if got := g.seen(activityPath); len(got) != 1 || !strings.Contains(got[0], "ref=refs%2Fheads%2Ftrunk") {
+	if got := pushReads(g); len(got) != 1 || !strings.Contains(got[0], "ref=refs%2Fheads%2Ftrunk") {
 		t.Errorf("want one read of trunk's activity, got %v", got)
 	}
 }
@@ -476,4 +476,16 @@ func TestAPushRefusalNotesTheNameOfTheTokenThatWasRefused(t *testing.T) {
 	data.want(t, PushesDeniedFile, pushesDeniedH+"acme/app,2026-10-01T00:00:00Z,GITHUB_TOKEN\n"+
 		"acme/lib,2026-09-20T08:00:00Z,\n")
 	data.wantNoToken(t, PushesDeniedFile)
+}
+
+// pushReads is the reads of acme/app's activity list newest first, the push
+// read's, the one-time reach check (forsgren#583) left out.
+func pushReads(g *gitHub) []string {
+	var reads []string
+	for _, r := range g.seen(activityPath) {
+		if !hasDirectionAsc(r) {
+			reads = append(reads, r)
+		}
+	}
+	return reads
 }

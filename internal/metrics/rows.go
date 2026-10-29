@@ -84,6 +84,11 @@ type Data struct {
 	// (forsgren#583): their stored pushes start there because older ones
 	// are not read yet.
 	PushesCut history.Reach
+	// PushesGitHubEnd are the repositories whose push fill ended where
+	// GitHub's activity list ends, without the branch's creation, and the
+	// oldest push GitHub keeps, from data/pushes_github_end.csv
+	// (forsgren#583, step 3).
+	PushesGitHubEnd history.Reach
 	// PullCommits are the commits of the merged pull requests of
 	// data/pull_commits.csv, for Mainline Lead Time (forsgren#463).
 	PullCommits []history.PullCommit

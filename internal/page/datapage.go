@@ -57,22 +57,30 @@ type DataRow struct {
 // project's total.
 func (r DataRow) IsLabel() bool { return r.Level == metrics.LabelRow }
 
-// DataCell is one cell of a kind: its text, Late when the date is after
-// Report Start, and Cut when it is only where the push read stopped at the
-// page cap (forsgren#583).
+// DataCell is one cell of a kind: its text and its markers (DataMarks).
 type DataCell struct {
-	Text      string
-	Late, Cut bool
+	Text string
+	DataMarks
 }
 
-// Class is the cell's class: late, cut, both or none.
+// DataMarks are the markers of a date (forsgren#583): Late after Report
+// Start, Cut where the push read stopped at the page cap, End where GitHub's
+// activity list ends. For the table they say which markers any cell shows.
+type DataMarks struct{ Late, Cut, End bool }
+
+// Any says a marker is set.
+func (m DataMarks) Any() bool { return m.Late || m.Cut || m.End }
+
+// Class is the cell's class: late, cut and github-end as set, or none.
 func (c DataCell) Class() string {
 	var classes []string
-	if c.Late {
-		classes = append(classes, "late")
-	}
-	if c.Cut {
-		classes = append(classes, "cut")
+	for _, mark := range []struct {
+		on    bool
+		class string
+	}{{c.Late, "late"}, {c.Cut, "cut"}, {c.End, "github-end"}} {
+		if mark.on {
+			classes = append(classes, mark.class)
+		}
 	}
 	return strings.Join(classes, " ")
 }
@@ -96,7 +104,19 @@ func dataCell(s metrics.DataStart, start time.Time) DataCell {
 	case !s.Stored():
 		return DataCell{Text: noData}
 	}
-	return DataCell{Text: s.At.UTC().Format(dateLayout), Late: s.Late(start), Cut: s.Cut}
+	return DataCell{Text: s.At.UTC().Format(dateLayout), DataMarks: DataMarks{s.Late(start), s.Cut, s.GitHubEnd}}
+}
+
+// DataMarkers are the markers the table's cells show, so the line above it
+// explains those only (forsgren#583, step 3, Yves).
+func (d Data) DataMarkers() DataMarks {
+	var shown DataMarks
+	for _, row := range d.DataRows() {
+		for _, c := range row.Cells() {
+			shown = DataMarks{shown.Late || c.Late, shown.Cut || c.Cut, shown.End || c.End}
+		}
+	}
+	return shown
 }
 
 // DataRows are the rows of the Data table, in the order of Data.DataStarts:

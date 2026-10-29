@@ -127,6 +127,21 @@ func TestRenderMarksThePushesOfARepositoryCutAtThePageCap(t *testing.T) {
 	}
 }
 
+// TestRenderMarksWhereGitHubKeepsNoOlderActivity (forsgren#583, step 3): a
+// line of pushes_github_end.csv beside --data marks the Data page's Pushes of
+// the project with that repository.
+func TestRenderMarksWhereGitHubKeepsNoOlderActivity(t *testing.T) {
+	data := writeHistory(t, acmeHistory())
+	writePushes(t, data)
+	end := "# forsgren pushes github end v1\nrepository,oldest_at\nacme/api,2026-10-02T10:00:00Z\n"
+	if err := os.WriteFile(filepath.Join(filepath.Dir(data), "pushes_github_end.csv"), []byte(end), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if row := pushData(t, data).DataStarts.Rows[0]; !row.Pushes.GitHubEnd {
+		t.Errorf("want Acme Shop's pushes at GitHub's end, got %+v", row.Pushes)
+	}
+}
+
 // TestRenderRefusesABadPushFile: a malformed or unknown-version pushes file,
 // push commits file or pushes denied file fails render with its own message,
 // naming it, as the other data files do; never read as none.
@@ -147,6 +162,9 @@ func TestRenderRefusesABadPushFile(t *testing.T) {
 	wantBadFileRefused(t, "pushes_cut.csv", map[string]badFile{
 		"unknown version": {"# forsgren pushes cut v2\n", "unknown history format version"},
 		"malformed line":  {pushesCutH + "acme/api\n", "line 3: malformed history"},
+	})
+	wantBadFileRefused(t, "pushes_github_end.csv", map[string]badFile{
+		"unknown version": {"# forsgren pushes github end v2\n", "unknown history format version"},
 	})
 }
 

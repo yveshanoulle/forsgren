@@ -66,6 +66,8 @@ func TestMarkFilesKeepTheirOwnHeaderAndRoundTrip(t *testing.T) {
 		{"pushes_cut.csv", "# forsgren pushes cut v1\nrepository,cut_at\n", SavePushesCut, LoadPushesCut},
 		{"pushes_checked.csv", "# forsgren pushes checked v1\nrepository,checked_at\n",
 			SavePushesChecked, LoadPushesChecked},
+		{"pushes_github_end.csv", "# forsgren pushes github end v1\nrepository,oldest_at\n",
+			SavePushesGitHubEnd, LoadPushesGitHubEnd},
 	} {
 		t.Run(f.name, f.checkRoundTrip)
 	}

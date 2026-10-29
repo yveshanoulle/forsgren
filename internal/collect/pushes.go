@@ -75,6 +75,10 @@ const (
 	// PushesFillFile is the name, next to the history, of the file that keeps
 	// where each repository's fill of its older pushes goes on (forsgren#583).
 	PushesFillFile = "pushes_fill.csv"
+	// PushesGitHubEndFile is the name, next to the history, of the file that
+	// notes each repository whose activity list GitHub keeps only back to a
+	// push, without the branch's creation (forsgren#583, step 3).
+	PushesGitHubEndFile = "pushes_github_end.csv"
 )
 
 // pushesFile is the path of the pushes file next to o's history.

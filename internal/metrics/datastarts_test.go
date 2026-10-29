@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -222,17 +223,40 @@ func TestDataStartsMarkPushesCutAtThePageCap(t *testing.T) {
 	}
 }
 
+// shopWithPushCommit is Acme Shop's row of startsData with one push commit
+// of acme/app authored on 19 September at hour, and mark set on data.
+func shopWithPushCommit(t *testing.T, hour int, mark func(*Data)) DataRow {
+	t.Helper()
+	data, events := startsData()
+	data.PushCommits = []history.PushCommit{
+		{Repository: "acme/app", After: "a9", SHA: "p1", AuthoredAt: utc(time.September, 15+hour/24, hour%24, 0)},
+	}
+	mark(&data)
+	return startsRow(t, DataStartsOf(weekProjects(), data, events, now), "Acme Shop")
+}
+
 // TestDataStartsCommitsAreNotCutWhenADeployedCommitIsOlder (forsgren#583,
 // step 1): the deployed commits give the date, which the push read does not
 // limit.
 func TestDataStartsCommitsAreNotCutWhenADeployedCommitIsOlder(t *testing.T) {
-	data, events := startsData()
-	data.PushCommits = []history.PushCommit{
-		{Repository: "acme/app", After: "a9", SHA: "p1", AuthoredAt: utc(time.September, 19, 8, 0)},
-	}
-	data.PushesCut = history.Reach{"acme/app": utc(time.September, 19, 9, 0)}
-	shop := startsRow(t, DataStartsOf(weekProjects(), data, events, now), "Acme Shop")
+	shop := shopWithPushCommit(t, 4*24+8, func(d *Data) {
+		d.PushesCut = history.Reach{"acme/app": utc(time.September, 19, 9, 0)}
+	})
 	if shop.Commits.Cut || !shop.Pushes.Cut {
 		t.Errorf("want Acme Shop's pushes cut and its commits not, got %+v and %+v", shop.Pushes, shop.Commits)
+	}
+}
+
+// TestDataStartsMarkWhereGitHubKeepsNoOlderActivity (forsgren#583, step 3): a
+// row with a repository whose fill ended at GitHub's end of the list has its
+// Pushes marked so, and its Commits when the push commits give the date; it
+// is not cut.
+func TestDataStartsMarkWhereGitHubKeepsNoOlderActivity(t *testing.T) {
+	shop := shopWithPushCommit(t, 8, func(d *Data) {
+		d.PushesGitHubEnd = history.Reach{"acme/app": utc(time.September, 15, 9, 0)}
+	})
+	marks := []bool{shop.Pushes.GitHubEnd, shop.Commits.GitHubEnd, !shop.Pushes.Cut}
+	if slices.Contains(marks, false) {
+		t.Errorf("want Acme Shop's pushes and commits at GitHub's end, not cut, got %+v and %+v", shop.Pushes, shop.Commits)
 	}
 }

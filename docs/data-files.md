@@ -816,8 +816,13 @@ acme/app,2026-07-09T15:03:48Z
   `cut_at` is then the oldest stored push.
 - The Data page reads it: a project or repository row with a repository named
   here marks its Pushes date, and its Commits date when the pushed commits
-  give it, with `…` and "earlier data not yet read" (see
+  give it, with `…` and "earlier data not yet read", in red (see
   [The Data page](pages-and-views.md#the-data-page)).
+- Removed, with the repository's cursor in `data/pushes_fill.csv`, when the
+  fill of the older pushes ends (forsgren#583, step 3): at the creation of the
+  branch or at `history_days` back the stored pushes are whole; at the end of
+  GitHub's list without the creation of the branch the repository gets a line
+  in `data/pushes_github_end.csv` instead. Either way it is filled no more.
 - Rewritten whole like `data/reach.csv`, and only when a line changed. A
   missing file notes no repository. An unknown version or a malformed line
   refuses the collect run before GitHub is asked anything, and fails the
@@ -849,8 +854,13 @@ acme/app,2026-10-30T06:00:00Z
   than a day after `history_days` back, the stored pushes do not reach back:
   the repository gets a line in `data/pushes_cut.csv` at its oldest stored
   push. Either way it gets a line here and is not checked again.
-- A first read that ended by itself (no read mark before it) is checked
-  without a request; a cut read notes its cut and needs no check.
+- When GitHub's list does not start with the creation of the branch, its
+  oldest push is the oldest stored one, and that push is more than a day after
+  `history_days` back, GitHub keeps no older activity: the repository gets a
+  line in `data/pushes_github_end.csv` at that push (forsgren#583, step 3).
+- A first read that ended by itself (no read mark before it) is checked the
+  same way, over the pushes it stored, since its list may have ended at
+  GitHub's end; a cut read notes its cut and needs no check.
 - A refused or failing request, or the request budget, writes nothing here or
   in `data/pushes_cut.csv`: stderr says so and the next run checks again. It
   never fails the repository.
@@ -887,6 +897,36 @@ acme/app,2026-10-30T06:00:00Z,Y3Vyc29yOnYyOpK7MjAyNi0xMC0yNlQxMDo0NjoxOS4wMDAwMD
   before GitHub is asked anything, naming the file.
 - The data guard knows its name: a `pushes_fill.csv` that git tracks or does
   not ignore, outside `testdata/` blocks the commit, like the other data
+  files.
+
+**The GitHub end mark** (forsgren#583) is kept in
+`data/pushes_github_end.csv`, next to the history, with its own format version
+(the pushes github end format v1): one line per repository whose activity
+list GitHub keeps only back to a push, without the creation of the branch, as
+measured on a repository older than the list.
+
+```
+# forsgren pushes github end v1
+repository,oldest_at
+acme/app,2023-12-28T15:32:11Z
+```
+
+- `oldest_at` is the oldest push GitHub keeps, in UTC, to the second. Lines
+  are sorted by repository.
+- Written when the fill of the older pushes ends at the end of GitHub's list
+  without the creation of the branch, before `history_days` back, and by the
+  reach check when GitHub's list starts that way at the oldest stored push.
+- The Data page reads it: a project or repository row with a repository named
+  here marks its Pushes date, and its Commits date when the pushed commits
+  give it, with `⇤` and "GitHub keeps no older activity" (see
+  [The Data page](pages-and-views.md#the-data-page)). A cut line of the same
+  row wins: data not read yet is the stronger warning.
+- Rewritten whole like `data/reach.csv`, and only when a line changed. A
+  missing file notes no repository. An unknown version or a malformed line
+  refuses the collect run before GitHub is asked anything, and fails the
+  render, naming the file.
+- The data guard knows its name: a `pushes_github_end.csv` that git tracks or
+  does not ignore, outside `testdata/` blocks the commit, like the other data
   files.
 
 **The two history fill marks** (forsgren#470) are kept in
@@ -1483,9 +1523,14 @@ run.
   per run (10 page requests and at most 1000 compares), while the first read
   of the commit files can take thousands of requests, so both progress every
   day; it runs after the push read so it never holds fresh data back.
-- The cut line stays when the fill reaches the end of the list or
-  `history_days`; telling those two ends apart and removing the line is the
-  next step of forsgren#583.
+- The fill ends at the first push before `history_days` back or at the end
+  of the list (forsgren#583, step 3). At `history_days`, or at a list that
+  ends with the creation of the branch, the stored pushes are whole: the cut
+  line and the cursor are removed. At a list that ends without the creation of
+  the branch, before `history_days`, GitHub keeps no older activity: the cut
+  line and the cursor are removed and the oldest push read goes in
+  `data/pushes_github_end.csv`, never counted as complete. A repository whose
+  fill ended makes no more fill requests.
 
 **The history fill** (forsgren#470). Data stored before forsgren#463 lacks
 what the Mainline Lead Time needs: the commit lists of merged pull requests

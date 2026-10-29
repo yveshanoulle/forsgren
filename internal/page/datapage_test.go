@@ -141,3 +141,64 @@ func TestDataPageMarksADateWhereThePushReadStopped(t *testing.T) {
 		"A date marked … is where the read stopped at its page limit: earlier data is not yet read, "+
 			"so the date is not where the repository started.")
 }
+
+// markedData is a Data page of one project whose Pushes date is set as
+// pushes says, every other date before Report Start.
+func markedData(pushes metrics.DataStart) Data {
+	data := calculated()
+	data.DataStarts = metrics.DataStarts{
+		Start: time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC),
+		Rows: []metrics.DataRow{{Level: metrics.ProjectRow, Name: "Acme Shop", Project: "Acme Shop",
+			Deployments: metrics.DataStart{At: stored(time.March, 2)}, Pushes: pushes,
+			Issues: metrics.DataStart{At: stored(time.January, 5)}}},
+	}
+	return data
+}
+
+// The explanations of the markers above the table (forsgren#583, step 3).
+const (
+	lateSentence = "A date marked ▲ is after Report Start"
+	cutSentence  = "A date marked … is where the read stopped at its page limit"
+	endSentence  = "A date marked ⇤ is as far back as GitHub keeps the activity"
+)
+
+// TestDataPageExplainsOnlyTheMarkersItShows (forsgren#583, step 3, Yves): an
+// explanation above the table appears only when its marker is in a cell, and
+// no line at all when none is.
+func TestDataPageExplainsOnlyTheMarkersItShows(t *testing.T) {
+	early, late := stored(time.September, 1), stored(time.September, 21)
+	cases := map[string]struct {
+		pushes      metrics.DataStart
+		want, wantN []string
+	}{
+		"none": {metrics.DataStart{At: early}, nil,
+			[]string{lateSentence, cutSentence, endSentence, "<p>The first data"}},
+		"late": {metrics.DataStart{At: late}, []string{lateSentence}, []string{cutSentence, endSentence}},
+		"cut": {metrics.DataStart{At: early, Cut: true}, []string{cutSentence},
+			[]string{lateSentence, endSentence}},
+		"github end": {metrics.DataStart{At: early, GitHubEnd: true}, []string{endSentence},
+			[]string{lateSentence, cutSentence}},
+	}
+	for name, c := range cases {
+		got := rendered(t, "data.html", markedData(c.pushes))
+		wantAll(t, name, got, c.want...)
+		wantNone(t, name, got, c.wantN...)
+	}
+}
+
+// TestDataPageShowsWhereGitHubKeepsNoOlderActivity (forsgren#583, step 3): a
+// date GitHub's list ends at carries ⇤ for the eye and "GitHub keeps no older
+// activity" for a screen reader, not the red of a cut one.
+func TestDataPageShowsWhereGitHubKeepsNoOlderActivity(t *testing.T) {
+	got := rendered(t, "data.html", markedData(metrics.DataStart{At: stored(time.September, 1), GitHubEnd: true}))
+	wantAll(t, "data.html", got,
+		`<td class="github-end">⇤ 2026-09-01<span class="visually-hidden"> (GitHub keeps no older activity)</span></td>`)
+}
+
+// TestDataPageWhereGitHubKeepsNoOlderActivityMatchesGolden (forsgren#583,
+// step 3): the page with a date where GitHub's list ends, its one line above
+// the table naming that marker alone.
+func TestDataPageWhereGitHubKeepsNoOlderActivityMatchesGolden(t *testing.T) {
+	data := markedData(metrics.DataStart{At: stored(time.September, 1), GitHubEnd: true})
+	checkPageGolden(t, "data.html", "testdata/data.github-end.golden.html", data)
+}

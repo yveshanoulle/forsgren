@@ -55,7 +55,8 @@ func TestTheFillReadsOlderPushesOverRunsWithTheCursor(t *testing.T) {
 	}
 	data.want(t, PushesFile, pushesHeader+linePush(pushTime1, shaA, shaB, "push", "false", "1")+
 		linePush(pushTimeA, shaC, shaA, "push", "false", "1")+linePush(pushTimeB, shaD, shaC, "push", "false", "1"))
-	data.want(t, PushesCutFile, pushesCutHdr+"acme/app,"+pushTimeB+"\n")
+	data.want(t, PushesCutFile, pushesCutHdr)
+	data.want(t, PushesGitHubEndFile, pushesGitHubEndHdr+"acme/app,"+pushTimeB+"\n")
 	if got := strings.Count(readFileIn(t, path, PushCommitsFile), "\nacme/app,"); got != 2 {
 		t.Errorf("want one push commit line per filled push, got %d", got)
 	}
@@ -127,7 +128,7 @@ func runOK(t *testing.T, g *gitHub, path string, pages int) {
 func readFileIn(t *testing.T, path, name string) string {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Clean(filepath.Join(filepath.Dir(path), name)))
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		t.Fatal(err)
 	}
 	return string(raw)
@@ -143,4 +144,75 @@ func TestARefusedFillWritesTheDeniedMark(t *testing.T) {
 	runOK(t, g, path, 2)
 	dataOf(path).want(t, PushesDeniedFile, pushesDeniedNow)
 	dataOf(path).want(t, PushesFillFile, pushesFillHdr+"acme/app,2026-10-01T00:00:00Z,c1\n")
+}
+
+// The ends of the fill (forsgren#583, step 3).
+const pushesGitHubEndHdr = "# forsgren pushes github end v1\nrepository,oldest_at\n"
+
+// wantFillDone fails unless acme/app has no cut line and no cursor left, and
+// a further run sends no fill request: only the push read asks the list.
+func wantFillDone(t *testing.T, g *gitHub, path string) {
+	t.Helper()
+	data := dataOf(path)
+	data.want(t, PushesCutFile, pushesCutHdr)
+	if fill := readFileIn(t, path, PushesFillFile); strings.Contains(fill, "acme/app") {
+		t.Errorf("want no cursor left, got %q", fill)
+	}
+	before := len(g.seen(activityPath))
+	runOK(t, g, path, 10)
+	if asked := g.seen(activityPath)[before:]; len(asked) != 1 {
+		t.Errorf("want the push read alone after the fill is done, got %v", asked)
+	}
+}
+
+// TestAFillThatReachesTheBranchCreationIsComplete: the list ends with the
+// creation of the branch, so the stored pushes are whole: the cut line and
+// the cursor go.
+func TestAFillThatReachesTheBranchCreationIsComplete(t *testing.T) {
+	g, path := cutPushRun(t)
+	g.bodies[activityPath+afterKey("c2")] = list(activityOf("push", pushTimeB, shaD, shaC),
+		activityOf("branch_creation", "2026-09-04T10:00:00Z", shaE, shaD))
+	runOK(t, g, path, 10)
+	wantFillDone(t, g, path)
+	dataOf(path).want(t, PushesGitHubEndFile, "")
+}
+
+// TestAFillThatReachesHistoryDaysIsComplete: within history_days the stored
+// pushes are whole, so the cut line and the cursor go.
+func TestAFillThatReachesHistoryDaysIsComplete(t *testing.T) {
+	g, path := cutPushRun(t)
+	cfg := shop(production)
+	cfg.HistoryDays = 25
+	if r := g.collect(t, cfg, path, 10); r.err != nil {
+		t.Fatal(r.err)
+	}
+	dataOf(path).want(t, PushesCutFile, pushesCutHdr)
+	dataOf(path).want(t, PushesGitHubEndFile, "")
+}
+
+// TestAFillThatEndsWithoutTheBranchCreationIsGitHubsEnd: the list ends
+// before history_days without the creation of the branch, as an older
+// repository's does: GitHub keeps no older activity. The cut line and the
+// cursor go, the oldest push is noted as GitHub's end, never as complete.
+func TestAFillThatEndsWithoutTheBranchCreationIsGitHubsEnd(t *testing.T) {
+	g, path := cutPushRun(t)
+	runOK(t, g, path, 10)
+	dataOf(path).want(t, PushesGitHubEndFile, pushesGitHubEndHdr+"acme/app,"+pushTimeB+"\n")
+	wantFillDone(t, g, path)
+}
+
+// TestABudgetAtTheMarginBeforeAFillPageAsksNothing: the push read's answer
+// leaves the budget at its margin, so the fill reserves no request: nothing is
+// asked of it, the cut line stays and the fill cut is reported.
+func TestABudgetAtTheMarginBeforeAFillPageAsksNothing(t *testing.T) {
+	g, path := cutPushRun(t)
+	g.left[activityPath] = 100
+	runOK(t, g, path, 10)
+	if got := g.seen(activityPath); len(got) != 1 {
+		t.Errorf("want the push read alone, got %v", got)
+	}
+	dataOf(path).want(t, PushesCutFile, pushesCutHdr+"acme/app,"+pushTime1+"\n")
+	if len(g.report.PushesFillCut) != 1 {
+		t.Errorf("want the fill cut reported, got %+v", g.report)
+	}
 }

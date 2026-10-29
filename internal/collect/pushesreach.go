@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yveshanoulle/forsgren/internal/github"
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
@@ -55,18 +56,17 @@ func (o Options) checkReach(ctx context.Context, h held, repo string, end readEn
 	case end.truncated:
 		o.notePushesCut(h, repo, end.oldest)
 	case end.first:
-		h.pushesChecked[strings.ToLower(repo)] = wholeSecond(o.Now)
+		o.probeReach(ctx, h, repo, end.oldest)
 	default:
-		o.probeReach(ctx, h, repo)
+		o.probeReach(ctx, h, repo, h.oldestPush[strings.ToLower(repo)])
 	}
 }
 
-// probeReach is the one-time check of repo, when it has stored pushes, no
-// cut line and no check yet.
-func (o Options) probeReach(ctx context.Context, h held, repo string) {
+// probeReach is the one-time check of repo, whose oldest stored push is
+// stored, when it has one, no cut line and no check yet.
+func (o Options) probeReach(ctx context.Context, h held, repo string, stored time.Time) {
 	key := strings.ToLower(repo)
-	stored, due := h.reachDue(key)
-	if !due {
+	if !h.reachDue(key, stored) {
 		return
 	}
 	oldest, err := o.oldestActivity(ctx, h, repo)
@@ -75,19 +75,29 @@ func (o Options) probeReach(ctx context.Context, h held, repo string) {
 			"the next run makes it\n", repo, err)
 		return
 	}
-	if o.reachesFurther(oldest, stored) {
+	switch {
+	case o.reachesFurther(oldest.At, stored):
 		h.pushesCut[key] = stored
+	case o.githubEnds(oldest, stored):
+		h.githubEnd[key] = stored
 	}
 	h.pushesChecked[key] = wholeSecond(o.Now)
 }
 
-// reachDue is the oldest stored push of the repository key, and whether its
-// check is due: it has stored pushes, no cut line and no check yet.
-func (h held) reachDue(key string) (time.Time, bool) {
-	stored, has := h.oldestPush[key]
+// githubEnds says GitHub's list starts with the oldest stored push, not with
+// the creation of the branch, and that push is more than a day after
+// history_days back: GitHub keeps no older activity (forsgren#583, step 3).
+func (o Options) githubEnds(oldest github.Oldest, stored time.Time) bool {
+	return !oldest.Created && !oldest.At.IsZero() && !oldest.At.Before(stored) &&
+		stored.After(o.earliest.Add(failuresReadOverlap))
+}
+
+// reachDue says the check of the repository key, whose oldest stored push is
+// stored, is due: it has stored pushes, no cut line and no check yet.
+func (h held) reachDue(key string, stored time.Time) bool {
 	_, cut := h.pushesCut[key]
 	_, checked := h.pushesChecked[key]
-	return stored, has && !cut && !checked
+	return !stored.IsZero() && !cut && !checked
 }
 
 // reachesFurther says GitHub's oldest push is older than the oldest stored
@@ -96,15 +106,15 @@ func (o Options) reachesFurther(oldest, stored time.Time) bool {
 	return !oldest.IsZero() && oldest.Before(stored) && stored.After(o.earliest.Add(failuresReadOverlap))
 }
 
-// oldestActivity is the oldest push GitHub lists for repo's default branch,
+// oldestActivity is the start of GitHub's list for repo's default branch,
 // one request inside the budget.
-func (o Options) oldestActivity(ctx context.Context, h held, repo string) (time.Time, error) {
+func (o Options) oldestActivity(ctx context.Context, h held, repo string) (github.Oldest, error) {
 	branch, err := o.defaultBranch(ctx, h, repo)
 	if err != nil {
-		return time.Time{}, err
+		return github.Oldest{}, err
 	}
 	if err := o.Client.Reserve(repo, 1); err != nil {
-		return time.Time{}, err
+		return github.Oldest{}, err
 	}
 	return o.Client.OldestActivity(ctx, repo, branch)
 }

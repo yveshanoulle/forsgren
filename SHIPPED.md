@@ -9,6 +9,31 @@ Active work lives in
 
 ---
 
+## 2026-10-30 — The Data page tells unread history from missing history, and collect reads the older pushes ([#583](https://github.com/yveshanoulle/forsgren/issues/583), 4 steps)
+
+forsgren issue 583. A busy repository's first push read stops at the page
+cap (10 pages of 100), so its stored pushes began where the read stopped, and
+the Data page showed that date as if the repository started there. A
+measurement first (step 0) showed GitHub's activity list reaching back to the
+creation of every repository made since late 2023, and the list of an older
+repository ending at December 2023 without it: forsgren's cap was the limit,
+and GitHub keeps less for older repositories, so `history_days` promises
+nothing on its own. A cut read is now noted in `data/pushes_cut.csv`, and an
+installation cut before that is found by a one-time check of one request
+(`data/pushes_checked.csv`). The Data page marks such a date `…` in red, with
+"earlier data not yet read" for a screen reader, on Pushes and on Commits when
+the pushed commits give it. Each run then reads older pushes, a page at a time
+after GitHub's own cursor, which `data/pushes_fill.csv` keeps across runs, up
+to the page cap within the request budget; each push is compared and stored
+as a new one, nothing twice, back to `history_days` (a budget stop is a
+`pushes-fill-cut` line). The fill ends complete at the creation of the branch
+or at `history_days`, which removes the mark, or at the end of GitHub's list
+without the creation, which notes `data/pushes_github_end.csv` and marks the
+date `⇤`, "GitHub keeps no older activity", never as complete. The line above
+the table explains only the markers it shows, the legend all of them, the
+dictionary has both terms, and the red is the Data page's own rule with its
+own contrast test.
+
 ## 2026-10-29 — The Data page reads Issues first, counts pushed commits and sits in the footer ([#582](https://github.com/yveshanoulle/forsgren/issues/582), 2 steps)
 
 forsgren issue 582. The Data page of forsgren issue 579 had a Failure issues

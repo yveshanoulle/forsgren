@@ -15,21 +15,44 @@ import (
 // when the list ends there. GitHub pages this list by that cursor, which
 // holds its place across runs. Errors are BranchActivities' (a 403 is
 // ErrPushesDenied).
-func (c *Client) ActivityPage(ctx context.Context, repo, branch, cursor string) ([]Activity, string, error) {
+func (c *Client) ActivityPage(ctx context.Context, repo, branch, cursor string) (ActivityList, error) {
 	t, err := c.endpoint(repo, activityQuery(branch, cursor), "activity")
 	if err != nil {
-		return nil, "", err
+		return ActivityList{}, err
 	}
 	body, header, err := c.get(ctx, t, jsonMedia)
 	if err != nil {
-		return nil, "", c.explainPushesDenied(repo, t, err)
+		return ActivityList{}, c.explainPushesDenied(repo, t, err)
 	}
 	page, err := readActivities(body)
 	if err != nil {
-		return nil, "", fmt.Errorf("%s: %w for %s: %w", t.repo, ErrAnswer, t.path(), err)
+		return ActivityList{}, fmt.Errorf("%s: %w for %s: %w", t.repo, ErrAnswer, t.path(), err)
 	}
 	next, err := c.nextCursor(t, header)
-	return wantedActivities(page), next, err
+	return ActivityList{Activities: wantedActivities(page), Next: next, Created: holdsCreation(page)}, err
+}
+
+// activityBranchCreation is GitHub's activity_type of the creation of a branch.
+const activityBranchCreation = "branch_creation"
+
+// holdsCreation says page holds the creation of the branch.
+func holdsCreation(page []Activity) bool {
+	for _, a := range page {
+		if a.Kind == activityBranchCreation {
+			return true
+		}
+	}
+	return false
+}
+
+// ActivityList is one page of the activity list: its pushes, merges and force
+// pushes, the after cursor of the next page (empty at the end), and whether
+// the page holds the creation of the branch, the first item of a complete
+// list (forsgren#583, step 3).
+type ActivityList struct {
+	Activities []Activity
+	Next       string
+	Created    bool
 }
 
 // activityQuery is the query of the activity list of branch after cursor,

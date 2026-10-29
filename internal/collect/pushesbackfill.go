@@ -94,19 +94,47 @@ func (o Options) fillPage(ctx context.Context, h held, f filled) (bool, error) {
 	if err := o.Client.Reserve(f.repo, 1); err != nil {
 		return false, err
 	}
-	page, next, err := o.Client.ActivityPage(ctx, f.repo, f.branch, h.fillCursors[key])
+	list, err := o.Client.ActivityPage(ctx, f.repo, f.branch, h.fillCursors[key])
 	if err != nil {
 		return false, err
 	}
-	ended, err := o.storeFillPage(ctx, h, f.repo, page)
+	ended, err := o.storeFillPage(ctx, h, f.repo, list.Activities)
 	if err != nil {
 		return false, err
 	}
-	if ended || next == "" {
-		return false, nil
+	return o.moveFill(h, key, list, ended), nil
+}
+
+// moveFill moves the fill of the repository key on to list's next page, or
+// ends it when list or history_days (ended) is its end; it says whether the
+// fill goes on.
+func (o Options) moveFill(h held, key string, list github.ActivityList, ended bool) bool {
+	if ended || list.Next == "" {
+		o.endFill(h, key, ended || list.Created)
+		return false
 	}
-	h.fillCursors[key], h.pushesFilledAt[key] = next, wholeSecond(o.Now)
-	return true, nil
+	h.fillCursors[key], h.pushesFilledAt[key] = list.Next, wholeSecond(o.Now)
+	return true
+}
+
+// endFill ends the fill of the repository key (forsgren#583, step 3): its cut
+// line and cursor go, and it needs no reach check any more. A fill that was
+// not complete (the list ended without the creation of the branch, before
+// history_days back) notes the oldest push read as GitHub's end.
+func (o Options) endFill(h held, key string, complete bool) {
+	if !complete {
+		h.githubEnd[key] = h.pushesCut[key]
+	}
+	delete(h.pushesCut, key)
+	delete(h.fillCursors, key)
+	delete(h.pushesFilledAt, key)
+	h.pushesChecked[key] = wholeSecond(o.Now)
+}
+
+// pushesGitHubEndFile is the path of the pushes github end file next to o's
+// history.
+func (o Options) pushesGitHubEndFile() string {
+	return filepath.Join(filepath.Dir(o.History), PushesGitHubEndFile)
 }
 
 // storeFillPage compares and stores the pushes of one page that are not

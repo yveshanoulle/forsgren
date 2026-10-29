@@ -768,7 +768,11 @@ before this release is found on the next run by a one-time check of one
 request, so its date is marked straight away. Then each run reads more of its
 older pushes, up to 10 pages of 100 a run within the request budget, and
 stores them as new pushes, back to `history_days`; the marked date moves back
-as they are read. Nothing new is needed: no
+as they are read, and shows in red. Once the read reaches the creation of the
+branch or `history_days`, the mark goes. When GitHub's own list ends first,
+as it does for an older repository, the date is marked ⇤, "GitHub keeps no
+older activity", never shown as complete. The line above the table explains
+only the markers it shows. Nothing new is needed: no
 permission, secret or file. An agent following
 [agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing about it.
 

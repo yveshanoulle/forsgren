@@ -11,7 +11,7 @@ Over the files git tracks and the untracked ones it does not ignore
 - a file that looks like installation config or data sits outside
   `testdata/`: anything under a top-level `data/`, `deployments.csv`,
   `commits.csv`, `failures.csv`, `failures_read.csv`, `failures_withdrawn.csv`, `issues.csv`, `issues_full.csv`,
-  `issue_bugs.csv`, `issue_bugs_cut.csv`, `reach.csv`, `cut_runs.csv`, `starts_checked.csv`, `commits_backfilled.csv`, `pulls.csv`, `pulls_read.csv`, `pulls_denied.csv`, `pushes.csv`, `pushes_read.csv`, `pushes_denied.csv`, `pushes_cut.csv`, `pushes_checked.csv`, `pushes_fill.csv`, `push_commits.csv`, `pull_commits.csv`, `pull_commits_filled.csv`, `push_commits_filled.csv`, `pulls_bot_filled.csv`, `commit_files.csv`, `commit_files_filled.csv`, `history.csv`, `*.history.csv`, `forsgren.config.*`,
+  `issue_bugs.csv`, `issue_bugs_cut.csv`, `reach.csv`, `cut_runs.csv`, `starts_checked.csv`, `commits_backfilled.csv`, `pulls.csv`, `pulls_read.csv`, `pulls_denied.csv`, `pushes.csv`, `pushes_read.csv`, `pushes_denied.csv`, `pushes_cut.csv`, `pushes_checked.csv`, `pushes_fill.csv`, `pushes_github_end.csv`, `push_commits.csv`, `pull_commits.csv`, `pull_commits_filled.csv`, `push_commits_filled.csv`, `pulls_bot_filled.csv`, `commit_files.csv`, `commit_files_filled.csv`, `history.csv`, `*.history.csv`, `forsgren.config.*`,
   `forsgren-config.*`, `config.yml`/`.yaml`/`.json` at any depth, or a
   `*.jsonl` events file.
   Every data file the Go code names (a constant `<Name>File = "<name>.csv"` in

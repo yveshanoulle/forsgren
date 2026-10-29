@@ -17,7 +17,12 @@ var legendDataText = []string{
 	"A dash means nothing of that kind is stored.",
 	"A date marked … is only where the read of a repository's pushes stopped at its page limit: " +
 		"earlier data is not yet read, so it does not mean the repository started on that date. " +
-		"It marks Pushes, and Commits when the pushed commits give its date.",
+		"It marks Pushes, and Commits when the pushed commits give its date, and such a date is red; " +
+		"the … says it without the colour.",
+	"A date marked ⇤ is as far back as GitHub keeps the activity of a repository: " +
+		"its list ends there without the creation of the branch, so GitHub keeps no older activity. " +
+		"It is not a complete history, and not where the repository started.",
+	"Each explanation above the table appears only when a date on the page carries its marker.",
 	"Commits is the oldest author date over the deployed commits and the pushed commits; " +
 		"a service or rule row has its own deployed commits only.",
 	"A service or rule row reads Per repository for Issues, Pushes and Merged pull requests, " +

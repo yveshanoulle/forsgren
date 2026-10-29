@@ -15,7 +15,24 @@ func afterLink(cursor string) map[string][]string {
 // activityPageOf is ActivityPage of acme/app's main from cursor on the fake.
 func activityPageOf(t *testing.T, f *fakeGitHub, cursor string) ([]Activity, string, error) {
 	t.Helper()
-	return f.client(t, DefaultMaxPages).ActivityPage(context.Background(), "acme/app", "main", cursor)
+	page, err := f.client(t, DefaultMaxPages).ActivityPage(context.Background(), "acme/app", "main", cursor)
+	return page.Activities, page.Next, err
+}
+
+// TestActivityPageSaysWhenItHoldsTheBranchCreation (forsgren#583, step 3): a
+// page with the creation of the branch says so, the end of a complete list;
+// one without does not.
+func TestActivityPageSaysWhenItHoldsTheBranchCreation(t *testing.T) {
+	f := newFake(t)
+	f.onPage(activityPath, "c1", reply{body: fixture(t, "activity.json")})
+	f.onPage(activityPath, "c2", reply{body: "[]"})
+	client := f.client(t, DefaultMaxPages)
+	for cursor, want := range map[string]bool{"c1": true, "c2": false} {
+		page, err := client.ActivityPage(context.Background(), "acme/app", "main", cursor)
+		if err != nil || page.Created != want {
+			t.Errorf("after %s: want Created %v, got %+v, %v", cursor, want, page, err)
+		}
+	}
 }
 
 // TestActivityPageReadsOnePageAndGivesTheNextCursor (forsgren#583, step 2):

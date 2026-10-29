@@ -304,6 +304,13 @@
     On the Data page, a date marked … is only where a repository's push read stopped at its page limit:
     older pushes, and the commits they brought, are not read yet, so the repository did not start there.
   from: "Repositories of data/pushes_cut.csv, each with the oldest push time its cut read reached."
+- name: "GitHub keeps no older activity"
+  kind: term
+  definition: >-
+    On the Data page, a date marked ⇤ is as far back as GitHub's activity list of a repository reaches: the list
+    ends there without the creation of the branch, so GitHub keeps no older pushes and forsgren cannot read them.
+    It is not a complete history, and not where the repository started.
+  from: "The repositories whose activity list collect found ending without the creation of the branch, each with the oldest push GitHub keeps."
 - name: "Volume"
   kind: term
   definition: "The TBD group of the four counts Commits, Pushes, Deployments and Deployed commits."

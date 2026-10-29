@@ -39,24 +39,27 @@ func storedPushRun(t *testing.T) (*gitHub, string) {
 // TestTheReachCheckMarksAnAlreadyCutRepositoryOnly: GitHub holding a push
 // older than the oldest stored one means the read was cut before
 // pushes_cut.csv existed, and the cut line is the oldest stored push; GitHub's
-// oldest push being the oldest stored one cuts nothing. Either way one request
-// is made, once: a second run asks nothing.
+// oldest push being the oldest stored one, after the creation of the branch,
+// cuts nothing. Either way one request is made, once: a second run asks
+// nothing. (The page cap of 1 keeps the fill of a cut one at its top page.)
 func TestTheReachCheckMarksAnAlreadyCutRepositoryOnly(t *testing.T) {
-	for name, c := range map[string]struct{ oldest, cut string }{
-		"already cut": {pushTime0, pushesCutHdr + "acme/app," + pushTime1 + "\n"},
-		"complete":    {pushTime1, ""},
+	creation := activityOf("branch_creation", "2026-03-01T09:00:00Z", shaE, shaC)
+	for name, c := range map[string]struct {
+		oldest []string
+		cut    string
+	}{
+		"already cut": {[]string{activityOf("push", pushTime0, shaC, shaA)}, pushesCutHdr + "acme/app," + pushTime1 + "\n"},
+		"complete":    {[]string{creation, activityOf("push", pushTime1, shaA, shaB)}, ""},
 	} {
 		t.Run(name, func(t *testing.T) {
 			g, path := storedPushRun(t)
-			g.bodies[oldestFirstPath] = list(activityOf("push", c.oldest, shaC, shaA))
-			for range 2 {
-				if r := g.collect(t, shop(production), path, github.DefaultMaxPages); r.err != nil {
-					t.Fatal(r.err)
-				}
-			}
-			wantOldestFirstRequests(t, g, 1)
+			g.bodies[oldestFirstPath] = list(c.oldest...)
+			g.after[activityPath] = "c1"
+			runOK(t, g, path, 1)
 			dataOf(path).want(t, PushesCutFile, c.cut)
 			dataOf(path).want(t, PushesCheckedFile, pushesCheckedNow)
+			runOK(t, g, path, 1)
+			wantOldestFirstRequests(t, g, 1)
 		})
 	}
 }
@@ -74,17 +77,21 @@ func TestAFailingReachCheckWritesNothing(t *testing.T) {
 	dataOf(path).want(t, PushesCheckedFile, "")
 }
 
-// TestAFirstReadThatEndsIsCheckedWithoutARequest: a first read that reached
-// the end of the list needs no check.
-func TestAFirstReadThatEndsIsCheckedWithoutARequest(t *testing.T) {
+// TestAFirstReadThatEndsIsCheckedWithOneRequest (forsgren#583, step 3): a
+// first read that ended by itself may have reached GitHub's end of the list,
+// so it is checked once as well, over the pushes it stored: a list that does
+// not start with the creation of the branch notes GitHub's end.
+func TestAFirstReadThatEndsIsCheckedWithOneRequest(t *testing.T) {
 	g := pushesOnly(t, activityOf("push", pushTime1, shaA, shaB))
 	g.bodies[comparePath(shaA, shaB)] = chain(shaA, shaB)
+	g.bodies[oldestFirstPath] = list(activityOf("push", pushTime1, shaA, shaB))
 	path := historyPath(t)
 	if r := g.collect(t, shop(production), path, github.DefaultMaxPages); r.err != nil {
 		t.Fatal(r.err)
 	}
-	wantOldestFirstRequests(t, g, 0)
+	wantOldestFirstRequests(t, g, 1)
 	dataOf(path).want(t, PushesCheckedFile, pushesCheckedNow)
+	dataOf(path).want(t, PushesGitHubEndFile, pushesGitHubEndHdr+"acme/app,"+pushTime1+"\n")
 }
 
 // wantOldestFirstRequests fails unless the activity list was read oldest
@@ -104,3 +111,27 @@ func wantOldestFirstRequests(t *testing.T, g *gitHub, n int) {
 
 // hasDirectionAsc says whether the request URI r asks for the list oldest first.
 func hasDirectionAsc(r string) bool { return strings.Contains(r, "direction=asc") }
+
+// TestTheReachCheckNotesGitHubsEnd (forsgren#583, step 3): GitHub's oldest
+// push is the oldest stored one, but the list does not start with the
+// creation of the branch and that push is within history_days: GitHub keeps
+// no older activity, which the check notes; with the creation first it notes
+// nothing but the check.
+func TestTheReachCheckNotesGitHubsEnd(t *testing.T) {
+	for name, c := range map[string]struct{ first, end string }{
+		"no creation": {"", pushesGitHubEndHdr + "acme/app," + pushTime1 + "\n"},
+		"creation":    {activityOf("branch_creation", "2026-09-19T10:00:00Z", shaE, shaA), ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			g, path := storedPushRun(t)
+			items := []string{activityOf("push", pushTime1, shaA, shaB)}
+			if c.first != "" {
+				items = append([]string{c.first}, items...)
+			}
+			g.bodies[oldestFirstPath] = list(items...)
+			runOK(t, g, path, 10)
+			dataOf(path).want(t, PushesGitHubEndFile, c.end)
+			dataOf(path).want(t, PushesCheckedFile, pushesCheckedNow)
+		})
+	}
+}

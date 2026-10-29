@@ -20,7 +20,24 @@ const oldestActivityBody = `[
 // oldest is OldestActivity of acme/app's main on the fake.
 func oldest(t *testing.T, f *fakeGitHub) (time.Time, error) {
 	t.Helper()
-	return f.client(t, DefaultMaxPages).OldestActivity(context.Background(), "acme/app", "main")
+	got, err := f.client(t, DefaultMaxPages).OldestActivity(context.Background(), "acme/app", "main")
+	return got.At, err
+}
+
+// TestOldestActivitySaysWhetherTheListStartsWithTheBranchCreation
+// (forsgren#583, step 3): a list whose oldest item is the creation of the
+// branch is complete; one that starts with a push is all GitHub keeps.
+func TestOldestActivitySaysWhetherTheListStartsWithTheBranchCreation(t *testing.T) {
+	const pushOnly = `[{"timestamp": "2023-12-28T15:32:11Z", "activity_type": "push",
+  "before": "1111111111111111111111111111111111111111", "after": "2222222222222222222222222222222222222222"}]`
+	for body, want := range map[string]bool{oldestActivityBody: true, pushOnly: false} {
+		f := newFake(t)
+		f.on(activityPath, reply{body: body})
+		got, err := f.client(t, DefaultMaxPages).OldestActivity(context.Background(), "acme/app", "main")
+		if err != nil || got.Created != want {
+			t.Errorf("want Created %v, got %+v, %v", want, got, err)
+		}
+	}
 }
 
 // TestOldestActivityReadsOnePageOldestFirst (forsgren#583, step 1): one GET
@@ -57,4 +74,14 @@ func TestOldestActivityNamesTheMissingPermission(t *testing.T) {
 	f.on(activityPath, reply{status: 403, body: `{"message":"Resource not accessible by integration"}`})
 	_, err := oldest(t, f)
 	wantError(t, err, ErrPushesDenied, "acme/app")
+}
+
+// TestOldestActivityRefusesARepositoryThatIsNoName: no request for a name
+// that is not owner/name.
+func TestOldestActivityRefusesARepositoryThatIsNoName(t *testing.T) {
+	f := newFake(t)
+	if _, err := f.client(t, DefaultMaxPages).OldestActivity(context.Background(), "no-slash", "main"); err == nil {
+		t.Error("want a repository name that is not owner/name refused")
+	}
+	wantRequests(t, f, 0)
 }

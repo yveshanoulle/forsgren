@@ -36,6 +36,9 @@
       <dt id="final-deployment">Final deployment</dt>
       <dd>A deployment that ended as a success or a failure, created in the window. One still running is not stored yet, and one that ended in another way, such as a cancelled run, is not final here. It is not the last deployment: every such deployment of the window counts. Final deployments are the base of Change fail rate.</dd>
       <dd>From: Deployments of data/deployments.csv.</dd>
+      <dt id="github-keeps-no-older-activity">GitHub keeps no older activity</dt>
+      <dd>On the Data page, a date marked ⇤ is as far back as GitHub&#39;s activity list of a repository reaches: the list ends there without the creation of the branch, so GitHub keeps no older pushes and forsgren cannot read them. It is not a complete history, and not where the repository started.</dd>
+      <dd>From: The repositories whose activity list collect found ending without the creation of the branch, each with the oldest push GitHub keeps.</dd>
       <dt id="lead-time">Lead time</dt>
       <dd>The time from a start to the event that finishes it. Three are told apart: deployment lead time, Lead time for changes, from a commit&#39;s author date to the successful deployment that shipped it; issue lead time, from an issue&#39;s creation to its completed close; and PR lead time, from the first commit of a pull request to its merge. Mainline Lead Time is a fourth clock, from a commit&#39;s author date to the push that brought it to main.</dd>
       <dd>From: See the entries of each lead time.</dd>

@@ -76,6 +76,7 @@ type held struct {
 	oldestPush     map[string]time.Time      // see pushesreach.go: the oldest stored push per repository
 	pushesFilledAt history.Reach             // see pushesbackfill.go: when each push fill last moved
 	fillCursors    map[string]string         // see pushesbackfill.go: the cursor of each, with pushesFilledAt
+	githubEnd      history.Reach             // see pushesbackfill.go: where GitHub's activity list ends
 	backfilled     history.Reach             // see legacybackfill.go
 	pullsFilled    history.Reach             // see pullsfill.go
 	mergesFilled   history.Reach             // see pushesfill.go
