@@ -178,7 +178,7 @@ From: Deployments of data/deployments.csv and issues of data/failures.csv, over 
 
 ### Commits
 
-On the TBD page, the commits the pushes of the window brought to the main branch, each counted once. On the Week page, shown only with week\_commits: true: under Total, the row's commits of the window; under each weekday, the share of them whose author date falls on that weekday. On the Data page, the oldest author date of the stored deployed commits.
+On the TBD page, the commits the pushes of the window brought to the main branch, each counted once. On the Week page, shown only with week\_commits: true: under Total, the row's commits of the window; under each weekday, the share of them whose author date falls on that weekday. The Data page shows the oldest author date of the stored deployed commits.
 
 From: Pushes of data/pushes.csv and data/push\_commits.csv, over the window; on the Data page, data/commits.csv.
 
