@@ -178,9 +178,9 @@ From: Deployments of data/deployments.csv and issues of data/failures.csv, over 
 
 ### Commits
 
-On the TBD page, the commits the pushes of the window brought to the main branch, each counted once. On the Week page, shown only with week\_commits: true: under Total, the row's commits of the window; under each weekday, the share of them whose author date falls on that weekday.
+On the TBD page, the commits the pushes of the window brought to the main branch, each counted once. On the Week page, shown only with week\_commits: true: under Total, the row's commits of the window; under each weekday, the share of them whose author date falls on that weekday. On the Data page, the oldest author date of the stored deployed commits.
 
-From: Pushes of data/pushes.csv and data/push\_commits.csv, over the window.
+From: Pushes of data/pushes.csv and data/push\_commits.csv, over the window; on the Data page, data/commits.csv.
 
 ### Commits per deployment
 
@@ -220,9 +220,9 @@ From: Deployments of data/deployments.csv and issues of data/failures.csv, over 
 
 ### Deployments
 
-The successful deployments. On the Week page, Deployments under Total is the row's count of the window, and Deploys under a weekday is the share of them created on that weekday.
+The successful deployments. On the Week page, Deployments under Total is the row's count of the window, and Deploys under a weekday is the share of them created on that weekday. On the Data page, the date of the first deployment stored, whatever its state.
 
-From: Deployments of data/deployments.csv, over the window.
+From: Deployments of data/deployments.csv, over the window; on the Data page, every stored deployment.
 
 ### Developers
 
@@ -260,9 +260,21 @@ On the Week page, the deployments with the state failure; another way of ending 
 
 From: Deployments of data/deployments.csv, over the window.
 
+### Failure issues
+
+On the Data page, the date the first stored issue labelled failure was opened.
+
+From: Issues of data/failures.csv.
+
 ### Issue lead time
 
 The median time from an issue's creation to its completed close, over the issues completed in the period.
+
+From: Issue events of data/issues.csv.
+
+### Issues
+
+On the Data page, the date of the oldest stored event of any issue of the row's repositories, whatever its labels.
 
 From: Issue events of data/issues.csv.
 
@@ -283,6 +295,12 @@ From: Commits of data/commits.csv, over the window.
 The time from the author date of every commit that reached main to the earliest push that brought it there, however it got there.
 
 From: Pushes and their commits (data/pushes.csv, data/push\_commits.csv) and pull requests of data/pulls.csv, over the window.
+
+### Merged pull requests
+
+On the Data page, the date the first stored pull request was merged into the main branch.
+
+From: Merged pull requests of data/pulls.csv.
 
 ### New
 
@@ -340,9 +358,9 @@ From: Pushes, push commits and pull requests, over the window.
 
 ### Pushes
 
-The pushes to the main branch.
+The pushes to the main branch. On the Data page, the date of the first push stored.
 
-From: Pushes of data/pushes.csv, over the window.
+From: Pushes of data/pushes.csv, over the window; on the Data page, every stored push.
 
 ### Time to deploy per commit
 

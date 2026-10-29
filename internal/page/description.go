@@ -23,6 +23,7 @@ var descriptions = map[string]string{
 		"commits per push and per deployment and the developers",
 	WeekPage: "Deployments, failed deployments and fail rate per weekday, " +
 		"with commits when week_commits is true",
+	DataPage:       "The first data stored for each project, per kind, and which pages use it",
 	legendPage:     "How the DORA numbers are counted and scored: the window, the bands and the scores",
 	settingsPage:   "The settings of forsgren.config.yml and the value in use for each",
 	dictionaryPage: "What every number and term on the pages means, and where it comes from",

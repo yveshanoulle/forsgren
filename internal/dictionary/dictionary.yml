@@ -61,17 +61,30 @@
   definition: >-
     On the TBD page, the commits the pushes of the window brought to the main branch, each counted once.
     On the Week page, shown only with week_commits: true: under Total, the row's commits of the window;
-    under each weekday, the share of them whose author date falls on that weekday.
-  from: "Pushes of data/pushes.csv and data/push_commits.csv, over the window."
+    under each weekday, the share of them whose author date falls on that weekday. On the Data page, the
+    oldest author date of the stored deployed commits.
+  from: "Pushes of data/pushes.csv and data/push_commits.csv, over the window; on the Data page, data/commits.csv."
 - name: "Pushes"
   kind: number
-  definition: "The pushes to the main branch."
-  from: "Pushes of data/pushes.csv, over the window."
+  definition: "The pushes to the main branch. On the Data page, the date of the first push stored."
+  from: "Pushes of data/pushes.csv, over the window; on the Data page, every stored push."
 - name: "Deployments"
   kind: number
   shown: ["Deployments", "Deploys"]
-  definition: "The successful deployments. On the Week page, Deployments under Total is the row's count of the window, and Deploys under a weekday is the share of them created on that weekday."
-  from: "Deployments of data/deployments.csv, over the window."
+  definition: "The successful deployments. On the Week page, Deployments under Total is the row's count of the window, and Deploys under a weekday is the share of them created on that weekday. On the Data page, the date of the first deployment stored, whatever its state."
+  from: "Deployments of data/deployments.csv, over the window; on the Data page, every stored deployment."
+- name: "Merged pull requests"
+  kind: number
+  definition: "On the Data page, the date the first stored pull request was merged into the main branch."
+  from: "Merged pull requests of data/pulls.csv."
+- name: "Failure issues"
+  kind: number
+  definition: "On the Data page, the date the first stored issue labelled failure was opened."
+  from: "Issues of data/failures.csv."
+- name: "Issues"
+  kind: number
+  definition: "On the Data page, the date of the oldest stored event of any issue of the row's repositories, whatever its labels."
+  from: "Issue events of data/issues.csv."
 - name: "Deployed commits"
   kind: number
   definition: "The distinct commits that the deployments of the window shipped, each counted once at its first deployment."

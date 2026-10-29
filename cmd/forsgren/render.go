@@ -183,6 +183,7 @@ func withHistory(data page.Data, cfg config.Config, path string, at time.Time) (
 	}
 	data.IssueDays = metrics.IssueDays(events, at, issueDays)
 	data.IssueRows = metrics.IssueRows(events, at)
+	data.DataStarts = metrics.DataStartsOf(cfg.Projects, metricsData, events, at)
 	return withBugsCut(data, path)
 }
 

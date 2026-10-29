@@ -151,7 +151,7 @@ func TestWeekPageSaysWhyThereIsNoTable(t *testing.T) {
 // TestWeekPageIsListedAfterTbdInTheMenu: the menu names Week last.
 func TestWeekPageIsListedAfterTbdInTheMenu(t *testing.T) {
 	got := rendered(t, "week.html", weekPageData())
-	if !strings.Contains(got, `<a href="tbd.html">TBD</a> · <span aria-current="page">Week</span></nav>`) {
+	if !strings.Contains(got, `<a href="tbd.html">TBD</a> · <span aria-current="page">Week</span> · <a href="data.html">Data</a></nav>`) {
 		t.Errorf("want Week after TBD, current, got:\n%s", got)
 	}
 }

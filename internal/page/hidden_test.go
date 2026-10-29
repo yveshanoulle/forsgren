@@ -19,9 +19,9 @@ func TestWriteSiteLeavesOutHiddenPagesAndRemovesStaleOnes(t *testing.T) {
 		kept   []string
 		pages  int
 	}{
-		"days":   {map[string]bool{"days": true}, []string{"days.html"}, []string{"issues.html"}, 12},
-		"issues": {map[string]bool{"issues": true}, []string{"issues.html"}, []string{"days.html"}, 12},
-		"both":   {map[string]bool{"days": true, "issues": true}, []string{"days.html", "issues.html"}, nil, 11},
+		"days":   {map[string]bool{"days": true}, []string{"days.html"}, []string{"issues.html"}, 13},
+		"issues": {map[string]bool{"issues": true}, []string{"issues.html"}, []string{"days.html"}, 13},
+		"both":   {map[string]bool{"days": true, "issues": true}, []string{"days.html", "issues.html"}, nil, 12},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -57,8 +57,8 @@ func TestWriteSiteFailsWhenAHiddenPageCannotBeRemoved(t *testing.T) {
 // TestWriteSiteHidesAPageThatWasNeverWritten (forsgren#159): a hidden page
 // with no file in a fresh out dir is no error.
 func TestWriteSiteHidesAPageThatWasNeverWritten(t *testing.T) {
-	if n, err := WriteSite(t.TempDir(), placeholderHiding(map[string]bool{"days": true})); err != nil || n != 12 {
-		t.Errorf("want 12 pages and no error, got %d, %v", n, err)
+	if n, err := WriteSite(t.TempDir(), placeholderHiding(map[string]bool{"days": true})); err != nil || n != 13 {
+		t.Errorf("want 13 pages and no error, got %d, %v", n, err)
 	}
 }
 
@@ -210,8 +210,8 @@ func TestWriteSiteLeavesOutAHiddenNumbersAndScoringPage(t *testing.T) {
 			dir := t.TempDir()
 			folder := writeStaleFolder(t, dir, other)
 			n, err := WriteSite(dir, hidden)
-			if err != nil || n != 12 {
-				t.Fatalf("want 12 pages and no error, got %d, %v", n, err)
+			if err != nil || n != 13 {
+				t.Fatalf("want 13 pages and no error, got %d, %v", n, err)
 			}
 			wantGone(t, dir, []string{"numbers-scoring/index.html"})
 			if _, err := os.Stat(folder); (other == "") != os.IsNotExist(err) {
@@ -245,8 +245,8 @@ func writeStaleFolder(t *testing.T, dir, other string) string {
 // file and no folder in a fresh out dir is no error, and none is made.
 func TestWriteSiteHidesANumbersAndScoringPageThatWasNeverWritten(t *testing.T) {
 	dir := t.TempDir()
-	if n, err := WriteSite(dir, placeholderHiding(hideNumbersScoring())); err != nil || n != 12 {
-		t.Errorf("want 12 pages and no error, got %d, %v", n, err)
+	if n, err := WriteSite(dir, placeholderHiding(hideNumbersScoring())); err != nil || n != 13 {
+		t.Errorf("want 13 pages and no error, got %d, %v", n, err)
 	}
 	wantGone(t, dir, []string{viewNumbersScoring})
 }
@@ -268,13 +268,13 @@ func TestRemoveEmptyFolderFailsOnAnyOtherError(t *testing.T) {
 // hides nothing writes it.
 func TestHiddenHistoryPageIsNotWrittenAndAStaleOneIsRemoved(t *testing.T) {
 	dir := t.TempDir()
-	if n, err := WriteSite(dir, placeholderHiding(nil)); err != nil || n != 13 {
-		t.Fatalf("want 13 pages and no error with nothing hidden, got %d, %v", n, err)
+	if n, err := WriteSite(dir, placeholderHiding(nil)); err != nil || n != 14 {
+		t.Fatalf("want 14 pages and no error with nothing hidden, got %d, %v", n, err)
 	}
 	wantRendered(t, dir, []string{"history.html"})
 	n, err := WriteSite(dir, placeholderHiding(map[string]bool{HistoryPage: true}))
-	if err != nil || n != 12 {
-		t.Fatalf("want 12 pages and no error with the history page hidden, got %d, %v", n, err)
+	if err != nil || n != 13 {
+		t.Fatalf("want 13 pages and no error with the history page hidden, got %d, %v", n, err)
 	}
 	wantGone(t, dir, []string{"history.html"})
 	wantRendered(t, dir, []string{"index.html", "legend.html", "settings.html", "days.html", "issues.html"})
@@ -289,13 +289,13 @@ func TestHiddenHistoryPageIsNotWrittenAndAStaleOneIsRemoved(t *testing.T) {
 // writes it.
 func TestHiddenTbdPageIsNotWrittenAndAStaleOneIsRemoved(t *testing.T) {
 	dir := t.TempDir()
-	if n, err := WriteSite(dir, placeholderHiding(nil)); err != nil || n != 13 {
-		t.Fatalf("want 13 pages and no error with nothing hidden, got %d, %v", n, err)
+	if n, err := WriteSite(dir, placeholderHiding(nil)); err != nil || n != 14 {
+		t.Fatalf("want 14 pages and no error with nothing hidden, got %d, %v", n, err)
 	}
 	wantRendered(t, dir, []string{"tbd.html"})
 	n, err := WriteSite(dir, placeholderHiding(map[string]bool{TbdPage: true}))
-	if err != nil || n != 12 {
-		t.Fatalf("want 12 pages and no error with the TBD page hidden, got %d, %v", n, err)
+	if err != nil || n != 13 {
+		t.Fatalf("want 13 pages and no error with the TBD page hidden, got %d, %v", n, err)
 	}
 	wantGone(t, dir, []string{"tbd.html"})
 	wantRendered(t, dir, []string{"index.html", "history.html", "issues.html"})

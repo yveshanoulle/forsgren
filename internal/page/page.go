@@ -116,6 +116,8 @@ type Data struct {
 	// says it shows its Commits columns, the config's week_commits (forsgren#548).
 	Week        metrics.Week
 	WeekCommits bool
+	// DataStarts is the Data page's table (forsgren#579); empty until read.
+	DataStarts metrics.DataStarts
 	// PullsUncollected says there is no data/pulls.csv beside the history:
 	// no collect has stored pull requests yet, so the TBD page says so in
 	// place of each PR Lead Time (forsgren#256, step 2).
@@ -271,10 +273,10 @@ type rootPage struct{ Name, Label string }
 // after the folderPages: the issues page (forsgren#123, forsgren#128: the
 // weeks, months and years), the days page (forsgren#76, forsgren#128: the
 // last 30 days, labelled Daily), the history page (forsgren#68) and the TBD
-// page (forsgren#253, labelled TBD) and the Week page (forsgren#531, labelled
-// Week).
+// page (forsgren#253, labelled TBD), the Week page (forsgren#531, labelled
+// Week) and the Data page (forsgren#579, labelled Data).
 var rootPages = []rootPage{{IssuesPage, "Issues"}, {DaysPage, "Daily"}, {HistoryPage, "History"},
-	{TbdPage, "TBD"}, {WeekPage, "Week"}}
+	{TbdPage, "TBD"}, {WeekPage, "Week"}, {DataPage, "Data"}}
 
 // IssuesPage and DaysPage are the names of the two issue pages, keys of
 // Data.Hidden (forsgren#159).

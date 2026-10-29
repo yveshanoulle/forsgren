@@ -664,14 +664,15 @@ func TestTbdPageSaysWhyItHasNoTable(t *testing.T) {
 }
 
 // TestTbdPageIsAfterHistoryInTheRootPages (forsgren#253): the page is one of
-// the root pages, labelled TBD, after the History page.
+// the root pages, labelled TBD, after the History page, then Week
+// (forsgren#531) and Data (forsgren#579).
 func TestTbdPageIsAfterHistoryInTheRootPages(t *testing.T) {
-	last := rootPages[len(rootPages)-2]
-	if last.Name != TbdPage || last.Label != "TBD" {
-		t.Errorf("want the root page before the last %q labelled TBD, got %+v", TbdPage, last)
-	}
-	if week := rootPages[len(rootPages)-1]; week.Name != WeekPage || week.Label != "Week" {
-		t.Errorf("want the last root page %q labelled Week, got %+v", WeekPage, week)
+	want := []rootPage{{HistoryPage, "History"}, {TbdPage, "TBD"}, {WeekPage, "Week"}, {DataPage, "Data"}}
+	got := rootPages[len(rootPages)-len(want):]
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("root page %d from the end: want %+v, got %+v", len(want)-i, want[i], got[i])
+		}
 	}
 }
 

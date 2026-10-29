@@ -2955,6 +2955,18 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/page/datapage.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-29",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/datapage_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-29",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/dictionary/dictionary.go",
    "score": 10.0,
    "checkedAt": "2026-10-29",
