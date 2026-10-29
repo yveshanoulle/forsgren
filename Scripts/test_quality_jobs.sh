@@ -94,6 +94,8 @@ cd "$(dirname "$0")/.."
 
 # shellcheck source=Scripts/lib_git_sandbox.sh
 source Scripts/lib_git_sandbox.sh
+# shellcheck source=Scripts/lib_gate_select.sh
+source Scripts/lib_gate_select.sh
 # shellcheck source=Scripts/lib_has.sh
 source Scripts/lib_has.sh
 # shellcheck source=Scripts/lib_selftest.sh
@@ -212,10 +214,10 @@ tool_pattern() {
 }
 
 # tools_file_findings: pin 3g, the lists. Each exists and holds exactly the
-# tools its job needs, and no gate of the job calls a tool of the full list
-# that the job's list lacks.
+# tools its job needs, and no gate of the job, nor a script it names however
+# deep (forsgren#447, step 9), calls a tool of the full list that the job's list lacks.
 tools_file_findings() {
-  local job file want listed tool script
+  local job file want listed missing tool script reached
   for job in quality_2 browser_1 browser; do
     file="${TOOLS_DIR}/$(basename "$(tools_file_of "$job")")"
     if [[ ! -s "$file" ]]; then
@@ -229,14 +231,25 @@ tools_file_findings() {
     esac
     listed="$(listed_tools "$file")"
     [[ "$listed" == "$want" ]] || echo "tools: ${file} lists '${listed}', the ${job} job needs '${want}'"
+    missing=""
     for tool in $(listed_tools Scripts/required_tools.txt); do
-      if [[ " ${listed}" == *" ${tool} "* ]]; then
-        continue
-      fi
-      for script in $(gates_of "$job"); do
-        if code "Scripts/${script}.sh" | has -E "$(tool_pattern "$tool")"; then
-          echo "tools: the ${job} gate ${script} calls ${tool}, which ${file} does not list"
-        fi
+      [[ " ${listed}" == *" ${tool} "* ]] || missing+="${tool} "
+    done
+    for script in $(gates_of "$job"); do
+      # The gate's script and every script it names, transitively (closure, as
+      # Scripts/test_gate_inputs.sh reads it): a tool needed deeper is the gate's too.
+      # Only scripts under Scripts/: the push wrappers FBP.sh and sfl.sh, which a gate
+      # may probe (it runs FBP.sh with --no-commit and it aborts before any step), no
+      # gate reads (gate_inputs.txt lists them as out), and FBP.sh's text names gitleaks.
+      for reached in $(closure "Scripts/${script}.sh" | grep '^Scripts/.*[.]sh$'); do
+        for tool in $missing; do
+          code "$reached" | has -E "$(tool_pattern "$tool")" || continue
+          if [[ "$reached" == "Scripts/${script}.sh" ]]; then
+            echo "tools: the ${job} gate ${script} calls ${tool}, which ${file} does not list"
+          else
+            echo "tools: the ${job} gate ${script} reaches ${tool} in ${reached}, which ${file} does not list"
+          fi
+        done
       done
     done
   done
@@ -736,6 +749,17 @@ expect_named "a browser_1 list without go, which its fixture site self-test need
 : > "${VERDICT_TMP}/empty/required_tools_browser_1_gates.txt"
 OUT="$(TOOLS_DIR="${VERDICT_TMP}/empty" tools_file_findings)"
 expect_named "an empty browser_1 list" "required_tools_browser_1_gates.txt does not exist or is empty"
+
+# A tool needed two calls deep (forsgren#447, step 9): a copy of Scripts/ where the browser_1
+# gate calls a script that calls a script that runs jq, which the browser_1 list lacks.
+DEEP="${VERDICT_TMP}/deep"
+mkdir -p "$DEEP"
+cp -R Scripts "${DEEP}/Scripts"
+printf '%s\n' './Scripts/zz_deep_mid.sh' >> "${DEEP}/Scripts/test_gate_browser.sh"
+printf '%s\n' '#!/usr/bin/env bash' './Scripts/zz_deep_end.sh' > "${DEEP}/Scripts/zz_deep_mid.sh"
+printf '%s\n' '#!/usr/bin/env bash' 'jq . /dev/null' > "${DEEP}/Scripts/zz_deep_end.sh"
+OUT="$(cd "$DEEP" && tools_file_findings)"
+expect_named "a tool two calls below a gate" "the browser_1 gate test_gate_browser reaches jq in Scripts/zz_deep_end.sh"
 
 mkdir -p "${VERDICT_TMP}/order"
 sed 's/^shellcheck|Scripts\/check_shellcheck.sh|pre|/shellcheck|Scripts\/check_shellcheck.sh|post|/' "$ORDER" > "${VERDICT_TMP}/order/gate_report_order.txt"
