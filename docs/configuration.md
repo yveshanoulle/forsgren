@@ -379,7 +379,7 @@ projects:
   a test holds the lists to the config loader; and **Default**, the value
   used when `forsgren.config.yml` does not set the key (forsgren#169):
   `standard`, `true`, `false`, `major`, `365`, `100`, `8`, `30`, `true`, `false`,
-  `unlisted`, `unlisted`, `true`, `true`, `false`, `median`, `true`, `true`, `true` and `[]`, in the order of the rows. A
+  `unlisted`, `unlisted`, `true`, `true`, `false`, `true`, `median`, `true`, `true`, `true` and `[]`, in the order of the rows. A
   Current value followed by `(not set)` means the file does not set the key,
   so the default applies; a Current value without it is set in the file, even
   to the default's value. For a value that is not accepted the Current value

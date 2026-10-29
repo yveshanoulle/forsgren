@@ -746,6 +746,17 @@ still collected and computed. Nothing new is needed: no permission, secret or
 file. An agent following [agent-upgrade.md](../agent-upgrade.md) needs to ask
 you nothing about it.
 
+**Upgrading to 1.31.0, which adds the Data page** (forsgren#579). A minor
+release. A new page, `data.html`, shows for each project and its label,
+service and rule rows the first date forsgren stored each kind of data, a
+date after Report Start marked ▲. The new key `data_page` is optional and
+`true` when left out, so an installation without `data_page` in its config gets the Data page in its menu, after Week, with
+this release. To keep it out of the menu, set `data_page: unlisted` (the page
+is still written and reachable by its address); `data_page: false` does not
+write it. Nothing new is needed: no permission, secret or file. An agent
+following [agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing
+about it.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`

@@ -874,13 +874,15 @@ Then check what the run did:
      and `none` are the other values), and the row `decimal_separator` shows
      `point (not set)` (decimals are written with a point, `6.0`; `comma` is the
      other value, and the same mark for both keys is not accepted). The rows `history_chunk_days`,
-     `working_hours`, `tbd_page`, `week_page`, `week_commits` and
+     `working_hours`, `tbd_page`, `week_page`, `week_commits`, `data_page` and
      `tbd_figures` are left to their defaults: `history_chunk_days` shows
      `100 (not set)`, `working_hours` shows `8 (not set)`, `tbd_page` shows
      `true (not set)` (the TBD page, `tbd.html`, is generated and in the menu),
      `week_page` shows `true (not set)` (the Week page, `week.html`, is in the
      menu), `week_commits` shows `false (not set)` (the Week page leaves out its
-     Commits columns; `week_commits: true` shows them) and `tbd_figures` shows `median (not set)` (the TBD table shows the median
+     Commits columns; `week_commits: true` shows them), `data_page` shows
+     `true (not set)` (the Data page, `data.html`, is generated and in the
+     menu) and `tbd_figures` shows `median (not set)` (the TBD table shows the median
      of each measure; `tbd_figures: all` shows the mean, the median and the
      90th percentile). `sub_rows`, `tbd_time_to_main`, `tbd_pr_lead_time` and
      `tbd_bot_pr_lead_time` each show `true (not set)` (every table shows its
@@ -1164,7 +1166,7 @@ For an install that exists, you can change one setting: a top-level key of
 `forsgren.config.yml` (`view`, `auto_update`, `auto_update_level`,
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
 `issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`,
-`week_page`, `week_commits`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`,
+`week_page`, `week_commits`, `data_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`,
 `sub_rows`, `same_developer`, `thousands_separator`, `decimal_separator`), or the update wait
 (`default-days` in `.github/dependabot.yml`, in days). Changes to the
 projects and repositories are not covered here. Follow these steps alone;
