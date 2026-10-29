@@ -595,6 +595,7 @@
     "github.com/yveshanoulle/forsgren/internal/history/pushesmarks.go:SavePushesRead": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/pushcommits.go:validate": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/pushcommits.go:parseParents": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/history/pushcommits.go:badParents": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/pushcommits.go:parentsField": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/pushcommits.go:toPushCommit": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/pushcommits.go:fields": 100.0,
