@@ -396,7 +396,8 @@ run, with rows or without, then the report period of the DORA window,
 "Report Start 2026-09-03 12:00 Report End 2026-10-03 12:00" (forsgren#542,
 decision #543 A: the window's real rolling bounds in UTC to the minute, the
 render time and `dora_days` days before it, the very bounds the metrics count
-over, not whole calendar days); and, when a newer forsgren release exists than the
+over, not whole calendar days; the labels Report Start and Report End are bold,
+their times plain, forsgren#580); and, when a newer forsgren release exists than the
 version that built the page, the version line adds it, "Forsgren <version> ·
 0.3.9 is available" (forsgren#40; nothing is added when the page is up to
 date, and no repository appears), "0.3.9 is waiting in pull request #7

@@ -34,8 +34,10 @@ var update = flag.Bool("update", false, "rewrite testdata/*.golden.html")
 // calculated is the placeholder page data, calculated at 2026-10-03 12:00
 // UTC, that the golden pages start from.
 // footerReport is the footer's last sentence of calculated(): the calculated-at
-// time and the report period of the 30-day window (forsgren#542).
-const footerReport = "Calculated at 2026-10-03 12:00 UTC Report Start 2026-09-03 12:00 Report End 2026-10-03 12:00</p>"
+// time and the report period of the 30-day window (forsgren#542), the labels
+// Report Start and Report End bold and their times plain (forsgren#580).
+const footerReport = "Calculated at 2026-10-03 12:00 UTC <strong>Report Start</strong> 2026-09-03 12:00 " +
+	"<strong>Report End</strong> 2026-10-03 12:00</p>"
 
 func calculated() Data {
 	data := Placeholder(testVersion)
