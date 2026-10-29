@@ -73,6 +73,13 @@ li {
   max-width: 72rem;
 }
 
+/* The footer's lines take the page's width (forsgren#581): the version line,
+   with "<version> is available" and the report period, is no running text
+   and stays on one line wherever the page is wide enough. */
+footer p {
+  max-width: none;
+}
+
 /* A table with class no-wrap keeps every cell on one line (forsgren#153): a
    date and a count with its trend do not break. Only by class, so a table with
    long cells still wraps. */

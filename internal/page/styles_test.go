@@ -337,3 +337,17 @@ func TestWrappingTablesHaveNoMinimumWidth(t *testing.T) {
 		t.Errorf("want the table rule to keep min-width: 44rem, got:\n%s", sheet.text)
 	}
 }
+
+// TestTheFooterLineTakesThePageWidth (forsgren#581): running text keeps its
+// 72rem measure, but the footer's paragraphs are free of it, so the version
+// line with "<version> is available" and the report period stays on one line
+// on a page wide enough for it.
+func TestTheFooterLineTakesThePageWidth(t *testing.T) {
+	sheet := stylesSheet(t)
+	if !sheet.declares("p, li", "max-width: 72rem") {
+		t.Errorf("want running text to keep max-width: 72rem, got:\n%s", sheet.text)
+	}
+	if !sheet.declares("footer p", "max-width: none") {
+		t.Errorf("want footer p to declare max-width: none, got:\n%s", sheet.text)
+	}
+}
