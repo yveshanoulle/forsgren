@@ -371,7 +371,9 @@ git sandbox isolation self-test|in|Scripts/git_sandbox_isolation_weights.txt
 git sandbox isolation self-test|in|Scripts/gate_report_order.txt
 git sandbox isolation self-test|in|Scripts/lib_gate_select.sh
 git sandbox isolation self-test|in|Scripts/lib_git_sandbox.sh
+git sandbox isolation self-test|in|Scripts/lib_isolation_local.sh
 git sandbox isolation self-test|in|Scripts/lib_isolation_shard.sh
+git sandbox isolation self-test|in|Scripts/lib_parallel_mutants.sh
 git sandbox isolation self-test|in|Scripts/lib_selftest.sh
 git sandbox isolation self-test|in|Scripts/test_git_sandbox_guard.sh
 git sandbox isolation self-test|in|Scripts/test_git_sandbox_isolation.sh

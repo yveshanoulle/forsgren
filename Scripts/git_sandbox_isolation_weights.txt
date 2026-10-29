@@ -1,7 +1,9 @@
 # Scripts/git_sandbox_isolation_weights.txt (forsgren#446)
 #
-# Seconds each slow git-using self-test takes, measured on 2026-10-25 (one run of
-# each, GITHUB_ACTIONS=true). Scripts/lib_isolation_shard.sh deals the self-tests
+# Seconds each slow git-using self-test takes, measured on 2026-10-29 (one run of
+# each, GITHUB_ACTIONS=true; refreshed in forsgren#569: test_quality_jobs.sh had grown
+# from 64 to 222 seconds, which left one local shard far heavier than the others).
+# Rows of 8 seconds or more. Scripts/lib_isolation_shard.sh deals the self-tests
 # of Scripts/test_git_sandbox_isolation.sh --shard N/M out by these weights, the
 # heaviest first, each to the shard that weighs least so far. A self-test with no
 # row weighs the default, so a new self-test needs no row; add one when it is slow.
@@ -10,16 +12,24 @@
 #
 # <self-test> <seconds>
 default 5
-Scripts/test_metrics_workflow.sh 71
-Scripts/test_quality_jobs.sh 64
-Scripts/test_release_workflow.sh 31
-Scripts/test_run_ci_phase.sh 30
-Scripts/test_git_sandbox_isolation_scope.sh 24
-Scripts/test_check_shellcheck.sh 24
-Scripts/test_gate_inputs.sh 23
+Scripts/test_quality_jobs.sh 222
+Scripts/test_metrics_workflow.sh 68
+Scripts/test_run_ci_phase.sh 54
+Scripts/test_release_workflow.sh 53
+Scripts/test_gate_inputs.sh 32
+Scripts/test_git_sandbox_isolation_scope.sh 31
+Scripts/test_check_shellcheck.sh 26
 Scripts/test_fbp_no_push.sh 19
-Scripts/test_sfl_static_block.sh 11
+Scripts/test_sfl_static_block.sh 14
+Scripts/test_check_data_guard.sh 12
+Scripts/test_fbp_push_or_rebase.sh 11
+Scripts/test_check_private_names.sh 11
 Scripts/test_release_precheck.sh 10
 Scripts/test_gate_select.sh 10
-Scripts/test_fbp_push_or_rebase.sh 10
 Scripts/test_fbp_aborted.sh 10
+Scripts/test_sfl_gate_skip.sh 9
+Scripts/test_fbp_commit_message.sh 9
+Scripts/test_check_markdown_links.sh 9
+Scripts/test_release_plan.sh 8
+Scripts/test_fbp_build_pagecount.sh 8
+Scripts/test_check_dco.sh 8

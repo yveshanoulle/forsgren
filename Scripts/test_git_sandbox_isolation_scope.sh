@@ -61,13 +61,15 @@ selftest_begin "git sandbox isolation scope self-test"
 
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 G=(git -c user.name=fixture -c user.email=fixture@example.test)
+# The serial cases below run the isolation script as one process (forsgren#569: 30 to 33 use shards).
+export FORSGREN_ISOLATION_LOCAL_SHARDS=1
 
 FX="${TMP}/fx"
 ORIGIN="${TMP}/origin.git"
 git init -q --bare "$ORIGIN"
 git init -q -b main "$FX"
 mkdir -p "${FX}/Scripts"
-cp "$ISO" Scripts/lib_git_sandbox.sh Scripts/lib_gate_select.sh Scripts/lib_isolation_shard.sh "${FX}/Scripts/"
+cp "$ISO" Scripts/lib_git_sandbox.sh Scripts/lib_gate_select.sh Scripts/lib_isolation_shard.sh Scripts/lib_isolation_local.sh Scripts/lib_parallel_mutants.sh "${FX}/Scripts/"
 printf 'default 5\n' > "${FX}/Scripts/git_sandbox_isolation_weights.txt"
 for t in a b c; do
   printf '#!/usr/bin/env bash\ngit --version > /dev/null\nbash Scripts/helper_%s.sh\n' "$t" > "${FX}/Scripts/test_${t}.sh"
@@ -401,6 +403,81 @@ else
   fail "28: the weights file names self-tests that are gone or not git-using:${stale}"
 fi
 reset
+
+# 30-33 (forsgren#569): locally (GITHUB_ACTIONS unset, no --shard) the gate deals the
+# self-tests out to FORSGREN_ISOLATION_LOCAL_SHARDS shards (default: Scripts/lib_isolation_local.sh)
+# and starts them side by side, so the serial wall time drops. Every self-test still runs
+# in BOTH shapes. 30: through the real script over the fixture, each shard named, every
+# self-test twice, a leak in any shard red. 31-33 over the library with a fake shard that
+# starts, then waits until every shard has started (so a serial run cannot pass): 31 the
+# shards run side by side and print in shard order, 32 a failed shard fails the run and
+# the others are still printed, 33 a shard that leaves no result (killed) is a failure.
+LOCAL_LIB="${REPO_ROOT}/Scripts/lib_isolation_local.sh"
+local_run() {
+  capture env -u GITHUB_ACTIONS FORSGREN_ISOLATION_FULL=1 FORSGREN_ISOLATION_LOCAL_SHARDS=2 \
+    bash "${FX}/Scripts/test_git_sandbox_isolation.sh"
+}
+reset
+counting
+local_run
+want_green "30: local run with 2 shards, clean self-tests" "OK: all 2 shards ran and passed"
+want_said "30b: names shard 1" "isolation: shard 1/2:"
+want_said "30c: names shard 2" "isolation: shard 2/2:"
+want_runs "30d: every self-test still runs in both shapes" 2
+reset
+leaker leak_config 'git config leak.key 1'
+local_run
+want_red "30e: local, sharded, a leaking self-test" "test_leak_config.sh (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE): the decoy repository: the config changed"
+reset
+
+FAKE="${TMP}/fake_shard.sh"
+cat > "$FAKE" <<'FAKE_EOF'
+#!/usr/bin/env bash
+# fake shard: --shard N/M. Starts, then waits for every shard to have started.
+n="${2%%/*}"
+m="${2##*/}"
+touch "${RV}/started.${n}"
+[[ "${FAKE_MODE:-}" == "kill:${n}" ]] && kill -9 "$PPID"
+for _ in $(seq 1 100); do
+  [[ "$(find "$RV" -name 'started.*' | wc -l | tr -d ' ')" -ge "$m" ]] && break
+  sleep 0.1
+done
+[[ "$n" == 1 ]] && sleep 0.5
+if [[ "${FAKE_MODE:-}" == "fail:${n}" ]]; then
+  echo "fake shard ${n} failing"
+  exit 1
+fi
+if [[ "$(find "$RV" -name 'started.*' | wc -l | tr -d ' ')" -lt "$m" ]]; then
+  echo "fake shard ${n} ran alone"
+  exit 1
+fi
+echo "fake shard ${n} saw all ${m} started"
+FAKE_EOF
+fake_shards() {
+  rm -rf "${TMP}/rv" "${TMP}/shards"
+  mkdir -p "${TMP}/rv"
+  RV="${TMP}/rv" FAKE_MODE="$1" capture isolation_shards_run 3 "${TMP}/shards" bash "$FAKE"
+}
+if [[ ! -f "$LOCAL_LIB" ]]; then
+  fail "31-33: ${LOCAL_LIB} does not exist, so no shard is ever started side by side"
+else
+  # shellcheck source=Scripts/lib_isolation_local.sh
+  source Scripts/lib_isolation_local.sh
+  export RV FAKE_MODE
+  fake_shards ""
+  want_green "31: three shards side by side" "fake shard 3 saw all 3 started"
+  want_said "31b: shard 1 waited for the others and saw them" "fake shard 1 saw all 3 started"
+  if [[ "$(grep -n 'fake shard' <<< "$OUT" | sed 's/.*fake shard \([0-9]\).*/\1/' | tr -d '\n')" == "123" ]]; then
+    echo "  ok: 31c: the output is in shard order although shard 1 ended last"
+  else
+    fail "31c: the shards' output is not in shard order 1, 2, 3. Output: ${OUT}"
+  fi
+  fake_shards "fail:2"
+  want_red "32: a failed shard fails the run" "shard 2/3 failed"
+  want_said "32b: the other shards are still printed" "fake shard 3 saw all 3 started"
+  fake_shards "kill:2"
+  want_red "33: a shard that leaves no result fails the run" "shard 2/3 left no result"
+fi
 
 # Mutation proofs: the isolation script of the fixture is mutated and pushed to
 # the fixture's origin (so the mutation is not itself a change), the change a

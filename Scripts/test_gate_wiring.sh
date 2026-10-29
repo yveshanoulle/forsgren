@@ -516,6 +516,16 @@ the Lint gates job would have no way to install a tool"
       done
       ;;
 
+    # SOURCED HELPER, not a gate (forsgren#569): starts the isolation shards side
+    # by side locally. The isolation gate runs them, and its scope self-test
+    # sources it to prove the concurrency and the failed and missing shard.
+    lib_isolation_local.sh)
+      for consumer in test_git_sandbox_isolation.sh test_git_sandbox_isolation_scope.sh; do
+        runs_script "Scripts/${consumer}" "$base" \
+          || fail "${base} starts the local isolation shards and Scripts/${consumer} never sources it"
+      done
+      ;;
+
     # SOURCED HELPER, not a gate (forsgren#262): the changed files, the script
     # closure and gate_select. Scripts/test_gate_select.sh is its test, and the
     # inputs self-test and the git sandbox isolation gate are the other two

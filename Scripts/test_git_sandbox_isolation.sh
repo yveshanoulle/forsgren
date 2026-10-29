@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_git_sandbox_isolation v3
+# canon: test_git_sandbox_isolation v4
+# v4 (forsgren#569): locally, with no --shard, the gate starts M shards side by side (Scripts/lib_isolation_local.sh) instead of one serial run; every self-test still runs in both shapes.
 # v3 (forsgren#446): --shard deals the self-tests out by their seconds (Scripts/git_sandbox_isolation_weights.txt), greedy, not by index.
 # v2 (forsgren#426): an optional --shard N/M runs every M-th self-test of the sorted list.
 # Scripts/test_git_sandbox_isolation.sh
@@ -53,6 +54,13 @@
 # the argument every self-test runs, as FBP does. The sharding applies to the
 # whole list before the scope above picks the affected ones, so the split does
 # not move when a commit changes. A bad shard is a usage error (exit 64).
+#
+# LOCAL SHARDS (forsgren#569). Locally (GITHUB_ACTIONS unset) without --shard the
+# script runs itself as M shards side by side (Scripts/lib_isolation_local.sh), M
+# half the CPUs, 2 to 4, or FORSGREN_ISOLATION_LOCAL_SHARDS (1 = one serial process
+# as before): each shard has its own decoy, its output is printed in shard order,
+# and the run fails when a shard failed or left no result. Every self-test still
+# runs in both shapes.
 
 set -uo pipefail
 
@@ -79,9 +87,29 @@ source Scripts/lib_git_sandbox.sh
 source Scripts/lib_gate_select.sh
 # shellcheck source=Scripts/lib_isolation_shard.sh
 source Scripts/lib_isolation_shard.sh
+# shellcheck source=Scripts/lib_isolation_local.sh
+source Scripts/lib_isolation_local.sh
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+
+if [[ -z "$SHARD_N" && "${GITHUB_ACTIONS:-}" != "true" ]]; then
+  LOCAL_M="${FORSGREN_ISOLATION_LOCAL_SHARDS:-$(isolation_default_shards)}"
+  [[ "$LOCAL_M" =~ ^[1-9][0-9]*$ ]] || {
+    echo "FORSGREN_ISOLATION_LOCAL_SHARDS must be a whole number of at least 1, got: ${LOCAL_M}" >&2
+    exit 64
+  }
+  if [[ "$LOCAL_M" -gt 1 ]]; then
+    echo "isolation: local run, ${LOCAL_M} shards side by side"
+    if isolation_shards_run "$LOCAL_M" "${TMP}/shards" bash "${PWD}/Scripts/test_git_sandbox_isolation.sh"; then
+      echo "OK: all ${LOCAL_M} shards ran and passed"
+      exit 0
+    fi
+    echo ""
+    echo "❌ FAIL: a shard failed or left no result (see the FAIL lines above)"
+    exit 1
+  fi
+fi
 failed=0
 fail() {
   echo "❌ FAIL: $*"
