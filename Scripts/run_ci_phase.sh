@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# canon: run_ci_phase v2
+# canon: run_ci_phase v3
 # v2 (forsgren#426): a group row may carry arguments, so one gate runs as shards in several jobs.
+# v3 (forsgren#574): `report-dir` names a report folder per run, attempt and job, and a cancelled job stops its gates and writes no more rows.
 # Scripts/run_ci_phase.sh <pre|post> <rows-file> <details-dir> [job]
+# Scripts/run_ci_phase.sh report-dir
 #
 # CI's gate loop. .github/workflows/quality.yml calls it
 # twice, `pre` before the build step (if the repository has one) and `post`
@@ -71,6 +73,20 @@
 # row at all (a phase that ran nothing is not green); 2 a secret-class row
 # failed; 64 bad usage.
 #
+# REPORT FOLDER AND CANCEL (v3, forsgren#574): a self-hosted runner reuses its
+# temp folder, and a cancelled job's loop used to keep running and append its
+# rows into the NEXT run's fixed quality_rows.md. Two fixes:
+#   - `report-dir` prints the folder a job keeps its rows (quality_rows.md),
+#     details (quality_details/) and hand-over (handover/) in:
+#     $RUNNER_TEMP/quality_<run id>_<run attempt>_<job>. An older loop writes
+#     to its own folder and cannot touch a newer run's. An unset or empty
+#     RUNNER_TEMP, GITHUB_RUN_ID, GITHUB_RUN_ATTEMPT or GITHUB_JOB is exit 64.
+#   - on SIGTERM or SIGINT (the runner's cancel) the loop kills its gate and
+#     everything the gate started, removes its capture file, writes no row and
+#     exits 143 or 130. Each gate therefore runs in the background and the loop
+#     waits for it: bash runs a trap only between commands, never while it
+#     waits on a foreground command.
+#
 # Testing seam: RUN_CI_PHASE_ROOT replaces the repository root, so
 # Scripts/test_run_ci_phase.sh can run the loop over a synthetic order file
 # and stub gates.
@@ -88,6 +104,14 @@ usage() {
   echo "usage: run_ci_phase.sh <pre|post> <rows-file> <details-dir> [job]" >&2
   exit 64
 }
+
+if [ "$#" -eq 1 ] && [ "$1" = "report-dir" ]; then
+  for v in RUNNER_TEMP GITHUB_RUN_ID GITHUB_RUN_ATTEMPT GITHUB_JOB; do
+    [ -n "${!v:-}" ] || { echo "report-dir: ${v} is not set" >&2; exit 64; }
+  done
+  printf '%s/quality_%s_%s_%s\n' "$RUNNER_TEMP" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$GITHUB_JOB"
+  exit 0
+fi
 
 [ "$#" -eq 3 ] || [ "$#" -eq 4 ] || usage
 PHASE="$1"
@@ -167,6 +191,28 @@ if ! tree_before="$(git status --porcelain 2>&1)"; then
   exit 1
 fi
 
+# kill_descendants <pid>: SIGTERM to every process below <pid>, deepest first.
+kill_descendants() {
+  local child
+  for child in $(pgrep -P "$1" 2>/dev/null); do
+    kill_descendants "$child"
+    kill -TERM "$child" 2>/dev/null || true
+  done
+}
+
+CAPTURE=""
+# cancelled <exit code>: the runner's cancel. Stop the gate and what it
+# started, write nothing more, exit.
+cancelled() {
+  trap '' TERM INT
+  kill_descendants "$$"
+  [ -z "$CAPTURE" ] || rm -f "$CAPTURE"
+  echo "::warning::CI ${PHASE} cancelled; its gate was stopped and no more rows were written" >&2
+  exit "$1"
+}
+trap 'cancelled 143' TERM
+trap 'cancelled 130' INT
+
 JOB_NOTE=""
 [ "$JOB" = "main" ] || JOB_NOTE=" for the job ${JOB}"
 ran=0
@@ -233,8 +279,13 @@ while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:
     out="❌ ${label} declares ${script}, which is not an executable script"
     rc=1
   else
+    CAPTURE="$(mktemp)"
     # shellcheck disable=SC2086 # the group row's arguments are words on purpose
-    out="$("./${script}" $args < /dev/null 2>&1)" && rc=0 || rc=$?
+    "./${script}" $args < /dev/null > "$CAPTURE" 2>&1 &
+    wait "$!" && rc=0 || rc=$?
+    out="$(cat "$CAPTURE")"
+    rm -f "$CAPTURE"
+    CAPTURE=""
 
     if ! tree_after="$(git status --porcelain 2>&1)"; then
       out="${out}"$'\n'"❌ FAIL: git status failed after ${label}: ${tree_after}"

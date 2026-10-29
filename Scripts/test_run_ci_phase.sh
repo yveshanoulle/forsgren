@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# canon: test_run_ci_phase v3
+# canon: test_run_ci_phase v4
 # v3 (forsgren#426): the shards case (group rows with arguments) and two mutations; the jobs of the real-order case come from the group file.
+# v4 (forsgren#574): the report_dir, cancel and workflow_paths cases and two mutations.
 # Scripts/test_run_ci_phase.sh
 #
 # Self-test for Scripts/run_ci_phase.sh, the loop CI runs over the rows of
@@ -14,7 +15,10 @@
 #   - an empty phase is red;
 #   - an n/a row is skipped and does not report;
 #   - the phases filter, a secret-class failure exits 2, and the rest of the
-#     phase still runs.
+#     phase still runs;
+#   - forsgren#574: the rows and details folder is unique per run, attempt and
+#     job (`report-dir`), and the cancel signal stops the gate loop with its
+#     gates and writes nothing more.
 #
 # Every case runs a COPY of the runner inside a throwaway git repository with
 # stub gates, never the real gates. Each case is a function taking the runner
@@ -55,8 +59,8 @@ fail() { echo "❌ FAIL: $*"; failed=1; }
 [[ -f "$ORDER" ]] || { echo "FAIL: ${ORDER} not found" >&2; exit 1; }
 
 # The runner's canon line must be in its first 40 lines.
-head -40 "$RUNNER" | has -xF '# canon: run_ci_phase v2' \
-  || fail "${RUNNER} has no '# canon: run_ci_phase v2' line in its first 40 lines"
+head -40 "$RUNNER" | has -xF '# canon: run_ci_phase v3' \
+  || fail "${RUNNER} has no '# canon: run_ci_phase v3' line in its first 40 lines"
 
 REAL_RUNNER="$(pwd)/${RUNNER}"
 TMP="$(mktemp -d)"
@@ -407,7 +411,106 @@ case_real_order_file() {
   return 0
 }
 
-CASES=(na_skip phase_filter secret_class dirty_tree empty_phase missing_script non_executable bad_row usage job_groups shards real_order_file)
+# forsgren#574, part 1: the rows and details paths are unique per run,
+# attempt and job. A self-hosted runner reuses _work/_temp, so a fixed
+# quality_rows.md let a cancelled job's loop append into the NEXT run's file.
+# `run_ci_phase.sh report-dir` prints the folder a job writes its rows
+# (quality_rows.md), details (quality_details/) and hand-over in; quality.yml
+# uses it.
+case_report_dir() {
+  local a b c d e v
+  new_sandbox "$1"
+  report_dir() { # <run> <attempt> <job>
+    (cd "$SB" && RUNNER_TEMP="${SB}.temp" GITHUB_RUN_ID="$1" GITHUB_RUN_ATTEMPT="$2" GITHUB_JOB="$3" \
+      RUN_CI_PHASE_ROOT="$SB" bash "${SB}/Scripts/run_ci_phase.sh" report-dir 2>&1)
+  }
+  a="$(report_dir 100 1 lint)" || echo "report-dir failed with every variable set: ${a}"
+  b="$(report_dir 101 1 lint)" || true
+  c="$(report_dir 100 2 lint)" || true
+  d="$(report_dir 100 1 browser)" || true
+  e="$(report_dir 100 1 lint)" || true
+  [[ "$a" == "${SB}.temp/"* ]] || echo "the report folder is not under RUNNER_TEMP: ${a}"
+  [[ "$a" == "$e" ]] || echo "the report folder is not stable for one run, attempt and job: ${a} vs ${e}"
+  [[ -n "$a" && "$a" != "$b" ]] || echo "two runs share a report folder: ${a} and ${b}"
+  [[ -n "$a" && "$a" != "$c" ]] || echo "two attempts of one run share a report folder: ${a} and ${c}"
+  [[ -n "$a" && "$a" != "$d" ]] || echo "two jobs of one run share a report folder: ${a} and ${d}"
+  for v in RUNNER_TEMP GITHUB_RUN_ID GITHUB_RUN_ATTEMPT GITHUB_JOB; do
+    if (cd "$SB" && env RUNNER_TEMP="${SB}.temp" GITHUB_RUN_ID=1 GITHUB_RUN_ATTEMPT=1 GITHUB_JOB=lint \
+        RUN_CI_PHASE_ROOT="$SB" "${v}=" bash "${SB}/Scripts/run_ci_phase.sh" report-dir > /dev/null 2>&1); then
+      echo "report-dir succeeded with an empty ${v}"
+    fi
+  done
+  return 0
+}
+
+# forsgren#574, part 2: the cancel signal. The runner sends SIGTERM to the
+# step's shell; the loop must stop its gate (and the gate's own children),
+# exit, and write nothing more: no row for the gate it cut off, no later gate.
+case_cancel() {
+  local pid rc=0 i gatepid childpid rows
+  new_sandbox "$1"
+  order "slow|Scripts/slow.sh|pre|" "after|Scripts/pass_a.sh|pre|"
+  stub Scripts/pass_a.sh 0
+  cat > "${SB}/Scripts/slow.sh" <<'SLOW'
+#!/usr/bin/env bash
+echo $$ > "${STUB_TRACE}.gatepid"
+sleep 60 &
+echo $! > "${STUB_TRACE}.childpid"
+wait
+SLOW
+  chmod +x "${SB}/Scripts/slow.sh"
+  rows="${SB}.cancel.rows"
+  rm -f "$rows" "${TRACE}.gatepid" "${TRACE}.childpid"
+  STUB_TRACE="$TRACE" RUN_CI_PHASE_ROOT="$SB" \
+    bash "${SB}/Scripts/run_ci_phase.sh" pre "$rows" "${SB}.cancel.details" > "${SB}.cancel.out" 2>&1 < /dev/null &
+  pid=$!
+  for i in $(seq 1 100); do
+    [[ -s "${TRACE}.childpid" ]] && break
+    sleep 0.1
+  done
+  gatepid="$(cat "${TRACE}.gatepid" 2>/dev/null || true)"
+  childpid="$(cat "${TRACE}.childpid" 2>/dev/null || true)"
+  if [[ -z "$childpid" ]]; then
+    echo "the slow gate never started: $(cat "${SB}.cancel.out")"
+    kill -KILL "$pid" 2>/dev/null || true
+    return 0
+  fi
+  kill -TERM "$pid"
+  for i in $(seq 1 100); do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.1
+  done
+  if kill -0 "$pid" 2>/dev/null; then
+    echo "the loop kept running 10 s after SIGTERM"
+    kill -KILL "$pid" 2>/dev/null || true
+  fi
+  wait "$pid" 2>/dev/null || rc=$?
+  [[ "$rc" -eq 143 ]] || echo "the cancelled loop exited ${rc}, want 143 (128 + SIGTERM)"
+  sleep 0.3
+  if kill -0 "$gatepid" 2>/dev/null; then echo "the gate (${gatepid}) survived the cancel"; fi
+  if kill -0 "$childpid" 2>/dev/null; then echo "the gate's child (${childpid}) survived the cancel"; fi
+  kill -KILL "$gatepid" "$childpid" 2>/dev/null || true
+  sleep 0.3
+  if [[ -s "$rows" ]]; then echo "the cancelled loop wrote rows: $(tr '\n' ' ' < "$rows")"; fi
+  if has -F Scripts/pass_a.sh < "$TRACE"; then echo "the loop ran the next gate after the cancel"; fi
+  return 0
+}
+
+# The workflow names the folder through the runner, never a fixed path: every
+# job and the report job ask `report-dir`, and every gate job's upload names
+# the per-run folder.
+case_workflow_paths() {
+  local wf=".github/workflows/quality.yml" n
+  grep -nE '(RUNNER_TEMP\}|runner\.temp \}\})/quality_(rows|details)' "$wf" \
+    | sed 's/^/a fixed rows or details path in quality.yml: /' || true
+  n="$(grep -cE 'run_ci_phase\.sh report-dir' "$wf" || true)"
+  [[ "$n" -eq 19 ]] || echo "quality.yml asks the runner for the report folder ${n} times, want 19 (the report job once, each of the 9 gate jobs twice: start and hand-over)"
+  n="$(grep -cE 'runner\.temp \}\}/quality_\$\{\{ github\.run_id \}\}_\$\{\{ github\.run_attempt \}\}_\$\{\{ github\.job \}\}/handover$' "$wf" || true)"
+  [[ "$n" -eq 10 ]] || echo "quality.yml names the per-run hand-over folder ${n} times, want 10 (9 uploads and the report job download)"
+  return 0
+}
+
+CASES=(report_dir cancel workflow_paths na_skip phase_filter secret_class dirty_tree empty_phase missing_script non_executable bad_row usage job_groups shards real_order_file)
 
 # --- 1. the real runner passes every case ------------------------------------
 for c in "${CASES[@]}"; do
@@ -475,6 +578,16 @@ mutation_proof "a runner that drops the arguments of a group row" \
 # A shard row keeps the plain label, so a red cannot name its shard.
 mutation_proof "a runner that does not name the shard in the row" \
   $'s/^    label="\\$\\{label\\} \\(.*$/    :/' shards
+
+# Without the trap the cancel kills the loop and leaves the gate running.
+mutation_proof "a runner without the cancel trap" \
+  $'s/^trap .cancelled 143. TERM$/:/' cancel \
+  "survived the cancel"
+
+# A report folder without the job is shared by the jobs of one run.
+mutation_proof "a runner whose report folder ignores the job" \
+  $'s/"\\$GITHUB_RUN_ATTEMPT" "\\$GITHUB_JOB"$/"$GITHUB_RUN_ATTEMPT" job/' report_dir \
+  "two jobs of one run share a report folder"
 
 COMPLETED=1
 

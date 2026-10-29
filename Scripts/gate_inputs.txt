@@ -346,7 +346,8 @@ metrics workflow|in|Scripts/lib_has.sh
 
 # --- CI phase runner self-test (forsgren#402) -----------------------------
 # Scripts/test_run_ci_phase.sh runs Scripts/run_ci_phase.sh in a sandbox over the
-# order file and the job groups: its closure and nothing else.
+# order file and the job groups, and reads quality.yml for the report paths (forsgren#574): its closure and nothing else.
+CI phase runner self-test|in|.github/workflows/quality.yml
 CI phase runner self-test|in|Scripts/ci_job_groups.txt
 CI phase runner self-test|in|Scripts/gate_report_order.txt
 CI phase runner self-test|in|Scripts/lib_git_sandbox.sh

@@ -90,7 +90,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 53 | FBP --no-push self-test | `test_fbp_no_push.sh` | pre | required, `test_fbp_no_push v2` |
 | 159 | FBP push-or-rebase self-test | `test_fbp_push_or_rebase.sh` | pre | required; ported from the estate canon (`test_fbp_push_or_rebase v2`), forsgren's form: a copy of the real `FBP.sh` with `fbp_push_or_rebase.sh` (`fbp_push_or_rebase v3`) in a throwaway repository whose bare origin moves during the run: unrelated incoming file rebased, signed off and pushed with the ⚠️ row, same file stopped with the local commit untouched, nothing incoming, another refusal, moved again, moved every time (3 pushes); 1 mutation proof (forsgren#283, step 1 of 2) |
 | 54 | gate wiring | `test_gate_wiring.sh` | pre | required |
-| 55 | CI phase runner self-test | `test_run_ci_phase.sh` | pre | required, `test_run_ci_phase v1` |
+| 55 | CI phase runner self-test | `test_run_ci_phase.sh` | pre | required, `test_run_ci_phase v4` (forsgren#574: the `report-dir`, cancel and workflow-path cases; it checks `run_ci_phase v3`) |
 | 56 | go mod tidy self-test | `test_check_go_mod_tidy.sh` | pre | required |
 | 57 | go mod tidy | `check_go_mod_tidy.sh` | pre | required |
 | 58 | Go tests self-test | `test_check_go_tests.sh` | pre | required |

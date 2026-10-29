@@ -227,9 +227,18 @@ output of every shard. Another long gate shards the same way: its rows get
 <details> [job]` takes the job as its fourth argument (default `main`): a gate
 the group file lists runs in that job only, every other gate in the main job,
 so a gate is never in two jobs or none, and a group file that names a gate the
-order file does not have is red. Each gate job hands over its rows, details
-and page count as the artifact `quality-report-<job>`; the `report` job
-(`if: always()`, `needs:` every gate job) downloads them,
+order file does not have is red. `Scripts/run_ci_phase.sh report-dir` (canon
+`run_ci_phase v3`, forsgren#574) prints the per-run folder a job keeps its
+report in, `$RUNNER_TEMP/quality_<run id>_<run attempt>_<job>`: the rows
+(`quality_rows.md`), the details (`quality_details/`) and the hand-over
+(`handover/`). A self-hosted runner reuses its temp folder, so a fixed path let
+the loop of a cancelled job write into the next run's report; with one folder
+per run, attempt and job it cannot. The loop also stops on a cancel (SIGTERM or
+SIGINT): it runs each gate in the background, kills the gate and everything the
+gate started, writes no further row and exits 143 or 130. Each gate job hands
+over its rows, details and page count, from that folder, as the artifact
+`quality-report-<job>` (the names are unchanged); the `report` job
+(`if: always()`, `needs:` every gate job) downloads them into its own folder,
 `Scripts/merge_quality_report.sh` merges them (a gate reported by two jobs is
 red, a job that handed over nothing is named and its gates read as unmeasured)
 and the two renderers write the one Quality report to its run page, with the
@@ -630,7 +639,11 @@ Nine PRE gates keep the CI honest:
   every declared path (each row must run exactly once, in its own phase, in
   file order) and over made-up order files (failures, the secret-class exit,
   malformed rows, a missing or non-executable script, the tree check, a
-  phase with no row), and against weakened copies of the runner.
+  phase with no row), the per-run report folder (`report-dir`: one folder per
+  run, attempt and job, an unset variable is exit 64), the cancel (the gate and
+  its children are stopped, no row and no later gate; exit 143) and the paths in
+  `quality.yml` (no fixed rows or details path, `report-dir` in every job, the
+  upload from the per-run folder), and against weakened copies of the runner.
 - **quality trigger scope** (`Scripts/test_quality_trigger_scope.sh`, the
   sites' shared canon, forsgren#240): the workflow has no `paths` or
   `paths-ignore` filter, or a `paths` filter that holds every glob the gates

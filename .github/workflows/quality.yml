@@ -176,8 +176,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rows="${RUNNER_TEMP}/quality_rows.md"
-          details="${RUNNER_TEMP}/quality_details"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
           : > "$rows"
           # A DIRECTORY, one file per gate, not one appended log: the report
           # must read in DECLARED order, whatever order the gates ran in.
@@ -244,14 +246,15 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${RUNNER_TEMP}/handover" .build/site-page-count.log
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover" .build/site-page-count.log
 
       - name: Hand over the gate report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: quality-report-quality
-          path: ${{ runner.temp }}/handover
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
           retention-days: 1
           if-no-files-found: error
 
@@ -334,8 +337,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rows="${RUNNER_TEMP}/quality_rows.md"
-          details="${RUNNER_TEMP}/quality_details"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
           : > "$rows"
           rm -rf "$details" && mkdir -p "$details"
           echo "ROWS=${rows}" >> "$GITHUB_ENV"
@@ -354,14 +359,15 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${RUNNER_TEMP}/handover"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
 
       - name: Hand over the gate report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: quality-report-quality_2
-          path: ${{ runner.temp }}/handover
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
           retention-days: 1
           if-no-files-found: error
 
@@ -428,8 +434,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rows="${RUNNER_TEMP}/quality_rows.md"
-          details="${RUNNER_TEMP}/quality_details"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
           : > "$rows"
           rm -rf "$details" && mkdir -p "$details"
           echo "ROWS=${rows}" >> "$GITHUB_ENV"
@@ -448,14 +456,15 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${RUNNER_TEMP}/handover"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
 
       - name: Hand over the gate report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: quality-report-lint
-          path: ${{ runner.temp }}/handover
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
           retention-days: 1
           if-no-files-found: error
 
@@ -530,8 +539,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rows="${RUNNER_TEMP}/quality_rows.md"
-          details="${RUNNER_TEMP}/quality_details"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
           : > "$rows"
           rm -rf "$details" && mkdir -p "$details"
           echo "ROWS=${rows}" >> "$GITHUB_ENV"
@@ -550,14 +561,15 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${RUNNER_TEMP}/handover"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
 
       - name: Hand over the gate report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: quality-report-isolation_1
-          path: ${{ runner.temp }}/handover
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
           retention-days: 1
           if-no-files-found: error
 
@@ -611,8 +623,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rows="${RUNNER_TEMP}/quality_rows.md"
-          details="${RUNNER_TEMP}/quality_details"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
           : > "$rows"
           rm -rf "$details" && mkdir -p "$details"
           echo "ROWS=${rows}" >> "$GITHUB_ENV"
@@ -631,14 +645,15 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${RUNNER_TEMP}/handover"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
 
       - name: Hand over the gate report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: quality-report-isolation_2
-          path: ${{ runner.temp }}/handover
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
           retention-days: 1
           if-no-files-found: error
 
@@ -701,8 +716,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rows="${RUNNER_TEMP}/quality_rows.md"
-          details="${RUNNER_TEMP}/quality_details"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
           : > "$rows"
           rm -rf "$details" && mkdir -p "$details"
           echo "ROWS=${rows}" >> "$GITHUB_ENV"
@@ -721,14 +738,15 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${RUNNER_TEMP}/handover"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
 
       - name: Hand over the gate report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: quality-report-summary
-          path: ${{ runner.temp }}/handover
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
           retention-days: 1
           if-no-files-found: error
 
@@ -783,8 +801,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rows="${RUNNER_TEMP}/quality_rows.md"
-          details="${RUNNER_TEMP}/quality_details"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
           : > "$rows"
           rm -rf "$details" && mkdir -p "$details"
           echo "ROWS=${rows}" >> "$GITHUB_ENV"
@@ -803,14 +823,15 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${RUNNER_TEMP}/handover"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
 
       - name: Hand over the gate report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: quality-report-browser_1
-          path: ${{ runner.temp }}/handover
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
           retention-days: 1
           if-no-files-found: error
 
@@ -869,8 +890,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rows="${RUNNER_TEMP}/quality_rows.md"
-          details="${RUNNER_TEMP}/quality_details"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
           : > "$rows"
           rm -rf "$details" && mkdir -p "$details"
           echo "ROWS=${rows}" >> "$GITHUB_ENV"
@@ -909,14 +932,15 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${RUNNER_TEMP}/handover"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
 
       - name: Hand over the gate report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: quality-report-browser
-          path: ${{ runner.temp }}/handover
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
           retention-days: 1
           if-no-files-found: error
 
@@ -980,8 +1004,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rows="${RUNNER_TEMP}/quality_rows.md"
-          details="${RUNNER_TEMP}/quality_details"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
           : > "$rows"
           rm -rf "$details" && mkdir -p "$details"
           echo "ROWS=${rows}" >> "$GITHUB_ENV"
@@ -1000,14 +1026,15 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${RUNNER_TEMP}/handover"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
 
       - name: Hand over the gate report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: quality-report-workflows
-          path: ${{ runner.temp }}/handover
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
           retention-days: 1
           if-no-files-found: error
 
@@ -1049,7 +1076,7 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           pattern: quality-report-*
-          path: ${{ runner.temp }}/handover
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
 
       - name: Render summary and report
         if: always()
@@ -1073,9 +1100,10 @@ jobs:
         run: |
           set -uo pipefail
           rc=0
-          art="${RUNNER_TEMP}/handover"
-          rows="${RUNNER_TEMP}/quality_rows.md"
-          details="${RUNNER_TEMP}/quality_details"
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          art="${dir}/handover"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
           mkdir -p "$art"
           ./Scripts/merge_quality_report.sh merge "$art" "$rows" "$details" || rc=$?
           QS_JOB_STATUS="$(./Scripts/merge_quality_report.sh status \
