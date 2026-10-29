@@ -3,6 +3,9 @@
   "total": 99.7,
   "functions": {
     "github.com/yveshanoulle/forsgren/internal/dictionary/dictionary.go:Labels": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/dictionary/dictionary.go:Anchor": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/dictionary/dictionary.go:Heading": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/dictionary/dictionary.go:Section": 89.9,
     "github.com/yveshanoulle/forsgren/internal/dictionary/dictionary.go:Entries": 100.0,
     "github.com/yveshanoulle/forsgren/internal/dictionary/dictionary.go:parse": 100.0,
     "github.com/yveshanoulle/forsgren/internal/dictionary/dictionary.go:check": 100.0,

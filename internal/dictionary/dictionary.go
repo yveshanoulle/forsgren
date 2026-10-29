@@ -2,15 +2,20 @@
 // number forsgren collects and shows, and every term a reader meets, each with
 // a short definition and where it comes from (forsgren#370, decision #371 A).
 // The list is dictionary.yml, built into the binary; the Dictionary page
-// (a later step) is generated from it.
+// (dictionary.html, forsgren#370 step 2) is generated from it.
 package dictionary
 
 import (
+	"cmp"
 	_ "embed" // The entries are embedded.
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
+	"slices"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -50,6 +55,44 @@ func (e Entry) Labels() []string {
 		return []string{e.Name}
 	}
 	return e.Shown
+}
+
+// Anchor is the id of the entry on the Dictionary page, which links point
+// to: the name in lower case, each run of other characters than letters and
+// digits one hyphen.
+func (e Entry) Anchor() string {
+	return strings.Trim(nonAlphanumeric.ReplaceAllString(strings.ToLower(e.Name), "-"), "-")
+}
+
+// Heading is the name as the Dictionary page heads the entry: its first
+// letter in upper case, so a term written in lower case in the pages' text
+// still opens its heading like a sentence.
+func (e Entry) Heading() string {
+	first, size := utf8.DecodeRuneInString(e.Name)
+	return string(unicode.ToUpper(first)) + e.Name[size:]
+}
+
+// nonAlphanumeric is a run of characters that are neither letters nor digits.
+var nonAlphanumeric = regexp.MustCompile(`[^\p{L}\p{N}]+`)
+
+// Section returns the entries of one kind, KindNumber or KindTerm, in
+// alphabetical order of their names, ignoring case: the order the Dictionary
+// page lists them in.
+func Section(kind string) ([]Entry, error) {
+	all, err := Entries()
+	if err != nil {
+		return nil, err
+	}
+	var section []Entry
+	for _, e := range all {
+		if e.Kind == kind {
+			section = append(section, e)
+		}
+	}
+	slices.SortStableFunc(section, func(a, b Entry) int {
+		return cmp.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
+	})
+	return section, nil
 }
 
 // Entries returns the dictionary, in the order of dictionary.yml. An entry

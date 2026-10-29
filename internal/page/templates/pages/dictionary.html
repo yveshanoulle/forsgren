@@ -1,0 +1,8 @@
+{{define "title"}}Dictionary · {{.Title}}{{end -}}
+{{template "header" .}}  <main>
+    <h1>Dictionary</h1>
+    <p>What each number and each term on the pages means, and where it comes from. The entries are in alphabetical order.</p>
+    <h2 id="numbers">Numbers</h2>
+{{template "dictionaryentries" dictionary "number"}}    <h2 id="terms">Terms</h2>
+{{template "dictionaryentries" dictionary "term"}}  </main>
+{{template "footer" .}}

@@ -570,7 +570,7 @@ The POST gates, on the generated site:
 - **required pages** (`Scripts/validate_required_pages.sh` and
   `Scripts/test_required_pages_covers_site.sh`): the pages the site must
   ship are listed, hand-authored, in `internal/page/required-pages.json`
-  (today `/`, `/legend.html`, `/settings.html`, `/days.html`, `/issues.html`,
+  (today `/`, `/legend.html`, `/settings.html`, `/dictionary.html`, `/days.html`, `/issues.html`,
   `/standard/`, `/numbers/` and `/scoring/`). The first checks that list's shape: valid JSON, a
   non-empty `requiredPages` array of root-relative paths, no scheme or host,
   no `..`, no duplicates. The second checks it against `.build/site`: every

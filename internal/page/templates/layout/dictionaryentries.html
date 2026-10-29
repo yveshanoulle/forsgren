@@ -1,0 +1,6 @@
+{{define "dictionaryentries"}}    <dl>
+{{range .}}      <dt id="{{.Anchor}}">{{.Heading}}</dt>
+      <dd>{{.Definition}}</dd>
+      <dd>From: {{.From}}</dd>
+{{end}}    </dl>
+{{end}}

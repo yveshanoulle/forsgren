@@ -58,7 +58,8 @@ func TestParseOfNothingIsNoEntries(t *testing.T) {
 
 // The pages are the golden pages of internal/page: the renderer's output for
 // the fixtures, held equal to it by that package's tests. Their settings pages
-// are left out, whose table lists configuration keys, not figures.
+// are left out, whose table lists configuration keys, not figures, and the
+// dictionary page, which is made from the entries and would show every one.
 const goldens = "../page/testdata/*.golden.html"
 
 var (
@@ -101,7 +102,7 @@ func goldenPages(t *testing.T) [][]byte {
 	}
 	var pages [][]byte
 	for _, f := range files {
-		if strings.HasPrefix(filepath.Base(f), "settings.") {
+		if leftOut(filepath.Base(f)) {
 			continue
 		}
 		page, err := os.ReadFile(filepath.Clean(f))
@@ -111,6 +112,12 @@ func goldenPages(t *testing.T) [][]byte {
 		pages = append(pages, page)
 	}
 	return pages
+}
+
+// leftOut says whether the golden page called base is no page to read: the
+// settings and dictionary pages.
+func leftOut(base string) bool {
+	return strings.HasPrefix(base, "settings.") || strings.HasPrefix(base, "dictionary.")
 }
 
 // figureHeads are the column and column-group heads of a page that name a

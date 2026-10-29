@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
+	"github.com/yveshanoulle/forsgren/internal/dictionary"
 	"github.com/yveshanoulle/forsgren/internal/metrics"
 )
 
@@ -332,11 +333,12 @@ const HistoryPage = "history"
 const TbdPage = "tbd"
 
 // The names of the pages no setting hides: the table page, index.html at the
-// root and in each view's folder, and the legend and settings pages.
+// root and in each view's folder, and the legend, settings and dictionary pages.
 const (
-	indexPage    = "index"
-	legendPage   = "legend"
-	settingsPage = "settings"
+	indexPage      = "index"
+	legendPage     = "legend"
+	settingsPage   = "settings"
+	dictionaryPage = "dictionary"
 )
 
 // The views of the table page (forsgren#46): the standard cells, the numbers
@@ -428,11 +430,12 @@ var pages = parsePages()
 // templateFuncs are the functions the templates call: "trend" and "bugtrend", the arrow of
 // the issues tables (trend.go), and "possible", the settings page's Possible
 // values cell (settings.go), "beta", the beta marker of the History page
-// (history.go), and "incomplete", the note of a bug column that cannot be
-// trusted (incomplete.go).
+// (history.go), "incomplete", the note of a bug column that cannot be
+// trusted (incomplete.go), and "dictionary", the entries of one kind on the
+// Dictionary page (forsgren#370).
 var templateFuncs = template.FuncMap{"trend": trendViewOf, "bugtrend": bugTrendViewOf, "possible": possibleOf,
 	"beta": historyBeta, "incomplete": incompleteViewOf, "count": metrics.GroupDigits,
-	"labelheader": labelHeaderOf, "decimal": decimalText}
+	"labelheader": labelHeaderOf, "decimal": decimalText, "dictionary": dictionary.Section}
 
 // parsePages parses the layout once and clones it per page. A malformed
 // template fails at start-up through template.Must, never at render time.

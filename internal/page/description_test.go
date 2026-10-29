@@ -26,7 +26,8 @@ const (
 		"with commits when week_commits is true"
 	legendSentence = "How the DORA numbers are counted and scored: " +
 		"the window, the bands and the scores"
-	settingsSentence = "The settings of forsgren.config.yml and the value in use for each"
+	settingsSentence   = "The settings of forsgren.config.yml and the value in use for each"
+	dictionarySentence = "What every number and term on the pages means, and where it comes from"
 )
 
 // TestEveryPageCarriesAMetaDescription (forsgren#208): the head of each page
@@ -60,6 +61,7 @@ func TestEveryPageCarriesAMetaDescription(t *testing.T) {
 		{"week", "week.html", weekSentence, viewData()},
 		{"legend", "legend.html", legendSentence, viewData()},
 		{"settings", "settings.html", settingsSentence, viewData()},
+		{"dictionary", "dictionary.html", dictionarySentence, viewData()},
 		{"placeholder root", "index.html", doraSentence, placeholder},
 		{"no projects root", "index.html", doraSentence, noProjects},
 		{"placeholder days", "days.html", daysSentence, placeholder},

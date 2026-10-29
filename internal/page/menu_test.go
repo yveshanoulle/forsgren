@@ -53,6 +53,7 @@ func menuCases(root menuCase) map[string]menuCase {
 		"week.html":                  {"", "Week", "page"},
 		"settings.html":              {},
 		"legend.html":                {},
+		"dictionary.html":            {},
 	}
 }
 
@@ -143,7 +144,8 @@ func TestEveryPageEndsWithTheSameFooter(t *testing.T) {
 		for _, page := range PageNames() {
 			base := menuCases(menuCase{})[page].base
 			want := " " + footerReport + "\n    <p><a href=\"" + base + "settings.html\">Settings</a> " +
-				"<a href=\"" + base + "legend.html\">Legend</a></p>\n  </footer>\n"
+				"<a href=\"" + base + "legend.html\">Legend</a> " +
+				"<a href=\"" + base + "dictionary.html\">Dictionary</a></p>\n  </footer>\n"
 			wantAll(t, name+" "+page, rendered(t, page, data), want)
 		}
 	}

@@ -635,7 +635,7 @@
   {
    "path": "internal/page/page.go",
    "score": 10.0,
-   "checkedAt": "2026-10-28",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {
@@ -1745,7 +1745,7 @@
   {
    "path": "internal/page/description.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {
@@ -2909,13 +2909,31 @@
   {
    "path": "internal/dictionary/dictionary.go",
    "score": 10.0,
-   "checkedAt": "2026-10-28",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {
    "path": "internal/dictionary/dictionary_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-28",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/dictionary/definitions_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-29",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/dictionary/section_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-29",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/dictionary_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   }
  ]
