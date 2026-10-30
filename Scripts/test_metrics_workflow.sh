@@ -129,7 +129,9 @@
 #      and the run summary read, forsgren#177, forsgren#64) with FORSGREN_TOKEN in its environment,
 #      exits 0 and records collect's exit status as the step output
 #      `status`: 0 when collect stored, 1 when it stored the others and then
-#      failed, its message still in the log;
+#      failed, its message still in the log; before it, the output
+#      `token_state`, `set` or `missing`, whether the secret was given
+#      (forsgren#276: the probe step's input, never the token);
 #  20. that token is in no argument of forsgren, no file of the checkout, not
 #      in the step's log and not in its outputs;
 #  21. the same step with the REAL forsgren: the starter configuration and no
@@ -255,6 +257,19 @@
 #      ends with one bot commit that holds README.md alone and "replaced with
 #      forsgren X.Y.Z's", and its next run adds no commit and says "README:
 #      unchanged";
+#  37. the step "Write the token expiry probe" (forsgren#276) takes
+#      TOKEN_STATE from ${{ steps.collect.outputs.token_state }} through env:
+#      and, EXECUTED with the real forsgren, writes
+#      ${RUNNER_TEMP}/token-probed.tsv with `FORSGREN_TOKEN<TAB>2027-01-12`
+#      for a dated token, `never` for one without expiry and `error: missing`
+#      for no secret, each with exit 0 (an error line leaves the run as it
+#      is), shows no token in its log, and exits non-zero without a token
+#      state (a writer that cannot write is red, never silent);
+#  38. the step "Upload the token expiry probe" uses actions/upload-artifact
+#      pinned by a full commit with its version in a comment, names the
+#      artifact token-expiry-probe, uploads
+#      ${{ runner.temp }}/token-probed.tsv with if-no-files-found: error,
+#      and comes after the probe step, which comes after collect;
 #  and pin 9 also orders the steps: install, checkout, starter, README, config check,
 #  collect, data commit, render, and the fail step after "Publish to GitHub
 #  Pages", so what was stored is committed and published before the job
@@ -348,11 +363,19 @@ COLLECT_STEP="Collect deployments"
 DATA_STEP="Commit the collected deployments"
 FAIL_STEP="Fail the job when collect failed"
 README_FAIL_STEP="Fail the job when the README could not be pushed"
+# The token expiry probe (forsgren#276): the step that writes its line, the
+# upload, the artifact's name and its one file.
+PROBE_STEP="Write the token expiry probe"
+PROBE_UPLOAD_STEP="Upload the token expiry probe"
+PROBE_ARTIFACT="token-expiry-probe"
+PROBE_FILE="token-probed.tsv"
 PUBLISH_STEP="Publish to GitHub Pages"
 COLLECT_CMD="collect --config forsgren.config.yml --data data/deployments.csv --token-expiry RUNNER_TEMP/token-expiry --cut-report RUNNER_TEMP/collect-report"
 DATA_SUBJECT="forsgren: record deployments"
 # The one line that hands the installation's token to the collect step.
 TOKEN_ENV="FORSGREN_TOKEN: ${EXPR_OPEN} secrets.FORSGREN_TOKEN }}"
+# The probe step's one input: whether the collect step had the secret.
+PROBE_ENV="TOKEN_STATE: ${EXPR_OPEN} steps.collect.outputs.token_state }}"
 # A made-up FORSGREN_TOKEN that no argument, file, log or output may show.
 COLLECT_SECRET="c0llectToken-acme-4d7"
 # What the data step's ::error says when the branch moved under it.
@@ -1444,7 +1467,7 @@ judge_collect_step() {
   fi
   new_install
   got="$(collect_outcome "$script" store "$COLLECT_SECRET")"
-  want="exit=0 output=status=0"
+  want="exit=0 output=token_state=set,status=0"
   [[ "$got" == "$want" ]] || echo "for a collect that stores the collect step gives '${got}', not '${want}'"
   calls="$(paste -sd, - < "${TMP}/fg.calls" | sed "s|${TMP}/runner/|RUNNER_TEMP/|g")"
   [[ "$calls" == "$COLLECT_CMD" ]] || echo "the collect step runs 'forsgren ${calls}', not 'forsgren ${COLLECT_CMD}'"
@@ -1453,7 +1476,7 @@ judge_collect_step() {
   fi
   new_install
   got="$(collect_outcome "$script" store-fail "$COLLECT_SECRET")"
-  want="exit=0 output=status=1"
+  want="exit=0 output=token_state=set,status=1"
   [[ "$got" == "$want" ]] || echo "for a collect that fails after storing the collect step gives '${got}', not '${want}' — it records collect's exit status and lets the job commit and publish what the other repositories stored"
   if ! grep -qF -- "collect: 1 of 2 repositories failed" "${TMP}/collect.log"; then
     echo "for a collect that fails the collect step does not show collect's message in its log"
@@ -1500,7 +1523,7 @@ judge_collect_e2e() {
   new_install
   cp internal/config/starter.yml "${INSTALL}/forsgren.config.yml"
   got="$(collect_outcome "$script" real "")"
-  want="exit=0 output=status=0"
+  want="exit=0 output=token_state=missing,status=0"
   if [[ "$got" != "$want" ]]; then
     echo "with the real forsgren, the starter configuration (no projects) and no FORSGREN_TOKEN the collect step gives '${got}', not '${want}' — a new install runs before its owner made a token"
   fi
@@ -1510,7 +1533,7 @@ judge_collect_e2e() {
   new_install
   printf '%s' "$VALID_CONFIG" > "${INSTALL}/forsgren.config.yml"
   got="$(collect_outcome "$script" real "")"
-  want="exit=0 output=status=1"
+  want="exit=0 output=token_state=missing,status=1"
   if [[ "$got" != "$want" ]] || ! grep -qF -- "FORSGREN_TOKEN is not set" "${TMP}/collect.log"; then
     echo "with the real forsgren, a configured repository and no FORSGREN_TOKEN the collect step gives '${got}' and logs '$(paste -sd'|' - < "${TMP}/collect.log")' — it must record status=1 with collect's message naming FORSGREN_TOKEN"
   fi
@@ -1532,7 +1555,7 @@ judge_collect_commands() {
     || ! grep -qF -- "collect: 1 of 1 repositories failed" "${TMP}/collect.log"; then
     echo "for collect output with workflow commands in it the collect step does not show collect's output, stdout and stderr, in the log"
   fi
-  [[ "$got" == "exit=0 output=status=1" ]] || echo "for collect output with workflow commands in it the collect step gives '${got}', not 'exit=0 output=status=1'"
+  [[ "$got" == "exit=0 output=token_state=set,status=1" ]] || echo "for collect output with workflow commands in it the collect step gives '${got}', not 'exit=0 output=token_state=set,status=1'"
   first="$(stop_token "${TMP}/collect.log")"
   new_install
   collect_outcome "$script" inject "$COLLECT_SECRET" > /dev/null
@@ -1559,7 +1582,7 @@ judge_collect_commands_e2e() {
   printf '%s' "$INJECTING_CONFIG" > "${INSTALL}/forsgren.config.yml"
   got="$(collect_outcome "$script" real "")"
   live="$(live_commands "${TMP}/collect.log")"
-  if [[ "$got" != "exit=0 output=status=1" || -n "$live" ]]; then
+  if [[ "$got" != "exit=0 output=token_state=missing,status=1" || -n "$live" ]]; then
     echo "with the real forsgren and an unknown key that carries a line break and ::warning:: the collect step gives '${got}' and leaves live in the log: $(paste -sd'|' - <<< "${live:-nothing}") — it must record status=1 with no workflow command live"
   fi
 }
@@ -1724,6 +1747,88 @@ judge_fail_step() {
   got="${got} fail-step=${rc}"
   want="exit=0 commits=2 fail-step=1"
   [[ "$got" == "$want" ]] || echo "when collect fails after storing, the data and fail steps give '${got}', not '${want}' — what the others stored is committed and pushed, then the job fails at its end"
+}
+
+# probe_outcome <script> <expiry file content, or - for none> <token state>:
+# runs the probe step with the real forsgren in a fresh RUNNER_TEMP, as
+# `exit=<rc> line=<what token-probed.tsv holds, the tab as \t>`; its log in
+# ${TMP}/probe.log.
+probe_outcome() {
+  local runner="${TMP}/probe-runner" rc=0 line=none
+  rm -rf "$runner"
+  mkdir -p "$runner"
+  [[ "$2" == - ]] || printf '%s\n' "$2" > "${runner}/token-expiry"
+  (
+    cd "$runner"
+    PATH="${REAL}:${PATH}" RUNNER_TEMP="$runner" TOKEN_STATE="$3" FORSGREN_TOKEN="$COLLECT_SECRET" bash "$1"
+  ) > "${TMP}/probe.log" 2>&1 || rc=$?
+  if [[ -f "${runner}/${PROBE_FILE}" ]]; then
+    line="$(awk '{ gsub(/\t/, "\\t"); print }' "${runner}/${PROBE_FILE}" | paste -sd'|' -)"
+  fi
+  echo "exit=${rc} line=${line}"
+}
+
+# judge_probe_step <workflow-file>: pin 37, the step that writes the token
+# expiry probe's line (forsgren#276), EXECUTED with the real forsgren.
+judge_probe_step() {
+  local script="${TMP}/probe.sh" env got want
+  step_block "$1" "$PROBE_STEP" run > "$script"
+  if [[ ! -s "$script" ]]; then
+    echo "has no step '${PROBE_STEP}' with a run: | block — no ${PROBE_FILE} is written for an installation that checks its tokens centrally"
+    return 0
+  fi
+  env="$(step_block "$1" "$PROBE_STEP" env)"
+  if ! grep -qxF -- "$PROBE_ENV" <<< "$env"; then
+    echo "the probe step's env: does not set ${PROBE_ENV} — it cannot tell a missing secret from an unknown date"
+  fi
+  got="$(probe_outcome "$script" "2027-01-12T08:35:47Z" set)"
+  want="exit=0 line=FORSGREN_TOKEN\\t2027-01-12"
+  [[ "$got" == "$want" ]] || echo "for a token that expires on 2027-01-12 the probe step gives '${got}', not '${want}'"
+  got="$(probe_outcome "$script" "no-expiry" set)"
+  want="exit=0 line=FORSGREN_TOKEN\\tnever"
+  [[ "$got" == "$want" ]] || echo "for a token without expiry the probe step gives '${got}', not '${want}'"
+  got="$(probe_outcome "$script" - missing)"
+  want="exit=0 line=FORSGREN_TOKEN\\terror: missing"
+  [[ "$got" == "$want" ]] || echo "for no FORSGREN_TOKEN the probe step gives '${got}', not '${want}' — an error line is written and the run goes on as it would"
+  if grep -qF -- "$COLLECT_SECRET" "${TMP}/probe.log"; then
+    echo "the probe step shows FORSGREN_TOKEN in its log"
+  fi
+  got="$(probe_outcome "$script" "no-expiry" "")"
+  if [[ "$got" == exit=0* ]]; then
+    echo "with no token state from the collect step the probe step gives '${got}' — a writer that cannot write its line must turn the step red, never pass in silence"
+  fi
+}
+
+# judge_probe_upload <workflow-file>: pin 38, the artifact token-expiry-probe
+# holds token-probed.tsv alone, uploaded by a SHA-pinned upload-artifact
+# after the probe step, which comes after collect.
+judge_probe_upload() {
+  local text with ref collect probe upload
+  text="$(step_text "$1" "$PROBE_UPLOAD_STEP")"
+  if [[ -z "$text" ]]; then
+    echo "has no step '${PROBE_UPLOAD_STEP}' — the token expiry probe is never uploaded as the artifact ${PROBE_ARTIFACT}"
+    return 0
+  fi
+  ref="$(sed -n 's/^[[:space:]]*uses:[[:space:]]*actions\/upload-artifact@\([0-9a-f]\{40\}\)[[:space:]][[:space:]]*#[[:space:]]*v[0-9].*$/\1/p' <<< "$text")"
+  if [[ -z "$ref" ]]; then
+    echo "the upload step does not use actions/upload-artifact pinned by a full 40-hex commit with its version in a comment — a tag can move under the caller"
+  fi
+  with="$(step_block "$1" "$PROBE_UPLOAD_STEP" with)"
+  grep -qxF -- "name: ${PROBE_ARTIFACT}" <<< "$with" \
+    || echo "the upload step's artifact is not named ${PROBE_ARTIFACT} — the central check reads that name"
+  grep -qxF -- "path: ${EXPR_OPEN} runner.temp }}/${PROBE_FILE}" <<< "$with" \
+    || echo "the upload step's path is not ${EXPR_OPEN} runner.temp }}/${PROBE_FILE}, the file the probe step writes"
+  grep -qxF -- "if-no-files-found: error" <<< "$with" \
+    || echo "the upload step does not set if-no-files-found: error — a missing file would upload nothing in silence"
+  collect="$(line_of "$1" "- name: ${COLLECT_STEP}")"
+  probe="$(line_of "$1" "- name: ${PROBE_STEP}")"
+  upload="$(line_of "$1" "- name: ${PROBE_UPLOAD_STEP}")"
+  if [[ -n "$probe" ]] && ! later "$probe" "$collect"; then
+    echo "writes the token expiry probe (line ${probe}) before collect (line ${collect}) — collect has not written the expiry file yet"
+  fi
+  if [[ -n "$probe" ]] && ! later "$upload" "$probe"; then
+    echo "uploads the token expiry probe (line ${upload}) before it is written (line ${probe})"
+  fi
 }
 
 # judge_concurrency <workflow-file>: pin 26, runs of one installation queue.
@@ -2045,6 +2150,8 @@ judge() {
   judge_data_token "$1"
   judge_data_moved "$1"
   judge_fail_step "$1"
+  judge_probe_step "$1"
+  judge_probe_upload "$1"
   judge_concurrency "$1"
   judge_order "$1"
 }
@@ -2332,7 +2439,7 @@ proves judge_collect_token "the token in an output" "writes FORSGREN_TOKEN to a 
   "s|^\\( *\\)echo \"status=|\\1echo \"token=${D}{FORSGREN_TOKEN}\" >> \"${D}GITHUB_OUTPUT\"\\n&|"
 proves judge_collect_step "a failing collect that stops the job" "for a collect that fails after storing the collect step gives 'exit=1" \
   's#\(--data data/deployments\.csv[^|]*\) || status=.*#\1#'
-proves judge_collect_step "collect's status not recorded" "for a collect that fails after storing the collect step gives 'exit=0 output=state=1'" \
+proves judge_collect_step "collect's status not recorded" "for a collect that fails after storing the collect step gives 'exit=0 output=token_state=set,state=1'" \
   's/echo "status=/echo "state=/'
 proves judge_collect_e2e "a collect step that skips a missing token" "with the real forsgren, a configured repository and no FORSGREN_TOKEN" \
   "/- name: ${COLLECT_STEP}/,/- name: ${DATA_STEP}/ s|^\\( *\\)status=0${D}|\\1[[ -n \"${D}{FORSGREN_TOKEN:-}\" ]] \\|\\| exit 0\\n&|"
@@ -2482,6 +2589,39 @@ proves judge_fail_step "a collect step without its id" "the collect step has no 
   '/^        id: collect$/d'
 proves judge_fail_step "a failed collect that throws away what it stored" "when collect fails after storing, the data and fail steps give 'exit=0 commits=1 fail-step=1'" \
   "s|^\\( *\\)echo \"status=|\\1if [[ \"${D}status\" -ne 0 ]]; then rm -rf data; fi\\n&|"
+
+# The token expiry probe (forsgren#276): the collect step's token state, the
+# step that writes the line and its upload.
+PROBE_RANGE="/- name: ${PROBE_STEP}/,/- name: ${PROBE_UPLOAD_STEP}/"
+UPLOAD_RANGE="/- name: ${PROBE_UPLOAD_STEP}/,/^\$/"
+proves judge_collect_e2e "a token state that is always set" "the collect step gives 'exit=0 output=token_state=set,status=0'" \
+  's/^\( *\)secret_state="missing"$/\1secret_state="set"/'
+proves judge_collect_step "a collect step that records no token state" "the collect step gives 'exit=0 output=status=0'" \
+  '/echo "token_state=/d'
+proves judge_probe_step "no probe step" "has no step '${PROBE_STEP}'" \
+  "s/- name: ${PROBE_STEP}\$/- name: Write something else/"
+proves judge_probe_step "a probe step without the token state" "the probe step's env: does not set ${PROBE_ENV}" \
+  "${PROBE_RANGE} { /TOKEN_STATE: /d; }"
+proves judge_probe_step "a probe line written elsewhere" "for a token that expires on 2027-01-12 the probe step gives 'exit=0 line=none'" \
+  "${PROBE_RANGE} s|/token-probed\\.tsv\"|/probe.tsv\"|"
+proves judge_probe_step "a probe step that swallows the writer's failure" "with no token state from the collect step the probe step gives 'exit=0" \
+  "${PROBE_RANGE} s|token-probed\\.tsv\"\$|token-probed.tsv\" \\|\\| :|"
+proves judge_probe_step "a probe step that fails the run on an error line" "for no FORSGREN_TOKEN the probe step gives 'exit=1" \
+  "${PROBE_RANGE} s|token-probed\\.tsv\"\$|token-probed.tsv\" \\&\\& ! grep -q error \"${D}{RUNNER_TEMP}/token-probed.tsv\"|"
+proves judge_probe_step "a probe step that shows the token" "the probe step shows FORSGREN_TOKEN in its log" \
+  "${PROBE_RANGE} s|^\\( *\\)forsgren token-probe |\\1echo \"probing ${D}{FORSGREN_TOKEN:-}\"; forsgren token-probe |"
+proves judge_probe_upload "no upload step" "has no step '${PROBE_UPLOAD_STEP}'" \
+  "s/- name: ${PROBE_UPLOAD_STEP}\$/- name: Upload something else/"
+proves judge_probe_upload "an artifact under another name" "the upload step's artifact is not named ${PROBE_ARTIFACT}" \
+  "${UPLOAD_RANGE} s/name: ${PROBE_ARTIFACT}\$/name: token-probe/"
+proves judge_probe_upload "an upload of another path" "the upload step's path is not" \
+  "${UPLOAD_RANGE} s|path: .*\$|path: ${PROBE_FILE}|"
+proves judge_probe_upload "an upload that passes without its file" "does not set if-no-files-found: error" \
+  "${UPLOAD_RANGE} s/if-no-files-found: error/if-no-files-found: warn/"
+proves judge_probe_upload "an upload action pinned by a tag" "pinned by a full 40-hex commit" \
+  "${UPLOAD_RANGE} s|actions/upload-artifact@[0-9a-f]*  # v|actions/upload-artifact@v7  # v|"
+proves_moved judge_probe_upload "the probe step before collect" "before collect (line" "$PROBE_STEP" "$COLLECT_STEP"
+proves_moved judge_probe_upload "the upload before the probe step" "before it is written (line" "$PROBE_UPLOAD_STEP" "$PROBE_STEP"
 
 # Concurrency.
 proves judge_concurrency "no concurrency" "the job has no concurrency: block" \

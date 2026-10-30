@@ -723,6 +723,7 @@ usage: forsgren render --out <dir> [--config <path>] [--data <path>]
                             [--collect-report <path>] [--latest-published <path>]
        forsgren check-update --config <path> --repo <owner/name> --pull <number>
        forsgren install-update --repo <owner/name> --branch <branch> --version <vX.Y.Z> --sha <40-hex>
+       forsgren token-probe --token-expiry <path> --token-state <set|missing> --out <path>
 ```
 
 `forsgren render --out <dir> [--config <path>] [--data <path>] [--latest <version>] [--waiting-pr <number>] [--pr-check <status>] [--needs-check <status>]` writes the site (every page
@@ -849,6 +850,21 @@ untouched, its modification time included. The file is written whole,
 through a temporary file in the same directory and a rename; the directory
 must exist. Exit 0, 1 when the file cannot be read or written (with the
 path), 2 on a usage error.
+
+`forsgren token-probe --token-expiry <path> --token-state <set|missing> --out
+<path>` (forsgren#276) writes the one line of the token expiry probe to
+`--out`: `FORSGREN_TOKEN`, a tab, and the token's expiry date as `YYYY-MM-DD`
+(UTC) from the file `collect --token-expiry` wrote, or `never` for a token
+without an expiry date (the file's `no-expiry` or `no-expiry run-token`), or
+`error: unreadable` (GitHub sent an expiry forsgren cannot read), `error:
+unknown` (`--token-state set` and no date in the file: collect did not get an
+answer, as with no project configured) or `error: missing` (`--token-state
+missing`: no `FORSGREN_TOKEN` secret). It reads the file and the state only,
+never a token. It prints the line it wrote; exit 0 whatever the line says, an
+error line included, 1 when the file cannot be written (with the path), 2 on a
+usage error, a `--token-state` other than `set` or `missing` among them. The
+daily run uploads the file as the artifact `token-expiry-probe`, for an
+installation that checks its tokens centrally.
 
 The pull request is linked: the link is fine there, because a run page is
 private to the repository, unlike the public page. A flag it cannot use is a
@@ -984,6 +1000,15 @@ jobs:
   answers: it is not a promise of 14 days' notice. A token that is revoked or
   deleted before its date gives no warning; the first sign is then the
   failed run.
+- **The token expiry probe** (forsgren#276). Right after collect, every run
+  writes `token-probed.tsv` with `forsgren token-probe` and uploads it as
+  the run's artifact `token-expiry-probe`: one line, `FORSGREN_TOKEN`, a tab
+  and the token's expiry date (`YYYY-MM-DD`), `never`, or `error: <word>`
+  (see `forsgren token-probe` above). An installation that checks its tokens
+  centrally reads each data repository's newest such artifact. Nothing to
+  configure, and no new permission: the upload needs none from the caller.
+  An error line does not change the run; the token itself is in no step but
+  collect's, and in neither the file nor the log.
 - **The daily run collects and commits the history.** After the check,
   `forsgren collect --config forsgren.config.yml --data
   data/deployments.csv` appends the new final deployments, and their

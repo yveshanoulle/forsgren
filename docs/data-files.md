@@ -1722,6 +1722,9 @@ removed fails the run. From 14 days before the date, and once it has passed, `co
 warns on stderr: a `collect: warning:` line that names the date and the
 command `gh secret set FORSGREN_TOKEN -R <owner/name>` to set a new token.
 The warning never changes the exit code.
+The daily run also turns the file into the token expiry probe,
+`token-probed.tsv`, uploaded as the artifact `token-expiry-probe`
+(forsgren#276; see [Running forsgren](configuration.md#running-forsgren)).
 
 ### Issue events (forsgren#76)
 

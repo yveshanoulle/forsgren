@@ -19,6 +19,7 @@
 //	                     [--collect-report <path>] [--latest-published <path>]
 //	forsgren check-update --config <path> --repo <owner/name> --pull <number>
 //	forsgren install-update --repo <owner/name> --branch <branch> --version <vX.Y.Z> --sha <40-hex>
+//	forsgren token-probe --token-expiry <path> --token-state <set|missing> --out <path>
 package main
 
 import (
@@ -46,7 +47,8 @@ const usage = `usage: forsgren render --out <dir> [--config <path>] [--data <pat
                             [--needs-check <status>] [--readme <status>] [--token-expiry <path>]
                             [--collect-report <path>] [--latest-published <path>]
        forsgren check-update --config <path> --repo <owner/name> --pull <number>
-       forsgren install-update --repo <owner/name> --branch <branch> --version <vX.Y.Z> --sha <40-hex>`
+       forsgren install-update --repo <owner/name> --branch <branch> --version <vX.Y.Z> --sha <40-hex>
+       forsgren token-probe --token-expiry <path> --token-state <set|missing> --out <path>`
 
 // version is the forsgren release a build was told it is, with
 // -ldflags "-X main.version=<version>"; a var, not a const, so the flag can
@@ -72,6 +74,7 @@ var commands = map[string]func(args []string, stdout, stderr io.Writer) int{
 	"check-needs":          checkNeeds,
 	"check-update":         checkUpdate,
 	"install-update":       installUpdate,
+	"token-probe":          tokenProbe,
 }
 
 // run executes one command and returns the process exit status: 0 on

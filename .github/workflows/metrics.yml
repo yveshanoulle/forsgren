@@ -12,7 +12,8 @@
 # configuration fails the job by name instead of publishing from it. Then
 # forsgren collect reads the configured repositories' deployments into
 # data/deployments.csv with the caller's FORSGREN_TOKEN, and a changed data/
-# is committed to the run's branch (forsgren#12, step 6). The page shows
+# is committed to the run's branch (forsgren#12, step 6). The token's expiry
+# goes up as the artifact token-expiry-probe (forsgren#276). The page shows
 # each project's deployment frequency from that history (forsgren#12, step
 # 7), or a line saying no projects are configured yet.
 #
@@ -353,6 +354,9 @@ jobs:
       # fresh from /dev/urandom on every run, so a line of it that starts
       # with :: is shown and never run. Its lines name repositories and
       # quote errors, and defence in depth costs two lines.
+      # The step also records whether the secret was set, as the output
+      # `token_state` (set or missing, never the token), for the token
+      # expiry probe below (forsgren#276).
       # Inline for the install step's reason; Scripts/test_metrics_workflow.sh
       # executes this block with a stub forsgren and with the real one.
       - name: Collect deployments
@@ -363,6 +367,9 @@ jobs:
         run: |
           set -euo pipefail
           token="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+          secret_state="missing"
+          [[ -z "${FORSGREN_TOKEN:-}" ]] || secret_state="set"
+          echo "token_state=${secret_state}" >> "$GITHUB_OUTPUT"
           status=0
           report="${RUNNER_TEMP}/collect-report"
           output="$(forsgren collect --config forsgren.config.yml --data data/deployments.csv --token-expiry "${RUNNER_TEMP}/token-expiry" --cut-report "$report" 2>&1)" || status=$?
@@ -370,6 +377,32 @@ jobs:
           printf '%s\n' "$output"
           echo "::${token}::"
           echo "status=${status}" >> "$GITHUB_OUTPUT"
+
+      # The token expiry probe (forsgren#276), for an installation that checks
+      # its tokens centrally: forsgren token-probe turns the expiry file
+      # collect wrote, and whether the collect step had the secret, into one
+      # line, FORSGREN_TOKEN, a tab and YYYY-MM-DD, never or error: <word>,
+      # in token-probed.tsv, uploaded as the artifact token-expiry-probe.
+      # Nothing to configure. An error line is a line like any other, exit
+      # 0, so the run goes on as it would; a writer that cannot write its line
+      # (no token state, a file it cannot write) turns this step red. The
+      # token never reaches either step: only its state does.
+      # Scripts/test_metrics_workflow.sh executes this block with the real
+      # forsgren.
+      - name: Write the token expiry probe
+        shell: bash
+        env:
+          TOKEN_STATE: ${{ steps.collect.outputs.token_state }}
+        run: |
+          set -euo pipefail
+          forsgren token-probe --token-expiry "${RUNNER_TEMP}/token-expiry" --token-state "$TOKEN_STATE" --out "${RUNNER_TEMP}/token-probed.tsv"
+
+      - name: Upload the token expiry probe
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: token-expiry-probe
+          path: ${{ runner.temp }}/token-probed.tsv
+          if-no-files-found: error
 
       # What collect stored is committed to the branch the run is on, as the
       # starter is: only data/, only when it changed (a run with nothing new

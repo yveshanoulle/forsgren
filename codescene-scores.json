@@ -29,7 +29,7 @@
   {
    "path": "cmd/forsgren/main.go",
    "score": 9.38,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-30",
    "minScore": 9.28
   },
   {
@@ -1722,6 +1722,18 @@
    "path": "cmd/forsgren/expiryfile.go",
    "score": 10.0,
    "checkedAt": "2026-10-15",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/tokenprobe.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-30",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/tokenprobe_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-30",
    "minScore": 10.0
   },
   {

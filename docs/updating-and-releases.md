@@ -815,6 +815,18 @@ needs about four runs), then a few a day. Nothing new is needed: no
 permission, secret or file, and an agent following
 [agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing about it.
 
+**Upgrading to 1.31.4, which uploads the token expiry probe** (forsgren#276).
+A patch release. Every daily run now uploads one more artifact,
+`token-expiry-probe`, holding `token-probed.tsv`: one line, `FORSGREN_TOKEN`,
+a tab and the token's expiry date (`YYYY-MM-DD`), `never`, or `error:
+<word>` (`missing`, `unknown` or `unreadable`), for an installation that
+checks its tokens centrally (see [Running
+forsgren](configuration.md#running-forsgren)). The token itself is never in
+the file or the log, and an error line changes nothing else in the run.
+Nothing new is needed: no permission, secret or file (the upload needs no
+permission from the calling workflow), and an agent following
+[agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing about it.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`

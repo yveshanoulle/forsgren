@@ -557,7 +557,13 @@ run, so a line of it that starts with `::` never runs as a workflow
 command), `forsgren collect --config forsgren.config.yml --data
 data/deployments.csv --token-expiry "${RUNNER_TEMP}/token-expiry" --cut-report
 "${RUNNER_TEMP}/collect-report"` (its output shown with workflow commands stopped, its
-exit status kept as a step output), a commit of
+exit status kept as a step output, and whether `FORSGREN_TOKEN` was set as the
+output `token_state`), `forsgren token-probe` writing `token-probed.tsv` from
+the expiry file and that state, uploaded with `actions/upload-artifact` as the
+artifact `token-expiry-probe` (forsgren#276: one line, `FORSGREN_TOKEN`, a tab
+and `YYYY-MM-DD`, `never` or `error: <word>`, for an installation that checks
+its tokens centrally; an error line leaves the run as it is, a writer that
+cannot write fails its step), a commit of
 `data/` alone when it changed, pushed like the starter (an `::error` naming a
 branch that moved, never a rebase or a force), `forsgren render --config
 forsgren.config.yml --data data/deployments.csv` (with `--latest`,
@@ -713,7 +719,7 @@ Nine PRE gates keep the CI honest:
   entry at an off-peak minute) and by hand, with `contents: read` only.
   `Scripts/probe_token_expiry.sh` makes one `GET /user` call per token with
   the Actions secrets `FORSGREN_RELEASE_TOKEN` and
-  `PREVIEW_DISPATCH_TOKEN` (the two the repository holds; `FORSGREN_TOKEN` lives in the installations; the token goes to curl on stdin, never in an argument or
+  `PREVIEW_DISPATCH_TOKEN` (the two the repository holds; `FORSGREN_TOKEN` lives in the installations, whose daily `metrics.yml` run uploads its own artifact of the same name and shape, forsgren#276; the token goes to curl on stdin, never in an argument or
   the output), reads `github-authentication-token-expiration` and writes
   `token-probed.tsv`, one line per secret, `<SECRET_NAME><TAB><YYYY-MM-DD |
   never | error: <reason>>`, uploaded as the artifact `token-expiry-probe`
@@ -802,7 +808,15 @@ Nine PRE gates keep the CI honest:
   naming `FORSGREN_TOKEN` for a configured repository, and, as the config
   step does, leaves no line of collect's output (both streams) that starts
   with `::` live as a workflow command, under a token that differs per run,
-  with the stub and with the real `forsgren`; the data step,
+  with the stub and with the real `forsgren`, and records `token_state`
+  `set` or `missing`; the probe step (pin 37, forsgren#276), executed with
+  the real `forsgren`, writes `FORSGREN_TOKEN<TAB>2027-01-12`, `never` and
+  `error: missing` to `${RUNNER_TEMP}/token-probed.tsv` with exit 0, shows no
+  token in its log, and fails without a token state; the upload step (pin
+  38) uses `actions/upload-artifact` pinned by a full commit, names the
+  artifact `token-expiry-probe`, uploads `${{ runner.temp }}/token-probed.tsv`
+  with `if-no-files-found: error`, and comes after the probe step, which
+  comes after collect; the data step,
   executed with a real git against a local remote, commits nothing when
   `data/` is unchanged (on a tag too), else one commit of `data/` alone as
   `github-actions[bot]`, unsigned even under a hostile inherited git

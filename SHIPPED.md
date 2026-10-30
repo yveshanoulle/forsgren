@@ -9,6 +9,22 @@ Active work lives in
 
 ---
 
+## 2026-10-30 — The daily run uploads the token expiry probe ([#276](https://github.com/yveshanoulle/forsgren/issues/276), 1 step)
+
+forsgren issue 276, a feature for the next patch release. `metrics.yml` now
+uploads the artifact `token-expiry-probe` with one file, `token-probed.tsv`:
+`FORSGREN_TOKEN`, a tab and the token's expiry date (`YYYY-MM-DD`), `never`,
+or `error: unreadable`, `error: unknown` or `error: missing`, so an
+installation that checks its tokens centrally can read every data
+repository's newest one. The new command `forsgren token-probe` writes the
+line from the file `collect --token-expiry` already writes and from the
+collect step's new output `token_state` (`set` or `missing`); the token never
+reaches the probe step, and is in neither the file nor the log. An error line
+exits 0, so the run stays as it was; a writer that cannot write its line
+fails its step. The upload uses the pinned `actions/upload-artifact` and
+needs no permission from the caller. Tested by `tokenprobe_test.go` and pins
+37 and 38 of `Scripts/test_metrics_workflow.sh`, each with mutation proofs.
+
 ## 2026-10-30 — The settings page tests pass the config line whole ([#550](https://github.com/yveshanoulle/forsgren/issues/550), 1 step)
 
 forsgren issue 550, a quality issue. CodeScene scored
