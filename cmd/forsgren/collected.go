@@ -50,7 +50,18 @@ func collectedWords(report collect.Report) string {
 	if len(parts) > 0 {
 		base = "incomplete, " + strings.Join(parts, "; ")
 	}
-	return strings.Join(append([]string{base}, serviceWords(report)...), "; ")
+	return strings.Join(slices.Concat([]string{base}, cappedWords(report), serviceWords(report)), "; ")
+}
+
+// cappedWords name each repository whose read of the commit files stopped at
+// the cap of a run (forsgren#589). A cap is planned, so they never make the
+// run incomplete.
+func cappedWords(report collect.Report) []string {
+	words := make([]string, len(report.FilesCapped))
+	for i, repo := range report.FilesCapped {
+		words[i] = fmt.Sprintf("%s commit files: %d read this run, the next runs continue", repo, collect.CommitFilesPerRun)
+	}
+	return words
 }
 
 // serviceWords name each failure issue whose service label found no single

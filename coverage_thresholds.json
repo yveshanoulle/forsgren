@@ -37,6 +37,7 @@
     "github.com/yveshanoulle/forsgren/cmd/forsgren/collected.go:budgetWords": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/collected.go:cutWords": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/collected.go:serviceWords": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/collected.go:cappedWords": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/collect.go:collectFlags": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/tokenexpiry.go:removeTokenExpiry": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/tokenexpiry.go:writeTokenExpiry": 100.0,

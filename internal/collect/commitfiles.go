@@ -28,7 +28,7 @@ package collect
 //   - a budget stop stores what was read, notes no fill, adds the repository
 //     to the report's commit-files-cut lines and never fails the run, so the
 //     next run continues with the commits still without lines;
-//   - the cap of a run (commitFilesPerRun, forsgren#589, Yves's ruling): a
+//   - the cap of a run (CommitFilesPerRun, forsgren#589, Yves's ruling): a
 //     run asks for the files of at most 1000 commits of a repository; the
 //     read stops before the next one, stores what was read, notes no fill,
 //     says so on stderr, adds the repository to the report's
@@ -62,12 +62,12 @@ const CommitFilesFile = "commit_files.csv"
 // (forsgren#496).
 const CommitFilesFilledFile = "commit_files_filled.csv"
 
-// commitFilesPerRun is the most commits whose files one run asks for, per
+// CommitFilesPerRun is the most commits whose files one run asks for, per
 // repository (forsgren#589, Yves's ruling): a first fill of thousands of
 // commits is spread over several runs instead of spending a request budget.
-const commitFilesPerRun = 1000
+const CommitFilesPerRun = 1000
 
-// errFilesCapped ends a commit files read at commitFilesPerRun.
+// errFilesCapped ends a commit files read at CommitFilesPerRun.
 var errFilesCapped = errors.New("the commit files stopped at the cap of a run")
 
 // commitFilesFile is the path of the commit files file next to o's history.
@@ -171,11 +171,11 @@ func unreadNewestFirst(repo string, commits []history.Commit, read map[string]bo
 // readCommitFiles is the lines of the files of the commits todo of repo, up
 // to the first error that ends the read; Client.Reserve(repo, 1) comes before
 // each commit, so a budget stop leaves the one it stops at unread, and the
-// read ends with errFilesCapped before a commit past commitFilesPerRun.
+// read ends with errFilesCapped before a commit past CommitFilesPerRun.
 func (o Options) readCommitFiles(ctx context.Context, repo string, todo []string) (fileRead, error) {
 	var out fileRead
 	for i, sha := range todo {
-		if i == commitFilesPerRun {
+		if i == CommitFilesPerRun {
 			return out, errFilesCapped
 		}
 		if err := o.Client.Reserve(repo, 1); err != nil {
@@ -266,7 +266,7 @@ func (o Options) endedShort(repo string, err error) bool {
 		o.reportFilesCut(repo)
 	case errors.Is(err, errFilesCapped):
 		o.warn("collect: %s: the commit files stopped at the cap of %d commits a run; "+
-			"those read are stored, the next run continues\n", repo, commitFilesPerRun)
+			"those read are stored, the next run continues\n", repo, CommitFilesPerRun)
 		o.reportFilesCapped(repo)
 	default:
 		return false

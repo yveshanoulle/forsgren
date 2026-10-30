@@ -2009,7 +2009,13 @@
   {
    "path": "cmd/forsgren/collected.go",
    "score": 10.0,
-   "checkedAt": "2026-10-29",
+   "checkedAt": "2026-10-30",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/summary_capped_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-30",
    "minScore": 10.0
   },
   {
