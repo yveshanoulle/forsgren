@@ -17,6 +17,7 @@ package collect
 //	pulls-bot-fill-cut acme/lib
 //	pushes-fill-cut acme/lib
 //	commit-files-cut acme/lib
+//	commit-files-capped acme/lib
 //	failed acme/web secondary-rate-limit
 //
 // The second line is `complete` or `incomplete resets=<UTC RFC 3339>`. A
@@ -47,6 +48,9 @@ package collect
 // A `commit-files-cut` line names a repository whose read of the changed
 // files of its deployed commits the budget cut short: incomplete, never
 // failed, continued by the next run (forsgren#496).
+// A `commit-files-capped` line names a repository whose read of the changed
+// files stopped at the cap of 1000 commits a run (forsgren#589): planned, so
+// it leaves the report complete, never failed, continued by the next run.
 // A `failed` line names a repository that failed on a rate limit.
 
 import (
@@ -134,6 +138,9 @@ type Report struct {
 	// FilesCut names the repositories whose read of the files of their
 	// deployed commits was cut short at the request budget (forsgren#496).
 	FilesCut []string
+	// FilesCapped names the repositories whose read of the commit files
+	// stopped at the cap of a run (forsgren#589). Not incomplete, not failed.
+	FilesCapped []string
 	// ServiceUnmatched names the failure issues whose `service:` label
 	// matched no row of their repository, or more than one: counted in the
 	// total only (forsgren#515, decision #517). Not incomplete, not failed.
@@ -164,6 +171,7 @@ func (r Report) Render() string {
 	writeRepositories(&b, "pulls-bot-fill-cut", r.PullBotFillCut)
 	writeRepositories(&b, "pushes-fill-cut", r.PushesFillCut)
 	writeRepositories(&b, "commit-files-cut", r.FilesCut)
+	writeRepositories(&b, "commit-files-capped", r.FilesCapped)
 	for _, u := range r.ServiceUnmatched {
 		fmt.Fprintf(&b, "failure-service %s %d %s %s\n", u.Repository, u.Issue, u.Reason, url.QueryEscape(u.Label))
 	}
@@ -280,6 +288,10 @@ var lineKinds = map[string]lineKind{
 	}},
 	"commit-files-cut": {2, func(r *Report, f []string) error {
 		r.FilesCut = append(r.FilesCut, f[0])
+		return nil
+	}},
+	"commit-files-capped": {2, func(r *Report, f []string) error {
+		r.FilesCapped = append(r.FilesCapped, f[0])
 		return nil
 	}},
 	"failure-service": {5, func(r *Report, f []string) error {

@@ -438,6 +438,8 @@
     "github.com/yveshanoulle/forsgren/internal/collect/commitfiles.go:commitFileLines": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/commitfiles.go:endFileRead": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/commitfiles.go:reportFilesCut": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/commitfiles.go:reportFilesCapped": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/commitfiles.go:endedShort": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/commitfiles.go:LoadCommitFiles": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/commitfiles.go:AppendCommitFiles": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/commitfiles.go:key": 100.0,

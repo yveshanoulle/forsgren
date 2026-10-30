@@ -125,7 +125,7 @@
   {
    "path": "internal/collect/report.go",
    "score": 10.0,
-   "checkedAt": "2026-10-29",
+   "checkedAt": "2026-10-30",
    "minScore": 10.0
   },
   {
@@ -167,13 +167,19 @@
   {
    "path": "internal/collect/commitfiles.go",
    "score": 9.68,
-   "checkedAt": "2026-10-27",
+   "checkedAt": "2026-10-30",
    "minScore": 9.58
   },
   {
    "path": "internal/collect/commit_files_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/commit_files_cap_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-30",
    "minScore": 10.0
   },
   {
