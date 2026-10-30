@@ -107,14 +107,18 @@ func TestACappedReadReportsHowFarItIsAndWhatIsLeft(t *testing.T) {
 }
 
 // TestACappedReportReadsBack: the commit-files-capped line reads back as it
-// was written, and a line of a report from before forsgren#593 (the
-// repository alone) is still read.
+// was written, with its counts (forsgren#593).
 func TestACappedReportReadsBack(t *testing.T) {
 	text := "# forsgren collect report v1\ncomplete\ncommit-files-capped acme/app read=4120 left=2340\n"
 	back, err := ParseReport(text)
 	if err != nil || back.Render() != text || !back.FilesCapped[0].Counted() {
 		t.Errorf("want the report back with its counts, got %q (%v)", back.Render(), err)
 	}
+}
+
+// TestAnOldCappedLineReadsWithoutCounts: a line of a report from before
+// forsgren#593 (the repository alone) is still read, without counts.
+func TestAnOldCappedLineReadsWithoutCounts(t *testing.T) {
 	old, err := ParseReport("# forsgren collect report v1\ncomplete\ncommit-files-capped acme/app\n")
 	if err != nil || old.FilesCapped[0] != (CappedFiles{Repository: "acme/app"}) || old.FilesCapped[0].Counted() {
 		t.Errorf("want a report from before the counts read without counts, got %+v (%v)", old, err)
