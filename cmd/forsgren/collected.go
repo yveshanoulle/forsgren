@@ -60,7 +60,8 @@ func collectedWords(report collect.Report) string {
 func cappedWords(report collect.Report) []string {
 	words := make([]string, len(report.FilesCapped))
 	for i, c := range report.FilesCapped {
-		words[i] = fmt.Sprintf("%s commit files: %d read this run, %s", c.Repository, collect.CommitFilesPerRun, progressWords(c))
+		words[i] = fmt.Sprintf("%s commit files: %d read this run, %s",
+			c.Repository, collect.CommitFilesPerRun, progressWords(c))
 	}
 	return words
 }
