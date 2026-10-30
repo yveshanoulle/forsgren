@@ -1,7 +1,7 @@
 {{define "title"}}{{.DataTitle}} · {{.Title}}{{end -}}
 {{template "header" .}}  <main>
     <h1 id="data-heading">{{.DataTitle}}</h1>
-{{if .DataRows}}{{with .DataMarkers}}{{if .Any}}    <p>The first data forsgren stored for each project, by kind.{{if .Late}} A date marked ▲ is after Report Start: the window is only partly covered, and the metrics count from that date on.{{end}}{{if .Cut}} A date marked … is where the read stopped at its page limit: earlier data is not yet read, so the date is not where the repository started.{{end}}{{if .End}} A date marked ⇤ is as far back as GitHub keeps the activity: GitHub keeps no older activity, so the date is not where the repository started.{{end}}</p>
+{{if .DataRows}}{{with .DataMarkers}}{{if .Any}}    <p>The first data forsgren stored for each project, by kind.{{if .Late}} A date marked ▲ is after Report Start: the window is only partly covered, and the metrics count from that date on.{{end}}{{if .Cut}} A date marked … is where a read stopped before the oldest data, a push read at its page limit or, for a service or rule, the files of its pushed commits still being read: earlier data is not yet read, so the date is not where the repository started.{{end}}{{if .End}} A date marked ⇤ is as far back as GitHub keeps the activity: GitHub keeps no older activity, so the date is not where the repository started.{{end}}</p>
 {{end}}{{end}}    <div class="table-scroll" role="region" aria-labelledby="data-heading" tabindex="0">
       <table class="wraps">
         <thead>

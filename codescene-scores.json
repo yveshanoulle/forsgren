@@ -3057,6 +3057,12 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/dictionary/earlierdata_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-30",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/page/booksource_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-30",

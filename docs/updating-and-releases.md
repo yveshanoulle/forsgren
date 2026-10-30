@@ -797,6 +797,24 @@ deviation. No figure changes. Nothing new is needed: no permission, secret or
 file, and an agent following [agent-upgrade.md](../agent-upgrade.md) needs to
 ask you nothing about it.
 
+**Also in 1.31.3: a service or rule row's Commits on the Data page counts its
+pushed commits** (forsgren#589). A patch release. A service or rule row with
+`paths` now takes its Commits date from the commits that touch its paths, its
+own deployed commits and the pushed commits of its repository, so it is no
+longer later than the project's; a row without `paths` reads `Per
+repository`. To know the paths of a pushed commit, collect reads its changed
+files, as it already does for the deployed commits, into
+`data/commit_files.csv`, at most 1000 commits a run per repository, newest
+first, the next run continuing; the job summary's Collected line names a
+repository whose read stopped at that cap. While a repository's pushed
+commits are still being read, the row's date is marked …, earlier data not
+yet read; the new `data/push_files_filled.csv` notes when they are all read.
+For a repository with `paths` this costs about 1000 more requests a run until
+its pushed commits are read (a busy repository with 4000 pushed commits
+needs about four runs), then a few a day. Nothing new is needed: no
+permission, secret or file, and an agent following
+[agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing about it.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`

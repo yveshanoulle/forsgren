@@ -1021,8 +1021,10 @@ acme/app,2026-10-27T06:00:00Z
 
 A service with `paths` (see [Configuration](configuration.md)) counts only
 the commits that touch them, so `collect` keeps the files each deployed commit
-changed in `data/commit_files.csv`, next to the history (the commit files
-format v1, package `internal/history`, columns `repository,sha,path`):
+and, since forsgren#589, each pushed commit changed in `data/commit_files.csv`,
+next to the history (the commit files format v1, package `internal/history`,
+columns `repository,sha,path`). A commit is held once, whether a deployment
+or a push brought it:
 
 ```
 # forsgren commit files v1
@@ -1038,9 +1040,21 @@ acme/app,0123456789abcdef0123456789abcdef01234567,web/old.go
   it is not read again; a commit with no line has not been read yet. A commit
   GitHub lists with more than 3000 files is stored as read, and named on stderr.
 - It costs one `GET /repos/{owner}/{repo}/commits/{sha}` per commit, the request budget
-  reserved first, newest deployment first. Every stored commit of
-  `data/commits.csv` is read, not only those of the DORA window, so a wider
-  `dora_days` later finds them read. The files are read last for a repository,
+  reserved first: the deployed commits first, newest deployment first, then
+  the pushed commits of `data/push_commits.csv` (forsgren#589), first-parent
+  and branch commits alike, each SHA once, the newest push first, then the
+  newest author date (a commit several pushes brought is placed at the
+  earliest of them). Every stored commit is read, not only those of the DORA
+  window, so a wider `dora_days` later finds them read.
+- At most 1000 commits a run per repository, deployed and pushed together
+  (`collect.CommitFilesPerRun`, forsgren#589, Yves's ruling): the read stops
+  before the next one, stores what was read, says so on stderr and adds a
+  `commit-files-capped` line to the cut report. The cap is planned, so the
+  report stays complete; the job summary's Collected line says
+  `acme/app commit files: 1000 read this run, the next runs continue`, and the
+  next run continues with the commits still without lines. A busy repository
+  with about 4000 pushed commits without files needs about four runs, 1000
+  requests each. The files are read last for a repository,
   after the fresh data: its deployments, issues, pull requests, the fills, the
   legacy backfill and the push read are stored first, so the first fill of a big
   installation, which can cost thousands of requests over several daily runs,
@@ -1063,12 +1077,30 @@ acme/app,0123456789abcdef0123456789abcdef01234567,web/old.go
 **The commit files mark** is kept in `data/commit_files_filled.csv`, next to
 the history, in its own format (the commit files filled format v1,
 `repository,filled_at`, a mark file like `data/reach.csv`): one line per
-repository for which a run found every stored commit read, the one-time fill
-done. It does not stop a commit stored later from being read.
+repository for which a run got past every stored deployed commit with none
+GitHub no longer has, the one-time fill done. It does not stop a commit
+stored later from being read.
 
-- The data guard knows both names: a `commit_files.csv` or a
-  `commit_files_filled.csv` that the repository tracks or does not ignore,
-  outside `testdata/`, blocks the commit, like the other data files.
+**The push files mark** (forsgren#589) is kept in
+`data/push_files_filled.csv`, next to the history (the push files filled
+format v1, `repository,filled_at`, a mark file):
+
+- A run notes a repository when it leaves no pushed commit without lines; a
+  pushed commit GitHub no longer has is named on stderr and does not hold the
+  mark back.
+- A run that leaves a pushed commit unread (the cap, the budget, a refusal or
+  an error) removes the repository's line, older pushed commits stored later
+  by the fill of the older pushes included.
+- The Data page reads it: while a repository of a service or rule row with
+  `paths` has no line, the row's Commits date carries the `…` marker (see
+  [Pages and views](pages-and-views.md#the-data-page)). A missing file holds
+  none; an unknown version or a malformed line refuses the collect run and the
+  render, naming the file.
+
+- The data guard knows the three names: a `commit_files.csv`, a
+  `commit_files_filled.csv` or a `push_files_filled.csv` that the repository
+  tracks or does not ignore, outside `testdata/`, blocks the commit, like the
+  other data files.
 
 ## Collecting deployments (`collect`)
 

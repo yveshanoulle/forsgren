@@ -31,8 +31,8 @@
       <dd>The DevOps Research and Assessment programme, whose five delivery metrics and bands forsgren follows (DORA Quick Check, dora.dev).</dd>
       <dd>From: DORA Quick Check, dora.dev.</dd>
       <dt id="earlier-data-not-yet-read">Earlier data not yet read</dt>
-      <dd>On the Data page, a date marked … is only where a repository&#39;s push read stopped at its page limit: older pushes, and the commits they brought, are not read yet, so the repository did not start there.</dd>
-      <dd>From: Repositories of data/pushes_cut.csv, each with the oldest push time its cut read reached.</dd>
+      <dd>On the Data page, a date marked … is only where a read stopped before the oldest data, so the repository did not start there: where a repository&#39;s push read stopped at its page limit, older pushes and the commits they brought are not read yet; on a service or rule row with paths, while collect still reads the files of the pushed commits of its repository, at most 1000 commits a run and the newest first, an older commit that touches its paths may still be found.</dd>
+      <dd>From: Repositories of data/pushes_cut.csv, each with the oldest push time its cut read reached; for a service or rule row with paths, the repositories without a line in data/push_files_filled.csv.</dd>
       <dt id="final-deployment">Final deployment</dt>
       <dd>A deployment that ended as a success or a failure, created in the window. One still running is not stored yet, and one that ended in another way, such as a cancelled run, is not final here. It is not the last deployment: every such deployment of the window counts. Final deployments are the base of Change fail rate.</dd>
       <dd>From: Deployments of data/deployments.csv.</dd>

@@ -1522,8 +1522,11 @@ forsgren stored data of that kind for the row, as a UTC date:
 - **Issues**: the oldest issue event (`data/issues.csv`).
 - **Commits**: the oldest author date over the stored deployed commits
   (`data/commits.csv`) and the stored pushed commits
-  (`data/push_commits.csv`); a service or rule row takes its own deployed
-  commits only, as push commits are per repository (forsgren#582).
+  (`data/push_commits.csv`). A service or rule row with `paths` counts only
+  the commits that touch its paths (`data/commit_files.csv`): its own
+  deployed commits and the pushed commits of its repository; a service or
+  rule row without `paths` reads `Per repository`, as no commit can be told
+  to be its own (forsgren#589, Yves's rulings).
 - **Pushes**: the oldest `pushed_at` (`data/pushes.csv`).
 - **Deployments**: the oldest `created_at` of the stored deployments
   (`data/deployments.csv`).
@@ -1543,7 +1546,11 @@ repository did not start there. It marks Pushes, and Commits when the pushed
 commits give the date, and it is red (Yves's option A on forsgren#583: the
 Data page's own `.cut` rule in `styles.css`, held at 4.5:1 or more in light
 and dark by its own test; the `…` and the hidden text say it without the
-colour); a late date carries both markers, `▲ … 2026-10-02`. A date that is
+colour); a late date carries both markers, `▲ … 2026-10-02`. The same `…`
+marks the Commits of a service or rule row with `paths` while a repository of
+the row has no line in `data/push_files_filled.csv`: collect still reads the
+files of its pushed commits, at most 1000 commits a run, newest first, so an
+older commit that touches the paths may still be found (forsgren#589). A date that is
 as far back as GitHub keeps a repository's activity (its line in
 `data/pushes_github_end.csv`: the list ends there without the creation of the
 branch) is marked `⇤ 2023-12-28`, with a visually hidden "(GitHub keeps no
@@ -1551,7 +1558,7 @@ older activity)": it is not complete, and not where the repository started.
 The line above the table explains only the markers the table shows, one
 sentence each, and is left out when no date carries one (Yves on
 forsgren#583); the legend explains all three always. A service or rule row has its own
-deployments and deployed commits; issues, pushes and merged pull requests are
+deployments, and its commits as above; issues, pushes and merged pull requests are
 read per repository, so its cells for them read `Per repository`. The first stored date is what forsgren collected, not when
 the repository started.
 

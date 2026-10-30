@@ -38,9 +38,9 @@ From: DORA Quick Check, dora.dev.
 
 ### Earlier data not yet read
 
-On the Data page, a date marked … is only where a repository's push read stopped at its page limit: older pushes, and the commits they brought, are not read yet, so the repository did not start there.
+On the Data page, a date marked … is only where a read stopped before the oldest data, so the repository did not start there: where a repository's push read stopped at its page limit, older pushes and the commits they brought are not read yet; on a service or rule row with paths, while collect still reads the files of the pushed commits of its repository, at most 1000 commits a run and the newest first, an older commit that touches its paths may still be found.
 
-From: Repositories of data/pushes\_cut.csv, each with the oldest push time its cut read reached.
+From: Repositories of data/pushes\_cut.csv, each with the oldest push time its cut read reached; for a service or rule row with paths, the repositories without a line in data/push\_files\_filled.csv.
 
 ### Final deployment
 

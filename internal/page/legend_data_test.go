@@ -6,7 +6,7 @@ import (
 )
 
 // legendDataText are the sentences of the legend's Data page section
-// (forsgren#579, step 4; forsgren#582).
+// (forsgren#579, step 4; forsgren#582; forsgren#589).
 var legendDataText = []string{
 	"The Data page shows, for each project and under it for each label, service or rule, " +
 		"the first date forsgren stored data of each kind: Issues, Commits, Pushes, " +
@@ -19,12 +19,18 @@ var legendDataText = []string{
 		"earlier data is not yet read, so it does not mean the repository started on that date. " +
 		"It marks Pushes, and Commits when the pushed commits give its date, and such a date is red; " +
 		"the … says it without the colour.",
+	"On a service or rule row with paths it marks Commits while collect still reads the files of " +
+		"the pushed commits of its repository, at most 1000 commits a run, newest first: " +
+		"an older commit that touches its paths may still be found.",
 	"A date marked ⇤ is as far back as GitHub keeps the activity of a repository: " +
 		"its list ends there without the creation of the branch, so GitHub keeps no older activity. " +
 		"It is not a complete history, and not where the repository started.",
 	"Each explanation above the table appears only when a date on the page carries its marker.",
 	"Commits is the oldest author date over the deployed commits and the pushed commits; " +
-		"a service or rule row has its own deployed commits only.",
+		"a service or rule row with paths counts only the commits that touch its paths, " +
+		"its own deployed commits and the pushed commits of its repository.",
+	"A service or rule row without paths reads Per repository for Commits, " +
+		"as no commit can be told to be its own.",
 	"A service or rule row reads Per repository for Issues, Pushes and Merged pull requests, " +
 		"as these are read per repository, not per service or rule.",
 	"A project's date is the earliest over its repositories.",
@@ -67,10 +73,11 @@ func TestLegendExplainsTheDataPage(t *testing.T) {
 }
 
 // TestLegendDataSectionSaysNoMenuOrFailureIssues (forsgren#582): the page has
-// no Failure issues column and no menu entry any more.
+// no Failure issues column and no menu entry any more, and a service row no
+// longer has its own deployed commits only (forsgren#589).
 func TestLegendDataSectionSaysNoMenuOrFailureIssues(t *testing.T) {
 	_, section, _ := dataSection(t)
-	for _, stale := range []string{"Failure issues", "in the menu"} {
+	for _, stale := range []string{"Failure issues", "in the menu", "own deployed commits only"} {
 		if strings.Contains(section, stale) {
 			t.Errorf("want no %q in the Data page section", stale)
 		}

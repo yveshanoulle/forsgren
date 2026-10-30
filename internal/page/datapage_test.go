@@ -128,7 +128,8 @@ func TestDataPageIsLinkedInTheFooterOnlyWhenOn(t *testing.T) {
 // TestDataPageMarksADateWhereThePushReadStopped (forsgren#583, step 1): a
 // date that is only where the push read stopped at the page cap carries … for
 // the eye and "earlier data not yet read" for a screen reader, after the ▲ of
-// a late one; the line above the table says what … means.
+// a late one; the line above the table says what … means, for a push read
+// and for the files of a service's pushed commits (forsgren#589).
 func TestDataPageMarksADateWhereThePushReadStopped(t *testing.T) {
 	data := dataPageData()
 	shop := &data.DataStarts.Rows[0]
@@ -138,8 +139,9 @@ func TestDataPageMarksADateWhereThePushReadStopped(t *testing.T) {
 		`<td class="cut">… 2026-02-27<span class="visually-hidden"> (earlier data not yet read)</span></td>`,
 		`<td class="late cut">▲ … 2026-09-21<span class="visually-hidden"> (after Report Start)</span>`+
 			`<span class="visually-hidden"> (earlier data not yet read)</span></td>`,
-		"A date marked … is where the read stopped at its page limit: earlier data is not yet read, "+
-			"so the date is not where the repository started.")
+		"A date marked … is where a read stopped before the oldest data, a push read at its page limit or, "+
+			"for a service or rule, the files of its pushed commits still being read: "+
+			"earlier data is not yet read, so the date is not where the repository started.")
 }
 
 // markedData is a Data page of one project whose Pushes date is set as
@@ -158,7 +160,7 @@ func markedData(pushes metrics.DataStart) Data {
 // The explanations of the markers above the table (forsgren#583, step 3).
 const (
 	lateSentence = "A date marked ▲ is after Report Start"
-	cutSentence  = "A date marked … is where the read stopped at its page limit"
+	cutSentence  = "A date marked … is where a read stopped before the oldest data"
 	endSentence  = "A date marked ⇤ is as far back as GitHub keeps the activity"
 )
 

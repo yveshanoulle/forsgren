@@ -9,6 +9,25 @@ Active work lives in
 
 ---
 
+## 2026-10-30 — A service or rule row's Commits on the Data page counts the pushed commits that touch its paths ([#589](https://github.com/yveshanoulle/forsgren/issues/589), 7 steps)
+
+forsgren issue 589, the follow-up of #582. A service or rule row kept its own
+deployed commits only, so on a real installation its Commits showed the first
+deployment while the project total went back months. Yves's ruling, option C:
+a row with `paths` counts the commits that touch them, its deployed commits
+and the pushed commits of its repository, through `data/commit_files.csv`; a
+row without `paths` reads `Per repository`. collect reads the changed files of
+the pushed commits after the deployed ones, first-parent and branch commits
+each once, newest push first, at most 1000 commits a run per repository
+(`commit-files-capped` in the cut report, named on the Collected line, the
+report staying complete), and `data/push_files_filled.csv` notes a repository
+whose pushed commits are all read and loses its line when one is left unread.
+Until then the row's date carries the … marker, earlier data not yet read.
+The legend, the Dictionary entry Earlier data not yet read, the Data page's
+line above the table, [Data files](docs/data-files.md),
+[Pages and views](docs/pages-and-views.md) and the data guard follow. The Week
+page and the TBD measures keep their rules for now. Part of the 1.31.3 patch.
+
 ## 2026-10-30 — The legend says where the Mainline Lead Time and its variation differ from the book ([#587](https://github.com/yveshanoulle/forsgren/issues/587), 1 step)
 
 forsgren issue 587, from the review in #586. Two differences from Steve
