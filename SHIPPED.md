@@ -9,6 +9,23 @@ Active work lives in
 
 ---
 
+## 2026-10-31 — The Collected line says how far a capped commit files read is ([#593](https://github.com/yveshanoulle/forsgren/issues/593), 2 steps)
+
+forsgren issue 593, the follow-up of #589. A repository whose read of the
+commit files stopped at the cap of 1000 commits a run was named on the
+Collected line with `1000 read this run, the next runs continue`, which said
+nothing of how far the read was or how long the rest takes. collect's cut
+report line is now `commit-files-capped <repo> read=<n> left=<n>`, the commits
+read so far, this run's included, and those still without lines, counted from
+the lines already stored and the commits the run had to read, no request; the
+Collected line says `acme/app commit files: 1000 read this run, 4120 of 6460
+read, 2340 left (about 3 more runs)`, the runs left rounded up. A report
+written before keeps the line with the repository alone, which is still read
+and keeps the old words. [Data files](docs/data-files.md) and
+[Configuration](docs/configuration.md) follow. A patch release.
+
+---
+
 ## 2026-10-30 — The publish job takes a new concurrency group name ([#592](https://github.com/yveshanoulle/forsgren/issues/592), 1 step)
 
 forsgren issue 592, a bug fix for the next patch release. An installation's

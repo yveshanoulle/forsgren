@@ -1049,10 +1049,16 @@ acme/app,0123456789abcdef0123456789abcdef01234567,web/old.go
 - At most 1000 commits a run per repository, deployed and pushed together
   (`collect.CommitFilesPerRun`, forsgren#589, Yves's ruling): the read stops
   before the next one, stores what was read, says so on stderr and adds a
-  `commit-files-capped` line to the cut report. The cap is planned, so the
-  report stays complete; the job summary's Collected line says
-  `acme/app commit files: 1000 read this run, the next runs continue`, and the
-  next run continues with the commits still without lines. A busy repository
+  `commit-files-capped` line to the cut report, with the commits of the
+  repository read so far, this run's included, and those still without lines
+  (forsgren#593: counted from the lines already stored and the commits the run
+  had to read, no request). The cap is planned, so the report stays complete;
+  the job summary's Collected line says `acme/app commit files: 1000 read this
+  run, 4120 of 6460 read, 2340 left (about 3 more runs)`, the runs left
+  rounded up at 1000 a run, and the next run continues with the commits still
+  without lines. A report written before forsgren#593 names the repository
+  alone, and its line keeps the words of then, `acme/app commit files: 1000
+  read this run, the next runs continue`. A busy repository
   with about 4000 pushed commits without files needs about four runs, 1000
   requests each. The files are read last for a repository,
   after the fresh data: its deployments, issues, pull requests, the fills, the
@@ -1651,6 +1657,7 @@ pull-commits-fill-cut acme/lib
 push-commits-fill-cut acme/lib
 pulls-bot-fill-cut acme/lib
 pushes-fill-cut acme/lib
+commit-files-capped acme/lib read=4120 left=2340
 failed acme/web secondary-rate-limit
 ```
 
@@ -1696,6 +1703,15 @@ failed acme/web secondary-rate-limit
   incomplete, never failed, and the job summary says `acme/lib history fill
   cut short (the next run continues)`. What was filled is stored, and the
   next run continues.
+- A `commit-files-capped` line names a repository whose read of the changed
+  files stopped at the cap of 1000 commits a run (forsgren#589): planned, so
+  the report stays complete, never failed, and the next run continues. `read`
+  is the commits of the repository read so far, this run's included, and
+  `left` those still without lines (forsgren#593); the job summary says
+  `acme/lib commit files: 1000 read this run, 4120 of 6460 read, 2340 left
+  (about 3 more runs)`. A report written before forsgren#593 has the
+  repository alone, which is still read, and the job summary then says
+  `acme/lib commit files: 1000 read this run, the next runs continue`.
 - A `failed` line names a repository that failed: `primary-rate-limit`,
   `secondary-rate-limit` or `error`.
 

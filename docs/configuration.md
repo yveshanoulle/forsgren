@@ -823,7 +823,14 @@ four only with its flag:
   repository whose backfill of the legacy commits it cut short, `acme/app
   legacy commits cut short (deployments, issues and pull requests read)`
   (forsgren#385), the time the budget resets, and each repository that
-  failed on GitHub's "primary rate limit" or "secondary rate limit". A missing
+  failed on GitHub's "primary rate limit" or "secondary rate limit". A
+  repository whose read of the commit files stopped at the cap of a run
+  (forsgren#589) is named after "complete" too, since a cap is planned and
+  never makes the run incomplete, with how far the read is (forsgren#593):
+  `acme/app commit files: 1000 read this run, 4120 of 6460 read, 2340 left
+  (about 3 more runs)`, the runs left rounded up; a report written before
+  forsgren#593 says `acme/app commit files: 1000 read this run, the next runs
+  continue`. A missing
   file is "unknown: collect wrote no report: see the failed collect step",
   and a file that is no report "unknown: collect's report cannot be read: see
   the collect step", never complete.
