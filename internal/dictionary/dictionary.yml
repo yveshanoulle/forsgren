@@ -38,7 +38,10 @@
   from: "Commits of data/commits.csv, over the window."
 - name: "Mainline Lead Time"
   kind: number
-  definition: "The time from the author date of every commit that reached main to the earliest push that brought it there, however it got there."
+  definition: >-
+    The time from the author date of every commit that reached main to the earliest push that brought
+    it there, however it got there. Steve Smith's book counts from the push of the commit to a remote
+    branch, a time GitHub does not give, so a commit pushed directly to main shows seconds, not 0.
   from: "Pushes and their commits (data/pushes.csv, data/push_commits.csv) and pull requests of data/pulls.csv, over the window."
 - name: "Time to main per commit"
   kind: number
@@ -205,7 +208,8 @@
   definition: >-
     Mainline Interval and Mainline Lead Time together: how often changes reach the main branch and how
     long a change takes to get there. The indicator and its two metrics are named by Steve Smith in his
-    book Measuring Continuous Delivery.
+    book Measuring Continuous Delivery. Its variation is shown as the p90 when tbd_figures is all, not
+    as the book's standard deviation, and the default view shows the median alone.
   from: "Steve Smith's book Measuring Continuous Delivery."
   link: "https://leanpub.com/measuringcontinuousdelivery"
 - name: "TBD"

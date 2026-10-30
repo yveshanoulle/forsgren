@@ -9,6 +9,21 @@ Active work lives in
 
 ---
 
+## 2026-10-30 — The legend says where the Mainline Lead Time and its variation differ from the book ([#587](https://github.com/yveshanoulle/forsgren/issues/587), 1 step)
+
+forsgren issue 587, from the review in #586. Two differences from Steve
+Smith's book are now said, not changed: forsgren's Mainline Lead Time starts
+at the commit's author date, where the book counts from the push of the commit
+to a remote branch (GitHub gives forsgren no time for a push to a branch), so
+a commit pushed directly to main shows seconds, not 0; and the indicator's
+variation is shown as the p90 with `tbd_figures: all`, not as the book's
+standard deviation (forsgren#423, decision #424), the default view showing the
+median alone. The legend's TBD section says both and no longer says it shows
+the Mainline Lead Time "in full", which read as the book's own measure; the
+Dictionary entries Mainline Lead Time and Mainline Throughput Indicator say
+each in one sentence, and [Pages and views](docs/pages-and-views.md) says both
+in The names. No computation changes. Part of the 1.31.3 patch.
+
 ## 2026-10-30 — The Mainline Throughput Indicator names its source, Steve Smith's Measuring Continuous Delivery ([#585](https://github.com/yveshanoulle/forsgren/issues/585), 1 step)
 
 forsgren issue 585. forsgren used the term Mainline Throughput Indicator, and

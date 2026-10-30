@@ -74,7 +74,7 @@ From: The default branch of each repository.
 
 ### Mainline Throughput Indicator
 
-Mainline Interval and Mainline Lead Time together: how often changes reach the main branch and how long a change takes to get there. The indicator and its two metrics are named by Steve Smith in his book Measuring Continuous Delivery.
+Mainline Interval and Mainline Lead Time together: how often changes reach the main branch and how long a change takes to get there. The indicator and its two metrics are named by Steve Smith in his book Measuring Continuous Delivery. Its variation is shown as the p90 when tbd\_figures is all, not as the book's standard deviation, and the default view shows the median alone.
 
 From: [Steve Smith's book Measuring Continuous Delivery.](https://leanpub.com/measuringcontinuousdelivery)
 
@@ -304,7 +304,7 @@ From: Commits of data/commits.csv, over the window.
 
 ### Mainline Lead Time
 
-The time from the author date of every commit that reached main to the earliest push that brought it there, however it got there.
+The time from the author date of every commit that reached main to the earliest push that brought it there, however it got there. Steve Smith's book counts from the push of the commit to a remote branch, a time GitHub does not give, so a commit pushed directly to main shows seconds, not 0.
 
 From: Pushes and their commits (data/pushes.csv, data/push\_commits.csv) and pull requests of data/pulls.csv, over the window.
 

@@ -786,6 +786,17 @@ the legend and the Dictionary changes. Nothing new is needed: no permission,
 secret or file, and an agent following [agent-upgrade.md](../agent-upgrade.md)
 needs to ask you nothing about it.
 
+**Upgrading to 1.31.3, which says where the Mainline Lead Time differs from
+the book** (forsgren#587). A patch release. The legend's TBD section and the
+Dictionary entries Mainline Lead Time and Mainline Throughput Indicator say
+that forsgren's Mainline Lead Time starts at the commit's author date, where
+Steve Smith's book counts from the push of the commit to a remote branch, so a
+commit pushed directly to main shows seconds, not 0, and that the variation is
+shown as the p90 with `tbd_figures: all`, not as the book's standard
+deviation. No figure changes. Nothing new is needed: no permission, secret or
+file, and an agent following [agent-upgrade.md](../agent-upgrade.md) needs to
+ask you nothing about it.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`

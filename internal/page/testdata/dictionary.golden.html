@@ -49,7 +49,7 @@
       <dd>The default branch seen as a line of commits: the commits that landed on it one after another, a merge commit included, not necessarily on a branch named main. The commits of the branches merged into it are not on the line, though Mainline Lead Time counts them.</dd>
       <dd>From: The default branch of each repository.</dd>
       <dt id="mainline-throughput-indicator">Mainline Throughput Indicator</dt>
-      <dd>Mainline Interval and Mainline Lead Time together: how often changes reach the main branch and how long a change takes to get there. The indicator and its two metrics are named by Steve Smith in his book Measuring Continuous Delivery.</dd>
+      <dd>Mainline Interval and Mainline Lead Time together: how often changes reach the main branch and how long a change takes to get there. The indicator and its two metrics are named by Steve Smith in his book Measuring Continuous Delivery. Its variation is shown as the p90 when tbd_figures is all, not as the book&#39;s standard deviation, and the default view shows the median alone.</dd>
       <dd>From: <a href="https://leanpub.com/measuringcontinuousdelivery">Steve Smith&#39;s book Measuring Continuous Delivery.</a></dd>
       <dt id="mean">Mean</dt>
       <dd>The average of the values, shown when tbd_figures is all.</dd>
@@ -166,7 +166,7 @@
       <dd>The time between commits reaching the main branch, among the commits that deployments shipped. A shorter interval means changes are integrated more often.</dd>
       <dd>From: Commits of data/commits.csv, over the window.</dd>
       <dt id="mainline-lead-time">Mainline Lead Time</dt>
-      <dd>The time from the author date of every commit that reached main to the earliest push that brought it there, however it got there.</dd>
+      <dd>The time from the author date of every commit that reached main to the earliest push that brought it there, however it got there. Steve Smith&#39;s book counts from the push of the commit to a remote branch, a time GitHub does not give, so a commit pushed directly to main shows seconds, not 0.</dd>
       <dd>From: Pushes and their commits (data/pushes.csv, data/push_commits.csv) and pull requests of data/pulls.csv, over the window.</dd>
       <dt id="merged-pull-requests">Merged pull requests</dt>
       <dd>On the Data page, the date the first stored pull request was merged into the main branch.</dd>

@@ -1103,11 +1103,22 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     the legend and the Dictionary credit it with that link (forsgren#585). The
     page shows PR Lead Time for the work that goes through pull requests, and Time
     to main for every change, direct pushes included; with the median by
-    default the figure is the median time to main.
+    default the figure is the median time to main. Two differences from the
+    book are documented, not changed (forsgren#587, from the review in #586):
+    forsgren's Mainline Lead Time starts at the commit's author date, where the
+    book counts from the push of the commit to a remote branch (GitHub gives
+    forsgren no time for a push to a branch), so a commit pushed directly to
+    main shows seconds, not 0; and the indicator's variation is shown as the
+    p90 with `tbd_figures: all`, not as the book's standard deviation
+    (forsgren#423, decision #424), the default view showing the median alone.
+    The legend's TBD section and the Dictionary entries Mainline Lead Time and
+    Mainline Throughput Indicator say both.
   - *Three lead times* (forsgren#460, forsgren#463). The Mainline Throughput
     Indicator has one lead time, the Mainline Lead Time. Measured on pull
     requests alone, it leaves out teams that push straight to main, so the page
-    shows it in full and as two views: PR Lead Time, from the first commit of a
+    shows its own Mainline Lead Time, over every commit that reached main from
+    its author date (see The names for how that differs from the book), and
+    two views of it: PR Lead Time, from the first commit of a
     pull request to its merge (people only), and Time to main, from the author
     date of a commit on the main line to the push that brought it, direct
     pushes included. A merge counts as its merge commit in Time to main, not

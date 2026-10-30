@@ -137,7 +137,7 @@ var legendTbdText = []string{
 	"has one lead time, the Mainline Lead Time",
 	"Measured on pull requests alone, it leaves out teams that push straight to main",
 	"pushing straight to main is very much what trunk-based development is about",
-	"So this page shows the Mainline Lead Time in full, and two views of it",
+	"So this page shows its own Mainline Lead Time, over every commit that reached main, and two views of it",
 	"the full measure: every commit that reached main in the last 30 days, from its author date to the " +
 		"earliest push that brought it to main",
 	"pushed directly, brought by a merge commit, rebased or squashed",
@@ -324,7 +324,15 @@ var legendTbdRetired = []string{
 	"is in five columns: mean, deviation, median, p90 and gaps",
 	"The column gaps is how many gaps",
 	"A dash in all five columns",
-	"deviation",
+	// The deviation columns left in forsgren#423; the book's standard
+	// deviation is named since forsgren#587, so their wordings are pinned
+	// one by one.
+	"mean, deviation, median",
+	"the deviation is the sample standard deviation",
+	"a deviation far above the mean",
+	"so there is no deviation",
+	"the deviation and the median are dashes",
+	"shows the Mainline Lead Time in full",
 	"commits timed by author date, or 3 · 1 commit timed by author date",
 	"The cell in gaps",
 	"Mostly estimated: 7 of 13 commits timed by author date.",
