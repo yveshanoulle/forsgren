@@ -913,7 +913,10 @@ and stops at the first step that fails:
    module proxy may need a moment to know the tag, so the check repeats (five
    tries, 30 seconds apart). If it never reports the release, no pin moves:
    installations would show the fallback version of `cmd/forsgren/main.go`, and
-   `resume: pins` reruns the check.
+   `resume: pins` reruns the check. The go tool makes the module cache of the
+   temporary directory read-only, so the check makes it writable before it
+   removes it, and a removal that still fails fails the step, named
+   (forsgren#575).
 7. **The template**: the pins of both caller workflows and the README of
    forsgren-template move to the new release in one commit, through the
    git-data API, the way the manual release did it

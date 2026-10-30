@@ -9,6 +9,19 @@ Active work lives in
 
 ---
 
+## 2026-10-30 — The Release install check removes its read-only module cache and fails when it cannot ([#575](https://github.com/yveshanoulle/forsgren/issues/575), 1 step)
+
+forsgren issue 575, a tools issue. The install check of the Release workflow
+(`Scripts/release_verify_install.sh`) installs into a temporary GOPATH, and
+the go tool makes the module cache there read-only, so removing the directory
+printed one `Permission denied` line per cached file after the check's OK line
+and the step still passed. The check now makes the directory writable before
+it removes it, and a removal that still fails is a red line naming the
+directory and the reason, failing the step. Its self-test has a stub go that
+leaves a read-only module cache and a stub rm that refuses the directory, with
+a mutation proof that a removal without the write permission fails, named. No
+other script or workflow makes a throwaway GOPATH. No release needed.
+
 ## 2026-10-30 — A service or rule row's Commits on the Data page counts the pushed commits that touch its paths ([#589](https://github.com/yveshanoulle/forsgren/issues/589), 7 steps)
 
 forsgren issue 589, the follow-up of #582. A service or rule row kept its own

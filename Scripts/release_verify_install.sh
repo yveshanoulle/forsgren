@@ -10,6 +10,9 @@
 #
 # Usage: Scripts/release_verify_install.sh <X.Y.Z> <sha>   (GITHUB_REPOSITORY=owner/name)
 # The install goes to a temporary GOBIN, GOPATH and GOCACHE, never the caller's.
+# The go tool makes the module cache in that GOPATH read-only, so the cleanup
+# makes the directory writable before it removes it, and a removal that still
+# fails is red, named, whatever the check said (forsgren#575).
 # The module proxy may lag the tag: the check is repeated RELEASE_VERIFY_TRIES
 # times (default 5), RELEASE_VERIFY_DELAY seconds apart (default 30). A failure
 # prints an ::error:: that says what installations show meanwhile (dev, a
@@ -42,7 +45,18 @@ DELAY="${RELEASE_VERIFY_DELAY:-30}"
 cd "$(dirname "$0")/.." || exit 1
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/forsgren-verify.XXXXXX")"
-trap 'rm -rf "$WORK"; [ "$COMPLETED" -eq 1 ] || { echo "❌ FAIL: release_verify_install.sh aborted before completing (COMPLETED was never set)" >&2; exit 1; }' EXIT
+
+# The EXIT trap once WORK exists: the removal first, module cache included (a
+# removal that fails says so with the first lines of the reason and exits 1),
+# then the completion guard. It is one trap string, not a function: the script
+# ends in exit on every path, and shellcheck then reads a function only the
+# trap calls as never invoked (SC2329).
+removed=""
+trap 'if ! removed="$(chmod -R u+w "$WORK" 2>&1 && rm -rf "$WORK" 2>&1)"; then
+  echo "❌ FAIL: release verify install: cannot remove the temporary install directory ${WORK}: $(head -n 3 <<< "$removed")"
+  exit 1
+fi
+[ "$COMPLETED" -eq 1 ] || { echo "❌ FAIL: release_verify_install.sh aborted before completing (COMPLETED was never set)" >&2; exit 1; }' EXIT
 
 fail() {
   echo "$1"

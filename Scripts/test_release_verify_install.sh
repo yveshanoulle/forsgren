@@ -15,8 +15,14 @@
 #   5. go install fails                                    -> red
 #   6. the install goes to a temporary GOBIN, never the caller's
 #   7. usage errors                                        -> exit 2
+#   8. the install leaves a read-only module cache in its temporary GOPATH,
+#      as the go tool does                                 -> OK, the
+#      temporary directory is gone and no rm line is printed (forsgren#575)
+#   9. the temporary directory cannot be removed           -> red, named
 # Mutation proofs: a copy that accepts any module version must let the
-# pseudo-version pass; a copy that does not retry must refuse case 3.
+# pseudo-version pass; a copy that does not retry must refuse case 3; a copy
+# that removes the temporary directory without making it writable first must
+# fail case 8 on that removal, named.
 
 set -euo pipefail
 
@@ -43,6 +49,11 @@ case "$1" in
     if [ -f "${STUB_DIR:?}/install_fails" ]; then echo "go: module not found" >&2; exit 1; fi
     mkdir -p "$GOBIN"
     : > "${GOBIN}/forsgren"
+    if [ -f "${STUB_DIR}/modcache" ]; then
+      mkdir -p "${GOPATH:?}/pkg/mod/github.com/acme/dep@v1.0.0"
+      : > "${GOPATH}/pkg/mod/github.com/acme/dep@v1.0.0/dep.go"
+      chmod -R a-w "${GOPATH}/pkg/mod"
+    fi
     ;;
   version)
     n=$(($(cat "${STUB_DIR}/count" 2> /dev/null || echo 0) + 1))
@@ -55,6 +66,19 @@ case "$1" in
 esac
 STUB
 chmod +x "${STUBS}/go"
+# A stub rm: refuses the temporary directory itself when the case asks it to,
+# and hands every other call to the real rm.
+REAL_RM="$(command -v rm)"
+cat > "${STUBS}/rm" <<STUB
+#!/usr/bin/env bash
+last="${D}{*: -1}"
+if [ -f "${D}{STUB_DIR:?}/rm_fails" ] && [[ "${D}last" == */forsgren-verify.* && "${D}last" != */bin ]]; then
+  echo "rm: ${D}last: Operation not permitted" >&2
+  exit 1
+fi
+exec "${REAL_RM}" "${D}@"
+STUB
+chmod +x "${STUBS}/rm"
 
 # setup <mod>...: one module version per `go version -m` call; the last repeats.
 setup() {
@@ -66,7 +90,8 @@ setup() {
 }
 
 run() {
-  GITHUB_REPOSITORY=acme/forsgren PATH="${STUBS}:${PATH}" STUB_LOG="${TMP}/go.log" STUB_DIR="${TMP}/stub" \
+  mkdir -p "${TMP}/verify-tmp"
+  TMPDIR="${TMP}/verify-tmp" GITHUB_REPOSITORY=acme/forsgren PATH="${STUBS}:${PATH}" STUB_LOG="${TMP}/go.log" STUB_DIR="${TMP}/stub" \
     RELEASE_VERIFY_TRIES="${TRIES:-3}" RELEASE_VERIFY_DELAY=0 capture "${SCRIPT:-$VERIFY}" "$@"
 }
 
@@ -107,6 +132,40 @@ touch "${TMP}/stub/install_fails"
 run 1.12.0 "$SHA"
 want_red "go install fails" "go install failed"
 
+# leftover: the temporary install directories a run left behind, made
+# writable so the self-test's own cleanup can remove them.
+leftover() {
+  find "${TMP}/verify-tmp" -mindepth 1 -maxdepth 1 -name 'forsgren-verify.*' | wc -l | tr -d ' '
+}
+clear_leftover() {
+  chmod -R u+w "${TMP}/verify-tmp"
+  "$REAL_RM" -rf "${TMP}/verify-tmp"
+}
+
+clear_leftover
+setup v1.12.0
+touch "${TMP}/stub/modcache"
+run 1.12.0 "$SHA"
+want_green "a read-only module cache in the temporary GOPATH" "OK: go install at ${SHA} reports v1.12.0"
+if [[ "$(leftover)" -ne 0 ]]; then
+  fail "the temporary install directory was left behind with its module cache: $(ls "${TMP}/verify-tmp")"
+else
+  echo "  ok: the temporary install directory and its read-only module cache are removed"
+fi
+if grep -qF "cannot remove" <<< "$OUT" || grep -qF "Permission denied" <<< "$OUT"; then
+  fail "the cleanup printed rm errors. Output: ${OUT}"
+else
+  echo "  ok: the cleanup prints no rm error"
+fi
+clear_leftover
+
+setup v1.12.0
+touch "${TMP}/stub/rm_fails"
+run 1.12.0 "$SHA"
+want_red "the temporary directory cannot be removed" "❌ FAIL: release verify install: cannot remove the temporary install directory"
+want_said "it names the cause" "Operation not permitted"
+clear_leftover
+
 run 1.12 "$SHA"
 want_exit "a malformed version" 2 "usage"
 run 1.12.0 abc
@@ -137,6 +196,17 @@ if mutant noretry "s/while \\[ \"[\$]try\" -lt \"[\$]TRIES\" \\]; do/while [ \"$
     echo "  ok: mutation proof: without the retry the late tag is missed"
   fi
 fi
+if mutant nochmod "s/chmod -R u+w \"[\$]WORK\" 2>&1 \&\& //"; then
+  setup v1.12.0
+  touch "${TMP}/stub/modcache"
+  run 1.12.0 "$SHA"
+  if [[ "$RC" -ne 0 ]] && grep -qF "cannot remove the temporary install directory" <<< "$OUT"; then
+    echo "  ok: mutation proof: without making the module cache writable the removal fails, named"
+  else
+    fail "mutation proof: the mutant that does not make the module cache writable did not fail on its removal (exit ${RC}). Output: ${OUT}"
+  fi
+  clear_leftover
+fi
 unset SCRIPT
 
-selftest_end "the install check does not hold" "release verify install: the release version passes, a pseudo-version, a failed install and bad arguments are refused"
+selftest_end "the install check does not hold" "release verify install: the release version passes and its temporary directory is removed, a pseudo-version, a failed install, a failed cleanup and bad arguments are refused"
