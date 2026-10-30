@@ -25,16 +25,16 @@ func TestPossibleValuesAreExactlyWhatCheckConfigAccepts(t *testing.T) {
 			t.Fatalf("want possible values for %s on the settings page, got none", setting.Key)
 		}
 		if setting.Key == "same_developer" {
-			wantLoads(t, setting.Key, "[[maintainer, assistant-account]]", true)
-			wantLoads(t, setting.Key, "[[maintainer]]", false)
+			wantLoads(t, line{setting.Key, "[[maintainer, assistant-account]]"}, true)
+			wantLoads(t, line{setting.Key, "[[maintainer]]"}, false)
 			continue
 		}
 		accepted, refused := probesOf(t, possible)
 		for _, value := range accepted {
-			wantLoads(t, setting.Key, value, true)
+			wantLoads(t, line{setting.Key, value}, true)
 		}
 		for _, value := range refused {
-			wantLoads(t, setting.Key, value, false)
+			wantLoads(t, line{setting.Key, value}, false)
 		}
 	}
 }
@@ -64,22 +64,28 @@ var companions = map[string]string{
 	"auto_update_level": "auto_update: true\n",
 }
 
-// companionOf is the line key set to value needs beside it: companions, and
-// for a period as the thousands separator a decimal comma, since the default
-// decimal point is the same mark (forsgren#536).
-func companionOf(key, value string) string {
-	if key == "thousands_separator" && value == "period" {
-		return "decimal_separator: comma\n"
-	}
-	return companions[key]
+// line is the config line a probe writes: key set to value.
+type line struct {
+	key, value string
 }
 
-// wantLoads fails t unless a config file that sets key to value loads exactly
-// when ok says it should.
-func wantLoads(t *testing.T, key, value string, ok bool) {
+// companionOf is the line set needs beside it: companions, and for a period
+// as the thousands separator a decimal comma, since the default decimal point
+// is the same mark (forsgren#536).
+func companionOf(set line) string {
+	if set == (line{"thousands_separator", "period"}) {
+		return "decimal_separator: comma\n"
+	}
+	return companions[set.key]
+}
+
+// wantLoads fails t unless a config file holding set loads exactly when ok
+// says it should.
+func wantLoads(t *testing.T, set line, ok bool) {
 	t.Helper()
+	key, value := set.key, set.value
 	path := filepath.Join(t.TempDir(), "forsgren.config.yml")
-	content := fmt.Sprintf("version: 1\n%s: %s\n%sprojects: []\n", key, value, companionOf(key, value))
+	content := fmt.Sprintf("version: 1\n%s: %s\n%sprojects: []\n", key, value, companionOf(set))
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}

@@ -9,6 +9,15 @@ Active work lives in
 
 ---
 
+## 2026-10-30 — The settings page tests pass the config line whole ([#550](https://github.com/yveshanoulle/forsgren/issues/550), 1 step)
+
+forsgren issue 550, a quality issue. CodeScene scored
+`internal/page/settings_test.go` 9.68, 44 % of its function arguments being
+strings. The key and value a probe writes are now one `line`, which
+`wantLoads` and `companionOf` take whole, so the file is back at Code Health
+10.0. The same cases and failure messages, no behaviour change. No release
+needed.
+
 ## 2026-10-30 — The Release install check removes its read-only module cache and fails when it cannot ([#575](https://github.com/yveshanoulle/forsgren/issues/575), 1 step)
 
 forsgren issue 575, a tools issue. The install check of the Release workflow
