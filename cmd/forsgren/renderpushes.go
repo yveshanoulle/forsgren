@@ -16,8 +16,9 @@ import (
 // pushes' lines is done (data/push_commits_filled.csv, forsgren#470) and the
 // repositories whose push read stopped at the page cap (data/pushes_cut.csv,
 // forsgren#583) and those whose activity list GitHub keeps only back to a
-// push (data/pushes_github_end.csv, forsgren#583 step 3); a missing file of
-// the last five holds none. An
+// push (data/pushes_github_end.csv, forsgren#583 step 3) and those whose
+// pushed commits all had their files read (data/push_files_filled.csv,
+// forsgren#589); a missing file of the last six holds none. An
 // unknown or malformed file of any fails the render.
 func withPushes(data metrics.Data, path string) (metrics.Data, error) {
 	pushes, err := loadOrNone(beside(path, collect.PushesFile), history.LoadPushes)
@@ -39,12 +40,15 @@ func withPushes(data metrics.Data, path string) (metrics.Data, error) {
 
 // withPushMarks is data with the push marks beside the history at path: the
 // merge push fill (data/push_commits_filled.csv), the cut reads
-// (data/pushes_cut.csv) and GitHub's ends (data/pushes_github_end.csv).
+// (data/pushes_cut.csv), GitHub's ends (data/pushes_github_end.csv) and the
+// repositories whose pushed commits all had their files read
+// (data/push_files_filled.csv, forsgren#589).
 func withPushMarks(data metrics.Data, path string) (metrics.Data, error) {
-	var errs [3]error
+	var errs [4]error
 	data.PushesFilled, errs[0] = history.LoadPushCommitsFilled(beside(path, collect.PushCommitsFilledFile))
 	data.PushesCut, errs[1] = history.LoadPushesCut(beside(path, collect.PushesCutFile))
 	data.PushesGitHubEnd, errs[2] = history.LoadPushesGitHubEnd(beside(path, collect.PushesGitHubEndFile))
+	data.PushFilesFilled, errs[3] = history.LoadPushFilesFilled(beside(path, collect.PushFilesFilledFile))
 	if err := errors.Join(errs[:]...); err != nil {
 		return metrics.Data{}, err
 	}
