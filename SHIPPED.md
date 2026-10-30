@@ -21,7 +21,7 @@ address the From line links to on the Dictionary page and in
 `docs/dictionary.md`; any other address is refused. The legend's TBD section
 credits the book, linked, where it first names the indicator, and
 [Pages and views](docs/pages-and-views.md) names it in The names. Part of the
-1.31.1 patch.
+1.31.2 patch.
 
 ## 2026-10-30 — The Data page tells unread history from missing history, and collect reads the older pushes ([#583](https://github.com/yveshanoulle/forsgren/issues/583), 4 steps)
 
