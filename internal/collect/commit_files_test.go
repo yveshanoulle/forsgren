@@ -358,11 +358,12 @@ func TestAFileNameThatCannotBeStoredFailsTheRepository(t *testing.T) {
 	dataOf(path).want(t, CommitFilesFilledFile, "")
 }
 
-// TestAFileTheFillReadsThatTurnsUnreadableFailsTheFill: the commits file or
-// the commit files file that cannot be read is the fill's error, and no
+// TestAFileTheFillReadsThatTurnsUnreadableFailsTheFill: the commits file, the
+// commit files file, the push commits file or the pushes file (forsgren#589)
+// that cannot be read is the fill's error, and no
 // request is sent.
 func TestAFileTheFillReadsThatTurnsUnreadableFailsTheFill(t *testing.T) {
-	for _, name := range []string{"commits.csv", CommitFilesFile} {
+	for _, name := range []string{"commits.csv", CommitFilesFile, PushCommitsFile, PushesFile} {
 		t.Run(name, func(t *testing.T) {
 			g, path := storedCommits(t)
 			unreadable := filepath.Join(filepath.Dir(path), name)

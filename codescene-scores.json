@@ -171,9 +171,21 @@
    "minScore": 9.58
   },
   {
+   "path": "internal/collect/pushfiles.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-30",
+   "minScore": 9.58
+  },
+  {
    "path": "internal/collect/commit_files_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-27",
+   "checkedAt": "2026-10-30",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/push_files_read_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-30",
    "minScore": 10.0
   },
   {

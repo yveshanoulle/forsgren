@@ -20,7 +20,19 @@ package collect
 // time per repository) says when a run found every stored commit of the
 // repository read, the one-time fill done; it is noted at once, since what
 // was read is already stored, and it does not stop later commits from being
-// read. A read ends as the other fills do:
+// read.
+//
+// After the deployed commits come the pushed ones (forsgren#589, Yves's
+// ruling: a service or rule row with paths counts the pushed commits that
+// touch them): every commit of data/push_commits.csv, first-parent and branch
+// commits alike, with no line yet and not already in the deployed list, each
+// SHA once, the newest push first (pushfiles.go), inside the one cap of a run.
+// data/push_files_filled.csv notes the repository when a run leaves no pushed
+// commit unread (a commit GitHub no longer has is named and does not hold it
+// back), and loses its line when a run leaves one unread, older pushes stored
+// later included, so the Data page knows its first commit is still being
+// read. commit_files_filled.csv keeps its meaning, the deployed commits alone.
+// A read ends as the other fills do:
 //
 //   - a missing contents: read (ErrCommitFilesDenied) stores what was read,
 //     notes no fill, says so on stderr and never fails the run; it writes no
@@ -36,7 +48,8 @@ package collect
 //     never fails the run; the next run continues with the commits still
 //     without lines;
 //   - a commit GitHub does not have (history rewritten) is named on stderr and
-//     stays without lines, and the repository is not noted as filled;
+//     stays without lines, and for a deployed one the repository is not noted
+//     as filled;
 //   - any other error stores what was read, notes no fill and fails the
 //     repository.
 
@@ -81,17 +94,6 @@ func (o Options) commitFilesFilledFile() string {
 	return filepath.Join(filepath.Dir(o.History), CommitFilesFilledFile)
 }
 
-// PushFilesFilledFile is the name, next to the history, of the file that
-// notes which repositories had the files of all their pushed commits read
-// (forsgren#589).
-const PushFilesFilledFile = "push_files_filled.csv"
-
-// pushFilesFilledFile is the path of the push files filled file next to o's
-// history.
-func (o Options) pushFilesFilledFile() string {
-	return filepath.Join(filepath.Dir(o.History), PushFilesFilledFile)
-}
-
 // checkCommitFiles refuses a commit files file that cannot be read, before
 // GitHub is asked anything; a missing one is created by the first append.
 func checkCommitFiles(path string) error {
@@ -102,11 +104,13 @@ func checkCommitFiles(path string) error {
 }
 
 // fileRead is what a read of commit files gave: the lines, how many commits
-// they are of, and whether a commit GitHub does not have was left out.
+// they are of, where in the todo the commits GitHub does not have are, and
+// how many commits of the todo it got past, read or missing.
 type fileRead struct {
 	lines   []history.CommitFile
 	commits int
-	missed  bool
+	missed  []int
+	reached int
 }
 
 // fillCommitFiles reads the files of the stored commits of r that have none,
@@ -124,19 +128,24 @@ func (o Options) fillCommitFiles(ctx context.Context, h held, r config.Repositor
 	if _, serr := history.AppendCommitFiles(o.commitFilesFile(), read.lines); serr != nil {
 		return 0, serr
 	}
-	return read.commits, o.endFileRead(h, r.Name, read, err)
+	o.noteFileMarks(h, r.Name, todo, read)
+	if o.endedShort(r.Name, err) {
+		return read.commits, nil
+	}
+	return read.commits, err
 }
 
-// commitsWithoutFiles is the SHAs of repo's stored commits (ignoring case)
-// that have no line in commit_files.csv, the newest deployment's first.
-func (o Options) commitsWithoutFiles(repo string) ([]string, error) {
+// commitsWithoutFiles is repo's stored commits (ignoring case) that have no
+// line in commit_files.csv: the deployed ones, the newest deployment's first,
+// then the pushed ones, the newest push's first.
+func (o Options) commitsWithoutFiles(repo string) (filesTodo, error) {
 	stored, err := loadOrNone(o.commitsFile(), history.LoadCommits)
 	if err != nil {
-		return nil, err
+		return filesTodo{}, err
 	}
 	files, err := loadOrNone(o.commitFilesFile(), history.LoadCommitFiles)
 	if err != nil {
-		return nil, err
+		return filesTodo{}, err
 	}
 	read := map[string]bool{}
 	for _, f := range files {
@@ -144,7 +153,9 @@ func (o Options) commitsWithoutFiles(repo string) ([]string, error) {
 			read[f.SHA] = true
 		}
 	}
-	return unreadNewestFirst(repo, stored, read), nil
+	deployed := unreadNewestFirst(repo, stored, read)
+	pushed, err := o.pushedWithoutFiles(repo, read)
+	return filesTodo{shas: append(deployed, pushed...), deployed: len(deployed)}, err
 }
 
 // loadOrNone is what load reads at path, nothing for a file that is not there.
@@ -183,28 +194,40 @@ func unreadNewestFirst(repo string, commits []history.Commit, read map[string]bo
 // to the first error that ends the read; Client.Reserve(repo, 1) comes before
 // each commit, so a budget stop leaves the one it stops at unread, and the
 // read ends with errFilesCapped before a commit past CommitFilesPerRun.
-func (o Options) readCommitFiles(ctx context.Context, repo string, todo []string) (fileRead, error) {
+func (o Options) readCommitFiles(ctx context.Context, repo string, todo filesTodo) (fileRead, error) {
 	var out fileRead
-	for i, sha := range todo {
+	for i, sha := range todo.shas {
+		out.reached = i
 		if i == CommitFilesPerRun {
 			return out, errFilesCapped
 		}
 		if err := o.Client.Reserve(repo, 1); err != nil {
 			return out, err
 		}
-		lines, err := o.commitFilesOf(ctx, repo, sha)
-		if errors.Is(err, github.ErrMissingCommit) {
-			o.warn("collect: %s: commit %s: not found: %v; it stays without file lines\n", repo, sha, err)
-			out.missed = true
-			continue
-		}
+		lines, found, err := o.readOneCommit(ctx, repo, sha)
 		if err != nil {
 			return out, err
+		}
+		if !found {
+			out.missed = append(out.missed, i)
+			continue
 		}
 		out.lines = append(out.lines, lines...)
 		out.commits++
 	}
+	out.reached = len(todo.shas)
 	return out, nil
+}
+
+// readOneCommit is the lines of the files of the commit sha of repo, and
+// whether GitHub has it: a commit it does not have is named on stderr.
+func (o Options) readOneCommit(ctx context.Context, repo, sha string) ([]history.CommitFile, bool, error) {
+	lines, err := o.commitFilesOf(ctx, repo, sha)
+	if errors.Is(err, github.ErrMissingCommit) {
+		o.warn("collect: %s: commit %s: not found: %v; it stays without file lines\n", repo, sha, err)
+		return nil, false, nil
+	}
+	return lines, err == nil, err
 }
 
 // commitFilesOf is the lines of one commit's files, one empty-path line when
@@ -248,21 +271,6 @@ func (o Options) reportFilesCapped(repo string) {
 	if o.Report != nil {
 		o.Report.FilesCapped = append(o.Report.FilesCapped, repo)
 	}
-}
-
-// endFileRead notes repo filled after a read that ended on err, nil included,
-// and says what fails the repository.
-func (o Options) endFileRead(h held, repo string, read fileRead, err error) error {
-	if o.endedShort(repo, err) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if !read.missed && !filledBefore(h.filesFilled, repo) {
-		o.noteFilled(h.filesFilled, repo)
-	}
-	return nil
 }
 
 // endedShort says whether err ended repo's read short without failing it: a
