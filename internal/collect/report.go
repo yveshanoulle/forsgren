@@ -17,7 +17,7 @@ package collect
 //	pulls-bot-fill-cut acme/lib
 //	pushes-fill-cut acme/lib
 //	commit-files-cut acme/lib
-//	commit-files-capped acme/lib
+//	commit-files-capped acme/lib read=4120 left=2340
 //	failed acme/web secondary-rate-limit
 //
 // The second line is `complete` or `incomplete resets=<UTC RFC 3339>`. A
@@ -50,7 +50,10 @@ package collect
 // failed, continued by the next run (forsgren#496).
 // A `commit-files-capped` line names a repository whose read of the changed
 // files stopped at the cap of 1000 commits a run (forsgren#589): planned, so
-// it leaves the report complete, never failed, continued by the next run.
+// it leaves the report complete, never failed, continued by the next run;
+// `read` is the commits of the repository read so far, this run's included,
+// and `left` those still without lines (forsgren#593). A report written
+// before that has the repository alone, read with both counts 0.
 // A `failed` line names a repository that failed on a rate limit.
 
 import (
@@ -112,6 +115,18 @@ type UnmatchedService struct {
 	Label      string
 }
 
+// CappedFiles is a repository whose read of the commit files stopped at the
+// cap of a run (forsgren#589), with the commits read so far and those left
+// (forsgren#593); both 0 for a report written before the counts.
+type CappedFiles struct {
+	Repository string
+	Read, Left int
+}
+
+// Counted says whether c carries the counts: a capped read has read at least
+// the cap, so only a report from before forsgren#593 has Read 0.
+func (c CappedFiles) Counted() bool { return c.Read > 0 }
+
 // Report is what a run left incomplete or failed.
 type Report struct {
 	Cuts []Cut
@@ -139,8 +154,9 @@ type Report struct {
 	// deployed commits was cut short at the request budget (forsgren#496).
 	FilesCut []string
 	// FilesCapped names the repositories whose read of the commit files
-	// stopped at the cap of a run (forsgren#589). Not incomplete, not failed.
-	FilesCapped []string
+	// stopped at the cap of a run (forsgren#589), with how far each read is
+	// (forsgren#593). Not incomplete, not failed.
+	FilesCapped []CappedFiles
 	// ServiceUnmatched names the failure issues whose `service:` label
 	// matched no row of their repository, or more than one: counted in the
 	// total only (forsgren#515, decision #517). Not incomplete, not failed.
@@ -171,7 +187,9 @@ func (r Report) Render() string {
 	writeRepositories(&b, "pulls-bot-fill-cut", r.PullBotFillCut)
 	writeRepositories(&b, "pushes-fill-cut", r.PushesFillCut)
 	writeRepositories(&b, "commit-files-cut", r.FilesCut)
-	writeRepositories(&b, "commit-files-capped", r.FilesCapped)
+	for _, c := range r.FilesCapped {
+		fmt.Fprintf(&b, "commit-files-capped %s read=%d left=%d\n", c.Repository, c.Read, c.Left)
+	}
 	for _, u := range r.ServiceUnmatched {
 		fmt.Fprintf(&b, "failure-service %s %d %s %s\n", u.Repository, u.Issue, u.Reason, url.QueryEscape(u.Label))
 	}
@@ -251,6 +269,10 @@ type lineKind struct {
 	read   func(r *Report, f []string) error
 }
 
+// oldFields is, for a line that grew, how many fields it had before, still
+// read: a commit-files-capped line without its counts (forsgren#593).
+var oldFields = map[string]int{"commit-files-capped": 2}
+
 // lineKinds are the lines a report holds after its status, by first word.
 var lineKinds = map[string]lineKind{
 	"cut": {6, func(r *Report, f []string) error {
@@ -290,9 +312,10 @@ var lineKinds = map[string]lineKind{
 		r.FilesCut = append(r.FilesCut, f[0])
 		return nil
 	}},
-	"commit-files-capped": {2, func(r *Report, f []string) error {
-		r.FilesCapped = append(r.FilesCapped, f[0])
-		return nil
+	"commit-files-capped": {4, func(r *Report, f []string) error {
+		c, err := parseCapped(f)
+		r.FilesCapped = append(r.FilesCapped, c)
+		return err
 	}},
 	"failure-service": {5, func(r *Report, f []string) error {
 		issue, err := strconv.ParseInt(f[1], 10, 64)
@@ -316,7 +339,7 @@ func (r *Report) parseLine(line string) error {
 		return fmt.Errorf("%w: line %q", ErrReport, line)
 	}
 	kind, ok := lineKinds[f[0]]
-	if !ok || len(f) != kind.fields {
+	if !ok || (len(f) != kind.fields && len(f) != oldFields[f[0]]) {
 		return fmt.Errorf("%w: line %q", ErrReport, line)
 	}
 	if err := kind.read(r, f[1:]); err != nil {
@@ -345,6 +368,31 @@ func parseCut(f []string) (Cut, error) {
 		c.Kept = kept
 	}
 	return c, nil
+}
+
+// parseCapped reads the fields after "commit-files-capped": the repository,
+// then read= and left=, or the repository alone (forsgren#593).
+func parseCapped(f []string) (CappedFiles, error) {
+	c := CappedFiles{Repository: f[0]}
+	if len(f) == 1 {
+		return c, nil
+	}
+	var err error
+	if c.Read, err = countOf(f[1], "read="); err != nil {
+		return c, err
+	}
+	c.Left, err = countOf(f[2], "left=")
+	return c, err
+}
+
+// countOf is the count after key in field, a whole number from 0.
+func countOf(field, key string) (int, error) {
+	v, ok := strings.CutPrefix(field, key)
+	if !ok {
+		return 0, fmt.Errorf("want %s", key)
+	}
+	n, err := strconv.ParseUint(v, 10, 31)
+	return int(n), err
 }
 
 // ReadReport reads the report file at path; a missing file is the error from

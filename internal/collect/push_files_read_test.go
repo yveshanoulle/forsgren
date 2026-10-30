@@ -115,7 +115,7 @@ func TestTheDeployedAndThePushedCommitsShareTheCapOfARun(t *testing.T) {
 	if asked := g.filesAsked(); len(asked) != capOfARun || strings.Contains(strings.Join(asked, " "), pushed(1)) {
 		t.Errorf("want the %d deployed commits asked and not the pushed one, got %d", capOfARun, len(asked))
 	}
-	g.wantReportOf(t, Report{FilesCapped: []string{"acme/app"}})
+	g.wantReportOf(t, Report{FilesCapped: []CappedFiles{{Repository: "acme/app", Read: capOfARun, Left: 1}}})
 	dataOf(path).want(t, CommitFilesFilledFile, commitFilesFilledNow)
 	dataOf(path).want(t, PushFilesFilledFile, "")
 	g.requests = nil

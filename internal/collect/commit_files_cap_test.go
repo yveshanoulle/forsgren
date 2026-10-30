@@ -52,7 +52,7 @@ func TestTheFilesReadStopsAtTheCapOfARunAndTheNextRunContinues(t *testing.T) {
 		t.Fatalf("want stderr to name the cap and no error, got %v (stderr %q)", r.err, r.stderr)
 	}
 	g.wantAsked(t, reversed(shas[2:])...)
-	wantCapped(t, g, path)
+	wantCapped(t, g, path, 0, "read=1000 left=2")
 	g.requests = nil
 	if r := g.collect(t, shop(withPaths()), path, github.DefaultMaxPages); r.err != nil {
 		t.Fatal(r.err)
@@ -70,29 +70,60 @@ func reversed(shas []string) []string {
 }
 
 // wantCapped fails unless the run stored the files of the cap's commits,
-// noted no fill, and reported the repository capped in a complete report.
-func wantCapped(t *testing.T, g *gitHub, path string) {
+// noted no fill, and reported the repository capped in a complete report,
+// with counts, the commits read so far and those left (forsgren#593); stored
+// holds the lines that were there before the run.
+func wantCapped(t *testing.T, g *gitHub, path string, stored int, counts string) {
 	t.Helper()
 	files, err := history.LoadCommitFiles(filepath.Join(filepath.Dir(path), CommitFilesFile))
-	if err != nil || len(files) != capOfARun {
-		t.Errorf("want the %d commits read stored, got %d (%v)", capOfARun, len(files), err)
+	if err != nil || len(files) != stored+capOfARun {
+		t.Errorf("want the %d commits read stored, got %d (%v)", capOfARun, len(files)-stored, err)
 	}
 	dataOf(path).want(t, CommitFilesFilledFile, "")
-	want := "# forsgren collect report v1\ncomplete\ncommit-files-capped acme/app\n"
+	want := "# forsgren collect report v1\ncomplete\ncommit-files-capped acme/app " + counts + "\n"
 	if got := g.report.Render(); got != want {
 		t.Errorf("want the report\n%q\ngot\n%q", want, got)
 	}
 }
 
-// TestACappedReportReadsBack: the commit-files-capped line reads back as it
-// was written, and a line without the repository or with more is refused.
-func TestACappedReportReadsBack(t *testing.T) {
-	text := "# forsgren collect report v1\ncomplete\ncommit-files-capped acme/app\n"
-	back, err := ParseReport(text)
-	if err != nil || back.Render() != text {
-		t.Errorf("want the report back, got %q (%v)", back.Render(), err)
+// TestACappedReadReportsHowFarItIsAndWhatIsLeft (forsgren#593): of 1005
+// commits, 3 already with lines, a run reads 1000 and reports 1003 read so far
+// and 2 left, counted from what the read already has, with no extra request.
+func TestACappedReadReportsHowFarItIsAndWhatIsLeft(t *testing.T) {
+	g, path, shas := manyCommits(t, capOfARun+5)
+	done := []history.CommitFile{
+		{Repository: "acme/app", SHA: shas[0], Path: "api/a.go"},
+		{Repository: "acme/app", SHA: shas[1], Path: "api/a.go"},
+		{Repository: "acme/app", SHA: shas[2]},
 	}
-	for _, bad := range []string{"commit-files-capped\n", "commit-files-capped acme/app left=2\n"} {
+	if _, err := history.AppendCommitFiles(filepath.Join(filepath.Dir(path), CommitFilesFile), done); err != nil {
+		t.Fatal(err)
+	}
+	if r := g.collect(t, shop(withPaths()), path, github.DefaultMaxPages); r.err != nil {
+		t.Fatal(r.err)
+	}
+	g.wantAsked(t, reversed(shas[5:])...)
+	wantCapped(t, g, path, len(done), "read=1003 left=2")
+}
+
+// TestACappedReportReadsBack: the commit-files-capped line reads back as it
+// was written, a line of a report from before forsgren#593 (the repository
+// alone) is still read, and a line without the repository, with one count or
+// with a count that is no number is refused.
+func TestACappedReportReadsBack(t *testing.T) {
+	text := "# forsgren collect report v1\ncomplete\ncommit-files-capped acme/app read=4120 left=2340\n"
+	back, err := ParseReport(text)
+	if err != nil || back.Render() != text || !back.FilesCapped[0].Counted() {
+		t.Errorf("want the report back with its counts, got %q (%v)", back.Render(), err)
+	}
+	old, err := ParseReport("# forsgren collect report v1\ncomplete\ncommit-files-capped acme/app\n")
+	if err != nil || old.FilesCapped[0] != (CappedFiles{Repository: "acme/app"}) || old.FilesCapped[0].Counted() {
+		t.Errorf("want a report from before the counts read without counts, got %+v (%v)", old, err)
+	}
+	for _, bad := range []string{
+		"commit-files-capped\n", "commit-files-capped acme/app left=2\n",
+		"commit-files-capped acme/app read=x left=2\n", "commit-files-capped acme/app left=2 read=1\n",
+	} {
 		if _, err := ParseReport("# forsgren collect report v1\ncomplete\n" + bad); err == nil {
 			t.Errorf("want %q refused, got no error", bad)
 		}

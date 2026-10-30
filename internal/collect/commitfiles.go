@@ -44,9 +44,10 @@ package collect
 //     run asks for the files of at most 1000 commits of a repository; the
 //     read stops before the next one, stores what was read, notes no fill,
 //     says so on stderr, adds the repository to the report's
-//     commit-files-capped lines (planned, so the report stays complete) and
-//     never fails the run; the next run continues with the commits still
-//     without lines;
+//     commit-files-capped lines (planned, so the report stays complete) with
+//     the commits read so far and those left (forsgren#593: counted from the
+//     lines already stored and the todo, no request) and never fails the
+//     run; the next run continues with the commits still without lines;
 //   - a commit GitHub does not have (history rewritten) is named on stderr and
 //     stays without lines, and for a deployed one the repository is not noted
 //     as filled;
@@ -129,7 +130,7 @@ func (o Options) fillCommitFiles(ctx context.Context, h held, r config.Repositor
 		return 0, serr
 	}
 	o.noteFileMarks(h, r.Name, todo, read)
-	if o.endedShort(r.Name, err) {
+	if o.endedShort(todo.capped(r.Name, read.reached), err) {
 		return read.commits, nil
 	}
 	return read.commits, err
@@ -153,9 +154,10 @@ func (o Options) commitsWithoutFiles(repo string) (filesTodo, error) {
 			read[f.SHA] = true
 		}
 	}
+	done := len(read)
 	deployed := unreadNewestFirst(repo, stored, read)
 	pushed, err := o.pushedWithoutFiles(repo, read)
-	return filesTodo{shas: append(deployed, pushed...), deployed: len(deployed)}, err
+	return filesTodo{shas: append(deployed, pushed...), deployed: len(deployed), done: done}, err
 }
 
 // loadOrNone is what load reads at path, nothing for a file that is not there.
@@ -265,18 +267,19 @@ func (o Options) reportFilesCut(repo string) {
 	}
 }
 
-// reportFilesCapped adds repo, whose read of the commit files stopped at the
-// cap of a run, to the report (forsgren#589).
-func (o Options) reportFilesCapped(repo string) {
+// reportFilesCapped adds c, a read of the commit files that stopped at the
+// cap of a run, to the report (forsgren#589), with its counts (forsgren#593).
+func (o Options) reportFilesCapped(c CappedFiles) {
 	if o.Report != nil {
-		o.Report.FilesCapped = append(o.Report.FilesCapped, repo)
+		o.Report.FilesCapped = append(o.Report.FilesCapped, c)
 	}
 }
 
-// endedShort says whether err ended repo's read short without failing it: a
-// refusal, a budget stop or the cap of a run, each said on stderr and the
-// last two in the report.
-func (o Options) endedShort(repo string, err error) bool {
+// endedShort says whether err ended the read of at's repository short
+// without failing it: a refusal, a budget stop or the cap of a run, each said
+// on stderr and the last two in the report, the cap with at's counts.
+func (o Options) endedShort(at CappedFiles, err error) bool {
+	repo := at.Repository
 	switch {
 	case errors.Is(err, github.ErrCommitFilesDenied):
 		o.warn("collect: %v; the commit files are not read, the rest is collected\n", err)
@@ -286,7 +289,7 @@ func (o Options) endedShort(repo string, err error) bool {
 	case errors.Is(err, errFilesCapped):
 		o.warn("collect: %s: the commit files stopped at the cap of %d commits a run; "+
 			"those read are stored, the next run continues\n", repo, CommitFilesPerRun)
-		o.reportFilesCapped(repo)
+		o.reportFilesCapped(at)
 	default:
 		return false
 	}

@@ -31,10 +31,19 @@ func (o Options) pushFilesFilledFile() string {
 }
 
 // filesTodo is the commits whose files a read asks for, in order: the first
-// deployed of them deployed commits, the rest pushed ones.
+// deployed of them deployed commits, the rest pushed ones; done is how many
+// commits of the repository had lines before the read (forsgren#593).
 type filesTodo struct {
 	shas     []string
 	deployed int
+	done     int
+}
+
+// capped is repo's read of t stopped at the cap after reaching its first
+// reached commits: those with lines and those reached read so far, the rest
+// left (forsgren#593).
+func (t filesTodo) capped(repo string, reached int) CappedFiles {
+	return CappedFiles{Repository: repo, Read: t.done + reached, Left: len(t.shas) - reached}
 }
 
 // pushedLeft says whether a read that reached the first reached commits of t

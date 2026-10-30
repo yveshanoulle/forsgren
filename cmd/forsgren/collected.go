@@ -54,14 +54,26 @@ func collectedWords(report collect.Report) string {
 }
 
 // cappedWords name each repository whose read of the commit files stopped at
-// the cap of a run (forsgren#589). A cap is planned, so they never make the
-// run incomplete.
+// the cap of a run (forsgren#589), with how far the read is, how many commits
+// are left and about how many runs they take (forsgren#593). A cap is
+// planned, so they never make the run incomplete.
 func cappedWords(report collect.Report) []string {
 	words := make([]string, len(report.FilesCapped))
-	for i, repo := range report.FilesCapped {
-		words[i] = fmt.Sprintf("%s commit files: %d read this run, the next runs continue", repo, collect.CommitFilesPerRun)
+	for i, c := range report.FilesCapped {
+		words[i] = fmt.Sprintf("%s commit files: %d read this run, %s", c.Repository, collect.CommitFilesPerRun, progressWords(c))
 	}
 	return words
+}
+
+// progressWords say how far c's read is and what is left, the runs left
+// rounded up; a report from before forsgren#593 has no counts and keeps the
+// words of then.
+func progressWords(c collect.CappedFiles) string {
+	if !c.Counted() {
+		return "the next runs continue"
+	}
+	runs := (c.Left + collect.CommitFilesPerRun - 1) / collect.CommitFilesPerRun
+	return fmt.Sprintf("%d of %d read, %d left (about %s)", c.Read, c.Read+c.Left, c.Left, more(runs, "run"))
 }
 
 // serviceWords name each failure issue whose service label found no single
