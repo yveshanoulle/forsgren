@@ -9,6 +9,21 @@ Active work lives in
 
 ---
 
+## 2026-10-30 — The publish job takes a new concurrency group name ([#592](https://github.com/yveshanoulle/forsgren/issues/592), 1 step)
+
+forsgren issue 592, a bug fix for the next patch release. An installation's
+publish job waited on the github-pages environment and could not be
+cancelled; once GitHub removed that run, its concurrency group
+`forsgren-metrics-<repository>` stayed held, and every later run of that
+installation stayed pending. `metrics.yml`'s publish job now uses
+`forsgren-publish-${{ github.repository }}`, still keyed on the caller's
+repository and still `cancel-in-progress: false`, so every installation
+starts on a free group and the behaviour is unchanged. Pin 26 of
+`Scripts/test_metrics_workflow.sh` names the new group, with mutation proofs
+that the old name and any other name are refused.
+
+---
+
 ## 2026-10-30 — Quality measured over ten runs: no further job pays for its setup ([#277](https://github.com/yveshanoulle/forsgren/issues/277), 1 step)
 
 forsgren issue 277, tools: no release. Ten green Quality runs of `main` took

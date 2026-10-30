@@ -574,8 +574,11 @@ read` (forsgren#40), all as the caller grants them: the workflow has no
 `permissions:` block, so its job takes exactly what the caller's job grants
 and a caller that has not added the optional one still starts (a token
 without it is a 403 the lookup of the waiting Dependabot pull request treats
-as unknown). Its concurrency group is the caller's
-repository, `cancel-in-progress: false`. It takes no inputs: the
+as unknown). Its concurrency group is
+`forsgren-publish-` and the caller's repository, `cancel-in-progress: false`
+(`forsgren-metrics-` up to 1.31.4: a run GitHub never released held that
+group for an installation, so a new name gives every installation a free
+group; forsgren#592). It takes no inputs: the
 caller's `uses: …/metrics.yml@<commit>` line is the only version. Its one
 secret, `FORSGREN_TOKEN`, is optional and reaches the collect step's `env:`
 only. Its
@@ -866,8 +869,9 @@ Nine PRE gates keep the CI honest:
   refused on a tag, and failing with an `::error` naming a branch that
   moved, with no rebase and no force; the last step fails the job for any
   collect status but 0, and collect failing after storing still commits and
-  pushes; the job's concurrency group is keyed on `github.repository` with
-  `cancel-in-progress: false`; the render step, executed with a stub, runs
+  pushes; the job's concurrency group is
+  `forsgren-publish-${{ github.repository }}`, never the old
+  `forsgren-metrics-` name, with `cancel-in-progress: false`; the render step, executed with a stub, runs
   exactly `forsgren render --out <dir> --config forsgren.config.yml --data
   data/deployments.csv`, plus `--latest <version>` when the step before it
   found one; that step, "Look up the latest forsgren release", gets the job's

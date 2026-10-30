@@ -103,9 +103,12 @@ jobs:
     # run started by hand would otherwise both commit data/ and race on the
     # push, and both deploy to Pages. A second run waits rather than
     # cancelling one in flight, which could stop it between its commit and
-    # its push.
+    # its push. The group was named forsgren-metrics-<repository> until
+    # 1.31.5 (forsgren#592): a run GitHub never released held that group for
+    # an installation, and every later run stayed pending behind it. A new
+    # name gives every installation a free group; the behaviour is unchanged.
     concurrency:
-      group: forsgren-metrics-${{ github.repository }}
+      group: forsgren-publish-${{ github.repository }}
       cancel-in-progress: false
 
     steps:

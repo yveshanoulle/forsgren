@@ -158,9 +158,11 @@
 #      and, EXECUTED, exits 0 for status 0 and 1 with an ::error for any other
 #      status or none; and the three steps in a row, collect failing after
 #      storing, commit and push the stored data/ and then fail the job;
-#  26. the job's concurrency group is keyed on ${{ github.repository }}, the
-#      caller's repository, with cancel-in-progress: false, so a scheduled
-#      run and a manual one queue instead of racing on the data/ push;
+#  26. the job's concurrency group is forsgren-publish-${{ github.repository }},
+#      keyed on the caller's repository, with cancel-in-progress: false, so a
+#      scheduled run and a manual one queue instead of racing on the data/
+#      push; never the old name forsgren-metrics-, which a run GitHub never
+#      released held for an installation (forsgren#592);
 #  27. the collect step, EXECUTED with the stub forsgren printing lines that
 #      start with `::warning::` (stdout) and `  ::add-mask::` (stderr) and
 #      failing, leaves no workflow command live in the log: collect's output,
@@ -358,6 +360,10 @@ SECRET="s3cretToken-acme-9f2"
 # The opening of a GitHub expression, in double quotes with the dollar
 # escaped, so no reader (shellcheck included) takes it for an expansion.
 EXPR_OPEN="\${{"
+# The publish job's concurrency group (forsgren#592) and the name it had
+# before: a run GitHub never released held the old group for an installation.
+CONCURRENCY_GROUP="forsgren-publish-${EXPR_OPEN} github.repository }}"
+OLD_CONCURRENCY_PREFIX="forsgren-metrics-"
 # The collect, data and fail steps (forsgren#12, step 6).
 COLLECT_STEP="Collect deployments"
 DATA_STEP="Commit the collected deployments"
@@ -1846,6 +1852,10 @@ judge_concurrency() {
   group="$(sed -n 's/^      group:[[:space:]]*//p' <<< "$block")"
   if [[ "$group" != *"${EXPR_OPEN} github.repository }}"* ]]; then
     echo "the job's concurrency group is '${group}', not keyed on ${EXPR_OPEN} github.repository }}, the caller's repository"
+  elif [[ "$group" == "${OLD_CONCURRENCY_PREFIX}"* ]]; then
+    echo "the job's concurrency group is '${group}', the old name a run GitHub never released held for an installation, not ${CONCURRENCY_GROUP}"
+  elif [[ "$group" != "$CONCURRENCY_GROUP" ]]; then
+    echo "the job's concurrency group is '${group}', not ${CONCURRENCY_GROUP}"
   fi
   if ! grep -qxE '      cancel-in-progress:[[:space:]]*false[[:space:]]*' <<< "$block"; then
     echo "the job's concurrency does not set cancel-in-progress: false — a second run would cancel one mid-push"
@@ -2628,6 +2638,10 @@ proves judge_concurrency "no concurrency" "the job has no concurrency: block" \
   '/^    concurrency:$/,/^      cancel-in-progress:/d'
 proves judge_concurrency "a concurrency group for every repository" "not keyed on" \
   's/^\(      group: \).*$/\1forsgren-metrics/'
+proves judge_concurrency "the old concurrency group name" "the old name a run GitHub never released held" \
+  's/^\(      group: \)forsgren-publish-/\1forsgren-metrics-/'
+proves judge_concurrency "another concurrency group name" "not ${CONCURRENCY_GROUP}" \
+  's/^\(      group: \)forsgren-publish-/\1forsgren-run-/'
 proves judge_concurrency "a run that cancels the one in flight" "does not set cancel-in-progress: false" \
   's/cancel-in-progress: false/cancel-in-progress: true/'
 

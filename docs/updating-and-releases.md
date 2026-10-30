@@ -827,6 +827,16 @@ Nothing new is needed: no permission, secret or file (the upload needs no
 permission from the calling workflow), and an agent following
 [agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing about it.
 
+**Upgrading to 1.31.5, whose publish job has a new concurrency group name**
+(forsgren#592). A patch release. The daily run's publish job now waits in
+the concurrency group `forsgren-publish-<repository>` instead of
+`forsgren-metrics-<repository>`. The behaviour is unchanged: one run at a
+time per installation, a second run waits and is never cancelled. An
+installation whose runs stayed pending behind a run GitHub never released
+starts again, since the new group is free. Nothing to do: no permission,
+secret or file, and an agent following
+[agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing about it.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`
