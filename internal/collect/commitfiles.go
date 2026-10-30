@@ -81,6 +81,17 @@ func (o Options) commitFilesFilledFile() string {
 	return filepath.Join(filepath.Dir(o.History), CommitFilesFilledFile)
 }
 
+// PushFilesFilledFile is the name, next to the history, of the file that
+// notes which repositories had the files of all their pushed commits read
+// (forsgren#589).
+const PushFilesFilledFile = "push_files_filled.csv"
+
+// pushFilesFilledFile is the path of the push files filled file next to o's
+// history.
+func (o Options) pushFilesFilledFile() string {
+	return filepath.Join(filepath.Dir(o.History), PushFilesFilledFile)
+}
+
 // checkCommitFiles refuses a commit files file that cannot be read, before
 // GitHub is asked anything; a missing one is created by the first append.
 func checkCommitFiles(path string) error {

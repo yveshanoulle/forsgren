@@ -61,6 +61,8 @@ func TestMarkFilesKeepTheirOwnHeaderAndRoundTrip(t *testing.T) {
 			SavePullCommitsFilled, LoadPullCommitsFilled},
 		{"commit_files_filled.csv", "# forsgren commit files filled v1\nrepository,filled_at\n",
 			SaveCommitFilesFilled, LoadCommitFilesFilled},
+		{"push_files_filled.csv", "# forsgren push files filled v1\nrepository,filled_at\n",
+			SavePushFilesFilled, LoadPushFilesFilled},
 		{"pulls_read.csv", "# forsgren pulls read v1\nrepository,read_at\n", SavePullsRead, LoadPullsRead},
 		{"pushes_read.csv", "# forsgren pushes read v1\nrepository,read_at\n", SavePushesRead, LoadPushesRead},
 		{"pushes_cut.csv", "# forsgren pushes cut v1\nrepository,cut_at\n", SavePushesCut, LoadPushesCut},

@@ -3135,6 +3135,18 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/history/pushfilesfilled.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-30",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/push_files_filled_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-30",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/page/datacolours_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-30",

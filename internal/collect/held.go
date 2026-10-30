@@ -82,6 +82,7 @@ type held struct {
 	mergesFilled   history.Reach             // see pushesfill.go
 	botsFilled     history.Reach             // see pullsbotfill.go
 	filesFilled    history.Reach             // see commitfiles.go
+	pushFiles      history.Reach             // see commitfiles.go: whose pushed commits all had their files read
 	pulls          map[history.IssueKey]bool // the pull requests pulls.csv holds
 	storedPulls    []history.PullRequest     // the same, in the order of the file, for the fill (pullsfill.go)
 	commitsListed  map[history.IssueKey]bool // the pull requests pull_commits.csv holds lines of

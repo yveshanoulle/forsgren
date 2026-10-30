@@ -56,7 +56,9 @@ type markFile struct {
 // and where a push read stopped at the page cap (pushesCut, pushes.go, forsgren#583)
 // and which repositories had their push reach checked once (pushesChecked, pushesreach.go)
 // and where each fill of the older pushes goes on (pushesFilledAt, pushesbackfill.go)
-// and where GitHub keeps no older activity (githubEnd, pushesbackfill.go).
+// and where GitHub keeps no older activity (githubEnd, pushesbackfill.go)
+// and which had the files of all their pushed commits read (pushFiles,
+// commitfiles.go, forsgren#589).
 func (o Options) markFiles(h *held) []markFile {
 	return []markFile{
 		{&h.reach, o.reachFile(), history.LoadReach, history.SaveReach},
@@ -79,6 +81,7 @@ func (o Options) markFiles(h *held) []markFile {
 		{&h.pushesChecked, o.pushesCheckedFile(), history.LoadPushesChecked, history.SavePushesChecked},
 		fillFile(&h.pushesFilledAt, &h.fillCursors, o.pushesFillFile()),
 		{&h.githubEnd, o.pushesGitHubEndFile(), history.LoadPushesGitHubEnd, history.SavePushesGitHubEnd},
+		{&h.pushFiles, o.pushFilesFilledFile(), history.LoadPushFilesFilled, history.SavePushFilesFilled},
 	}
 }
 
