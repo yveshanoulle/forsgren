@@ -101,6 +101,11 @@ type Data struct {
 	// data/commit_files.csv: the paths of a service count only the commits
 	// that touch them (forsgren#496).
 	CommitFiles []history.CommitFile
+	// PushFilesFilled is the repositories whose pushed commits all had their
+	// files read, from data/push_files_filled.csv: until then the first
+	// commit of a service or rule row with paths may lie earlier
+	// (forsgren#589).
+	PushFilesFilled history.Reach
 	// WorkingHours is the hours of a working day, which sets where the
 	// deployment frequency bands begin (forsgren#71).
 	WorkingHours int

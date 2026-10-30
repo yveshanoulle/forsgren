@@ -2973,6 +2973,18 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/metrics/servicecommits.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-30",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/datastarts_paths_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-30",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/metrics/datastarts_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-30",

@@ -41,7 +41,9 @@ type DataRow struct {
 	Name, Project string
 	// Deployments is the oldest created_at of the stored deployments, Commits
 	// the oldest author date of the stored deployed commits and push commits
-	// (a service or rule row: its own deployed commits), Pushes the oldest
+	// (a service or rule row with paths: its own deployed commits and the
+	// pushed commits that touch its paths, Per repository without paths,
+	// forsgren#589), Pushes the oldest
 	// pushed_at, Pulls the oldest merged_at of the merged pull requests and
 	// Issues the oldest issue event.
 	Deployments, Commits, Pushes, Pulls, Issues DataStart
@@ -98,14 +100,14 @@ func (s startsSource) row(level Level, p config.Project, project string) DataRow
 	return row
 }
 
-// serviceRow is a service's or a rule's row: its own deployments and the
-// commits they shipped; the pushes, pull requests and issues are read per
-// repository, and so are the push commits, which own still holds whole
-// (forsgren#582).
-func (s startsSource) serviceRow(only config.Project, project string, own Data, _ []string) DataRow {
+// serviceRow is a service's or a rule's row: its own deployments, and its
+// commits when it has paths (servicecommits.go, forsgren#589); the pushes,
+// pull requests and issues are read per repository.
+func (s startsSource) serviceRow(only config.Project, project string, own Data, paths []string) DataRow {
 	in := repositoriesOf(only)
 	row := DataRow{Level: LabelRow, Name: only.Name, Project: project}
-	row.Deployments, row.Commits = deployedStarts(own, in)
+	row.Deployments, _ = deployedStarts(own, in)
+	row.Commits = s.serviceCommits(own, in, scopeOf(paths, s.data.CommitFiles))
 	perRepository := DataStart{PerRepository: true}
 	row.Pushes, row.Pulls, row.Issues = perRepository, perRepository, perRepository
 	return row

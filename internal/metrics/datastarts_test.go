@@ -15,7 +15,9 @@ import (
 
 // startsData is stored data of weekProjects' repositories, the earliest of
 // each kind on acme/app's API service or on acme/web, and older data of a
-// repository no project lists.
+// repository no project lists. The API's deployed commit c1 touches its path
+// api/, the ADMIN's c2 does not, and acme/app has the files of all its pushed
+// commits read (forsgren#589).
 func startsData() (Data, []history.IssueEvent) {
 	data := Data{
 		Records: []history.Record{
@@ -37,6 +39,11 @@ func startsData() (Data, []history.IssueEvent) {
 			{Repository: "acme/app", Number: 7, MergedAt: utc(time.October, 1, 9, 0)},
 			{Repository: "acme/web", Number: 8, MergedAt: utc(time.September, 29, 9, 0)},
 		},
+		CommitFiles: []history.CommitFile{
+			{Repository: "acme/app", SHA: "c1", Path: "api/a.go"},
+			{Repository: "acme/app", SHA: "c2", Path: "admin/b.go"},
+		},
+		PushFilesFilled: history.Reach{"acme/app": utc(time.October, 1, 0, 0)},
 	}
 	events := []history.IssueEvent{
 		{Repository: "acme/web", Issue: 21, Event: history.EventCreated, At: utc(time.September, 1, 6, 0)},
