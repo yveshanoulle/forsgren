@@ -116,6 +116,48 @@ step (forsgren#447, step 8 and the runs after step 8b):
 Every job is now under 8 minutes. The wall time is bounded by the macOS limit:
 total macOS work divided by 5 slots.
 
+**No further job for the main job's gates** (forsgren#277). Measured on the
+ten green Quality runs of `main` from 2026-10-30 (median seconds; a job's time
+is from its start to its end, the queue 2 to 3 s more):
+
+| Job | Median s | Range s |
+|---|---|---|
+| Run, first job start to last job end | 489 | 474 to 595 |
+| Quality gates (main) | 460 | 301 to 569 |
+| Workflow gates | 432 | 328 to 475 |
+| Browser gates | 353 | 294 to 450 |
+| Browser gates 1/2 | 326 | 260 to 418 |
+| Quality gates 2/2 | 298 | 228 to 389 |
+| Summary isolation gates | 206 | 146 to 229 |
+| Isolation gates 1/2 | 186 | 146 to 231 |
+| Isolation gates 2/2 | 170 | 122 to 182 |
+| Lint gates | 157 | 130 to 195 |
+| Quality report, then preview | 8, then 10 | |
+
+The main job is 105 s of setup (its full tool install alone 82 s, 45 to 97)
+and 355 s of gates (PRE 338, POST 17). Its slowest gates, median seconds from
+the log's group times: Go test duplication 67, parallel mutants library
+self-test 15, private names 12, language gate self-test 11, Go coverage
+self-test 10, FullBuildAndPush aborted run 9, private-names self-test 8,
+language gate 8, data guard self-test 8, build-site self-test 8; the other 98
+gates take under 8 s each. The candidates named when the issue was filed
+already left the main job: the metrics and release workflow pins and the
+checkout pins mutation to `workflows` (forsgren#408), the Go lint self-test to
+`lint` (forsgren#447). The setup of a job, its time minus its gate steps, is 51
+to 64 s on macOS (`quality_2` 51, `browser` 62, `browser_1` 64) and 30 to 32 s on
+Linux.
+
+A gate moved out of the main job shortens the run only by as much as the main
+job is longer than the next longest gate job. Over the ten runs that lead was
++40, +83, +86, -54, -138, +143, -9, -144, +95 and +84 s: the main job was the
+longest in 6 runs, Workflow gates or Browser gates in the other 4. So even a new
+job that took every movable gate saves at most 62 s per run (the median of the
+leads, a lead below 0 saving nothing; 53 s on average), less than the 65 s of
+setup the rule asks it to beat. A Linux job with the three slowest Linux-run
+gates (Go test duplication, parallel mutants library self-test, Go coverage
+self-test, about 92 s) saves 62 s by the median and 48 s on average. The run's
+floor is now Workflow gates as much as the main job.
+
 **Jobs** (forsgren#259, decision #260). Quality is one workflow with parallel
 jobs and one verdict: the run's conclusion is success only when every job
 succeeded, and that conclusion is what the Release reads

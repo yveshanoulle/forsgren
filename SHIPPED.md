@@ -9,6 +9,22 @@ Active work lives in
 
 ---
 
+## 2026-10-30 — Quality measured over ten runs: no further job pays for its setup ([#277](https://github.com/yveshanoulle/forsgren/issues/277), 1 step)
+
+forsgren issue 277, tools: no release. Ten green Quality runs of `main` took
+489 s by the median (474 to 595): the main job 460 s (105 s of it setup, the
+full tool install 82 s), Workflow gates 432 s, Browser gates 353 s. The main
+job's slowest gate left is Go test duplication (67 s); every other one is 15 s
+or less. The gates the issue named had already moved (forsgren#408, #447). A
+gate moved out of the main job shortens the run only by the main job's lead over
+the next longest job, which was 62 s by the median and below 0 in 4 of the ten
+runs, so even a new job with every movable gate saves at most that, under the
+about 65 s of setup the issue's rule asks it to beat (re-measured: 51 to 64 s
+for a macOS job, 30 to 32 s on Linux). No job was added. `docs/ci.md` has the job table, the
+gate seconds and the arithmetic.
+
+---
+
 ## 2026-10-30 — The daily run uploads the token expiry probe ([#276](https://github.com/yveshanoulle/forsgren/issues/276), 1 step)
 
 forsgren issue 276, a feature for the next patch release. `metrics.yml` now
