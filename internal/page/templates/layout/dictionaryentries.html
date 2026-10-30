@@ -1,6 +1,6 @@
 {{define "dictionaryentries"}}    <dl>
 {{range .}}      <dt id="{{.Anchor}}">{{.Heading}}</dt>
       <dd>{{.Definition}}</dd>
-      <dd>From: {{.From}}</dd>
+      <dd>From: {{if .Link}}<a href="{{.Link}}">{{.From}}</a>{{else}}{{.From}}{{end}}</dd>
 {{end}}    </dl>
 {{end}}

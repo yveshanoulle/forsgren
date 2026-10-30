@@ -89,7 +89,7 @@ func TestMarkdownHoldsEveryEntryAsThePageDoes(t *testing.T) {
 	got := markdown(t)
 	for _, e := range entries(t) {
 		want := "### " + markdownText(e.Heading()) + "\n\n" + markdownText(e.Definition) +
-			"\n\nFrom: " + markdownText(e.From) + "\n"
+			"\n\nFrom: " + markdownFrom(e) + "\n"
 		if !strings.Contains(got, want) {
 			t.Errorf("%q: want its entry\n%s", e.Name, want)
 		}

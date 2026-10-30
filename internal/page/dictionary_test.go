@@ -51,7 +51,16 @@ func wantSection(t *testing.T, got, kind string, span [2]int) {
 func wantEntry(t *testing.T, got string, e dictionary.Entry) {
 	t.Helper()
 	wantAll(t, "dictionary.html", got, `<dt id="`+e.Anchor()+`">`+html.EscapeString(e.Heading())+`</dt>`,
-		"<dd>"+html.EscapeString(e.Definition)+"</dd>", "<dd>From: "+html.EscapeString(e.From)+"</dd>")
+		"<dd>"+html.EscapeString(e.Definition)+"</dd>", "<dd>From: "+fromOf(e)+"</dd>")
+}
+
+// fromOf is the entry's From line as the page writes it: its source linked
+// when it has a link (forsgren#585).
+func fromOf(e dictionary.Entry) string {
+	if e.Link == "" {
+		return html.EscapeString(e.From)
+	}
+	return `<a href="` + html.EscapeString(e.Link) + `">` + html.EscapeString(e.From) + "</a>"
 }
 
 func dictionarySection(t *testing.T, kind string) []dictionary.Entry {

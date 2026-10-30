@@ -36,10 +36,19 @@ func Markdown() (string, error) {
 		fmt.Fprintf(&b, "\n## %s\n", s.heading)
 		for _, e := range section {
 			fmt.Fprintf(&b, "\n### %s\n\n%s\n\nFrom: %s\n",
-				markdownText(e.Heading()), markdownText(e.Definition), markdownText(e.From))
+				markdownText(e.Heading()), markdownText(e.Definition), markdownFrom(e))
 		}
 	}
 	return b.String(), nil
+}
+
+// markdownFrom is the entry's From line as Markdown text, a link to its
+// source when it has one (forsgren#585).
+func markdownFrom(e Entry) string {
+	if e.Link == "" {
+		return markdownText(e.From)
+	}
+	return "[" + markdownText(e.From) + "](" + e.Link + ")"
 }
 
 // markdownEscaper puts a backslash before each character Markdown could read

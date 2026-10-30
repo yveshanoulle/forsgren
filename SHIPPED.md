@@ -9,6 +9,20 @@ Active work lives in
 
 ---
 
+## 2026-10-30 — The Mainline Throughput Indicator names its source, Steve Smith's Measuring Continuous Delivery ([#585](https://github.com/yveshanoulle/forsgren/issues/585), 1 step)
+
+forsgren issue 585. forsgren used the term Mainline Throughput Indicator, and
+its two metrics Mainline Interval and Mainline Lead Time, without saying where
+the names come from: Steve Smith's book
+[Measuring Continuous Delivery](https://leanpub.com/measuringcontinuousdelivery).
+The Dictionary has a new term, Mainline Throughput Indicator, whose From line
+links the book. A dictionary entry can now carry an optional `link`, an https
+address the From line links to on the Dictionary page and in
+`docs/dictionary.md`; any other address is refused. The legend's TBD section
+credits the book, linked, where it first names the indicator, and
+[Pages and views](docs/pages-and-views.md) names it in The names. Part of the
+1.31.1 patch.
+
 ## 2026-10-30 — The Data page tells unread history from missing history, and collect reads the older pushes ([#583](https://github.com/yveshanoulle/forsgren/issues/583), 4 steps)
 
 forsgren issue 583. A busy repository's first push read stops at the page

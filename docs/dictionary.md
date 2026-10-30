@@ -72,6 +72,12 @@ The default branch seen as a line of commits: the commits that landed on it one 
 
 From: The default branch of each repository.
 
+### Mainline Throughput Indicator
+
+Mainline Interval and Mainline Lead Time together: how often changes reach the main branch and how long a change takes to get there. The indicator and its two metrics are named by Steve Smith in his book Measuring Continuous Delivery.
+
+From: [Steve Smith's book Measuring Continuous Delivery.](https://leanpub.com/measuringcontinuousdelivery)
+
 ### Mean
 
 The average of the values, shown when tbd\_figures is all.

@@ -47,6 +47,9 @@ type Entry struct {
 	// From says where it comes from: the data file or the window it is
 	// counted over.
 	From string `yaml:"from"`
+	// Link is the web address of the source the From line names, an https
+	// address; the From line links to it. Empty means no link (forsgren#585).
+	Link string `yaml:"link"`
 }
 
 // Labels are the labels the pages use for the entry: Shown, or Name alone.
@@ -120,8 +123,21 @@ func parse(text string) ([]Entry, error) {
 	return all, nil
 }
 
-// check is the error of an incomplete entry.
+// check is the error of an incomplete entry, or of one whose link is no
+// web address.
 func check(e Entry) error {
+	if err := complete(e); err != nil {
+		return err
+	}
+	if e.Link != "" && !webAddress.MatchString(e.Link) {
+		return fmt.Errorf("%q: link %q is no https address", e.Name, e.Link)
+	}
+	return nil
+}
+
+// complete is the error of an entry that lacks its name, kind, definition or
+// source.
+func complete(e Entry) error {
 	switch {
 	case e.Name == "":
 		return errors.New("an entry has no name")
@@ -132,6 +148,10 @@ func check(e Entry) error {
 	}
 	return nil
 }
+
+// webAddress is an https address with a host, and no white space, no
+// parenthesis and no angle bracket, which would end a Markdown link.
+var webAddress = regexp.MustCompile(`^https://[^\s()<>]+$`)
 
 // unique is the error of a name listed twice, compared ignoring case.
 func unique(all []Entry) error {

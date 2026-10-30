@@ -1097,8 +1097,11 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     how often changes land, where this one is how old a change is when it
     lands (forsgren#448).
   - *The names* (forsgren#448). Mainline Interval and Mainline Lead Time are
-    the two metrics of the Mainline Throughput Indicator (forsgren#56). The page
-    shows PR Lead Time for the work that goes through pull requests, and Time
+    the two metrics of the Mainline Throughput Indicator (forsgren#56), named
+    by Steve Smith in his book
+    [Measuring Continuous Delivery](https://leanpub.com/measuringcontinuousdelivery);
+    the legend and the Dictionary credit it with that link (forsgren#585). The
+    page shows PR Lead Time for the work that goes through pull requests, and Time
     to main for every change, direct pushes included; with the median by
     default the figure is the median time to main.
   - *Three lead times* (forsgren#460, forsgren#463). The Mainline Throughput

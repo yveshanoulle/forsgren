@@ -777,6 +777,14 @@ only the markers it shows. Nothing new is needed: no
 permission, secret or file. An agent following
 [agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing about it.
 
+**1.31.1 also names the source of the Mainline Throughput Indicator**
+(forsgren#585). The legend's TBD section and a new Dictionary entry credit
+Steve Smith's book Measuring Continuous Delivery, linked, for the indicator
+and its two metrics, Mainline Interval and Mainline Lead Time. Only the text of
+the legend and the Dictionary changes. Nothing new is needed: no permission,
+secret or file, and an agent following [agent-upgrade.md](../agent-upgrade.md)
+needs to ask you nothing about it.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`

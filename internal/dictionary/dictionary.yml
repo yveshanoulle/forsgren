@@ -200,6 +200,14 @@
     merge commit included, not necessarily on a branch named main. The commits of the branches merged
     into it are not on the line, though Mainline Lead Time counts them.
   from: "The default branch of each repository."
+- name: "Mainline Throughput Indicator"
+  kind: term
+  definition: >-
+    Mainline Interval and Mainline Lead Time together: how often changes reach the main branch and how
+    long a change takes to get there. The indicator and its two metrics are named by Steve Smith in his
+    book Measuring Continuous Delivery.
+  from: "Steve Smith's book Measuring Continuous Delivery."
+  link: "https://leanpub.com/measuringcontinuousdelivery"
 - name: "TBD"
   kind: term
   definition: "Trunk-based development: integrating small changes into the main branch often. The TBD page shows how often, how long and how large."
