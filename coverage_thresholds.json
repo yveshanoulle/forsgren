@@ -49,6 +49,8 @@
     "github.com/yveshanoulle/forsgren/internal/github/tokenexpiry.go:Answered": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/tokenexpiry.go:tokenExpiryMessage": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/tokenexpiry.go:noteUnreadableExpiry": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/tokenprobe.go:tokenProbe": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/tokenprobe.go:probedValue": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/tokenrenewal.go:renewalNeed": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/tokenrenewal.go:withKeptToken": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/tokenrenewal.go:isOpen": 100.0,
