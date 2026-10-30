@@ -757,10 +757,11 @@ write it. Nothing new is needed: no permission, secret or file. An agent
 following [agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing
 about it.
 
-**Upgrading to 1.32.0, which marks history not yet read** (forsgren#583). A
-minor release. On the Data page a date marked … is only where the read of a
-repository's pushes stopped at its page limit: earlier data is not yet read,
-so the repository did not start there. It marks Pushes, and Commits when the
+**Upgrading to 1.31.1, which marks history not yet read** (forsgren#583). A
+patch release: it gives better data. On the Data page a date marked … is
+only where the read of a repository's pushes stopped at its page limit:
+earlier data is not yet read, so the repository did not start there. It
+marks Pushes, and Commits when the
 pushed commits give the date; the legend explains it. `collect` notes such a
 repository in a new mark file, `data/pushes_cut.csv` (see
 [History](data-files.md#history)). A repository whose first push read was cut
