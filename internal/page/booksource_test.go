@@ -34,14 +34,14 @@ var legendBookDifferences = []string{
 		"branch worked on for days counts from the author date of its first commit, and a commit pushed directly " +
 		"to main shows the seconds between its commit and its push, where the book counts 0.</p>",
 	"<p>The book reads the indicator as an average and a variation: the median and the standard deviation. " +
-		"This page shows no standard deviation. The default view shows the median alone, and when all three " +
-		"figures are shown the p90 stands in for the variation.</p>",
+		"The default view shows the median alone, and when all four figures are shown the standard deviation " +
+		"is the fourth, after the p90.</p>",
 }
 
 // TestLegendSaysWhereTheMainlineLeadTimeDiffersFromTheBook (forsgren#587): the
-// TBD section says that the Mainline Lead Time starts at the author date and
-// that the p90 stands in for the book's standard deviation; "in full" is
-// retired in legendTbdRetired.
+// TBD section says that the Mainline Lead Time starts at the author date and,
+// since forsgren#588 step 2, that all the figures include the book's standard
+// deviation; "in full" is retired in legendTbdRetired.
 func TestLegendSaysWhereTheMainlineLeadTimeDiffersFromTheBook(t *testing.T) {
 	section := legendTbdSection(t, rendered(t, "legend.html", calculated()))
 	wantAll(t, "legend.html", section, legendBookDifferences...)

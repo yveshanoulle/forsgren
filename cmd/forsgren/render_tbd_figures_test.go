@@ -18,9 +18,10 @@ func tbdSiteIn(t *testing.T, figures, path string) string {
 
 // TestRenderTbdFiguresChoosesTheColumnsOfTheTbdTable (forsgren#423): without
 // the key, and with tbd_figures: median, tbd.html has the median of each
-// measure in one header row; with tbd_figures: all it has the mean, the median
-// and the p90 under two header rows. Neither has a deviation or a gaps column
-// (decision #424 C).
+// measure in one header row; with tbd_figures: all it has the mean, the median,
+// the p90 and the standard deviation, headed SD (forsgren#588, step 2,
+// decision #599 A), under two header rows. Neither has a deviation or a gaps
+// column of the old cells (decision #424 C).
 func TestRenderTbdFiguresChoosesTheColumnsOfTheTbdTable(t *testing.T) {
 	pinNow(t)
 	data := writeData(t, acmeHistory(), acmeCommits())
@@ -28,15 +29,16 @@ func TestRenderTbdFiguresChoosesTheColumnsOfTheTbdTable(t *testing.T) {
 		got := tbdSiteIn(t, figures, data)
 		wantIn(t, got, `<th scope="col" aria-label="median mainline interval" class="num">Mainline Interval</th>`,
 			`<th scope="col" aria-label="median PR lead time" class="num">PR Lead Time</th>`)
-		for _, not := range []string{"rowspan", "colgroup", ">mean<", ">deviation<", ">gaps<"} {
+		for _, not := range []string{"rowspan", "colgroup", ">mean<", ">SD<", ">deviation<", ">gaps<"} {
 			if strings.Contains(got, not) {
 				t.Errorf("%s: want no %q in tbd.html, got:\n%s", name, not, got)
 			}
 		}
 	}
 	got := tbdSiteIn(t, figuresAll, data)
-	wantIn(t, got, `<th scope="colgroup" colspan="3">Mainline Interval</th>`,
-		`<th scope="colgroup" colspan="3">PR Lead Time</th>`,
+	wantIn(t, got, `<th scope="colgroup" colspan="4">Mainline Interval</th>`,
+		`<th scope="colgroup" colspan="4">PR Lead Time</th>`,
+		`<th scope="col" aria-label="the standard deviation of mainline interval" class="num">SD</th>`,
 		`<th scope="col" aria-label="the mean of mainline interval" class="num">mean</th>`,
 		`<th scope="col" aria-label="the p90 of PR lead time" class="num">p90</th>`,
 		`<th scope="col" aria-label="the median of mainline lead time" class="num">median</th>`)

@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -53,14 +54,16 @@ func pushesData() Data {
 // unknown authors 2 (no login, placeholder), bots 1 (a login ending in [bot]); time to main per commit, push
 // time minus author date, 0 for the one authored after the push: 0, 5, 10,
 // 20, 30 min and 24 h, so mean 4 h 10 min 50 s and median 15 min, no p90
-// under ten; commits per push 3, 1 and 2: mean 2, median 2.
+// under ten, and the squares of the differences from the mean add up to
+// 10185125/6 min², over n-1 = 5 (forsgren#588, step 2); commits per push 3, 1
+// and 2: mean 2, median 2, deviation 1.
 func TestPushMeasuresCountTheCommitsTheirSharesTheTimeToMainAndThePerPush(t *testing.T) {
 	got := shopPushMeasures(pushesData())
 	want := PushMeasures{Project: "Acme Shop", Pushes: 3, Commits: 6, PullRequests: 2, Direct: 4,
 		UnknownAuthors: 2, Bots: 1,
 		TimeToMain: DurationSpread{Count: 6, Mean: 4*time.Hour + 10*time.Minute + 50*time.Second,
-			Median: 15 * time.Minute},
-		PerPush: CountSpread{Count: 3, Mean: 2, Median: 2}}
+			Median: 15 * time.Minute, Deviation: rootOf(10185125.0/6/5, time.Minute)},
+		PerPush: CountSpread{Count: 3, Mean: 2, Median: 2, Deviation: 1}}
 	if got != want {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
@@ -97,7 +100,8 @@ func TestPushMeasuresShowOnlyTheMeanOfOnePush(t *testing.T) {
 
 // TestPushMeasuresShowTheMedianAndP90FromTen: ten pushes of 1 to 10 commits,
 // one commit each timed 1 to 10 minutes, have a p90 by nearest rank, the 9th,
-// and a median of 5.5.
+// a median of 5.5 and a sample standard deviation of the root of 82.5/9, the
+// squares of the differences from 5.5 over n-1 (forsgren#588, step 2).
 func TestPushMeasuresShowTheMedianAndP90FromTen(t *testing.T) {
 	var ten Data
 	for i := 1; i <= 10; i++ {
@@ -109,8 +113,8 @@ func TestPushMeasuresShowTheMedianAndP90FromTen(t *testing.T) {
 	got := shopPushMeasures(ten)
 	want := PushMeasures{Project: "Acme Shop", Pushes: 10, Commits: 10, Direct: 10,
 		TimeToMain: DurationSpread{Count: 10, Mean: 5*time.Minute + 30*time.Second,
-			Median: 5*time.Minute + 30*time.Second, P90: 9 * time.Minute},
-		PerPush: CountSpread{Count: 10, Mean: 5.5, Median: 5.5, P90: 9}}
+			Median: 5*time.Minute + 30*time.Second, P90: 9 * time.Minute, Deviation: rootOf(82.5/9, time.Minute)},
+		PerPush: CountSpread{Count: 10, Mean: 5.5, Median: 5.5, P90: 9, Deviation: math.Sqrt(82.5 / 9)}}
 	if got != want || shownOf(got) != [4]bool{true, true, true, true} {
 		t.Errorf("want %+v with everything shown, got %+v", want, got)
 	}

@@ -68,6 +68,9 @@ type PRLeadTime struct {
 	// P90 is the 90th percentile of the lead times, nearest rank; zero below
 	// minP90Gaps pull requests (see HasP90).
 	P90 time.Duration
+	// Deviation is the sample standard deviation of the lead times; zero
+	// below two pull requests (see HasMedian).
+	Deviation time.Duration
 	// Cut counts the pull requests whose first commit time came from a cut
 	// commit list, each lead time a lower bound (decision #299).
 	Cut int
@@ -168,14 +171,16 @@ func (m *PRLeadTime) note(p history.PullRequest, lead time.Duration) {
 	m.CreatedStandsIn += boolCount(p.CreatedStandsIn)
 }
 
-// spread sets m's mean, median and 90th percentile of the lead times in
-// nanoseconds, the last two while they are shown (forsgren#423).
+// spread sets m's mean, median, 90th percentile and standard deviation of the
+// lead times in nanoseconds, all but the mean while they are shown
+// (forsgren#423, forsgren#588).
 func (m *PRLeadTime) spread(leads []float64) {
 	if len(leads) == 0 {
 		return
 	}
 	m.Mean = time.Duration(math.Round(meanOf(leads)))
 	m.Median, m.P90 = medianAndP90(leads)
+	m.Deviation = durationDeviationOf(leads)
 }
 
 // boolCount is 1 for true, 0 for false.

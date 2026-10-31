@@ -35,7 +35,7 @@ func TestBotPRLeadTimeCountsTheBotPullRequestsOnly(t *testing.T) {
 		openedBy(mergedPull("acme/app", 5, h, 40*day), history.ByBot),
 		openedBy(mergedPull("acme/cli", 6, 5*h, h), history.ByBot))
 	got := BotPRLeadTimes(projects, Data{Pulls: pulls}, now)
-	want := PRLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * h, Median: 2 * h}
+	want := PRLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * h, Median: 2 * h, Deviation: rootOf(2, h)}
 	if got[0] != want {
 		t.Errorf("Acme Shop: want %+v, got %+v", want, got[0])
 	}
@@ -60,7 +60,7 @@ func TestBotPRLeadTimeHasTheSameSpreadAndNotes(t *testing.T) {
 	pulls[1].CreatedAt = pulls[1].MergedAt.Add(-2 * h)
 	got := shopBotLead(pulls...)
 	want := PRLeadTime{Project: "Acme Shop", PullRequests: 10, Mean: 11 * h / 2, Median: 11 * h / 2, P90: 9 * h,
-		Cut: 1, CreatedStandsIn: 1}
+		Deviation: rootOf(82.5/9, h), Cut: 1, CreatedStandsIn: 1}
 	if got != want {
 		t.Errorf("want %+v, got %+v", want, got)
 	}

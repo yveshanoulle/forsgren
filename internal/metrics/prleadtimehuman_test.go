@@ -29,7 +29,7 @@ func TestPRLeadTimeCountsHumanPullRequestsOnly(t *testing.T) {
 		openedBy(mergedPull("acme/app", 7, h, 40*day), history.BotUnknown),
 		openedBy(mergedPull("acme/cli", 8, h, h), history.ByBot))
 	got := PRLeadTimes(projects, Data{Pulls: pulls}, now)
-	want := PRLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * h, Median: 2 * h}
+	want := PRLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * h, Median: 2 * h, Deviation: rootOf(2, h)}
 	if got[0] != want {
 		t.Errorf("Acme Shop: want %+v, got %+v", want, got[0])
 	}

@@ -74,7 +74,7 @@ From: The default branch of each repository.
 
 ### Mainline Throughput Indicator
 
-Mainline Interval and Mainline Lead Time together: how often changes reach the main branch and how long a change takes to get there. The indicator and its two metrics are named by Steve Smith in his book Measuring Continuous Delivery. Its variation is shown as the p90 when tbd\_figures is all, not as the book's standard deviation, and the default view shows the median alone.
+Mainline Interval and Mainline Lead Time together: how often changes reach the main branch and how long a change takes to get there. The indicator and its two metrics are named by Steve Smith in his book Measuring Continuous Delivery. Its variation is shown as the book's standard deviation, beside the p90, when tbd\_figures is all, and the default view shows the median alone.
 
 From: [Steve Smith's book Measuring Continuous Delivery.](https://leanpub.com/measuringcontinuousdelivery)
 
@@ -131,6 +131,12 @@ From: The TBD page.
 A time used in place of an unknown one: the created time of a pull request stands in for its first commit time when no commit date can be read.
 
 From: Pull requests of data/pulls.csv.
+
+### Standard deviation
+
+How far the values lie from their mean: the sample standard deviation, the root of the sum of the squared differences from the mean divided by one less than the number of values. Shown from two values when tbd\_figures is all.
+
+From: Settings: tbd\_figures.
 
 ### Stream
 

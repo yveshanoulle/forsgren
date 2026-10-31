@@ -17,15 +17,15 @@
         <thead>
           <tr>
             <th scope="col" rowspan="2">Project</th>
-            <th scope="colgroup" colspan="3">Mainline Interval</th>
-            <th scope="colgroup" colspan="3">Mainline Lead Time</th>
-            <th scope="colgroup" colspan="3">Time to main per commit</th>
-            <th scope="colgroup" colspan="3">PR Lead Time</th>
-            <th scope="colgroup" colspan="3">Bot PR Lead Time</th>
-            <th scope="colgroup" colspan="3">Time to deploy per commit</th>
+            <th scope="colgroup" colspan="4">Mainline Interval</th>
+            <th scope="colgroup" colspan="4">Mainline Lead Time</th>
+            <th scope="colgroup" colspan="4">Time to main per commit</th>
+            <th scope="colgroup" colspan="4">PR Lead Time</th>
+            <th scope="colgroup" colspan="4">Bot PR Lead Time</th>
+            <th scope="colgroup" colspan="4">Time to deploy per commit</th>
             <th scope="colgroup" colspan="4">Volume</th>
-            <th scope="colgroup" colspan="3">Commits per push</th>
-            <th scope="colgroup" colspan="3">Commits per deployment</th>
+            <th scope="colgroup" colspan="4">Commits per push</th>
+            <th scope="colgroup" colspan="4">Commits per deployment</th>
             <th scope="colgroup" colspan="4">Shares of commits</th>
             <th scope="colgroup" colspan="1">Developers</th>
           </tr>
@@ -33,21 +33,27 @@
             <th scope="col" aria-label="the mean of mainline interval" class="num">mean</th>
             <th scope="col" aria-label="the median of mainline interval" class="num">median</th>
             <th scope="col" aria-label="the p90 of mainline interval" class="num">p90</th>
+            <th scope="col" aria-label="the standard deviation of mainline interval" class="num">SD</th>
             <th scope="col" aria-label="the mean of mainline lead time" class="num">mean</th>
             <th scope="col" aria-label="the median of mainline lead time" class="num">median</th>
             <th scope="col" aria-label="the p90 of mainline lead time" class="num">p90</th>
+            <th scope="col" aria-label="the standard deviation of mainline lead time" class="num">SD</th>
             <th scope="col" aria-label="the mean of time to main" class="num">mean</th>
             <th scope="col" aria-label="the median of time to main" class="num">median</th>
             <th scope="col" aria-label="the p90 of time to main" class="num">p90</th>
+            <th scope="col" aria-label="the standard deviation of time to main" class="num">SD</th>
             <th scope="col" aria-label="the mean of PR lead time" class="num">mean</th>
             <th scope="col" aria-label="the median of PR lead time" class="num">median</th>
             <th scope="col" aria-label="the p90 of PR lead time" class="num">p90</th>
+            <th scope="col" aria-label="the standard deviation of PR lead time" class="num">SD</th>
             <th scope="col" aria-label="the mean of bot PR lead time" class="num">mean</th>
             <th scope="col" aria-label="the median of bot PR lead time" class="num">median</th>
             <th scope="col" aria-label="the p90 of bot PR lead time" class="num">p90</th>
+            <th scope="col" aria-label="the standard deviation of bot PR lead time" class="num">SD</th>
             <th scope="col" aria-label="the mean of time to deploy" class="num">mean</th>
             <th scope="col" aria-label="the median of time to deploy" class="num">median</th>
             <th scope="col" aria-label="the p90 of time to deploy" class="num">p90</th>
+            <th scope="col" aria-label="the standard deviation of time to deploy" class="num">SD</th>
             <th scope="col" class="num">Commits</th>
             <th scope="col" class="num">Pushes</th>
             <th scope="col" class="num">Deployments</th>
@@ -55,9 +61,11 @@
             <th scope="col" aria-label="the mean of commits per push" class="num">mean</th>
             <th scope="col" aria-label="the median of commits per push" class="num">median</th>
             <th scope="col" aria-label="the p90 of commits per push" class="num">p90</th>
+            <th scope="col" aria-label="the standard deviation of commits per push" class="num">SD</th>
             <th scope="col" aria-label="the mean of commits per deployment" class="num">mean</th>
             <th scope="col" aria-label="the median of commits per deployment" class="num">median</th>
             <th scope="col" aria-label="the p90 of commits per deployment" class="num">p90</th>
+            <th scope="col" aria-label="the standard deviation of commits per deployment" class="num">SD</th>
             <th scope="col" class="num">Direct</th>
             <th scope="col" aria-label="pull request share of commits" class="num">PR</th>
             <th scope="col" aria-label="unknown author share of commits" class="num">Unknown</th>
@@ -71,21 +79,27 @@
             <td class="num">2 h</td>
             <td class="num">2 h</td>
             <td class="num">-</td>
+            <td class="num">1 h</td>
             <td class="num" aria-describedby="tbd-note-6 tbd-note-7">4 h <span class="visually-hidden">note</span> (6) <span class="visually-hidden">note</span> (7)</td>
             <td class="num">3 h</td>
             <td class="num">9 h</td>
+            <td class="num">5 h</td>
             <td class="num">1 h</td>
             <td class="num">30 m</td>
             <td class="num">3 h</td>
+            <td class="num">2 h</td>
             <td class="num">3 h</td>
             <td class="num">2 h</td>
             <td class="num">-</td>
+            <td class="num">1 h 30</td>
             <td class="num">40 m</td>
             <td class="num">30 m</td>
             <td class="num">-</td>
+            <td class="num">25 m</td>
             <td class="num">2 h</td>
             <td class="num">1 h</td>
             <td class="num">5 h</td>
+            <td class="num">3 h</td>
             <td class="num">40</td>
             <td class="num">20</td>
             <td class="num">85</td>
@@ -93,9 +107,11 @@
             <td class="num">2.0</td>
             <td class="num">1.5</td>
             <td class="num">6.0</td>
+            <td class="num">2.5</td>
             <td class="num">5.0</td>
             <td class="num">4.5</td>
             <td class="num">12</td>
+            <td class="num">3.2</td>
             <td class="num">75%</td>
             <td class="num">25%</td>
             <td class="num">10%</td>
@@ -104,44 +120,52 @@
           </tr>
           <tr class="label">
             <th scope="row"><span class="visually-hidden">Acme Shop: </span><span aria-hidden="true">–⁠ </span>API</th>
-            <td colspan="15">Per repository</td>
+            <td colspan="20">Per repository</td>
             <td class="num">&lt; 1 m</td>
             <td class="num">1 h</td>
             <td class="num">-</td>
+            <td class="num">25 m</td>
             <td colspan="2">Per repository</td>
             <td class="num">5</td>
             <td class="num">3</td>
-            <td colspan="3">Per repository</td>
+            <td colspan="4">Per repository</td>
             <td class="num">0.0</td>
             <td class="num">2.0</td>
             <td class="num">-</td>
+            <td class="num">1.5</td>
             <td colspan="4">Per repository</td>
             <td class="num">2</td>
           </tr>
           <tr class="label">
             <th scope="row"><span class="visually-hidden">Acme Shop: </span><span aria-hidden="true">–⁠ </span>IOS</th>
-            <td colspan="33">currently no data for this service in the last 30 days</td>
+            <td colspan="41">currently no data for this service in the last 30 days</td>
           </tr>
           <tr class="label">
             <th scope="row"><span class="visually-hidden">Acme Shop: </span><span aria-hidden="true">–⁠ </span>Website</th>
             <td class="num" aria-describedby="tbd-note-2">3 h <span class="visually-hidden">note</span> (2)</td>
             <td class="num">2 h</td>
             <td class="num">-</td>
+            <td class="num">1 h 40</td>
             <td class="num" aria-describedby="tbd-note-6">1 h 30 <span class="visually-hidden">note</span> (6)</td>
             <td class="num">1 h</td>
             <td class="num">-</td>
+            <td class="num">40 m</td>
             <td class="num">20 m</td>
             <td class="num">10 m</td>
             <td class="num">1 h</td>
+            <td class="num">15 m</td>
             <td class="num">6 h</td>
             <td class="num">5 h</td>
             <td class="num">-</td>
+            <td class="num">4 h</td>
             <td class="num">50 m</td>
             <td class="num">35 m</td>
             <td class="num">-</td>
+            <td class="num">20 m</td>
             <td class="num">1 h</td>
             <td class="num">45 m</td>
             <td class="num">4 h</td>
+            <td class="num">1 h 10</td>
             <td class="num">12</td>
             <td class="num">7</td>
             <td class="num">9</td>
@@ -149,9 +173,11 @@
             <td class="num">1.7</td>
             <td class="num">1.0</td>
             <td class="num">-</td>
+            <td class="num">0.9</td>
             <td class="num">1.3</td>
             <td class="num">1.0</td>
             <td class="num">-</td>
+            <td class="num">0.7</td>
             <td class="num">75%</td>
             <td class="num">25%</td>
             <td class="num">8.3%</td>

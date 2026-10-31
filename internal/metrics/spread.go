@@ -5,17 +5,19 @@ import (
 	"time"
 )
 
-// A spread is the mean, the median and the 90th percentile of a set of
-// numbers, with how many there are (forsgren#397, step 4): the figures of the
-// TBD page's push and deployment measures, labelled like the Mainline
-// Interval's. The median is shown from two numbers and the 90th percentile
-// from minP90Gaps, by medianAndP90's rules (nearest rank, the mean of the two
-// middle ones for an even count); a figure that is not shown is zero.
+// A spread is the mean, the median, the 90th percentile and the standard
+// deviation of a set of numbers, with how many there are (forsgren#397, step
+// 4; the deviation forsgren#588, step 2): the figures of the TBD page's push
+// and deployment measures, labelled like the Mainline Interval's. The median
+// and the sample standard deviation (deviationOf) are shown from two numbers
+// and the 90th percentile from minP90Gaps, by medianAndP90's rules (nearest
+// rank, the mean of the two middle ones for an even count); a figure that is
+// not shown is zero.
 
 // DurationSpread is the spread of a set of times.
 type DurationSpread struct {
-	Count             int
-	Mean, Median, P90 time.Duration
+	Count                        int
+	Mean, Median, P90, Deviation time.Duration
 }
 
 // HasMedian says whether the median is shown: it needs two times.
@@ -26,8 +28,8 @@ func (s DurationSpread) HasP90() bool { return s.Count >= minP90Gaps }
 
 // CountSpread is the spread of a set of counts.
 type CountSpread struct {
-	Count             int
-	Mean, Median, P90 float64
+	Count                        int
+	Mean, Median, P90, Deviation float64
 }
 
 // HasMedian says whether the median is shown: it needs two counts.
@@ -44,7 +46,7 @@ func durationSpreadOf(nanoseconds []float64) DurationSpread {
 	}
 	median, p90 := medianAndP90(nanoseconds)
 	return DurationSpread{Count: len(nanoseconds), Mean: time.Duration(math.Round(meanOf(nanoseconds))),
-		Median: median, P90: p90}
+		Median: median, P90: p90, Deviation: durationDeviationOf(nanoseconds)}
 }
 
 // countSpreadOf is the spread of counts; the zero spread for none. A count is
@@ -59,5 +61,6 @@ func countSpreadOf(counts []float64) CountSpread {
 		scaled[i] = c * float64(time.Second)
 	}
 	median, p90 := medianAndP90(scaled)
-	return CountSpread{Count: len(counts), Mean: meanOf(counts), Median: median.Seconds(), P90: p90.Seconds()}
+	return CountSpread{Count: len(counts), Mean: meanOf(counts), Median: median.Seconds(), P90: p90.Seconds(),
+		Deviation: deviationOf(counts)}
 }

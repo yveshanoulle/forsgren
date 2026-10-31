@@ -49,6 +49,9 @@ type MainlineInterval struct {
 	// P90 is the 90th percentile of the gaps, nearest rank; zero below ten
 	// gaps (see HasP90).
 	P90 time.Duration
+	// Deviation is the sample standard deviation of the gaps; zero below two
+	// gaps (see HasMedian).
+	Deviation time.Duration
 	// ByAuthorDate counts the commits placed by their author date as a
 	// fallback, the old approximation of the deployed commits (forsgren#254).
 	// MainlineIntervals sets none since forsgren#588: a pushed commit is at
@@ -171,6 +174,7 @@ func mainlineOver(project string, dates []time.Time) MainlineInterval {
 	mean := meanOf(gaps)
 	m.Mean = time.Duration(math.Round(mean))
 	m.Median, m.P90 = medianAndP90(gaps)
+	m.Deviation = durationDeviationOf(gaps)
 	return m
 }
 

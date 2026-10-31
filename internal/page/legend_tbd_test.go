@@ -13,11 +13,16 @@ var legendTbdText = []string{
 	"The TBD page is one table with a row for each project, and under it a row for each label or service",
 	"All figures cover the last 30 days, the DORA window",
 	"By default, the table shows the median of each measure, the middle value",
+	"Forsgren can show the mean, the median, p90 and the standard deviation of each measure instead",
 	"The mean is the average. p90 is the value that nine tenths of the values are no larger " +
 		"than",
+	"SD is the standard deviation: how far the values lie from their mean, as the sample standard deviation, " +
+		"which divides the sum of the squared differences from the mean by one less than the number of values. " +
+		"It needs two values, as the median does",
 	"A dash means there is not enough data to calculate the figure. It does not mean zero",
-	"When all three figures are shown, the columns of time to main, time to deploy, commits per push and commits " +
-		"per deployment carry their measure for a screen reader, such as the mean of time to main",
+	"When all four figures are shown, the columns of time to main, time to deploy, commits per push and commits " +
+		"per deployment carry their measure for a screen reader, such as the mean of time to main or the " +
+		"standard deviation of time to main",
 	"The Notes below the table say what each number means",
 	"They explain estimates, a lower bound and a stand-in time",
 	"Missing data is shown as a dash, a no-data row or a not-readable cell, not as a note",
@@ -73,8 +78,9 @@ var legendTbdText = []string{
 	"A push whose commits could not be counted, such as a force push, is left out",
 	"Commits per deployment is how many commits on the main line a deployment brought",
 	"The commits a merge brought in from a branch count as the one merge commit",
-	"The mean, median and p90 of both are shown with two significant digits, rounded to the nearest, unlike the shares. " +
-		"Under 10 they have one decimal, always shown, such as 1.0 or 2.5. From 10 they are whole numbers, such as 10 or 55",
+	"The mean, median, p90 and standard deviation of both are shown with two significant digits, rounded to " +
+		"the nearest, unlike the shares. Under 10 they have one decimal, always shown, such as 1.0 or 2.5. From 10 " +
+		"they are whole numbers, such as 10 or 55",
 	"Smaller batches are generally easier to review, test and troubleshoot",
 	"Shares of commits shows how the commits of Volume reached main",
 	"All four are shares of the same Commits number, shown with two significant digits, rounded down",
@@ -165,7 +171,8 @@ var legendTbdText = []string{
 		"and does not",
 	"The note goes away by itself once the whole window lies after the change, and also once forsgren has " +
 		"filled in the history of the repository (the run after this release does it once)",
-	"a dash below two commits for the median and below ten for the p90, and a negative time counts as 0",
+	"a dash below two commits for the median and the standard deviation and below ten for the p90, and a " +
+		"negative time counts as 0",
 	"The full Mainline Lead Time covers every commit that reached main",
 	"(6) Pushes left out: their commits are not known (incomplete data), not counted as 0. It applies to " +
 		"Mainline Lead Time",
@@ -354,6 +361,12 @@ var legendTbdRetired = []string{
 	"a 403",
 	"Every number is of the last 30 days",
 	"Work pushed straight to the main branch is in the push groups",
+	// The standard deviation is the fourth figure of tbd_figures: all since
+	// forsgren#588, step 2 (decision #599 A).
+	"This page shows no standard deviation",
+	"the p90 stands in for the variation",
+	"all three figures",
+	"all three are shown",
 }
 
 // TestLegendExplainsTheTbdPage (forsgren#253, forsgren#273): the legend has a
@@ -484,7 +497,7 @@ var legendLeadVersusDeployText = []string{
 		"with its DORA Quick Check level",
 	"Time to deploy per commit counts only the commits of the main line, a merge as its merge " +
 		"commit, each once, at its first deployment, and shows the median, or the mean, the " +
-		"median and the p90 when all three are shown",
+		"median, the p90 and the standard deviation when all four are shown",
 	"With several services the same commit is deployed several times, and Lead time for " +
 		"changes, which counts the later deployments too, comes out longer",
 }

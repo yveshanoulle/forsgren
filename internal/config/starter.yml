@@ -57,9 +57,9 @@
 #
 # tbd_figures: is optional. The TBD page shows the median of each measure, one
 # column per measure; that is the default. To write the key, remove the "# " in
-# front of the next line, and change median to all to show the mean, the median
-# and the 90th percentile of each measure instead. A value that is neither is
-# not used, and the settings page says why.
+# front of the next line, and change median to all to show the mean, the median,
+# the 90th percentile and the standard deviation of each measure instead. A
+# value that is neither is not used, and the settings page says why.
 #
 # tbd_figures: median  # the TBD table's figures: median (default) or all
 #

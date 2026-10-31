@@ -12,8 +12,9 @@ import (
 // in data only and the lists below are the one place that names them.
 
 // spreadColspan is how many columns a group spans when the table shows the
-// mean, the median and the 90th percentile.
-const spreadColspan = 3
+// mean, the median, the 90th percentile and the standard deviation
+// (forsgren#588, step 2, decision #599 A).
+const spreadColspan = 4
 
 // spreadID names a group, so a switch can filter it out of the lists.
 type spreadID int
@@ -68,7 +69,7 @@ func shown[T any](h hiddenGroups, items []T, idOf func(T) spreadID) []T {
 }
 
 // spreadGroup is one group of a row: the sentence in place of its figures, or
-// its cells, the three of tbd_figures: all or the one of the median alone.
+// its cells, the four of tbd_figures: all or the one of the median alone.
 type spreadGroup struct {
 	// ID is the group.
 	ID spreadID
@@ -86,8 +87,8 @@ type spreadHead struct {
 	ID spreadID
 	// Title is the group's header.
 	Title string
-	// Subject names the group in the aria-label of its mean, median and p90
-	// headers (all).
+	// Subject names the group in the aria-label of its mean, median, p90 and
+	// SD headers (all).
 	Subject string
 	// MedianLabel is the aria-label of the header of the median alone.
 	MedianLabel string
@@ -106,6 +107,9 @@ var spreadHeads = [...]spreadHead{
 	{idPerDeployment, "Commits per deployment", "commits per deployment", "median commits per deployment"},
 }
 
+// Span is the columns the group's header spans with all the figures.
+func (spreadHead) Span() int { return spreadColspan }
+
 // beforeVolume is how many of spreadHeads come before the Volume group.
 const beforeVolume = 6
 
@@ -122,21 +126,22 @@ func (d Data) TbdBatchHeads() []spreadHead {
 	return shown(d.hiddenGroups(), spreadHeads[beforeVolume:], headID)
 }
 
-// upperFigures are the median and p90 cells, which a spread whose mean cell
-// carries notes has beside it.
+// upperFigures are the median, p90 and standard deviation cells, which a
+// spread whose mean cell carries notes has beside it.
 type upperFigures interface {
 	MedianCell() string
 	P90Cell() string
+	DeviationCell() string
 }
 
-// figures is a spread's three cells.
+// figures is a spread's four cells.
 type figures interface {
 	MeanCell() string
 	upperFigures
 }
 
 // notedFigures are the cells that carry a measure's notes: the mean's for the
-// table that shows all three figures, the median's for the one that shows the
+// table that shows all four figures, the median's for the one that shows the
 // median alone.
 type notedFigures interface {
 	MeanCell() metrics.NotedCell
@@ -158,19 +163,25 @@ func colspanOf(all bool) int {
 func plainGroup(all bool, state string, s figures) spreadGroup {
 	cells := []metrics.NotedCell{plain(s.MedianCell())}
 	if all {
-		cells = []metrics.NotedCell{plain(s.MeanCell()), plain(s.MedianCell()), plain(s.P90Cell())}
+		cells = append([]metrics.NotedCell{plain(s.MeanCell())}, upperCells(s)...)
 	}
 	return spreadGroup{State: state, Colspan: colspanOf(all), Cells: cells}
 }
 
 // notedGroup is the group whose mean cell, or median cell alone, carries the
-// notes of noted; rest has the median and p90 cells.
+// notes of noted; rest has the median, p90 and standard deviation cells.
 func notedGroup(all bool, state string, noted notedFigures, rest upperFigures) spreadGroup {
 	cells := []metrics.NotedCell{noted.MedianNotedCell()}
 	if all {
-		cells = []metrics.NotedCell{noted.MeanCell(), plain(rest.MedianCell()), plain(rest.P90Cell())}
+		cells = append([]metrics.NotedCell{noted.MeanCell()}, upperCells(rest)...)
 	}
 	return spreadGroup{State: state, Colspan: colspanOf(all), Cells: cells}
+}
+
+// upperCells are the cells after the mean, in the order of the headers: the
+// median, the p90 and the standard deviation, none with notes.
+func upperCells(s upperFigures) []metrics.NotedCell {
+	return []metrics.NotedCell{plain(s.MedianCell()), plain(s.P90Cell()), plain(s.DeviationCell())}
 }
 
 // as names the group g is.

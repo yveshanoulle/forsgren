@@ -49,7 +49,7 @@
       <dd>The default branch seen as a line of commits: the commits that landed on it one after another, a merge commit included, not necessarily on a branch named main. The commits of the branches merged into it are not on the line, though Mainline Lead Time counts them.</dd>
       <dd>From: The default branch of each repository.</dd>
       <dt id="mainline-throughput-indicator">Mainline Throughput Indicator</dt>
-      <dd>Mainline Interval and Mainline Lead Time together: how often changes reach the main branch and how long a change takes to get there. The indicator and its two metrics are named by Steve Smith in his book Measuring Continuous Delivery. Its variation is shown as the p90 when tbd_figures is all, not as the book&#39;s standard deviation, and the default view shows the median alone.</dd>
+      <dd>Mainline Interval and Mainline Lead Time together: how often changes reach the main branch and how long a change takes to get there. The indicator and its two metrics are named by Steve Smith in his book Measuring Continuous Delivery. Its variation is shown as the book&#39;s standard deviation, beside the p90, when tbd_figures is all, and the default view shows the median alone.</dd>
       <dd>From: <a href="https://leanpub.com/measuringcontinuousdelivery">Steve Smith&#39;s book Measuring Continuous Delivery.</a></dd>
       <dt id="mean">Mean</dt>
       <dd>The average of the values, shown when tbd_figures is all.</dd>
@@ -78,6 +78,9 @@
       <dt id="stand-in">Stand-in</dt>
       <dd>A time used in place of an unknown one: the created time of a pull request stands in for its first commit time when no commit date can be read.</dd>
       <dd>From: Pull requests of data/pulls.csv.</dd>
+      <dt id="standard-deviation">Standard deviation</dt>
+      <dd>How far the values lie from their mean: the sample standard deviation, the root of the sum of the squared differences from the mean divided by one less than the number of values. Shown from two values when tbd_figures is all.</dd>
+      <dd>From: Settings: tbd_figures.</dd>
       <dt id="stream">Stream</dt>
       <dd>The deployments that follow each other in time order, grouped by repository (compared ignoring case), kind (environment, workflow or release), name (the environment or the workflow file) and task. A release has no name or task, so all releases of one repository are one stream. A failure is recovered by the next success of its own stream.</dd>
       <dd>From: Deployments of data/deployments.csv.</dd>

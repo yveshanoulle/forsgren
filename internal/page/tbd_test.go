@@ -28,22 +28,23 @@ func tbdData() Data {
 // forsgren#479).
 func tbdLeads() []metrics.PRLeadTime {
 	return []metrics.PRLeadTime{
-		{Project: "Acme Shop", PullRequests: 5, Mean: 3 * time.Hour, Median: 2 * time.Hour},
+		{Project: "Acme Shop", PullRequests: 5, Mean: 3 * time.Hour, Median: 2 * time.Hour, Deviation: 90 * time.Minute},
 		{Project: "Acme Tools", PullRequests: 1, Mean: 30 * time.Hour, Cut: 1},
 		{Project: "Acme Docs"},
 		{Project: "Acme Web", PullRequests: 12, Mean: 20 * time.Hour, Median: 10 * time.Hour, P90: 30 * time.Hour,
-			CreatedStandsIn: 1},
+			Deviation: 8 * time.Hour, CreatedStandsIn: 1},
 	}
 }
 
 // tbdDataWith is tbdData with the PR Lead Times leads.
 func tbdDataWith(leads []metrics.PRLeadTime) Data {
 	intervals := []metrics.MainlineInterval{
-		{Project: "Acme Shop", Commits: 4, Gaps: 3, Mean: 2 * time.Hour, Median: 2 * time.Hour, ByAuthorDate: 2},
+		{Project: "Acme Shop", Commits: 4, Gaps: 3, Mean: 2 * time.Hour, Median: 2 * time.Hour, Deviation: time.Hour,
+			ByAuthorDate: 2},
 		{Project: "Acme Tools", Commits: 2, Gaps: 1, Mean: 2 * time.Hour},
 		{Project: "Acme Docs", NotReadable: true},
 		{Project: "Acme Web", Commits: 13, Gaps: 12, Mean: 24 * time.Minute, Median: 5 * time.Minute, P90: time.Hour,
-			ByAuthorDate: 7},
+			Deviation: 45 * time.Minute, ByAuthorDate: 7},
 	}
 	developers := []metrics.Developers{
 		{Project: "Acme Shop", Count: 3, Commits: 4},
@@ -72,11 +73,13 @@ func tbdDataWith(leads []metrics.PRLeadTime) Data {
 // and Acme Web's 10 with every figure.
 func tbdBotLeads() []metrics.PRLeadTime {
 	return []metrics.PRLeadTime{
-		{Project: "Acme Shop", PullRequests: 3, Mean: 40 * time.Minute, Median: 30 * time.Minute},
-		{Project: "Acme Tools", PullRequests: 2, Mean: 3 * time.Hour, Median: 3 * time.Hour, Cut: 1,
-			CreatedStandsIn: 1},
+		{Project: "Acme Shop", PullRequests: 3, Mean: 40 * time.Minute, Median: 30 * time.Minute,
+			Deviation: 25 * time.Minute},
+		{Project: "Acme Tools", PullRequests: 2, Mean: 3 * time.Hour, Median: 3 * time.Hour, Deviation: 2 * time.Hour,
+			Cut: 1, CreatedStandsIn: 1},
 		{Project: "Acme Docs", PullRequests: 1, Mean: 15 * time.Minute},
-		{Project: "Acme Web", PullRequests: 10, Mean: 2 * time.Hour, Median: time.Hour, P90: 6 * time.Hour},
+		{Project: "Acme Web", PullRequests: 10, Mean: 2 * time.Hour, Median: time.Hour, P90: 6 * time.Hour,
+			Deviation: 3 * time.Hour},
 	}
 }
 
@@ -88,9 +91,11 @@ func tbdBotLeads() []metrics.PRLeadTime {
 func tbdMainLeads() []metrics.MainlineLeadTime {
 	return []metrics.MainlineLeadTime{
 		{Project: "Acme Shop", Commits: 12, UnknownPushes: 2, Filling: true,
-			Lead: metrics.DurationSpread{Count: 12, Mean: 4 * time.Hour, Median: 3 * time.Hour, P90: 9 * time.Hour}},
+			Lead: metrics.DurationSpread{Count: 12, Mean: 4 * time.Hour, Median: 3 * time.Hour, P90: 9 * time.Hour,
+				Deviation: 5 * time.Hour}},
 		{Project: "Acme Tools", Commits: 2,
-			Lead: metrics.DurationSpread{Count: 2, Mean: 90 * time.Minute, Median: 80 * time.Minute}},
+			Lead: metrics.DurationSpread{Count: 2, Mean: 90 * time.Minute, Median: 80 * time.Minute,
+				Deviation: 7 * time.Minute}},
 		{Project: "Acme Docs", NotReadable: true, UnknownPushes: 1},
 		{Project: "Acme Web", Uncollected: true},
 	}
@@ -122,8 +127,9 @@ func (c tbdColumns) rows() []metrics.TbdRow {
 func tbdPushes() []metrics.PushMeasures {
 	return []metrics.PushMeasures{
 		{Project: "Acme Shop", Pushes: 20, Commits: 40, PullRequests: 10, Direct: 30, UnknownAuthors: 4, Bots: 2,
-			TimeToMain: metrics.DurationSpread{Count: 40, Mean: time.Hour, Median: 30 * time.Minute, P90: 3 * time.Hour},
-			PerPush:    metrics.CountSpread{Count: 20, Mean: 2, Median: 1.5, P90: 6}},
+			TimeToMain: metrics.DurationSpread{Count: 40, Mean: time.Hour, Median: 30 * time.Minute, P90: 3 * time.Hour,
+				Deviation: 2 * time.Hour},
+			PerPush: metrics.CountSpread{Count: 20, Mean: 2, Median: 1.5, P90: 6, Deviation: 2.5}},
 		{Project: "Acme Tools", Pushes: 1, Commits: 1, Direct: 1,
 			TimeToMain: metrics.DurationSpread{Count: 1, Mean: 2 * time.Hour},
 			PerPush:    metrics.CountSpread{Count: 1, Mean: 1}},
@@ -138,16 +144,19 @@ func tbdPushes() []metrics.PushMeasures {
 func tbdDeploys() []metrics.DeployMeasures {
 	return []metrics.DeployMeasures{
 		{Project: "Acme Shop", Commits: 50, Deployments: 10,
-			TimeToDeploy:  metrics.DurationSpread{Count: 50, Mean: 2 * time.Hour, Median: time.Hour, P90: 5 * time.Hour},
-			PerDeployment: metrics.CountSpread{Count: 10, Mean: 5, Median: 4.5, P90: 12}},
+			TimeToDeploy: metrics.DurationSpread{Count: 50, Mean: 2 * time.Hour, Median: time.Hour, P90: 5 * time.Hour,
+				Deviation: 3 * time.Hour},
+			PerDeployment: metrics.CountSpread{Count: 10, Mean: 5, Median: 4.5, P90: 12, Deviation: 3.2}},
 		{Project: "Acme Tools", Commits: 3, Deployments: 1,
-			TimeToDeploy:  metrics.DurationSpread{Count: 3, Mean: time.Hour, Median: time.Hour},
+			TimeToDeploy:  metrics.DurationSpread{Count: 3, Mean: time.Hour, Median: time.Hour, Deviation: 20 * time.Minute},
 			PerDeployment: metrics.CountSpread{Count: 1, Mean: 3}},
 		{Project: "Acme Docs", Commits: 2, Deployments: 2,
-			TimeToDeploy:  metrics.DurationSpread{Count: 2, Mean: 30 * time.Minute, Median: 30 * time.Minute},
+			TimeToDeploy: metrics.DurationSpread{Count: 2, Mean: 30 * time.Minute, Median: 30 * time.Minute,
+				Deviation: 2 * time.Minute},
 			PerDeployment: metrics.CountSpread{Count: 2, Mean: 1, Median: 1}},
 		{Project: "Acme Web", Commits: 1, Deployments: 1,
-			TimeToDeploy:  metrics.DurationSpread{Count: 2, Mean: 10 * time.Minute, Median: 10 * time.Minute},
+			TimeToDeploy: metrics.DurationSpread{Count: 2, Mean: 10 * time.Minute, Median: 10 * time.Minute,
+				Deviation: 4 * time.Minute},
 			PerDeployment: metrics.CountSpread{Count: 1, Mean: 2}},
 	}
 }
@@ -164,30 +173,30 @@ func tbdDeploys() []metrics.DeployMeasures {
 // volume (commits, pushes, deployments, deployed commits), commits per push, commits per
 // deployment and the shares (direct, PR, unknown, bots).
 var tbdTimeCells = map[string][2]string{
-	"Acme Shop":  {"30 m", "1 h | 30 m | 3 h"},
-	"Acme Tools": {"-", "2 h | - | -"},
-	"Acme Docs":  {"@1Push activity not readable", "@3Push activity not readable"},
-	"Acme Web":   {"@1Pushes not collected yet", "@3Pushes not collected yet"},
+	"Acme Shop":  {"30 m", "1 h | 30 m | 3 h | 2 h"},
+	"Acme Tools": {"-", "2 h | - | - | -"},
+	"Acme Docs":  {"@1Push activity not readable", "@4Push activity not readable"},
+	"Acme Web":   {"@1Pushes not collected yet", "@4Pushes not collected yet"},
 }
 
 // tbdDeployCells are the Time to deploy per commit cells, the group after the
 // pull requests (forsgren#485).
 var tbdDeployCells = map[string][2]string{
-	"Acme Shop":  {"1 h", "2 h | 1 h | 5 h"},
-	"Acme Tools": {"1 h", "1 h | 1 h | -"},
-	"Acme Docs":  {"30 m", "30 m | 30 m | -"},
-	"Acme Web":   {"10 m", "10 m | 10 m | -"},
+	"Acme Shop":  {"1 h", "2 h | 1 h | 5 h | 3 h"},
+	"Acme Tools": {"1 h", "1 h | 1 h | - | 20 m"},
+	"Acme Docs":  {"30 m", "30 m | 30 m | - | 2 m"},
+	"Acme Web":   {"10 m", "10 m | 10 m | - | 4 m"},
 }
 
 var tbdCountCells = map[string][2]string{
 	"Acme Shop": {"40 | 20 | 85 | 50 | 1.5 | 4.5 | 75% | 25% | 10% | 5.0%",
-		"40 | 20 | 85 | 50 | 2.0 | 1.5 | 6.0 | 5.0 | 4.5 | 12 | 75% | 25% | 10% | 5.0%"},
+		"40 | 20 | 85 | 50 | 2.0 | 1.5 | 6.0 | 2.5 | 5.0 | 4.5 | 12 | 3.2 | 75% | 25% | 10% | 5.0%"},
 	"Acme Tools": {"1 | 1 | 7 | 3 | - | - | 100% | 0% | 0% | 0%",
-		"1 | 1 | 7 | 3 | 1.0 | - | - | 3.0 | - | - | 100% | 0% | 0% | 0%"},
+		"1 | 1 | 7 | 3 | 1.0 | - | - | - | 3.0 | - | - | - | 100% | 0% | 0% | 0%"},
 	"Acme Docs": {"- | - | 2 | 2 | @1Push activity not readable | 1.0 | @4Push activity not readable",
-		"- | - | 2 | 2 | @3Push activity not readable | 1.0 | 1.0 | - | @4Push activity not readable"},
+		"- | - | 2 | 2 | @4Push activity not readable | 1.0 | 1.0 | - | 0.0 | @4Push activity not readable"},
 	"Acme Web": {"- | - | 1 | 1 | @1Pushes not collected yet | - | @4Pushes not collected yet",
-		"- | - | 1 | 1 | @3Pushes not collected yet | 2.0 | - | - | @4Pushes not collected yet"},
+		"- | - | 1 | 1 | @4Pushes not collected yet | 2.0 | - | - | - | @4Pushes not collected yet"},
 }
 
 // tbdIntervalCells are the Mainline Interval cells of tbdData's projects: Acme
@@ -197,28 +206,28 @@ var tbdCountCells = map[string][2]string{
 // its push read refused, the push state cell, as the Mainline Lead Time
 // (forsgren#588: the interval is read from the pushes).
 var tbdIntervalCells = map[string][2]string{
-	"Acme Shop":  {"{2}2 h", "{2}2 h | 2 h | -"},
-	"Acme Tools": {"-", "2 h | - | -"},
-	"Acme Docs":  {"@1Push activity not readable", "@3Push activity not readable"},
-	"Acme Web":   {"{1}5 m", "{1}24 m | 5 m | 1 h"},
+	"Acme Shop":  {"{2}2 h", "{2}2 h | 2 h | - | 1 h"},
+	"Acme Tools": {"-", "2 h | - | - | -"},
+	"Acme Docs":  {"@1Push activity not readable", "@4Push activity not readable"},
+	"Acme Web":   {"{1}5 m", "{1}24 m | 5 m | 1 h | 45 m"},
 }
 
 // tbdLeadCells are the PR Lead Time cells of tbdData's projects (forsgren#423,
 // Yves on #432): the median alone, or the mean, the median and the p90.
 var tbdLeadCells = map[string][2]string{
-	"Acme Shop":  {"2 h", "3 h | 2 h | -"},
-	"Acme Tools": {"{3}-", "{3}1 d 6 h | - | -"},
-	"Acme Docs":  {"-", "- | - | -"},
-	"Acme Web":   {"{4}10 h", "{4}20 h | 10 h | 1 d 6 h"},
+	"Acme Shop":  {"2 h", "3 h | 2 h | - | 1 h 30"},
+	"Acme Tools": {"{3}-", "{3}1 d 6 h | - | - | -"},
+	"Acme Docs":  {"-", "- | - | - | -"},
+	"Acme Web":   {"{4}10 h", "{4}20 h | 10 h | 1 d 6 h | 8 h"},
 }
 
 // tbdBotLeadCells are the Bot PR Lead Time cells of tbdData's projects
 // (forsgren#479), right after the PR Lead Time's, with the same notes.
 var tbdBotLeadCells = map[string][2]string{
-	"Acme Shop":  {"30 m", "40 m | 30 m | -"},
-	"Acme Tools": {"{3,4}3 h", "{3,4}3 h | 3 h | -"},
-	"Acme Docs":  {"-", "15 m | - | -"},
-	"Acme Web":   {"1 h", "2 h | 1 h | 6 h"},
+	"Acme Shop":  {"30 m", "40 m | 30 m | - | 25 m"},
+	"Acme Tools": {"{3,4}3 h", "{3,4}3 h | 3 h | - | 2 h"},
+	"Acme Docs":  {"-", "15 m | - | - | -"},
+	"Acme Web":   {"1 h", "2 h | 1 h | 6 h | 3 h"},
 }
 
 // leadPair is the PR Lead Time cells of project and the Bot PR Lead Time cells
@@ -232,10 +241,10 @@ func leadPair(all bool, project string) string {
 // cell, or on the mean cell with all; a state cell for a push read refused or
 // no push collected.
 var tbdMainLeadCells = map[string][2]string{
-	"Acme Shop":  {"{6,7}3 h", "{6,7}4 h | 3 h | 9 h"},
-	"Acme Tools": {"1 h 20", "1 h 30 | 1 h 20 | -"},
-	"Acme Docs":  {"@1Push activity not readable", "@3Push activity not readable"},
-	"Acme Web":   {"@1Pushes not collected yet", "@3Pushes not collected yet"},
+	"Acme Shop":  {"{6,7}3 h", "{6,7}4 h | 3 h | 9 h | 5 h"},
+	"Acme Tools": {"1 h 20", "1 h 30 | 1 h 20 | - | 7 m"},
+	"Acme Docs":  {"@1Push activity not readable", "@4Push activity not readable"},
+	"Acme Web":   {"@1Pushes not collected yet", "@4Pushes not collected yet"},
 }
 
 // leadState is the pull requests state cell for the figures, of the PR Lead
@@ -243,7 +252,7 @@ var tbdMainLeadCells = map[string][2]string{
 // the group of all of them.
 func leadState(all bool, text string) string {
 	if all {
-		return "@3" + text + " | @3" + text
+		return "@4" + text + " | @4" + text
 	}
 	return "@1" + text + " | @1" + text
 }
@@ -382,15 +391,15 @@ var tbdGroups = []struct {
 	columns []string
 	hidden  string // the measure, said after each column's word in its accessible name
 }{
-	{"Mainline Interval", []string{"mean", "median", "p90"}, "mainline interval"},
-	{"Mainline Lead Time", []string{"mean", "median", "p90"}, "mainline lead time"},
-	{"Time to main per commit", []string{"mean", "median", "p90"}, "time to main"},
-	{"PR Lead Time", []string{"mean", "median", "p90"}, "PR lead time"},
-	{"Bot PR Lead Time", []string{"mean", "median", "p90"}, "bot PR lead time"},
-	{"Time to deploy per commit", []string{"mean", "median", "p90"}, "time to deploy"},
+	{"Mainline Interval", []string{"mean", "median", "p90", "SD"}, "mainline interval"},
+	{"Mainline Lead Time", []string{"mean", "median", "p90", "SD"}, "mainline lead time"},
+	{"Time to main per commit", []string{"mean", "median", "p90", "SD"}, "time to main"},
+	{"PR Lead Time", []string{"mean", "median", "p90", "SD"}, "PR lead time"},
+	{"Bot PR Lead Time", []string{"mean", "median", "p90", "SD"}, "bot PR lead time"},
+	{"Time to deploy per commit", []string{"mean", "median", "p90", "SD"}, "time to deploy"},
 	{"Volume", []string{"Commits", "Pushes", "Deployments", "Deployed commits"}, ""},
-	{"Commits per push", []string{"mean", "median", "p90"}, "commits per push"},
-	{"Commits per deployment", []string{"mean", "median", "p90"}, "commits per deployment"},
+	{"Commits per push", []string{"mean", "median", "p90", "SD"}, "commits per push"},
+	{"Commits per deployment", []string{"mean", "median", "p90", "SD"}, "commits per deployment"},
 	{"Shares of commits", []string{"Direct", "PR", "Unknown", "Bots"}, ""},
 	{"Developers", []string{"developers"}, ""},
 }
@@ -400,6 +409,20 @@ var tbdGroups = []struct {
 var shortHeaders = map[string]string{
 	"PR":      "pull request share of commits",
 	"Unknown": "unknown author share of commits",
+}
+
+// spokenWords are the figure headers written short whose accessible name says
+// the word in full (forsgren#588, step 2): SD is the standard deviation.
+type spokenWords map[string]string
+
+var spokenHeaders = spokenWords{"SD": "standard deviation"}
+
+// of is the word a screen reader hears for the header c.
+func (w spokenWords) of(c string) string {
+	if full, ok := w[c]; ok {
+		return full
+	}
+	return c
 }
 
 // tbdHeaders are the two header rows' cells of the TBD table with all the
@@ -416,7 +439,7 @@ func tbdHeaders() (top, beneath string) {
 			if full, ok := shortHeaders[c]; ok {
 				label = ` aria-label="` + full + `"`
 			} else if g.hidden != "" {
-				label = ` aria-label="the ` + c + ` of ` + g.hidden + `"`
+				label = ` aria-label="the ` + spokenHeaders.of(c) + ` of ` + g.hidden + `"`
 			}
 			columns = append(columns, `<th scope="col"`+label+` class="num">`+c+`</th>`)
 		}
@@ -479,14 +502,17 @@ func TestTbdPageHasOneHeaderRowWithTheMedianOnly(t *testing.T) {
 		data.TbdFigures = figures
 		got := rendered(t, "tbd.html", data)
 		wantAll(t, name, got, medianHead())
-		wantNone(t, name, got, "colgroup", "rowspan", `>mean<`, `>p90<`, `>deviation<`, `>gaps<`, "Shares of commits")
+		wantNone(t, name, got, "colgroup", "rowspan", `>mean<`, `>p90<`, `>SD<`, "standard deviation", `>gaps<`,
+			"Shares of commits")
 	}
 }
 
 // TestTbdPageHasTwoLevelHeadersWithAllTheFigures (forsgren#397, step 5, Yves's
 // ruling on #401; forsgren#423): with tbd_figures all the groups are on top in
-// the order of the ruling, each scoped as a column group, mean, median and p90
-// beneath each measure, the Mainline Interval and the PR Lead Time included,
+// the order of the ruling, each scoped as a column group, mean, median, p90 and
+// SD (forsgren#588, step 2: the standard deviation in full for a screen
+// reader) beneath each measure, the Mainline Interval and the PR Lead Time
+// included,
 // which have no deviation and no gaps column any more; durations say so, batch
 // sizes are commits per push and per deployment; the old direct and batch size
 // columns and the unknown authors of Developers are gone.
@@ -558,7 +584,7 @@ func TestTbdPageSaysThePullRequestsAreNotCollectedYet(t *testing.T) {
 		wantNone(t, "collected, none in the window", noneInWindow, notYet)
 		dashes := noHumanPulls
 		if all {
-			dashes = "- | - | - | - | - | -"
+			dashes = "- | - | - | - | - | - | - | -"
 		}
 		wantAll(t, "collected, none in the window", noneInWindow, tbdRow(all, "Acme Docs", dashes, "1"))
 	}

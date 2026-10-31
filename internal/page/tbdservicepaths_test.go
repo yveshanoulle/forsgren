@@ -13,7 +13,7 @@ import (
 
 // perRepositoryDeployRow is the row of the service API of subRowsData with its
 // Time to deploy and Commits per deployment per repository too: one cell
-// across each, three columns with all the figures.
+// across each, four columns with all the figures.
 func perRepositoryDeployRow(all bool) string {
 	span := func(median, every int) string {
 		if all {
@@ -21,8 +21,8 @@ func perRepositoryDeployRow(all bool) string {
 		}
 		return "@" + strconv.Itoa(median) + perRepository
 	}
-	cells := []string{span(5, 15), span(1, 3), "@2" + perRepository, "5", "@1" + perRepository,
-		span(1, 3), span(1, 3), span(4, 4), "2"}
+	cells := []string{span(5, 20), span(1, 4), "@2" + perRepository, "5", "@1" + perRepository,
+		span(1, 4), span(1, 4), span(4, 4), "2"}
 	return labelCell("Acme Shop", "API") + "\n            " +
 		tds(strings.Join(cells, " | ")) + "\n"
 }

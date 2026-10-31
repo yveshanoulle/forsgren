@@ -93,3 +93,15 @@ func TestStarterShowsTbdFiguresCommentedOut(t *testing.T) {
 		t.Errorf("want a commented line `# tbd_figures: median` in the starter, got:\n%s", Starter)
 	}
 }
+
+// TestStarterSaysAllShowsTheStandardDeviation (forsgren#588, step 2, decision
+// #599 A): the starter's tbd_figures comment names the four figures of all,
+// the standard deviation the fourth.
+func TestStarterSaysAllShowsTheStandardDeviation(t *testing.T) {
+	text := strings.Join(strings.Fields(strings.ReplaceAll(Starter, "\n#", "\n")), " ")
+	const want = "change median to all to show the mean, the median, the 90th percentile and the " +
+		"standard deviation of each measure instead"
+	if !strings.Contains(text, want) {
+		t.Errorf("want %q in the starter, got:\n%s", want, Starter)
+	}
+}

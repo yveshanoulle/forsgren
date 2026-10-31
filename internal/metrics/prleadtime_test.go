@@ -51,10 +51,10 @@ func TestPRLeadTimeMeanMedianAndCount(t *testing.T) {
 	}{
 		{"none", nil, PRLeadTime{}, [2]bool{false, false}},
 		{"one", shopPulls(5), PRLeadTime{PullRequests: 1, Mean: 5 * h}, [2]bool{true, false}},
-		{"1, 2 and 3 hours", shopPulls(3, 1, 2), PRLeadTime{PullRequests: 3, Mean: 2 * h, Median: 2 * h},
-			[2]bool{true, true}},
-		{"1 and 3 hours", shopPulls(1, 3), PRLeadTime{PullRequests: 2, Mean: 2 * h, Median: 2 * h},
-			[2]bool{true, true}},
+		{"1, 2 and 3 hours", shopPulls(3, 1, 2), PRLeadTime{PullRequests: 3, Mean: 2 * h, Median: 2 * h,
+			Deviation: h}, [2]bool{true, true}},
+		{"1 and 3 hours", shopPulls(1, 3), PRLeadTime{PullRequests: 2, Mean: 2 * h, Median: 2 * h,
+			Deviation: rootOf(2, h)}, [2]bool{true, true}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -78,7 +78,7 @@ func TestPRLeadTimeCountsCutValues(t *testing.T) {
 	pulls := shopPulls(1, 3)
 	pulls[1].FirstCommitCut = true
 	want := PRLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * time.Hour, Median: 2 * time.Hour,
-		Cut: 1}
+		Deviation: rootOf(2, time.Hour), Cut: 1}
 	if got := shopPRLead(pulls...); got != want {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
@@ -94,7 +94,7 @@ func TestPRLeadTimeStandInUsesTheCreatedTime(t *testing.T) {
 	standIn.FirstCommitAt, standIn.CreatedStandsIn = time.Time{}, true
 	pulls := append(shopPulls(1), standIn)
 	want := PRLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * time.Hour, Median: 2 * time.Hour,
-		CreatedStandsIn: 1}
+		Deviation: rootOf(2, time.Hour), CreatedStandsIn: 1}
 	if got := shopPRLead(pulls...); got != want {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
@@ -106,7 +106,8 @@ func TestPRLeadTimeStandInUsesTheCreatedTime(t *testing.T) {
 // integration and stays in the count.
 func TestPRLeadTimeCountsANegativeOneAsZero(t *testing.T) {
 	ahead := mergedPull("acme/app", 2, -5*time.Hour, time.Hour)
-	want := PRLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: time.Hour, Median: time.Hour}
+	want := PRLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: time.Hour, Median: time.Hour,
+		Deviation: rootOf(2, time.Hour)}
 	if got := shopPRLead(append(shopPulls(2), ahead)...); got != want {
 		t.Errorf("want %+v, got %+v", want, got)
 	}

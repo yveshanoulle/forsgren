@@ -20,8 +20,9 @@ func subRowsData() Data {
 	api := metrics.TbdRow{Level: metrics.LabelRow, Name: "API", Project: shop, Service: true,
 		IntervalAbsent: true, PushAbsent: true, DeployedCommits: 3,
 		Developers: metrics.Developers{Count: 2, Commits: 3},
-		Deploy: metrics.DeployMeasures{Commits: 3, TimeToDeploy: metrics.DurationSpread{Count: 3, Median: hour},
-			PerDeployment: metrics.CountSpread{Count: 2, Median: 2}},
+		Deploy: metrics.DeployMeasures{Commits: 3,
+			TimeToDeploy:  metrics.DurationSpread{Count: 3, Median: hour, Deviation: 25 * time.Minute},
+			PerDeployment: metrics.CountSpread{Count: 2, Median: 2, Deviation: 1.5}},
 		Volume: metrics.DeploymentVolume{Count: 5, Final: 5}}
 	ios := metrics.TbdRow{Level: metrics.LabelRow, Name: "IOS", Project: shop, Service: true,
 		IntervalAbsent: true, PushAbsent: true}
@@ -39,18 +40,19 @@ func websiteRow(total metrics.TbdRow) metrics.TbdRow {
 	site := total
 	site.Level, site.Name = metrics.LabelRow, "Website"
 	site.Interval = metrics.MainlineInterval{Project: "Website", Commits: 4, Gaps: 3, Mean: 3 * time.Hour,
-		Median: 2 * time.Hour, P90: 5 * time.Hour, ByAuthorDate: 2}
-	site.Lead.Median, site.Lead.Mean = 5*time.Hour, 6*time.Hour
-	site.BotLead.Median, site.BotLead.Mean = 35*time.Minute, 50*time.Minute
+		Median: 2 * time.Hour, P90: 5 * time.Hour, Deviation: 100 * time.Minute, ByAuthorDate: 2}
+	site.Lead.Median, site.Lead.Mean, site.Lead.Deviation = 5*time.Hour, 6*time.Hour, 4*time.Hour
+	site.BotLead.Median, site.BotLead.Mean, site.BotLead.Deviation = 35*time.Minute, 50*time.Minute, 20*time.Minute
 	site.Push = metrics.PushMeasures{Pushes: 7, Commits: 12, PullRequests: 3, Direct: 9, UnknownAuthors: 1,
 		TimeToMain: metrics.DurationSpread{Count: 12, Mean: 20 * time.Minute, Median: 10 * time.Minute,
-			P90: time.Hour},
-		PerPush: metrics.CountSpread{Count: 7, Mean: 1.7, Median: 1, P90: 3}}
+			P90: time.Hour, Deviation: 15 * time.Minute},
+		PerPush: metrics.CountSpread{Count: 7, Mean: 1.7, Median: 1, P90: 3, Deviation: 0.9}}
 	site.MainLead = metrics.MainlineLeadTime{Project: "Website", Commits: 7, UnknownPushes: 1,
-		Lead: metrics.DurationSpread{Count: 7, Mean: 90 * time.Minute, Median: time.Hour, P90: 0}}
+		Lead: metrics.DurationSpread{Count: 7, Mean: 90 * time.Minute, Median: time.Hour, P90: 0,
+			Deviation: 40 * time.Minute}}
 	site.Deploy.TimeToDeploy = metrics.DurationSpread{Count: 12, Mean: time.Hour, Median: 45 * time.Minute,
-		P90: 4 * time.Hour}
-	site.Deploy.PerDeployment = metrics.CountSpread{Count: 9, Mean: 1.3, Median: 1, P90: 3}
+		P90: 4 * time.Hour, Deviation: 70 * time.Minute}
+	site.Deploy.PerDeployment = metrics.CountSpread{Count: 9, Mean: 1.3, Median: 1, P90: 3, Deviation: 0.7}
 	site.Volume.Count, site.Developers = 9, metrics.Developers{Count: 2, Commits: 12}
 	return site
 }
@@ -73,10 +75,10 @@ const perRepository = "Per repository"
 // it, with the median only or with all the figures (decision #450, C): its own
 // deployment cells, and one cell across each run of the cells that are per
 // repository, which are, in the order of the columns, the Mainline Interval,
-// Mainline Lead Time, Time to main, PR Lead Time and Bot PR Lead Time (5 columns, 15
+// Mainline Lead Time, Time to main, PR Lead Time and Bot PR Lead Time (5 columns, 20
 // with all),
 // then after the service's own Time to deploy, Commits and Pushes (2), the
-// service's own Deployments and Deployed commits, Commits per push (1, 3), the
+// service's own Deployments and Deployed commits, Commits per push (1, 4), the
 // service's own Commits per deployment and the four shares (4) (forsgren#485,
 // #513, #518).
 func apiRow(all bool) string {
@@ -88,9 +90,9 @@ func apiRow(all bool) string {
 	}
 	own := []string{"1 h", "2.0"}
 	if all {
-		own = []string{"&lt; 1 m | 1 h | -", "0.0 | 2.0 | -"}
+		own = []string{"&lt; 1 m | 1 h | - | 25 m", "0.0 | 2.0 | - | 1.5"}
 	}
-	cells := []string{span(5, 15), own[0], "@2" + perRepository, "5", "3", span(1, 3), own[1], span(4, 4), "2"}
+	cells := []string{span(5, 20), own[0], "@2" + perRepository, "5", "3", span(1, 4), own[1], span(4, 4), "2"}
 	return labelCell("Acme Shop", "API") + "\n            " +
 		tds(strings.Join(cells, " | ")) + "\n"
 }

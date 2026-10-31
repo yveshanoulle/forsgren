@@ -59,15 +59,16 @@ func TestRenderReadsThePullCommitsBesideTheHistory(t *testing.T) {
 
 // TestRenderShowsTheMainlineLeadTimeOfASquashOnTheTbdPage: Acme Shop's cells
 // of the new group, right before Time to main, are the two commits' 2 h mean
-// and median, while Time to main keeps the squash commit's 25 min; the group
-// has its header.
+// and median and their standard deviation, the root of 2 h² (1 and 3 hours),
+// while Time to main keeps the squash commit's 25 min; the group has its
+// header.
 func TestRenderShowsTheMainlineLeadTimeOfASquashOnTheTbdPage(t *testing.T) {
 	pinNow(t)
 	data := writeData(t, acmeHistory(), acmeCommits())
 	writePushes(t, data)
 	writeSquash(t, data)
-	wantIn(t, tbdSiteOf(t, validConfig, data), `<th scope="colgroup" colspan="3">Mainline Lead Time</th>`,
-		tdRow("2 h", "2 h", "-")+"\n            "+tdRow("25 m", "-", "-"))
+	wantIn(t, tbdSiteOf(t, validConfig, data), `<th scope="colgroup" colspan="4">Mainline Lead Time</th>`,
+		tdRow("2 h", "2 h", "-", "1 h 24")+"\n            "+tdRow("25 m", "-", "-", "-"))
 }
 
 // TestRenderRefusesABadPullCommitsFile: a malformed or unknown-version pull

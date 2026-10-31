@@ -15,8 +15,9 @@ import (
 // deployment, shares of the commits and the Developers count (forsgren#273);
 // or one line that says why there is none. The key tbd_figures
 // (forsgren#423) chooses the figures of each measure: the median alone, one
-// column each and one header row (the default), or the mean, the median and the
-// 90th percentile under two-level headers.
+// column each and one header row (the default), or the mean, the median, the
+// 90th percentile and the standard deviation (forsgren#588, step 2) under
+// two-level headers.
 
 // tbdTitle is the TBD page's title, its h1 and the legend's heading for it,
 // as Yves wrote it (forsgren#271): the name alone since the page left beta
@@ -87,10 +88,11 @@ func (r TbdRow) PerRepository() bool { return r.IntervalAbsent && r.PushAbsent }
 func (r TbdRow) PerRepositorySentence() string { return perRepositorySentence }
 
 // The columns of the table after the project: the median alone, or the mean,
-// the median and the 90th percentile (the shares have four, the developers one).
+// the median, the 90th percentile and the standard deviation (forsgren#588,
+// step 2; the volume and the shares have four, the developers one).
 const (
 	tbdColumnsMedian = 17
-	tbdColumnsAll    = 33
+	tbdColumnsAll    = 41
 )
 
 // TbdColumnsAfterProject is how many columns the row of a project without data
@@ -124,9 +126,9 @@ func (r TbdRow) stateOf(m metrics.PRLeadTime) string {
 	return ""
 }
 
-// TbdAll says whether the TBD table shows the mean, the median and the 90th
-// percentile of each measure (tbd_figures: all) or the median alone, the
-// default (forsgren#423).
+// TbdAll says whether the TBD table shows the mean, the median, the 90th
+// percentile and the standard deviation of each measure (tbd_figures: all) or
+// the median alone, the default (forsgren#423, forsgren#588).
 func (d Data) TbdAll() bool { return d.TbdFigures == config.TbdFiguresAll }
 
 // TbdRows are the rows of the TBD table, in the order of Data.TbdMetrics: each

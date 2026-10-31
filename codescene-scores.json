@@ -611,7 +611,7 @@
   {
    "path": "internal/metrics/prleadtime.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-10-31",
    "minScore": 10.0
   },
   {
@@ -629,7 +629,7 @@
   {
    "path": "internal/metrics/mainline.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-31",
    "minScore": 10.0
   },
   {
@@ -1865,13 +1865,13 @@
   {
    "path": "internal/page/tbdgroups.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-10-31",
    "minScore": 10.0
   },
   {
    "path": "internal/page/tbd.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-10-31",
    "minScore": 10.0
   },
   {
@@ -2361,9 +2361,15 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/metrics/deviation.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-31",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/metrics/spread.go",
    "score": 10.0,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-31",
    "minScore": 10.0
   },
   {

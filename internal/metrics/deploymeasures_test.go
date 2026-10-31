@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -18,14 +19,16 @@ func shopDeployMeasures(data Data) DeployMeasures { return DeployMeasuresOf(proj
 // direct column): d1 and d2 20 min, m 0, and the legacy deployment's l1 and
 // l2 40 and 60 min at their author date, named; the branch commit p1 is off
 // the chain. So 0, 20, 20, 40, 60 min: mean 28 min, median 20 min, no p90
-// under ten. The first deployment brought 2 commits to the chain and the pull
-// request's 1; the legacy deployment, of unknown lineage, is left out and
-// counted apart: mean and median 1.5.
+// under ten, and the squares of the differences from 28 add up to 2080 min²,
+// over n-1 = 4 (forsgren#588, step 2). The first deployment brought 2 commits
+// to the chain and the pull request's 1; the legacy deployment, of unknown
+// lineage, is left out and counted apart: mean and median 1.5, deviation the
+// root of 0.5.
 func TestDeployMeasuresTimeEveryCommitOfTheFirstParentChainAndCountPerDeployment(t *testing.T) {
 	m := time.Minute
 	want := DeployMeasures{Project: "Acme Shop", Commits: 5, ByAuthorDate: 2,
-		TimeToDeploy: DurationSpread{Count: 5, Mean: 28 * m, Median: 20 * m},
-		Deployments:  2, Legacy: 1, PerDeployment: CountSpread{Count: 2, Mean: 1.5, Median: 1.5}}
+		TimeToDeploy: DurationSpread{Count: 5, Mean: 28 * m, Median: 20 * m, Deviation: rootOf(2080.0/4, m)},
+		Deployments:  2, Legacy: 1, PerDeployment: CountSpread{Count: 2, Mean: 1.5, Median: 1.5, Deviation: math.Sqrt(0.5)}}
 	if got := shopDeployMeasures(trunkData()); got != want {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
@@ -57,8 +60,8 @@ func TestDeployMeasuresCountTheDeploymentsOfTheWindowOnly(t *testing.T) {
 }
 
 // TestDeployMeasuresStartFromTenForAP90: ten deployments of one commit each,
-// 1 to 10 minutes old when deployed: p90 is the 9th, 9 min, median 5 min 30 s;
-// commits per deployment all 1.
+// 1 to 10 minutes old when deployed: p90 is the 9th, 9 min, median 5 min 30 s,
+// deviation the root of 82.5/9 min²; commits per deployment all 1, deviation 0.
 func TestDeployMeasuresStartFromTenForAP90(t *testing.T) {
 	var commits []history.Commit
 	for i := 1; i <= 10; i++ {
@@ -67,7 +70,7 @@ func TestDeployMeasuresStartFromTenForAP90(t *testing.T) {
 	}
 	want := DeployMeasures{Project: "Acme Shop", Commits: 10,
 		TimeToDeploy: DurationSpread{Count: 10, Mean: 5*time.Minute + 30*time.Second,
-			Median: 5*time.Minute + 30*time.Second, P90: 9 * time.Minute},
+			Median: 5*time.Minute + 30*time.Second, P90: 9 * time.Minute, Deviation: rootOf(82.5/9, time.Minute)},
 		Deployments: 10, PerDeployment: CountSpread{Count: 10, Mean: 1, Median: 1, P90: 1}}
 	if got := shopDeployMeasures(Data{Commits: commits}); got != want {
 		t.Errorf("want %+v, got %+v", want, got)

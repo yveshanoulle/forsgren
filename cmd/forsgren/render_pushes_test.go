@@ -177,21 +177,21 @@ func TestRenderRefusesABadPushFile(t *testing.T) {
 // TestRenderShowsThePushGroupsAndTheirStatesOnTheTbdPage (forsgren#397, step
 // 5): with the pushes beside --data, Acme Shop's row has its commits and
 // pushes, the shares, 25 m to main from one commit and, for lack of a
-// second value, dashes for the median and p90; Acme Tools, with no push, 0
+// second value, dashes for the median, the p90 and the standard deviation; Acme Tools, with no push, 0
 // commits and dashes for the shares; without pushes.csv every project says the
 // pushes are not collected yet; a refused repository says its push activity is
 // not readable, never deployment numbers in its place.
 func TestRenderShowsThePushGroupsAndTheirStatesOnTheTbdPage(t *testing.T) {
 	pinNow(t)
 	data := writeData(t, acmeHistory(), acmeCommits())
-	wantIn(t, tbdSiteOf(t, validConfig, data), pushesNotCollected(3), pushesNotCollected(4))
+	wantIn(t, tbdSiteOf(t, validConfig, data), pushesNotCollected(allSpan), pushesNotCollected(4))
 	writePushes(t, data)
 	got := tbdSiteOf(t, validConfig, data)
-	wantIn(t, got, tdRow("25 m", "-", "-")+"\n            "+
-		`<td colspan="3">No pull requests have been collected yet</td>`+"\n            "+
-		`<td colspan="3">No pull requests have been collected yet</td>`+"\n            "+shopTimes,
-		tdRow("1", "1", "12", "3", "1.0", "-", "-", "1.0", "-", "-", "100%", "0%", "0%", "0%", "0"),
-		tdRow("0", "0", "0", "0", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"))
+	wantIn(t, got, tdRow("25 m", "-", "-", "-")+"\n            "+
+		`<td colspan="4">No pull requests have been collected yet</td>`+"\n            "+
+		`<td colspan="4">No pull requests have been collected yet</td>`+"\n            "+shopTimes,
+		tdRow("1", "1", "12", "3", "1.0", "-", "-", "-", "1.0", "-", "-", "-", "100%", "0%", "0%", "0%", "0"),
+		tdRow("0", "0", "0", "0", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"))
 	if strings.Contains(got, "Pushes not collected yet") {
 		t.Errorf("want no state with the pushes collected, got:\n%s", got)
 	}
@@ -200,5 +200,5 @@ func TestRenderShowsThePushGroupsAndTheirStatesOnTheTbdPage(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantIn(t, tbdSiteOf(t, validConfig, data),
-		`<td colspan="3">Push activity not readable</td>`, `<td colspan="4">Push activity not readable</td>`)
+		`<td colspan="4">Push activity not readable</td>`)
 }

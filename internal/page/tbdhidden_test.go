@@ -30,7 +30,7 @@ var hidings = []hiding{
 // widthOf is how many columns a group has in the figures.
 func widthOf(all bool) int {
 	if all {
-		return 3
+		return 4
 	}
 	return 1
 }
@@ -81,7 +81,7 @@ func TestHiddenGroupsLeaveTheirHeadersOut(t *testing.T) {
 			wantAll(t, h.name, head, ">Mainline Lead Time<", ">Time to deploy per commit<")
 			want := 17 - 1
 			if all {
-				want = 33 - 3
+				want = 41 - 4
 			}
 			if data.TbdColumnsAfterProject() != want || len(cellsOf(t, got, "Acme Shop")) != want {
 				t.Errorf("%s, all %v: want %d columns after the project, got %d and %d cells", h.name, all, want,
@@ -94,7 +94,7 @@ func TestHiddenGroupsLeaveTheirHeadersOut(t *testing.T) {
 // TestAllThreeHiddenShrinkTheNoDataSentence: a project without data spans the
 // columns that are left.
 func TestAllThreeHiddenShrinkTheNoDataSentence(t *testing.T) {
-	for all, columns := range map[bool]int{false: 14, true: 24} {
+	for all, columns := range map[bool]int{false: 14, true: 29} {
 		data := withoutData(all)
 		data.HideTbdTimeToMain, data.HideTbdPRLeadTime, data.HideTbdBotPRLeadTime = true, true, true
 		wantAll(t, "no data", rendered(t, "tbd.html", data), noDataRow(columns, 30))

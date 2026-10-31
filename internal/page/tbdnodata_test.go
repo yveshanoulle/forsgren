@@ -28,13 +28,13 @@ func noDataRow(columns int, days int) string {
 
 // TestTbdRowWithoutDataIsOneSentenceAcrossTheColumns (forsgren#394, step 3,
 // decision #433): the whole row is one cell spanning the 17 columns after the
-// project with the median only, the 33 with all the figures, saying the
+// project with the median only, the 41 with all the figures, saying the
 // window's days from the config; the other rows are unchanged.
 func TestTbdRowWithoutDataIsOneSentenceAcrossTheColumns(t *testing.T) {
 	for name, c := range map[string]struct {
 		all     bool
 		columns int
-	}{"median": {false, 17}, "all": {true, 33}} {
+	}{"median": {false, 17}, "all": {true, 41}} {
 		data := withoutData(c.all)
 		got := rendered(t, "tbd.html", data)
 		wantAll(t, name, got, noDataRow(c.columns, 30),
@@ -51,8 +51,8 @@ func TestTbdColumnsAcrossMatchTheHeader(t *testing.T) {
 		t.Errorf("median header has %d columns after the project, want 17", got)
 	}
 	_, beneath := tbdHeaders()
-	if got := strings.Count(beneath, "<th "); got != 33 {
-		t.Errorf("all-figures header has %d columns after the project, want 33", got)
+	if got := strings.Count(beneath, "<th "); got != 41 {
+		t.Errorf("all-figures header has %d columns after the project, want 41", got)
 	}
 }
 

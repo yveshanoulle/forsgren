@@ -13,8 +13,13 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
+// allSpan is the columns of a spread group with tbd_figures: all: the mean,
+// the median, the p90 and the standard deviation (forsgren#588, step 2).
+const allSpan = 4
+
 // tbdSiteOf renders validConfig with tbd_page: true, tbd_figures: all (the
-// tests below read the mean, the median and the p90 of each measure; the
+// tests below read the mean, the median, the p90 and the standard deviation
+// of each measure; the
 // median only is in render_tbd_figures_test.go, forsgren#423) and the config
 // line extra, over the data at path (none when empty), and returns tbd.html.
 func tbdSiteOf(t *testing.T, extra, path string) string {
@@ -32,14 +37,14 @@ func tdRow(cells ...string) string {
 	return "<td class=\"num\">" + strings.Join(cells, "</td>\n            <td class=\"num\">") + "</td>"
 }
 
-// noPushCells is a project's three Mainline Interval cells without a pushes
+// noPushCells is a project's four Mainline Interval cells without a pushes
 // file: the push state across them, as the Mainline Lead Time's (forsgren#588:
 // the interval is read from the pushes, never from the deployed commits).
 var (
-	noPushCells = pushesNotCollected(3)
+	noPushCells = pushesNotCollected(allSpan)
 	// shopTimes and noTimes are their time to deploy cells (forsgren#418).
-	shopTimes = tdRow("8 h 5", "17 m", "-")
-	noTimes   = tdRow("-", "-", "-")
+	shopTimes = tdRow("8 h 5", "17 m", "-", "13 h 46")
+	noTimes   = tdRow("-", "-", "-", "-")
 	shopRow   = projectCells{noPushCells, shopTimes}
 	noRow     = projectCells{noPushCells, noTimes}
 )
@@ -103,14 +108,16 @@ func acmePushes() []pushedAt {
 // 1 October 09:13 and 09:35, 2 October 09:00; the branch commit and the push
 // of 20 August are out, the commit pushed and not deployed counts), have gaps
 // of 141 h 13 min, 22 min and 23 h 25 min: a mean of 55 h, a median of
-// 23 h 25, no p90; Acme Tools has no push, so "-" with no state.
+// 23 h 25, no p90, and a sample standard deviation of the root of 20548119
+// min², 3 d 3 h (forsgren#588, step 2); Acme Tools has no push, so "-" with
+// no state.
 func TestRenderShowsTheMainlineIntervalOfEachProject(t *testing.T) {
 	pinNow(t)
 	data := writeData(t, acmeHistory(), acmeCommits())
 	writePushedAt(t, data, acmePushes()...)
 	got := tbdSiteOf(t, validConfig, data)
-	wantIn(t, got, "<th scope=\"row\">Acme Shop</th>\n            "+tdRow("2 d 7 h", "23 h 25", "-"),
-		"<th scope=\"row\">Acme Tools</th>\n            "+tdRow("-", "-", "-"))
+	wantIn(t, got, "<th scope=\"row\">Acme Shop</th>\n            "+tdRow("2 d 7 h", "23 h 25", "-", "3 d 3 h"),
+		"<th scope=\"row\">Acme Tools</th>\n            "+tdRow("-", "-", "-", "-"))
 	if strings.Contains(got, "no Mainline Interval to show") || strings.Contains(got, shaPrefix) {
 		t.Errorf("want the table and no SHA, got:\n%s", got)
 	}
@@ -127,7 +134,7 @@ func TestRenderMainlineIntervalShowsThePushState(t *testing.T) {
 		"<th scope=\"row\">Acme Tools</th>\n            "+noPushCells)
 	writeMark(t, data, "pushes_denied.csv", pushesDeniedH2+"acme/api,2026-10-02T10:00:00Z,GITHUB_TOKEN\n")
 	wantIn(t, tbdSiteOf(t, validConfig, data),
-		"<th scope=\"row\">Acme Shop</th>\n            <td colspan=\"3\">Push activity not readable</td>")
+		"<th scope=\"row\">Acme Shop</th>\n            <td colspan=\"4\">Push activity not readable</td>")
 }
 
 // utcAt is the UTC time s, 2006-01-02T15:04:05Z.
