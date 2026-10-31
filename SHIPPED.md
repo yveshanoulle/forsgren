@@ -9,6 +9,25 @@ Active work lives in
 
 ---
 
+## 2026-10-31 — The Week page's Deployments counts every deployment, successful and failed ([#601](https://github.com/yveshanoulle/forsgren/issues/601), 2 steps)
+
+forsgren issue 601. On the Week page, Total's Deployments counted the
+successful deployments only, while Failed counted the failed ones, so a
+repository whose deployment workflow often fails could show more failed
+deployments than deployments, for example Deployments 5, Failed 8 and
+Fail rate 61% (8 of 13), the 13 deployments hidden. Deployments now counts
+every deployment of the window, successful plus failed (those that
+finished in another way stay out, as in Fail rate), and a weekday's
+Deploys share is its share of those, so the seven shares still add up to
+100% and the blue highest weekday follows them. The Total row adds up the
+same way. Failed and Fail rate do not change, and in Total the Deployments
+column is now the denominator of Fail rate. Only the Week page changes:
+the deployment frequency on the other pages keeps counting the successful
+deployments. The legend's Week page section, the Dictionary and
+[Pages and views](docs/pages-and-views.md) follow. A patch release.
+
+---
+
 ## 2026-10-31 — The Mainline Interval counts the commits pushed to main, and every TBD measure has its standard deviation ([#588](https://github.com/yveshanoulle/forsgren/issues/588), 3 steps)
 
 forsgren issue 588, after the review in #586. The Mainline Interval, how

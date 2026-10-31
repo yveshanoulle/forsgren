@@ -6,7 +6,7 @@ import (
 )
 
 // legendFailedText are the sentences of the legend's paragraph on the Failed
-// and Fail rate columns (forsgren#545, decision #546, forsgren#547).
+// and Fail rate columns (forsgren#545, decision #546, forsgren#547, forsgren#601).
 var legendFailedText = []string{
 	"Failed and Fail rate count the failed deployments of the window: those with the state failure.",
 	"A deployment that finished in another way is not failed.",
@@ -14,7 +14,8 @@ var legendFailedText = []string{
 		"and Fail rate is the failed deployments of that weekday out of its successful plus failed deployments.",
 	"Deployments that finished in another way are left out of Fail rate, in the failed deployments and in the total, " +
 		"as in the change fail rate.",
-	"The successful deployments alone are counted in the Deployments column, so that column is not the denominator.",
+	"In Total, Deployments is the count of the successful plus failed deployments, " +
+		"so it is the denominator of Fail rate.",
 	"In Total, Failed is a count and Fail rate is the failed deployments " +
 		"out of the successful plus failed deployments of the window.",
 	"A dash means there is nothing to divide: a row with no failed deployments has a dash in its Failed cells, " +

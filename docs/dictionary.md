@@ -244,7 +244,7 @@ From: Deployments of data/deployments.csv and issues of data/failures.csv, over 
 
 ### Deployments
 
-The successful deployments. On the Week page, Deployments under Total is the row's count of the window, and Deploys under a weekday is the share of them created on that weekday. On the Data page, the date of the first deployment stored, whatever its state.
+The successful deployments. On the Week page the deployments are the successful and the failed ones; those that finished in another way are left out, as in Fail rate. There Deployments under Total is the row's count of the window, and Deploys under a weekday is the share of them created on that weekday. On the Data page, the date of the first deployment stored, whatever its state.
 
 From: Deployments of data/deployments.csv, over the window; on the Data page, every stored deployment.
 

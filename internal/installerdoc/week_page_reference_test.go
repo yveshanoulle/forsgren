@@ -11,15 +11,17 @@ import (
 // lists its meta description; the README names the page. Since forsgren#551
 // both say what the page shows by default: deployments, failed deployments and
 // fail rate per weekday, the commits only with week_commits: true (#548), and
-// since forsgren#555 its Total and weekday cells say the same.
+// since forsgren#555 its Total and weekday cells say the same; since
+// forsgren#601 they count the successful plus failed deployments.
 func TestPagesReferenceHasAWeekPageSection(t *testing.T) {
 	pages := readRepoFileAsOneLine(t, "docs/pages-and-views.md")
 	wantAll(t, "docs/pages-and-views.md", pages, "### The Week page",
 		"The Week page (`week.html`, forsgren#531, from 1.29.0)",
 		"every weekday of the `dora_days` window, not one calendar week",
 		"A commit counts at its author date and a deployment at its time, both in UTC",
-		"Total holds Deployments, the row's successful deployments of the window as a count",
-		"**A weekday** has a Deploys cell, the share of the row's deployments on that weekday",
+		"Total holds Deployments, the row's successful plus failed deployments of the window as a count (forsgren#601",
+		"**A weekday** has a Deploys cell, the share of the row's deployments, "+
+			"the same successful plus failed ones, on that weekday",
 		"With `week_commits: true` Total and every weekday also have a Commits cell first: "+
 			"in Total the count of the row's commits, under a weekday the share of them on that weekday.",
 		"decision #541",

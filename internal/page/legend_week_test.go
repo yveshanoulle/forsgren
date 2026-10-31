@@ -7,7 +7,7 @@ import (
 
 // legendWeekText are the sentences of the legend's Week page section
 // (forsgren#531, step 4, decisions #532 A, #534 A, #539 A; forsgren#540, decision #541;
-// forsgren#552, decision #553, step 2; forsgren#555; forsgren#597).
+// forsgren#552, decision #553, step 2; forsgren#555; forsgren#597; forsgren#601).
 var legendWeekText = []string{
 	"the deployments, the failed deployments and the fail rate of the last 30 days, per weekday from Monday to Sunday",
 	"It counts the period the footer names as Report Start and Report End, " +
@@ -15,7 +15,7 @@ var legendWeekText = []string{
 	"Days are in UTC.",
 	"Total has the columns Deployments, Failed and Fail rate, " +
 		"and under each weekday the columns are Deploys, Failed and Fail rate.",
-	"In Total, Deployments is the count of the row's deployments of the window.",
+	"In Total, Deployments is the count of the row's successful plus failed deployments of the window.",
 	"Under each weekday, Deploys is the share of the row's deployments that fall on that weekday, " +
 		"written as the shares on the TBD page are, " +
 		"and the seven shares of a column add up to 100% before rounding.",
@@ -25,7 +25,8 @@ var legendWeekText = []string{
 		"a screen reader hears the full word.",
 	"A commit is counted at its author date and a deployment at its time.",
 	"the first-parent commits that the pushes to the main branch brought in the window",
-	"The deployments are the successful ones of the window.",
+	"The deployments are the successful and the failed ones of the window; " +
+		"those that finished in another way are left out, as in Fail rate.",
 	"A weekday without any reads 0%, and a 0 is zero.",
 	"A row with no commits, or no deployments, reads 0 in Total and a dash in its weekday cells, " +
 		"as there is nothing to divide.",

@@ -1437,10 +1437,13 @@ the shares, and that the window is the last `dora_days` days, the period the
 footer names as Report Start and Report End, are in the legend's Week page
 section.
 
-- Total holds Deployments, the row's successful deployments of the window as a count,
+- Total holds Deployments, the row's successful plus failed deployments of
+  the window as a count (forsgren#601; state `other` is left out, as in Fail
+  rate; every other page counts the successful deployments only),
   written as every count (a thousands space from 1000); `0` for a row with
   none (forsgren#540, decision #541), then Failed and Fail rate (below).
-  **A weekday** has a Deploys cell, the share of the row's deployments on that weekday,
+  **A weekday** has a Deploys cell, the share of the row's deployments, the
+  same successful plus failed ones, on that weekday,
   written like the shares on the TBD page (`13%`, `9.3%`,
   `0.22%`, `0%` for a weekday without any); the seven shares of a column add up to 100%, rounding aside.
   The weekday groups head that column Deploys, which saves width (forsgren#552);
@@ -1464,8 +1467,9 @@ section.
   (`-` for a row with no failed deployment), and Fail rate is the failed
   deployments of that weekday out of its successful plus failed ones
   (`0%` where it deployed and nothing failed, `-` for a weekday without
-  any, also one with only `other`; the change fail rate counts the same). The Deployments column keeps counting
-  the successful deployments only, so it is not the denominator. In each
+  any, also one with only `other`; the change fail rate counts the same). The Deployments column counts the
+  same successful plus failed deployments (forsgren#601), so in Total it is
+  the denominator of Fail rate. In each
   row the weekday with the highest Failed and the one with the highest Fail
   rate are red (class `highest`, one `light-dark()` rule in `styles.css`,
   `light-dark(#b3261e, #ffb4ab)`: the light colour of `.trend-up` and a
