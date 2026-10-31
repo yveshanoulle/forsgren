@@ -1459,7 +1459,13 @@ section.
   held at 4.5:1 or more in both modes by `trendcolours_test.go`), every tied
   weekday, none for a row without failed deployments; the cell also holds the
   visually hidden word "highest" for a screen reader, so colour is never the
-  only signal. The legend's Week page section says all of this in one
+  only signal. The weekday with the highest Deploys share of each row is
+  blue (class `highest-deploys`, the blue of `.trend-flat-bugs`,
+  `light-dark(#0b57d0, #8ab4f8)`, forsgren#597), every tied weekday, none for
+  a row without deployments, with the same hidden word "highest"; the blue is
+  held at 4.5:1 or more in both modes on the page by `trendcolours_test.go`
+  and on the shaded Total row by `weektotalshade_test.go`. The Commits shares
+  are never marked. The legend's Week page section says all of this in one
   paragraph.
 - **The Total row** (forsgren#552, decision #553, built as a header line on
   Yves's reply), the first row of the table body, right under the column
@@ -1473,10 +1479,10 @@ section.
   the shares of the sums under each weekday, and Fail rate the failed
   deployments of the sums out of their successful plus failed ones, not a
   mean of the projects' rates; its highest Failed and Fail rate weekdays are
-  red as in every row. The row is shaded (Yves's ruling on #552): its
+  red and its highest Deploys share weekday blue, as in every row. The row is shaded (Yves's ruling on #552): its
   background is a little of the text colour, `color-mix(in srgb, currentcolor
   8%, transparent)` on `tr.week-total` in `styles.css`, so it follows the light and
-  the dark scheme with no colour of its own, and its text and red marks keep
+  the dark scheme with no colour of its own, and its text and its red and blue marks keep
   4.5:1 or more (`weektotalshade_test.go`). The Total row appears only with two project rows or
   more (label, service and rule rows not counted; Yves's ruling on #552): with
   one project it would only repeat that project's row, so the table has no

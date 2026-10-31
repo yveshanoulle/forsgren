@@ -7,7 +7,7 @@ import (
 
 // legendWeekText are the sentences of the legend's Week page section
 // (forsgren#531, step 4, decisions #532 A, #534 A, #539 A; forsgren#540, decision #541;
-// forsgren#552, decision #553, step 2; forsgren#555).
+// forsgren#552, decision #553, step 2; forsgren#555; forsgren#597).
 var legendWeekText = []string{
 	"the deployments, the failed deployments and the fail rate of the last 30 days, per weekday from Monday to Sunday",
 	"It counts the period the footer names as Report Start and Report End, " +
@@ -43,7 +43,9 @@ var legendWeekText = []string{
 		"per weekday and in Total, its shares are the shares of those sums, " +
 		"and its Fail rate is the failed deployments out of the successful plus failed deployments of all projects.",
 	"A label, service or rule row is not added again, as the row of its project already counts it.",
-	"Its highest weekdays are shown in red as in every row.",
+	"Its highest weekdays are shown in red and blue as in every row.",
+	"In each row the weekday with the highest share of deployments is shown in blue, every tied weekday, " +
+		"and none when the row has no deployments; a screen reader hears the word highest in this cell too.",
 	"The Total row is shaded, so it stands apart from the project rows.",
 	"With one project there is no Total row, as it would only repeat the project's row.",
 	"Set week_page: false to take it out of the menu",

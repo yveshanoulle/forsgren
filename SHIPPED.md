@@ -9,6 +9,21 @@ Active work lives in
 
 ---
 
+## 2026-10-31 — The Week page shows the weekday with the highest share of deployments in blue ([#597](https://github.com/yveshanoulle/forsgren/issues/597), 2 steps)
+
+forsgren issue 597. On the Week page the highest Failed and Fail rate of
+each row were red, but nothing showed on which weekday a row deploys most.
+Now, in every row (the Total row, each project and each label, service or
+rule row), the weekday Deploys share that is the highest is blue, the blue
+already used on the site, every tied weekday, and none for a row without
+deployments. The cell also holds the visually hidden word "highest", so
+colour is never the only signal. The blue keeps a contrast of 4.5:1 or more
+in the light and the dark scheme, also on the shaded Total row. The Commits
+shares are never marked. The legend's Week page section and
+[Pages and views](docs/pages-and-views.md) follow. A patch release.
+
+---
+
 ## 2026-10-31 — The footer marks the page it is on as the menu does ([#596](https://github.com/yveshanoulle/forsgren/issues/596), 2 steps)
 
 forsgren issue 596. The menu at the top shows the page you are on as plain
