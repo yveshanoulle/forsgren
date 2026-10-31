@@ -105,14 +105,14 @@ func TestAllThreeHiddenShrinkTheNoDataSentence(t *testing.T) {
 }
 
 // TestHiddenGroupsLeaveTheirStateCellsOut: a push state is written under Mainline
-// Lead Time, Time to main, Commits per push and the shares, so hiding Time to main leaves three; the
-// pull request states are written under PR Lead Time and Bot PR Lead Time.
+// Interval (forsgren#588), Mainline Lead Time, Time to main, Commits per push and the shares, so hiding
+// Time to main leaves four; the pull request states are written under PR Lead Time and Bot PR Lead Time.
 func TestHiddenGroupsLeaveTheirStateCellsOut(t *testing.T) {
 	const pushes, pulls = "Push activity not readable", "Pull requests not readable"
 	for _, all := range []bool{false, true} {
 		data := inFigures(tbdData(), all)
 		data.HideTbdTimeToMain = true
-		wantCount(t, rendered(t, "tbd.html", data), pushes, 3)
+		wantCount(t, rendered(t, "tbd.html", data), pushes, 4)
 		data = inFigures(notReadable(), all)
 		wantCount(t, rendered(t, "tbd.html", data), pulls, 4)
 		data.HideTbdPRLeadTime = true

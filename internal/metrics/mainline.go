@@ -1,62 +1,45 @@
 package metrics
 
 // The Mainline Interval (forsgren#253, step 3 of 7) is the first number of
-// the TBD page: how often a project gets a change onto what it deploys, as
-// the mean and the spread of the time between those changes. It reads the
-// commits `forsgren collect` stores in data/commits.csv, which are the
-// commits a deployment shipped, so it is an interval between deployed
-// commits, not between every commit of the mainline. Since forsgren#254 it
-// counts only the commits of each deployment's first-parent chain, placed at
-// their committer dates, and keeps the old approximation, every commit at its
-// author date, for the deployments whose lineage is not known (lineage.go).
+// the TBD page: how often a project gets a change onto its mainline, as the
+// mean and the spread of the time between those changes. Since forsgren#588
+// (Yves's ruling, replacing the interval over the deployed commits of
+// forsgren#253 and #254) it reads the pushes to main, data/pushes.csv and
+// data/push_commits.csv, so a commit pushed and not yet deployed counts, and
+// a project without a deployment has its interval:
 //
-//   - a commit counts when its deployment was created in the DORA window
-//     (dora_days, both ends included), the rule of lead time for changes
-//     (LeadTimes) and of deployment frequency (InWindow); its author date,
-//     which can be far older, does not decide it;
-//   - a commit belongs to the project whose config lists its repository,
-//     compared ignoring case; a project's repositories are one sequence;
-//   - commits are distinct by repository (ignoring case) and SHA: a commit
-//     shipped by two deployments, two tasks of one repository, counts once,
-//     unlike lead time, which counts each line; the same SHA in two
-//     repositories is two commits;
-//   - a commit counts when it is on its deployment's first-parent chain, or
-//     when that deployment's lineage is not known (lineage.go), and the
-//     commits are distinct only among those that count;
-//   - the commits are put in the order of the times they are placed at (the
-//     committer date, or the author date: lineage.go), whatever the order they
-//     are stored in, and a gap is the time between two consecutive ones; two
-//     commits placed at the same time have a gap of 0;
-//   - the mean cell names the commits placed at their author date
-//     (ByAuthorDate), and in the table that shows the median alone the median
-//     cell does (forsgren#423);
+//   - the commits are the set the push measures count (PushMeasures.Commits,
+//     commitsOfPushes): the distinct first-parent commits of the pushes
+//     pushed in the DORA window (dora_days, both ends included), by
+//     repository (ignoring case) and SHA, in the project whose config lists
+//     the repository; a project's repositories are one sequence, and the same
+//     SHA in two repositories is two commits; their author date, which can be
+//     far older, does not decide it;
+//   - a commit is placed at its author date, the only commit time the push
+//     data holds: the push time would give the commits of one push gaps of 0;
+//   - the commits are put in the order of their author dates, whatever the
+//     order they are stored in, and a gap is the time between two consecutive
+//     ones; two commits at the same time have a gap of 0;
 //   - the mean is the mean of the gaps; the deviation and the count of gaps
 //     are not on the page any more (forsgren#423, decision #424);
 //   - fewer than two commits have no gap, so no interval, "-"; two commits
 //     have one gap, a mean but no median (shown as "-").
-//
-// The result is per project; the label rows of the table get theirs when the
-// page is wired.
 
 import (
 	"math"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
-	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
 // MainlineInterval is one project's Mainline Interval at the render time.
 type MainlineInterval struct {
 	Project string
-	// Commits counts the distinct commits deployed in the DORA window that
-	// count (on the first-parent chain, or of a deployment without a known
-	// lineage).
+	// Commits counts the distinct first-parent commits pushed in the DORA
+	// window.
 	Commits int
-	// Gaps counts the gaps between consecutive commits by the time they are
-	// placed at: one
+	// Gaps counts the gaps between consecutive commits by author date: one
 	// fewer than Commits, none below two commits.
 	Gaps int
 	// Mean is the mean gap; zero without a gap.
@@ -66,10 +49,15 @@ type MainlineInterval struct {
 	// P90 is the 90th percentile of the gaps, nearest rank; zero below ten
 	// gaps (see HasP90).
 	P90 time.Duration
-	// ByAuthorDate counts the commits placed by their author date, the old
-	// approximation (forsgren#254): those of a deployment without a known
-	// lineage, and those of the first-parent chain without a committer date.
+	// ByAuthorDate counts the commits placed by their author date as a
+	// fallback, the old approximation of the deployed commits (forsgren#254).
+	// MainlineIntervals sets none since forsgren#588: a pushed commit is at
+	// its author date by rule, not by a fallback.
 	ByAuthorDate int
+	// NotReadable says collect was refused the push read of one of the
+	// project's repositories, Uncollected that no push has been collected:
+	// the push measures' states, never a fallback to the deployed commits.
+	NotReadable, Uncollected bool
 }
 
 // Notes are the notes on the mean cell (forsgren#394, step 2): none without a
@@ -86,6 +74,11 @@ func (m MainlineInterval) Notes() []Note {
 	}
 	return []Note{{Kind: NoteByAuthorDate, Count: m.ByAuthorDate}}
 }
+
+// State is PushesNotReadable for a project whose push read was refused,
+// PushesNotCollected when no push has been collected, else empty: the push
+// measures' words, since the interval is read from the pushes (forsgren#588).
+func (m MainlineInterval) State() string { return pushState{m.NotReadable, m.Uncollected}.words() }
 
 // mostOf says whether part is more than half of whole: at half, or below, it
 // is not (forsgren#345, step 3, #344).
@@ -145,62 +138,23 @@ func (m MainlineInterval) shown(has bool, d time.Duration) string {
 }
 
 // MainlineIntervals returns the Mainline Interval of each project, in the
-// order of projects, from the data's stored commits at the render time now,
-// over its DORA window (30, 90 or 180 days).
+// order of projects, from the data's stored pushes at the render time now,
+// over its DORA window (30, 90 or 180 days): the author dates of the distinct
+// first-parent commits the pushes of the window brought, the set the push
+// measures count (commitsOfPushes).
 func MainlineIntervals(projects []config.Project, data Data, now time.Time) []MainlineInterval {
 	index := indexOf(projects)
-	times := make([]projectTimes, len(projects))
-	lines := lineageOf(data.Commits)
-	counted := distinctInWindow{window: data.window(), now: now, seen: map[string]bool{}}
-	for _, c := range data.Commits {
-		i, ok := index.of(c.Repository)
-		if !ok {
-			continue
-		}
-		if p, counts := lines.place(c); counts && counted.admits(c) {
-			times[i].add(p)
-		}
+	tips, _ := pushesInWindow(make([]PushMeasures, len(projects)), index, data, now)
+	authored := make([][]time.Time, len(projects))
+	for _, c := range commitsOfPushes(index, data, tips) {
+		authored[c.project] = append(authored[c.project], c.authored)
 	}
 	out := make([]MainlineInterval, len(projects))
-	for i, p := range projects {
-		out[i] = mainlineOver(p.Name, times[i].at)
-		out[i].ByAuthorDate = times[i].byAuthor
+	for i, s := range pushStatesOf(index, data, len(projects)) {
+		out[i] = mainlineOver(projects[i].Name, authored[i])
+		out[i].NotReadable, out[i].Uncollected = s.notReadable, s.uncollected
 	}
 	return out
-}
-
-// projectTimes are the times of one project's counted commits, and how many
-// of them are author dates.
-type projectTimes struct {
-	at       []time.Time
-	byAuthor int
-}
-
-// add counts the commit placed at p.
-func (t *projectTimes) add(p placed) {
-	t.at = append(t.at, p.at)
-	if p.byAuthor {
-		t.byAuthor++
-	}
-}
-
-// distinctInWindow admits the commits whose deployment was created in the
-// window at now, each commit once, distinct by repository ignoring case and SHA.
-type distinctInWindow struct {
-	window window
-	now    time.Time
-	seen   map[string]bool
-}
-
-// admits says whether c is in the window and was not admitted before, and
-// notes it.
-func (d distinctInWindow) admits(c history.Commit) bool {
-	key := strings.ToLower(c.Repository) + "@" + c.SHA
-	if d.seen[key] || !d.window.holds(c.DeployedAt, d.now) {
-		return false
-	}
-	d.seen[key] = true
-	return true
 }
 
 // mainlineOver is project's MainlineInterval over the times its distinct

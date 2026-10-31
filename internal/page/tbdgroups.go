@@ -188,7 +188,7 @@ func groupID(g spreadGroup) spreadID { return g.ID }
 func (r TbdRow) MainGroups() []spreadGroup {
 	a := r.all
 	return shown(r.hidden, []spreadGroup{
-		notedGroup(a, "", r.Interval, r.Interval).as(idInterval),
+		notedGroup(a, r.Interval.State(), r.Interval, r.Interval).as(idInterval),
 		notedGroup(a, r.MainLead.State(), r.MainLead, r.MainLead.Lead).as(idMainLead),
 		plainGroup(a, r.Push.State(), r.Push.TimeToMain).as(idTimeToMain),
 		notedGroup(a, r.LeadState(), r.Lead, r.Lead).as(idPRLeadTime),

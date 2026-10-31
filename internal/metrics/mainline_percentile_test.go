@@ -3,25 +3,23 @@ package metrics
 import (
 	"testing"
 	"time"
-
-	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
-// shopGaps are commits of acme/app whose consecutive author dates are the
-// given gaps in hours apart, the first 100 hours before now, stored newest
+// shopGaps are pushed commits of acme/app whose consecutive author dates are
+// the given gaps in hours apart, the first 100 hours before now, stored newest
 // first (the order the metric must not depend on).
-func shopGaps(gapHours ...int) []history.Commit {
+func shopGaps(gapHours ...int) Data {
 	total := 100
 	times := []int{total}
 	for _, g := range gapHours {
 		total -= g
 		times = append(times, total)
 	}
-	commits := make([]history.Commit, len(times))
+	newestFirst := make([]int, len(times))
 	for i, ago := range times {
-		commits[len(times)-1-i] = shopAuthored("g"+string(rune('a'+i)), time.Duration(ago)*time.Hour)
+		newestFirst[len(times)-1-i] = ago
 	}
-	return commits
+	return shopAt(newestFirst...)
 }
 
 // gapSpread is the part of a MainlineInterval the percentile tests compare: the
@@ -60,7 +58,7 @@ func TestMainlineIntervalMedianAndNinetiethPercentile(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := mainlineOf(shopGaps(c.gaps...)...)
+			got := mainlineOf(shopGaps(c.gaps...))
 			if gapSpreadOf(got) != c.want {
 				t.Errorf("want %+v, got %+v", c.want, gapSpreadOf(got))
 			}
@@ -80,7 +78,7 @@ func TestMainlineIntervalShowsMedianFromTwoGapsAndP90FromTen(t *testing.T) {
 		for i := range ones {
 			ones[i] = 1
 		}
-		got := mainlineOf(shopGaps(ones...)...)
+		got := mainlineOf(shopGaps(ones...))
 		if [2]bool{got.HasMedian(), got.HasP90()} != want {
 			t.Errorf("%d gaps: want median and p90 shown %v, got %+v", gaps, want, got)
 		}

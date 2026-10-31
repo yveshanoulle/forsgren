@@ -60,3 +60,13 @@ func legacyBy(login, sha string) history.Commit {
 	c.Parents, c.CommittedAt = nil, time.Time{}
 	return c
 }
+
+// TestMainlineIntervalNote (forsgren#254, step 4): none, one or several
+// commits by author date, of 4 counted, so half or fewer (forsgren#345, step 3).
+func TestMainlineIntervalNote(t *testing.T) {
+	for n, want := range map[int][]Note{0: nil, 1: {{NoteByAuthorDate, 1, 0}}, 2: {{NoteByAuthorDate, 2, 0}}} {
+		if got := (MainlineInterval{Commits: 4, Gaps: 3, ByAuthorDate: n}).Notes(); !reflect.DeepEqual(got, want) {
+			t.Errorf("%d: want %v, got %v", n, want, got)
+		}
+	}
+}

@@ -95,14 +95,7 @@ func writeMergePushOfUnknownParents(t *testing.T, data string) {
 	commit := history.PushCommit{Repository: "acme/api", After: pushShaAfter, SHA: pushShaCommit,
 		Author: "acme-dev", AuthoredAt: push.PushedAt.Add(-25 * time.Minute), FirstParent: true,
 		Parents: history.ParentsUnknown}
-	dir := filepath.Dir(data)
-	if _, err := history.AppendPushes(filepath.Join(dir, "pushes.csv"), []history.Push{push}); err != nil {
-		t.Fatal(err)
-	}
-	commits := filepath.Join(dir, "push_commits.csv")
-	if _, err := history.AppendPushCommits(commits, []history.PushCommit{commit}); err != nil {
-		t.Fatal(err)
-	}
+	storePushes(t, data, []history.Push{push}, []history.PushCommit{commit})
 }
 
 // TestRenderRefusesABadFillMarkFile: a malformed or unknown-version fill mark

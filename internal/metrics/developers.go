@@ -5,11 +5,10 @@ package metrics
 // makes more commits than one person with the same habits. The interval
 // itself is not divided by it.
 //
-//   - the commits are the Mainline Interval's window (distinctInWindow):
-//     deployed in the DORA window, each once by repository (ignoring case) and
-//     SHA, in the project whose config lists the repository; the first-parent
-//     judgement of the interval (forsgren#254) does not apply, so the authors
-//     of the commits a merge brought in count too;
+//   - the commits are those deployed in the DORA window (distinctInWindow),
+//     each once by repository (ignoring case) and SHA, in the project whose
+//     config lists the repository; no first-parent judgement applies, so the
+//     authors of the commits a merge brought in count too;
 //   - a developer is a distinct GitHub login among them (history.Commit's
 //     Author), compared ignoring case as GitHub compares logins, so one person
 //     is one developer across the email addresses they commit with;
@@ -38,7 +37,7 @@ import (
 )
 
 // Developers is one project's count of the authors of the commits deployed in
-// its Mainline Interval's window.
+// the DORA window.
 type Developers struct {
 	Project string
 	// Count is the number of distinct human logins.
@@ -73,7 +72,7 @@ func (d Developers) CountCell() string {
 // MainlineDevelopers returns the Developers of each project, in the order of
 // projects, from the data's stored commits at the render time now, over its
 // DORA window: every distinct deployed commit of it, those a merge brought in
-// included, which MainlineIntervals leaves out (forsgren#254). The logins of
+// included. The logins of
 // each of groups (the config's same_developer) count as one developer.
 func MainlineDevelopers(projects []config.Project, data Data, now time.Time, groups [][]string) []Developers {
 	index := indexOf(projects)
@@ -127,4 +126,23 @@ func (d *Developers) add(logins map[string]bool, named map[string]string, c hist
 // placeholder and not a bot's.
 func isPerson(login string) bool {
 	return login != "" && !strings.EqualFold(login, placeholderLogin) && !strings.HasSuffix(login, botSuffix)
+}
+
+// distinctInWindow admits the commits whose deployment was created in the
+// window at now, each commit once, distinct by repository ignoring case and SHA.
+type distinctInWindow struct {
+	window window
+	now    time.Time
+	seen   map[string]bool
+}
+
+// admits says whether c is in the window and was not admitted before, and
+// notes it.
+func (d distinctInWindow) admits(c history.Commit) bool {
+	key := strings.ToLower(c.Repository) + "@" + c.SHA
+	if d.seen[key] || !d.window.holds(c.DeployedAt, d.now) {
+		return false
+	}
+	d.seen[key] = true
+	return true
 }

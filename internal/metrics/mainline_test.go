@@ -2,66 +2,88 @@ package metrics
 
 import (
 	"fmt"
-	"hash/fnv"
 	"slices"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
-// authored is a commit of repository with the given sha, authored and
-// committed ago before now and shipped by a deployment created deployedAgo
-// before now. It is the only commit of its deployment (its ID made from the
-// repository and the sha) and has a parent outside it, so its lineage is
-// known and it is on the first-parent chain (forsgren#254), placed at its
-// committer date, the same as its author date.
-func authored(repository, sha string, ago, deployedAgo time.Duration) history.Commit {
-	id := fnv.New32a()
-	_, _ = id.Write([]byte(strings.ToLower(repository) + "@" + sha))
-	return history.Commit{
-		Repository: repository, Kind: history.KindEnvironment, DeploymentID: int64(id.Sum32()) + 1000, SHA: sha,
-		AuthoredAt: now.Add(-ago), DeployedAt: now.Add(-deployedAgo),
-		Parents: []string{"parent-of-" + sha}, CommittedAt: now.Add(-ago),
+// The Mainline Interval over the commits pushed to main (forsgren#588, step
+// 1, Yves's ruling: it replaces the interval over the deployed commits).
+
+// authoredAgo is the first-parent commit sha that push brought, authored ago
+// before now, whatever the push time.
+func authoredAgo(push history.Push, sha string, ago time.Duration) history.PushCommit {
+	c := brought(push, sha, "acme-dev", 0)
+	c.AuthoredAt = now.Add(-ago)
+	return c
+}
+
+// shopPushedAt is one push of acme/app, half an hour before now, that brought
+// a first-parent commit authored each of ages before now, in that order.
+func shopPushedAt(ages ...time.Duration) Data {
+	p := pushed("tip", history.PushKindPush, 30*time.Minute, int64(len(ages)))
+	data := Data{Pushes: []history.Push{p}}
+	for i, ago := range ages {
+		data.PushCommits = append(data.PushCommits, authoredAgo(p, fmt.Sprintf("a%d", i), ago))
 	}
+	return data
 }
 
-// shopAuthored is a commit of acme/app authored ago before now, deployed an
-// hour ago.
-func shopAuthored(sha string, ago time.Duration) history.Commit {
-	return authored("acme/app", sha, ago, time.Hour)
-}
-
-// shopAt are commits of acme/app authored the given hours before now, in that
-// order, deployed an hour ago, each its own commit.
-func shopAt(hoursAgo ...int) []history.Commit {
-	commits := make([]history.Commit, len(hoursAgo))
+// shopAt is shopPushedAt with the ages in hours.
+func shopAt(hoursAgo ...int) Data {
+	ages := make([]time.Duration, len(hoursAgo))
 	for i, h := range hoursAgo {
-		commits[i] = shopAuthored(fmt.Sprintf("a%d", i), time.Duration(h)*time.Hour)
+		ages[i] = time.Duration(h) * time.Hour
 	}
-	return commits
+	return shopPushedAt(ages...)
 }
 
-// mainlineOf is Acme Shop's Mainline Interval over the commits, in the
-// 30 day window.
-func mainlineOf(commits ...history.Commit) MainlineInterval {
-	return MainlineIntervals(projects, Data{Commits: commits}, now)[0]
+// pushedOnce is a push of repository pushed pushedAgo before now that brought
+// the one first-parent commit sha, authored ago before now.
+func pushedOnce(repository, sha string, ago, pushedAgo time.Duration) (history.Push, history.PushCommit) {
+	p := pushed("tip-"+sha, history.PushKindPush, pushedAgo, 1)
+	p.Repository = repository
+	return p, authoredAgo(p, sha, ago)
 }
 
-// TestMainlineIntervalMeanMedianAndCount (forsgren#253, step 3): the gaps
-// between the commits sorted by author date, whatever the order they are
-// stored in; the mean, the median and the count of gaps. Fewer than two
-// commits have no gap, "-"; two commits have a gap and no median.
+// pushedEach is one push per commit, of the repositories and SHAs, each
+// authored and pushed as given.
+func pushedEach(commits ...pushedCommitAt) Data {
+	var data Data
+	for _, c := range commits {
+		p, pc := pushedOnce(c.repository, c.sha, c.ago, c.pushedAgo)
+		data.Pushes = append(data.Pushes, p)
+		data.PushCommits = append(data.PushCommits, pc)
+	}
+	return data
+}
+
+// pushedCommitAt is a commit of pushedEach.
+type pushedCommitAt struct {
+	repository, sha string
+	ago, pushedAgo  time.Duration
+}
+
+// mainlineOf is Acme Shop's Mainline Interval over data, in the 30 day window.
+func mainlineOf(data Data) MainlineInterval { return MainlineIntervals(projects, data, now)[0] }
+
+// TestMainlineIntervalMeanMedianAndCount (forsgren#253, step 3; over the
+// pushed commits since forsgren#588): the gaps between the commits sorted by
+// author date, whatever the order they are stored in; the mean, the median
+// and the count of gaps. Fewer than two commits have no gap, "-"; two commits
+// have a gap and no median. The commits of one push are apart by their author
+// dates, not at the one push time.
 func TestMainlineIntervalMeanMedianAndCount(t *testing.T) {
 	h := time.Hour
 	cases := []struct {
-		name    string
-		commits []history.Commit
-		want    MainlineInterval
-		cell    string
+		name string
+		data Data
+		want MainlineInterval
+		cell string
 	}{
-		{"no commit", nil, MainlineInterval{}, "- | - | -"},
+		{"no commit", Data{}, MainlineInterval{}, "- | - | -"},
 		{"one commit", shopAt(5), MainlineInterval{Commits: 1}, "- | - | -"},
 		{"two commits", shopAt(5, 3), MainlineInterval{Commits: 2, Gaps: 1, Mean: 2 * h}, "2 h | - | -"},
 		{"gaps 1, 2 and 3 hours", shopAt(10, 9, 7, 4), MainlineInterval{Commits: 4, Gaps: 3, Mean: 2 * h,
@@ -77,7 +99,7 @@ func TestMainlineIntervalMeanMedianAndCount(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := mainlineOf(c.commits...)
+			got := mainlineOf(c.data)
 			c.want.Project = "Acme Shop"
 			if got != c.want {
 				t.Errorf("want %+v, got %+v", c.want, got)
@@ -92,35 +114,34 @@ func TestMainlineIntervalMeanMedianAndCount(t *testing.T) {
 // TestMainlineIntervalHasIntervalAndMedianFromTheGaps (forsgren#253): an
 // interval needs a gap, so two commits; a median needs two gaps.
 func TestMainlineIntervalHasIntervalAndMedianFromTheGaps(t *testing.T) {
+	ages := []time.Duration{9 * time.Hour, 7 * time.Hour, 4 * time.Hour}
 	for commits, want := range map[int][2]bool{0: {false, false}, 1: {false, false}, 2: {true, false}, 3: {true, true}} {
-		got := mainlineOf(shopAt(9, 7, 4)[:commits]...)
+		got := mainlineOf(shopPushedAt(ages[:commits]...))
 		if [2]bool{got.HasInterval(), got.HasMedian()} != want {
 			t.Errorf("%d commits: want interval and median %v, got %+v", commits, want, got)
 		}
 	}
 }
 
-// TestMainlineIntervalCountsADistinctCommitOnce (forsgren#253): a commit
-// shipped by two deployments (two tasks of one repository) is one commit, so
-// it adds no zero gap; a commit of the same SHA in another repository is
-// another commit; the repository is compared ignoring case.
+// TestMainlineIntervalCountsADistinctCommitOnce (forsgren#253, #588): a
+// commit two pushes brought is one commit, so it adds no zero gap; the
+// repository is compared ignoring case; the same SHA in another repository is
+// another commit.
 func TestMainlineIntervalCountsADistinctCommitOnce(t *testing.T) {
-	first, second := shopAuthored("a1", 5*time.Hour), shopAuthored("a2", 3*time.Hour)
-	twice := second
-	twice.DeploymentID = 2
-	upper := second
-	upper.Repository = "ACME/App"
-	other := authored("acme/api", "a2", 3*time.Hour, time.Hour)
+	h := time.Hour
+	first := pushedCommitAt{"acme/app", "a1", 5 * h, h}
+	second := pushedCommitAt{"acme/app", "a2", 3 * h, h}
 	cases := map[string]struct {
-		commits []history.Commit
-		want    int
+		again pushedCommitAt
+		want  int
 	}{
-		"deployed twice": {[]history.Commit{first, second, twice}, 2},
-		"another case":   {[]history.Commit{first, second, upper}, 2},
-		"another repo":   {[]history.Commit{first, second, other}, 3},
+		"pushed twice": {pushedCommitAt{"acme/app", "a2", 3 * h, 2 * h}, 2},
+		"another case": {pushedCommitAt{"ACME/App", "a2", 3 * h, 2 * h}, 2},
+		"another repo": {pushedCommitAt{"acme/api", "a2", 3 * h, h}, 3},
 	}
 	for name, c := range cases {
-		if got := mainlineOf(c.commits...); got.Commits != c.want || got.Gaps != c.want-1 {
+		data := pushedEach(first, second, c.again)
+		if got := mainlineOf(data); got.Commits != c.want || got.Gaps != c.want-1 {
 			t.Errorf("%s: want %d commits and %d gaps, got %+v", name, c.want, c.want-1, got)
 		}
 	}
@@ -130,35 +151,99 @@ func TestMainlineIntervalCountsADistinctCommitOnce(t *testing.T) {
 // repositories are one sequence; another project's, and a repository no
 // project lists, are not in it. The result is in the order of projects.
 func TestMainlineIntervalIsPerProject(t *testing.T) {
-	commits := []history.Commit{
-		authored("acme/app", "a1", 6*time.Hour, time.Hour), authored("acme/api", "b1", 3*time.Hour, time.Hour),
-		authored("acme/cli", "c1", 9*time.Hour, time.Hour), authored("acme/cli", "c2", 2*time.Hour, time.Hour),
-		authored("acme/gone", "d1", 4*time.Hour, time.Hour),
-	}
+	h := time.Hour
+	data := pushedEach(
+		pushedCommitAt{"acme/app", "a1", 6 * h, h}, pushedCommitAt{"acme/api", "b1", 3 * h, h},
+		pushedCommitAt{"acme/cli", "c1", 9 * h, h}, pushedCommitAt{"acme/cli", "c2", 2 * h, h},
+		pushedCommitAt{"acme/gone", "d1", 4 * h, h},
+	)
 	want := []MainlineInterval{
-		{Project: "Acme Shop", Commits: 2, Gaps: 1, Mean: 3 * time.Hour},
-		{Project: "Acme Tools", Commits: 2, Gaps: 1, Mean: 7 * time.Hour},
+		{Project: "Acme Shop", Commits: 2, Gaps: 1, Mean: 3 * h},
+		{Project: "Acme Tools", Commits: 2, Gaps: 1, Mean: 7 * h},
 	}
-	if got := MainlineIntervals(projects, Data{Commits: commits}, now); !slices.Equal(got, want) {
+	if got := MainlineIntervals(projects, data, now); !slices.Equal(got, want) {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
 }
 
-// TestMainlineIntervalOverTheWindow (forsgren#253): as for lead time, a commit
-// counts when its deployment was created in the DORA window, both ends
+// TestMainlineIntervalOverTheWindow (forsgren#253, #588): as for the push
+// measures, a commit counts when its push was in the DORA window, both ends
 // included, whatever its author date; 0 is 30 days.
 func TestMainlineIntervalOverTheWindow(t *testing.T) {
-	commits := []history.Commit{
-		authored("acme/app", "a1", 40*day, 2*day), authored("acme/app", "a2", 3*day, 30*day),
-		authored("acme/app", "a3", 2*day, 31*day), authored("acme/app", "a4", 60*day, 45*day),
-	}
+	data := pushedEach(
+		pushedCommitAt{"acme/app", "a1", 40 * day, 2 * day}, pushedCommitAt{"acme/app", "a2", 3 * day, 30 * day},
+		pushedCommitAt{"acme/app", "a3", 2 * day, 31 * day}, pushedCommitAt{"acme/app", "a4", 60 * day, 45 * day},
+	)
 	for days, want := range map[int]int{0: 2, 30: 2, 90: 4, 180: 4} {
-		got := MainlineIntervals(projects[:1], Data{Commits: commits, DoraDays: days}, now)[0]
-		if got.Commits != want {
+		data.DoraDays = days
+		if got := MainlineIntervals(projects[:1], data, now)[0]; got.Commits != want {
 			t.Errorf("%d days: want %d commits, got %+v", days, want, got)
 		}
 	}
-	if got := MainlineIntervals(projects[:1], Data{Commits: commits, DoraDays: 30}, now)[0]; got.Mean != 37*day {
-		t.Errorf("the window counts by deployment, not author date: want a gap of 37 days, got %+v", got)
+	data.DoraDays = 30
+	if got := MainlineIntervals(projects[:1], data, now)[0]; got.Mean != 37*day {
+		t.Errorf("the window counts by push, not author date: want a gap of 37 days, got %+v", got)
+	}
+}
+
+// TestMainlineIntervalCountsThePushedCommitsNotTheDeployedOnes (forsgren#588):
+// the deployed commits are not read: a1 and a2 pushed and not yet deployed
+// count, d1, deployed and never pushed, does not.
+func TestMainlineIntervalCountsThePushedCommitsNotTheDeployedOnes(t *testing.T) {
+	data := shopAt(5, 2)
+	data.Commits = []history.Commit{shopAuthored("d1", 9*time.Hour)}
+	if got := mainlineOf(data); got.Commits != 2 || got.Mean != 3*time.Hour {
+		t.Errorf("want the 2 pushed commits 3 h apart, got %+v", got)
+	}
+}
+
+// TestMainlineIntervalNeedsNoDeployment (forsgren#588): a project with pushes
+// and no deployment has its interval.
+func TestMainlineIntervalNeedsNoDeployment(t *testing.T) {
+	data := shopAt(5, 4, 1)
+	if len(data.Records) != 0 || len(data.Commits) != 0 {
+		t.Fatalf("the fixture must have no deployment, got %+v", data)
+	}
+	if got := mainlineOf(data); !got.HasInterval() || got.Mean != 2*time.Hour {
+		t.Errorf("want an interval of 2 h without a deployment, got %+v", got)
+	}
+}
+
+// TestMainlineIntervalLeavesOutTheCommitsOffTheFirstParentChain (forsgren#254,
+// #588): the commits a merge brought in are not mainline commits.
+func TestMainlineIntervalLeavesOutTheCommitsOffTheFirstParentChain(t *testing.T) {
+	data := shopAt(5, 3)
+	branch := authoredAgo(data.Pushes[0], "b1", 4*time.Hour)
+	branch.FirstParent = false
+	data.PushCommits = append(data.PushCommits, branch)
+	if got := mainlineOf(data); got.Commits != 2 || got.Mean != 2*time.Hour {
+		t.Errorf("want the 2 first-parent commits, got %+v", got)
+	}
+}
+
+// TestMainlineIntervalShowsThePushStates (forsgren#588): read from the
+// pushes, the interval has the push measures' states, the same words, and
+// never falls back to the deployed commits: a refused push read (any case) is
+// not readable, even without a pushes file; no pushes file is not collected;
+// pushes collected is no state.
+func TestMainlineIntervalShowsThePushStates(t *testing.T) {
+	deployed := []history.Commit{shopAuthored("d1", 9*time.Hour), shopAuthored("d2", 2*time.Hour)}
+	cases := map[string]struct {
+		data Data
+		want string
+	}{
+		"refused":       {Data{PushesUncollected: true, PushesDenied: history.Reach{"ACME/App": now}}, PushesNotReadable},
+		"not collected": {Data{PushesUncollected: true}, PushesNotCollected},
+		"collected":     {shopAt(5, 2), ""},
+	}
+	for name, c := range cases {
+		c.data.Commits = deployed
+		got := mainlineOf(c.data)
+		if got.State() != c.want {
+			t.Errorf("%s: want the state %q, got %q", name, c.want, got.State())
+		}
+		if c.want != "" && got.HasInterval() {
+			t.Errorf("%s: want no interval from the deployed commits, got %+v", name, got)
+		}
 	}
 }

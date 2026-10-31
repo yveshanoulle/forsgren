@@ -1,7 +1,9 @@
 package metrics
 
-// The first-parent judgement of the Mainline Interval (forsgren#254, step 4):
-// which stored commits reached the mainline themselves, and when.
+// The first-parent judgement of the deployed commits (forsgren#254, step 4;
+// the Mainline Interval's until forsgren#588 read it from the pushes, now the
+// deployment measures' and the Week page's): which stored commits reached the
+// mainline themselves, and when.
 //
 //   - a deployment's commits are what GitHub's comparison with the deployment
 //     before it gave: every commit reachable from the deployed commit and not
@@ -21,7 +23,7 @@ package metrics
 //     when it has one, is its own chain without a committer date, placed at
 //     its author date all the same;
 //   - a commit placed at its author date, by either rule, is counted in
-//     MainlineInterval.ByAuthorDate, so the cell names it.
+//     DeployMeasures.ByAuthorDate.
 
 import (
 	"time"
@@ -33,7 +35,7 @@ import (
 // first-parent chain.
 type lineage map[deploymentKey]map[string]bool
 
-// placed is when a counted commit is placed in the Mainline Interval, and
+// placed is when a counted commit is placed, and
 // whether that time is its author date.
 type placed struct {
 	at       time.Time

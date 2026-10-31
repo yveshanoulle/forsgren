@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -30,62 +32,102 @@ func tdRow(cells ...string) string {
 	return "<td class=\"num\">" + strings.Join(cells, "</td>\n            <td class=\"num\">") + "</td>"
 }
 
-// shopCell is Acme Shop's three Mainline Interval cells over acmeCommits in
-// the 30 days (forsgren#387, step 1; forsgren#423): the mean, the median and
-// no p90; its three commits, stored without their lineage, are timed
-// by author date (forsgren#254, step 4), all of them, so the figure is mostly
-// estimated (forsgren#345, step 3), which the mean cell notes (1). noCells is a
-// project without a gap.
+// noPushCells is a project's three Mainline Interval cells without a pushes
+// file: the push state across them, as the Mainline Lead Time's (forsgren#588:
+// the interval is read from the pushes, never from the deployed commits).
 var (
-	shopCell = notedTd(notedCell{"2 d 22 h", []int{1}}) + "\n            " + tdRow("2 d 22 h", "-")
-	noCells  = tdRow("-", "-", "-")
+	noPushCells = pushesNotCollected(3)
 	// shopTimes and noTimes are their time to deploy cells (forsgren#418).
 	shopTimes = tdRow("8 h 5", "17 m", "-")
 	noTimes   = tdRow("-", "-", "-")
-	shopRow   = projectCells{shopCell, shopTimes}
-	noRow     = projectCells{noCells, noTimes}
+	shopRow   = projectCells{noPushCells, shopTimes}
+	noRow     = projectCells{noPushCells, noTimes}
 )
 
-// TestRenderShowsTheMainlineIntervalOfEachProject (forsgren#253, step 5): with
-// the commits beside --data, tbd.html has a row per project with its Mainline
-// Interval over the DORA window, counted as lead time is: Acme Shop's three
-// commits in the 30 days (authored 2026-09-25 12:00, 2026-10-01 09:13 and
-// 09:35; the one deployed on 2026-08-20 and acme/gone's are out) have two gaps
-// of 141 h 13 min and 22 min; Acme Tools has no commit, so "-".
+// pushedAt is a push of repository at the UTC time pushed, its after SHA made
+// from it, that brought the first-parent commits authored at the UTC times
+// authored; branch ones are commits its merge brought in, off the
+// first-parent chain.
+type pushedAt struct {
+	repository, pushed string
+	authored, branch   []string
+}
+
+// stored is p as the pushes and push commits files hold it.
+func (p pushedAt) stored(t *testing.T) (history.Push, []history.PushCommit) {
+	t.Helper()
+	at := utcAt(t, p.pushed)
+	push := history.Push{Repository: p.repository, PushedAt: at, Before: pushShaBefore,
+		After: fmt.Sprintf("%040x", at.Unix()), Kind: history.PushKindPush, Bot: history.ByHuman,
+		Commits: int64(len(p.authored))}
+	var commits []history.PushCommit
+	for i, a := range append(slices.Clone(p.authored), p.branch...) {
+		commits = append(commits, history.PushCommit{Repository: p.repository, After: push.After,
+			SHA: fmt.Sprintf("%040x", utcAt(t, a).Unix()), Author: "acme-dev", AuthoredAt: utcAt(t, a),
+			FirstParent: i < len(p.authored), Parents: 1})
+	}
+	return push, commits
+}
+
+// writePushedAt stores the pushes beside the history at data.
+func writePushedAt(t *testing.T, data string, pushes ...pushedAt) {
+	t.Helper()
+	var all []history.Push
+	var commits []history.PushCommit
+	for _, p := range pushes {
+		push, brought := p.stored(t)
+		all, commits = append(all, push), append(commits, brought...)
+	}
+	storePushes(t, data, all, commits)
+}
+
+// acmePushes are the pushes of acme/api the interval tests read: one on 1
+// October with the commits authored 25 September 12:00 and 1 October 09:13
+// and a branch commit of 30 September, one on 2 October with the commits
+// authored 1 October 09:35 and 2 October 09:00 (not deployed by
+// acmeCommits), and one on 20 August, outside 30 days, with the commit
+// authored 19 August 10:00.
+func acmePushes() []pushedAt {
+	return []pushedAt{
+		{"acme/api", "2026-10-01T10:00:00Z", []string{"2026-09-25T12:00:00Z", "2026-10-01T09:13:00Z"},
+			[]string{"2026-09-30T10:00:00Z"}},
+		{"Acme/API", "2026-10-02T10:00:00Z", []string{"2026-10-01T09:35:00Z", "2026-10-02T09:00:00Z"}, nil},
+		{"acme/api", "2026-08-20T10:00:00Z", []string{"2026-08-19T10:00:00Z"}, nil},
+	}
+}
+
+// TestRenderShowsTheMainlineIntervalOfEachProject (forsgren#253, step 5; read
+// from the pushes since forsgren#588): tbd.html has a row per project with its
+// Mainline Interval over the DORA window: Acme Shop's four first-parent
+// commits pushed in the 30 days, at their author dates (25 September 12:00,
+// 1 October 09:13 and 09:35, 2 October 09:00; the branch commit and the push
+// of 20 August are out, the commit pushed and not deployed counts), have gaps
+// of 141 h 13 min, 22 min and 23 h 25 min: a mean of 55 h, a median of
+// 23 h 25, no p90; Acme Tools has no push, so "-" with no state.
 func TestRenderShowsTheMainlineIntervalOfEachProject(t *testing.T) {
 	pinNow(t)
-	got := tbdSiteOf(t, validConfig, writeData(t, acmeHistory(), acmeCommits()))
-	for _, want := range []string{
-		shopCell,
-		noCells,
-	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("want %q in tbd.html, got:\n%s", want, got)
-		}
-	}
+	data := writeData(t, acmeHistory(), acmeCommits())
+	writePushedAt(t, data, acmePushes()...)
+	got := tbdSiteOf(t, validConfig, data)
+	wantIn(t, got, "<th scope=\"row\">Acme Shop</th>\n            "+tdRow("2 d 7 h", "23 h 25", "-"),
+		"<th scope=\"row\">Acme Tools</th>\n            "+tdRow("-", "-", "-"))
 	if strings.Contains(got, "no Mainline Interval to show") || strings.Contains(got, shaPrefix) {
 		t.Errorf("want the table and no SHA, got:\n%s", got)
 	}
 }
 
-// TestRenderMainlineIntervalFollowsTheStoredLineage (forsgren#254, step 4):
-// with the parents and committer dates in the commits file, tbd.html counts
-// the first-parent commits at their committer dates: of deployment 1's two
-// commits, the branch commit its merge brought in is left out, so Acme Shop
-// has deployment 3's commit, committed 2026-09-26 11:00, and the merge,
-// committed 2026-10-01 09:25: one gap of 4 d 22 h, none by author date.
-func TestRenderMainlineIntervalFollowsTheStoredLineage(t *testing.T) {
+// TestRenderMainlineIntervalShowsThePushState (forsgren#588): with deployed
+// commits and no pushes file, the interval of each project is the push state,
+// not a figure from the deployed commits; a refused push read is not
+// readable.
+func TestRenderMainlineIntervalShowsThePushState(t *testing.T) {
 	pinNow(t)
-	base := shippedWith("Acme/API", 3, "2026-09-25T12:00:00Z", "2026-09-26T12:00:00Z")
-	branch := shippedWith("acme/api", 1, "2026-09-30T10:00:00Z", "2026-10-01T09:30:00Z")
-	merge := shippedWith("acme/api", 1, "2026-10-01T09:20:00Z", "2026-10-01T09:30:00Z")
-	base.Parents, base.CommittedAt = []string{shaPrefix + strings.Repeat("0", 34)}, utcAt(t, "2026-09-26T11:00:00Z")
-	branch.Parents, branch.CommittedAt = []string{base.SHA}, branch.AuthoredAt
-	merge.Parents, merge.CommittedAt = []string{base.SHA, branch.SHA}, utcAt(t, "2026-10-01T09:25:00Z")
-	got := tbdSiteOf(t, validConfig, writeData(t, acmeHistory(), []history.Commit{base, branch, merge}))
-	if want := tdRow("4 d 22 h", "-", "-"); !strings.Contains(got, want) {
-		t.Errorf("want %q in tbd.html, got:\n%s", want, got)
-	}
+	data := writeData(t, acmeHistory(), acmeCommits())
+	wantIn(t, tbdSiteOf(t, validConfig, data), "<th scope=\"row\">Acme Shop</th>\n            "+noPushCells,
+		"<th scope=\"row\">Acme Tools</th>\n            "+noPushCells)
+	writeMark(t, data, "pushes_denied.csv", pushesDeniedH2+"acme/api,2026-10-02T10:00:00Z,GITHUB_TOKEN\n")
+	wantIn(t, tbdSiteOf(t, validConfig, data),
+		"<th scope=\"row\">Acme Shop</th>\n            <td colspan=\"3\">Push activity not readable</td>")
 }
 
 // utcAt is the UTC time s, 2006-01-02T15:04:05Z.
@@ -147,14 +189,16 @@ func TestRenderCountsTheLoginsOfASameDeveloperGroupOnce(t *testing.T) {
 
 // TestRenderTbdPageUsesTheDoraWindow (forsgren#253, step 5; forsgren#271):
 // dora_days reaches the Mainline Interval as it reaches lead time: over 90 days
-// the commit deployed on 2026-08-20 (authored 2026-08-19 10:00) counts too, so
-// three gaps of 890 h, 141 h 13 min and 22 min; the legend, not the page, names
-// the window.
+// the commit pushed on 2026-08-20 (authored 2026-08-19 10:00) counts too
+// (forsgren#588: read from the pushes), so four gaps of 890 h, 141 h 13 min,
+// 22 min and 23 h 25 min: a mean of 263 h 45 min, a median of 82 h 19 min; the
+// legend, not the page, names the window.
 func TestRenderTbdPageUsesTheDoraWindow(t *testing.T) {
 	pinNow(t)
-	dir := renderInto(t, "--config", writeConfig(t, validConfig+"dora_days: 90\n"+tbdOn+figuresAll),
-		"--data", writeData(t, acmeHistory(), acmeCommits()))
-	cell := notedTd(notedCell{"14 d 7 h", []int{1}}) + "\n            " + tdRow("5 d 21 h", "-")
+	data := writeData(t, acmeHistory(), acmeCommits())
+	writePushedAt(t, data, acmePushes()...)
+	dir := renderInto(t, "--config", writeConfig(t, validConfig+"dora_days: 90\n"+tbdOn+figuresAll), "--data", data)
+	cell := tdRow("10 d 23 h", "3 d 10 h", "-")
 	if got := readSite(t, dir, "tbd.html"); !strings.Contains(got, cell) {
 		t.Errorf("want Acme Shop's three gaps over 90 days, got:\n%s", got)
 	}

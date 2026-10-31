@@ -43,12 +43,18 @@ func writePushes(t *testing.T, data string) {
 		Before: pushShaBefore, After: pushShaAfter, Kind: history.PushKindPush, Bot: history.ByHuman, Commits: 1}
 	commit := history.PushCommit{Repository: "acme/api", After: pushShaAfter, SHA: pushShaCommit,
 		Author: "acme-dev", AuthoredAt: push.PushedAt.Add(-25 * time.Minute), FirstParent: true, Parents: 1}
+	storePushes(t, data, []history.Push{push}, []history.PushCommit{commit})
+}
+
+// storePushes appends pushes to data/pushes.csv and commits to
+// data/push_commits.csv beside the history at data.
+func storePushes(t *testing.T, data string, pushes []history.Push, commits []history.PushCommit) {
+	t.Helper()
 	dir := filepath.Dir(data)
-	if _, err := history.AppendPushes(filepath.Join(dir, "pushes.csv"), []history.Push{push}); err != nil {
+	if _, err := history.AppendPushes(filepath.Join(dir, "pushes.csv"), pushes); err != nil {
 		t.Fatal(err)
 	}
-	commits := filepath.Join(dir, "push_commits.csv")
-	if _, err := history.AppendPushCommits(commits, []history.PushCommit{commit}); err != nil {
+	if _, err := history.AppendPushCommits(filepath.Join(dir, "push_commits.csv"), commits); err != nil {
 		t.Fatal(err)
 	}
 }
