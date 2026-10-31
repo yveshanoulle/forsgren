@@ -385,11 +385,18 @@ func TestAFileTheFillReadsThatTurnsUnreadableFailsTheFill(t *testing.T) {
 // TestACommitFilesFileThatCannotBeReadRefusesTheRun: a commit_files.csv that
 // is not in the format is an error naming it, before GitHub is asked anything.
 func TestACommitFilesFileThatCannotBeReadRefusesTheRun(t *testing.T) {
+	wantRefusedBeforeAsking(t, CommitFilesFile, "not a commit files file\n")
+}
+
+// wantRefusedBeforeAsking: with file written as text, a run is an error naming
+// file and sends no request.
+func wantRefusedBeforeAsking(t *testing.T, file, text string) {
+	t.Helper()
 	g, path := storedCommits(t)
-	dataOf(path).write(t, CommitFilesFile, "not a commit files file\n")
+	dataOf(path).write(t, file, text)
 	r := g.collect(t, shop(withPaths()), path, github.DefaultMaxPages)
-	if r.err == nil || !strings.Contains(r.err.Error(), CommitFilesFile) {
-		t.Errorf("want an error naming %s, got %v", CommitFilesFile, r.err)
+	if r.err == nil || !strings.Contains(r.err.Error(), file) {
+		t.Errorf("want an error naming %s, got %v", file, r.err)
 	}
 	if n := len(g.requests); n != 0 {
 		t.Errorf("want no request, got %d", n)

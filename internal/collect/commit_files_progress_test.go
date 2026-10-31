@@ -1,7 +1,6 @@
 package collect
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/yveshanoulle/forsgren/internal/github"
@@ -68,13 +67,5 @@ func TestARunThatReadsNoCommitFilesKeepsTheProgressAsItWas(t *testing.T) {
 // commit_files_progress.csv not in the format is an error naming it, before
 // GitHub is asked anything.
 func TestACommitFilesProgressFileThatCannotBeReadRefusesTheRun(t *testing.T) {
-	g, path := storedCommits(t)
-	dataOf(path).write(t, CommitFilesProgressFile, "nope\n")
-	r := g.collect(t, shop(withPaths()), path, github.DefaultMaxPages)
-	if r.err == nil || !strings.Contains(r.err.Error(), CommitFilesProgressFile) {
-		t.Errorf("want an error naming %s, got %v", CommitFilesProgressFile, r.err)
-	}
-	if n := len(g.requests); n != 0 {
-		t.Errorf("want no request, got %d", n)
-	}
+	wantRefusedBeforeAsking(t, CommitFilesProgressFile, "nope\n")
 }
