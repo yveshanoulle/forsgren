@@ -263,10 +263,10 @@ else
 fi
 
 # 31: the TBD page (forsgren#253) has a Mainline Interval row for a project, not
-# the no-data line: the fixture has commits deployed in the last 30 days.
+# the no-data line: the fixture has commits pushed in the last 30 days (forsgren#588).
 if [[ -f "${FIXTURE_HAPPY}/tbd.html" ]] && grep -qF '<th scope="row">Acme Shop</th>' "${FIXTURE_HAPPY}/tbd.html" \
   && tr -d '\n' <"${FIXTURE_HAPPY}/tbd.html" \
-    | has -qE '<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td[^>]*>[^<]*</td> *){2}<td[^>]*>[^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' \
+    | has -qE '<th scope="row">[^<]*</th> *<td[^>]*>[0-9][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td[^>]*>[^<]*</td> *){2}<td[^>]*>[^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' \
   && ! grep -qF 'No commits have been collected yet' "${FIXTURE_HAPPY}/tbd.html"; then
   pass 31 "tbd.html has a Mainline Interval row and not the no-data line"
 else
@@ -310,10 +310,10 @@ fi
 
 # 27, 28: a fixture that shows no data is red, naming the page. 27 has no
 # reach.csv (every row unread, so no history column), 28 no issues.csv, 32 no
-# commits.csv (no Mainline Interval, forsgren#253), 35 no pulls.csv (no
+# pushes.csv (no Mainline Interval, forsgren#253, #588), 35 no pulls.csv (no
 # Mainline Lead Time, forsgren#350).
 for dropped in "27:reach:history.html shows no chart" "28:issues:days.html shows no rows" \
-  "32:commits:tbd.html shows no Mainline Interval" "35:pulls:tbd.html shows no Mainline Lead Time"; do
+  "32:pushes:tbd.html shows no Mainline Interval" "35:pulls:tbd.html shows no Mainline Lead Time"; do
   number="${dropped%%:*}"
   rest="${dropped#*:}"
   file="${rest%%:*}"
@@ -370,7 +370,7 @@ if cmp -s "$FIXTURE_BUILD" "${MUTANT_TBD}/Scripts/build_fixture_site.sh"; then
 else
   set +e
   PATH="${STUB_GO_DIR}:$PATH" STUB_GO_MODE=prebuilt STUB_PREBUILT="${TEMP_ROOT}/fixture/bin/forsgren" \
-    FORSGREN_BIN_DIR="${MUTANT_TBD}/bin" FORSGREN_FIXTURE_DIR="$(cd "${TEMP_ROOT}/fx-commits" && pwd)" \
+    FORSGREN_BIN_DIR="${MUTANT_TBD}/bin" FORSGREN_FIXTURE_DIR="$(cd "${TEMP_ROOT}/fx-pushes" && pwd)" \
     "${MUTANT_TBD}/Scripts/build_fixture_site.sh" "${MUTANT_TBD}/site" > "${MUTANT_TBD}/log" 2>&1
   RC=$?
   set -e

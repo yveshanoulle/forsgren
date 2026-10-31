@@ -83,19 +83,19 @@ history_shows_chart() {
 if ! history_shows_chart; then
   fail "history.html shows no chart: the fixture has no history the page can show"
 fi
-# The TBD page has a Mainline Interval row with a mean, not only dashes
+# The TBD page has a Mainline Interval row with a mean, a duration, not dashes or a push state (forsgren#588)
 # (forsgren#253; the fixture config sets tbd_figures: all, so three cells since
 # forsgren#423), found at the start of its row, right after the project, since
 # the Mainline Interval group comes first (forsgren#418).
 tbd_shows_interval() {
   local tbd_text re
-  re='<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td[^>]*>[^<]*</td> *){2}<td[^>]*>[^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>'
+  re='<th scope="row">[^<]*</th> *<td[^>]*>[0-9][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td[^>]*>[^<]*</td> *){2}<td[^>]*>[^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>'
   [[ -f "${STAGE}/tbd.html" ]] || return 1
   tbd_text="$(tr -d '\n' <"${STAGE}/tbd.html")"
   grep -qE "$re" <<< "$tbd_text"
 }
 if ! tbd_shows_interval; then
-  fail "tbd.html shows no Mainline Interval: the fixture has no commits the page can show"
+  fail "tbd.html shows no Mainline Interval: the fixture has no pushed commits the page can show"
 fi
 # The TBD page has a PR Lead Time mean with a duration and the note on the cut
 # first commit time the fixture has, its Bot PR Lead Time group beside it
