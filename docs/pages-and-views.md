@@ -1456,12 +1456,15 @@ section.
   the successful deployments only, so it is not the denominator. In each
   row the weekday with the highest Failed and the one with the highest Fail
   rate are red (class `highest`, one `light-dark()` rule in `styles.css`,
-  held at 4.5:1 or more in both modes by `trendcolours_test.go`), every tied
+  `light-dark(#b3261e, #ffb4ab)`: the light colour of `.trend-up` and a
+  lighter dark colour than it, forsgren#598, held at 4.5:1 or more in both
+  modes by `trendcolours_test.go`), every tied
   weekday, none for a row without failed deployments; the cell also holds the
   visually hidden word "highest" for a screen reader, so colour is never the
   only signal. The weekday with the highest Deploys share of each row is
-  blue (class `highest-deploys`, the blue of `.trend-flat-bugs`,
-  `light-dark(#0b57d0, #8ab4f8)`, forsgren#597), every tied weekday, none for
+  blue (class `highest-deploys`, forsgren#597, `light-dark(#0b57d0,
+  #a8c7fa)`: the light colour of `.trend-flat-bugs` and a lighter dark
+  colour than it, forsgren#598), every tied weekday, none for
   a row without deployments, with the same hidden word "highest"; the blue is
   held at 4.5:1 or more in both modes on the page by `trendcolours_test.go`
   and on the shaded Total row by `weektotalshade_test.go`. The Commits shares
@@ -1481,9 +1484,21 @@ section.
   mean of the projects' rates; its highest Failed and Fail rate weekdays are
   red and its highest Deploys share weekday blue, as in every row. The row is shaded (Yves's ruling on #552): its
   background is a little of the text colour, `color-mix(in srgb, currentcolor
-  8%, transparent)` on `tr.week-total` in `styles.css`, so it follows the light and
-  the dark scheme with no colour of its own, and its text and its red and blue marks keep
-  4.5:1 or more (`weektotalshade_test.go`). The Total row appears only with two project rows or
+  8%, transparent)` in light mode and 22% in dark mode, one `light-dark()`
+  on `tr.week-total` in `styles.css` (forsgren#598, decision #600 A), so it
+  follows the light and the dark scheme with no colour of its own. Dark mode
+  mixes in more because at 8% the dark shade was hardly visible: APCA, the
+  contrast method proposed for WCAG 3, measures the light 8% shade on white
+  at Lc 9.4 and the dark 8% shade at Lc 0, and the dark shade first reaches
+  Lc 9 at 22% (the WCAG 2 ratio rates the dark shade the stronger one, the
+  opposite of what the eye sees, so it cannot measure this).
+  `TestWeekTotalShadeIsVisibleInLightAndDark` (`weektotalshade_test.go`,
+  APCA in `apca_test.go`, checked against APCA's published examples) holds
+  the shade at Lc 9 or more against the page background in both modes, on
+  white and on each usual dark canvas, and
+  `TestWeekTotalRowKeepsItsTextAndRedMarksReadable` holds its text and its
+  red and blue marks at 4.5:1 or more on it; for that the two marks have
+  their lighter dark colours above. The Total row appears only with two project rows or
   more (label, service and rule rows not counted; Yves's ruling on #552): with
   one project it would only repeat that project's row, so the table has no
   Total row. A page without a table (no projects, or nothing collected) has no

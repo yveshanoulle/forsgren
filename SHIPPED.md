@@ -9,6 +9,23 @@ Active work lives in
 
 ---
 
+## 2026-10-31 — The Week page's Total row shade is visible in dark mode too ([#598](https://github.com/yveshanoulle/forsgren/issues/598), 2 steps)
+
+forsgren issue 598. The Total row of the Week page is shaded so it stands
+apart from the project rows, but in dark mode the shade was hardly
+visible. Measured with APCA, the contrast method proposed for WCAG 3, the
+light shade stood out from the page and the dark one did not at all. Now
+the dark shade is stronger (22% of the text colour, 8% stays in light
+mode), and a test holds both shades visible against the page background,
+so a later change cannot make the row invisible again. To keep the red and
+blue marks of the highest weekdays readable at 4.5:1 or more on the
+stronger shade, they are a little lighter in dark mode; light mode is
+unchanged (decision
+[#600](https://github.com/yveshanoulle/forsgren/issues/600), option A).
+[Pages and views](docs/pages-and-views.md) follows. A patch release.
+
+---
+
 ## 2026-10-31 — The Week page shows the weekday with the highest share of deployments in blue ([#597](https://github.com/yveshanoulle/forsgren/issues/597), 2 steps)
 
 forsgren issue 597. On the Week page the highest Failed and Fail rate of
