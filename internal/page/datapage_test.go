@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yveshanoulle/forsgren/internal/history"
 	"github.com/yveshanoulle/forsgren/internal/metrics"
 )
 
@@ -39,7 +40,26 @@ func dataPageData() Data {
 			{Level: metrics.ProjectRow, Name: "Acme Old", Project: "Acme Old"},
 		},
 	}
+	data.FilesReadings = []metrics.FilesReading{
+		{Project: "Acme Shop", FilesProgress: history.FilesProgress{Read: 4199, Left: 3925}, Runs: 4},
+	}
 	return data
+}
+
+// TestDataPageSaysHowFarACommitFilesReadIs (forsgren#594, step 2): under the
+// table, one sentence per project whose commit files read is still going, by
+// the project's name; none, and no element, without a read going.
+func TestDataPageSaysHowFarACommitFilesReadIs(t *testing.T) {
+	data := dataPageData()
+	data.FilesReadings = append(data.FilesReadings,
+		metrics.FilesReading{Project: "Acme Old", FilesProgress: history.FilesProgress{Read: 10, Left: 1}, Runs: 1})
+	got := rendered(t, "data.html", data)
+	wantAll(t, "data.html", got,
+		"</div>\n    <p>Acme Shop: the files of 4 199 of 8 124 commits are read, 3 925 left "+
+			"(about 4 more runs).</p>\n    <p>Acme Old: the files of 10 of 11 commits are read, 1 left "+
+			"(about 1 more run).</p>\n    <h2 id=\"data-used-by\">")
+	wantAll(t, "no read", rendered(t, "data.html", markedData(metrics.DataStart{At: stored(time.March, 2)})),
+		"</div>\n    <h2 id=\"data-used-by\">")
 }
 
 func TestDataPageMatchesGolden(t *testing.T) {

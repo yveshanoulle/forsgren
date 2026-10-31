@@ -18,7 +18,8 @@
 {{end}}        </tbody>
       </table>
     </div>
-    <h2 id="data-used-by">Which pages use which data</h2>
+{{range .FilesReadings}}    <p>{{.Project}}: {{.Words}}.</p>
+{{end}}    <h2 id="data-used-by">Which pages use which data</h2>
     <ul>
 {{range .DataKinds}}      <li><strong>{{.Name}}</strong>: {{.UsedBy}}</li>
 {{end}}    </ul>

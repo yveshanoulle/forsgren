@@ -56,3 +56,14 @@ func TestLoadCommitFilesProgressOfNoFileIsEmpty(t *testing.T) {
 		t.Errorf("want none, got %+v, %v", got, err)
 	}
 }
+
+// TestFilesProgressRunsRoundUp (forsgren#594, step 2): the runs a read still
+// takes are the commits left over the cap of a run, rounded up, so the run
+// summary and the Data page say the same.
+func TestFilesProgressRunsRoundUp(t *testing.T) {
+	for left, want := range map[int]int{1: 1, 999: 1, 1000: 1, 1001: 2, 3925: 4} {
+		if got := (FilesProgress{Read: 1000, Left: left}).Runs(1000); got != want {
+			t.Errorf("Runs with %d left = %d, want %d", left, got, want)
+		}
+	}
+}

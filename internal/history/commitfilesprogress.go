@@ -22,6 +22,13 @@ type FilesProgress struct {
 	Left int
 }
 
+// Runs is about how many runs the read still takes at perRun commits a run:
+// the commits left over perRun, rounded up (forsgren#593's rounding, shared
+// by the run summary and the Data page since forsgren#594).
+func (p FilesProgress) Runs(perRun int) int {
+	return (p.Left + perRun - 1) / perRun
+}
+
 // CommitFilesProgress is data/commit_files_progress.csv: per repository, how
 // far its commit files read is.
 type CommitFilesProgress map[string]FilesProgress

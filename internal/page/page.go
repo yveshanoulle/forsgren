@@ -118,6 +118,10 @@ type Data struct {
 	WeekCommits bool
 	// DataStarts is the Data page's table (forsgren#579); empty until read.
 	DataStarts metrics.DataStarts
+	// FilesReadings are the projects whose commit files read is still going,
+	// which the Data page names under its table (forsgren#594); none until
+	// read.
+	FilesReadings []metrics.FilesReading
 	// PullsUncollected says there is no data/pulls.csv beside the history:
 	// no collect has stored pull requests yet, so the TBD page says so in
 	// place of each PR Lead Time (forsgren#256, step 2).

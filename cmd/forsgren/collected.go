@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/yveshanoulle/forsgren/internal/collect"
+	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
 // The Collected line of the run summary (forsgren#64, step 3c, decision
@@ -73,7 +74,7 @@ func progressWords(c collect.CappedFiles) string {
 	if !c.Counted() {
 		return "the next runs continue"
 	}
-	runs := (c.Left + collect.CommitFilesPerRun - 1) / collect.CommitFilesPerRun
+	runs := history.FilesProgress{Read: c.Read, Left: c.Left}.Runs(collect.CommitFilesPerRun)
 	return fmt.Sprintf("%d of %d read, %d left (about %s)", c.Read, c.Read+c.Left, c.Left, more(runs, "run"))
 }
 

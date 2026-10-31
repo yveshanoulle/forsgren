@@ -184,7 +184,23 @@ func withHistory(data page.Data, cfg config.Config, path string, at time.Time) (
 	data.IssueDays = metrics.IssueDays(events, at, issueDays)
 	data.IssueRows = metrics.IssueRows(events, at)
 	data.DataStarts = metrics.DataStartsOf(cfg.Projects, metricsData, events, at)
+	if data, err = withFilesReadings(data, cfg, path); err != nil {
+		return data, err
+	}
 	return withBugsCut(data, path)
+}
+
+// withFilesReadings is data with the projects whose commit files read is
+// still going, from data/commit_files_progress.csv beside the history at path
+// (forsgren#594, step 2): a missing file is no read going; an unknown or
+// malformed one fails the render, naming the file.
+func withFilesReadings(data page.Data, cfg config.Config, path string) (page.Data, error) {
+	progress, err := history.LoadCommitFilesProgress(beside(path, collect.CommitFilesProgressFile))
+	if err != nil {
+		return data, err
+	}
+	data.FilesReadings = metrics.FilesReadingsOf(cfg.Projects, progress, collect.CommitFilesPerRun)
+	return data, nil
 }
 
 // withBugsCut is data with BugsIncomplete set on every issue row when the bugs
