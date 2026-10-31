@@ -130,6 +130,13 @@ footer p {
   color: light-dark(#b3261e, #ff8a80);
 }
 
+/* The highest weekday Deploys share on the Week page is blue (forsgren#597),
+   the blue of .trend-flat-bugs; the same hidden word "highest" says it
+   without the colour. */
+.highest-deploys {
+  color: light-dark(#0b57d0, #8ab4f8);
+}
+
 /* A Data page date that is only where a push read stopped at the page cap is
    red (forsgren#583, Yves's option A): the Data page's own rule, held at 4.5:1
    or more in both modes by TestDataCutColourHasAContrastOfAtLeast4Point5; its
@@ -141,7 +148,8 @@ footer p {
 /* The Total row of the Week page, the first row under the column headers, is
    shaded (forsgren#552, Yves's ruling): a little of the text colour mixed into the
    canvas, so it follows the light and the dark scheme with no colour of its
-   own; the text and the red of .highest still read at 4.5:1 or more on it,
+   own; the text, the red of .highest and the blue of .highest-deploys still
+   read at 4.5:1 or more on it,
    which TestWeekTotalRowKeepsItsTextAndRedMarksReadable measures. */
 tr.week-total {
   background-color: color-mix(in srgb, currentcolor 8%, transparent);

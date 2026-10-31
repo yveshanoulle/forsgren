@@ -54,14 +54,15 @@ func TestWeekPageStartsWithATotalRowUnderTheHeaders(t *testing.T) {
 
 // TestWeekTotalRowSumsEveryProjectRow: Total holds the counts of the sums and
 // the Fail rate of the sums (7 of 58 plus 7); a weekday the shares of the
-// sums and its fail rate.
+// sums and its fail rate; Sunday's 25% of the deployments is the highest
+// Deploys share, blue (forsgren#597).
 func TestWeekTotalRowSumsEveryProjectRow(t *testing.T) {
 	row := weekTotalRow(t, weekPageData())
 	wantAll(t, "week.html Total row", row,
 		"<th scope=\"row\">Total</th>\n"+numCells("1"+metrics.ThousandsSpace+"338", "58", "7", "10%")+
 			numCells("2.3%", "8.6%", "14%", "16%"),
 		numCells("92%", "18%")+"            "+highestCell("42%")+"\n            "+highestCell("21%")+"\n",
-		numCells("0.14%", "25%")+"            "+highestCell("42%")+"\n"+numCells("16%"))
+		numCells("0.14%")+"            "+deploysHighestCell("25%")+"\n            "+highestCell("42%")+"\n"+numCells("16%"))
 	wantCount(t, row, "<td", 32)
 }
 

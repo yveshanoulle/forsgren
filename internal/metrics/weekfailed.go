@@ -51,6 +51,13 @@ func (r WeekRow) FailRateHighest(day int) bool {
 	return true
 }
 
+// DeploymentsHighest says whether weekday day has the most successful
+// deployments of the row, so the highest Deploys share, a tie marking every
+// tied day; false for a row without deployments (forsgren#597).
+func (r WeekRow) DeploymentsHighest(day int) bool {
+	return r.Deployments[day] > 0 && r.Deployments[day] == maxOf(r.Deployments)
+}
+
 // maxOf is the largest of the per-weekday counts.
 func maxOf(days [weekdays]int) int {
 	most := 0

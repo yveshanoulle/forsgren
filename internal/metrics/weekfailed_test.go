@@ -118,26 +118,14 @@ func TestWeekRowWithoutFailuresReadsDashesForFailedAndZeroRatesWhereItDeployed(t
 
 func TestWeekHighestMarksTheDayWithTheMostFailuresAndEveryTiedDay(t *testing.T) {
 	row := WeekRow{Failed: [weekdays]int{1, 0, 3, 0, 0, 0, 3}, Deployments: [weekdays]int{4, 5, 9, 1, 0, 3, 7}}
-	for day, want := range []bool{false, false, true, false, false, false, true} {
-		if got := row.FailedHighest(day); got != want {
-			t.Errorf("failed highest day %d: want %v, got %v", day, want, got)
-		}
-	}
+	wantHighestDays(t, "failed highest", row.FailedHighest, [weekdays]bool{2: true, 6: true})
 }
 
 func TestWeekHighestFailRateIsTheHighestRateNotTheHighestCount(t *testing.T) {
 	row := WeekRow{Failed: [weekdays]int{1, 0, 3, 0, 0, 0, 3}, Deployments: [weekdays]int{4, 5, 9, 1, 0, 3, 7}}
-	for day, want := range []bool{false, false, false, false, false, false, true} {
-		if got := row.FailRateHighest(day); got != want {
-			t.Errorf("fail rate highest day %d: want %v, got %v", day, want, got)
-		}
-	}
+	wantHighestDays(t, "fail rate highest", row.FailRateHighest, [weekdays]bool{6: true})
 	tied := WeekRow{Failed: [weekdays]int{1, 2, 0, 0, 0, 0, 0}, Deployments: [weekdays]int{1, 2, 7, 0, 0, 0, 0}}
-	for day, want := range []bool{true, true, false, false, false, false, false} {
-		if got := tied.FailRateHighest(day); got != want {
-			t.Errorf("tied fail rate highest day %d: want %v, got %v", day, want, got)
-		}
-	}
+	wantHighestDays(t, "tied fail rate highest", tied.FailRateHighest, [weekdays]bool{0: true, 1: true})
 }
 
 func TestWeekHighestMarksNothingForARowWithoutFailures(t *testing.T) {

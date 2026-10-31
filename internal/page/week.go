@@ -80,19 +80,26 @@ type WeekRow struct {
 // project's total.
 func (r WeekRow) IsLabel() bool { return r.Level == metrics.LabelRow }
 
-// WeekCell is a figure cell: its text and its class. Highest marks the
-// weekday cell of Failed or Fail rate with the highest value of its row
-// (forsgren#545): the class highest, red, and a visually hidden word.
+// WeekCell is a figure cell: its text and its class. Highest is the class
+// that marks a weekday cell with the highest value of its row, empty for any
+// other cell: highestFailed, red, on Failed and Fail rate (forsgren#545),
+// highestDeploys, blue, on Deploys (forsgren#597); a marked cell also holds
+// the visually hidden word highest.
 type WeekCell struct {
-	Text, Class string
-	Highest     bool
+	Text, Class, Highest string
 }
 
-// CellClass is the cell's class attribute value: its class, with highest
-// after it when the cell is marked.
+// The classes of the marked cells.
+const (
+	highestFailed  = "highest"
+	highestDeploys = "highest-deploys"
+)
+
+// CellClass is the cell's class attribute value: its class, with the mark's
+// class after num when the cell is marked.
 func (c WeekCell) CellClass() string {
-	if c.Highest {
-		return "num highest"
+	if c.Highest != "" {
+		return "num " + c.Highest
 	}
 	return c.Class
 }
@@ -108,16 +115,18 @@ func (r WeekRow) commitsClass() string {
 
 // Cells are the cells after the row header: the Total's Commits (with
 // week_commits: true), Deployments, Failed and Fail rate, then those of each
-// weekday, Monday first (forsgren#545, decision #546; forsgren#548).
+// weekday, Monday first (forsgren#545, decision #546; forsgren#548); the
+// Commits shares are never marked (forsgren#597).
 func (r WeekRow) Cells() []WeekCell {
-	cells := r.commitsCell(WeekCell{r.CommitsTotalCell(), r.commitsClass(), false}, nil)
-	cells = append(cells, WeekCell{r.DeploymentsTotalCell(), "num", false},
-		WeekCell{r.FailedTotalCell(), "num", false}, WeekCell{r.FailRateTotalCell(), "num", false})
+	cells := r.commitsCell(WeekCell{r.CommitsTotalCell(), r.commitsClass(), ""}, nil)
+	cells = append(cells, WeekCell{r.DeploymentsTotalCell(), "num", ""},
+		WeekCell{r.FailedTotalCell(), "num", ""}, WeekCell{r.FailRateTotalCell(), "num", ""})
 	for day := range weekDays {
-		cells = r.commitsCell(WeekCell{r.CommitsShareCell(day), r.commitsClass(), false}, cells)
-		cells = append(cells, WeekCell{r.DeploymentsShareCell(day), "num", false},
-			WeekCell{r.FailedShareCell(day), "num", r.FailedHighest(day)},
-			WeekCell{r.FailRateCell(day), "num", r.FailRateHighest(day)})
+		cells = r.commitsCell(WeekCell{r.CommitsShareCell(day), r.commitsClass(), ""}, cells)
+		cells = append(cells,
+			WeekCell{r.DeploymentsShareCell(day), "num", markIf(r.DeploymentsHighest(day), highestDeploys)},
+			WeekCell{r.FailedShareCell(day), "num", markIf(r.FailedHighest(day), highestFailed)},
+			WeekCell{r.FailRateCell(day), "num", markIf(r.FailRateHighest(day), highestFailed)})
 	}
 	return cells
 }

@@ -7,10 +7,17 @@ import "testing"
 // failed {1,0,3,0,0,0,3} of successful plus failed {5,5,12,1,0,3,10}; Website none; API
 // one on Friday of 14; Acme Docs none.
 
-// highestCell is a cell marked highest: the class and the hidden word.
-func highestCell(text string) string {
-	return `<td class="num highest">` + text + `<span class="visually-hidden"> highest</span></td>`
+// markedCell is a cell marked with class: the class after num, and the hidden
+// word highest.
+func markedCell(class, text string) string {
+	return `<td class="num ` + class + `">` + text + hiddenHighest + `</td>`
 }
+
+// hiddenHighest is the visually hidden word of a marked cell.
+const hiddenHighest = `<span class="visually-hidden"> highest</span>`
+
+// highestCell is a Failed or Fail rate cell marked highest, red.
+func highestCell(text string) string { return markedCell("highest", text) }
 
 // TestWeekPageFailedCellsAreACountInTotalAndSharesPerWeekday: Total is the
 // count of failures and the rate over the window; a weekday is the share of
@@ -28,22 +35,25 @@ func TestWeekPageFailedCellsAreACountInTotalAndSharesPerWeekday(t *testing.T) {
 // Failed (Wednesday and Sunday of Acme Shop), the highest Fail rate (Sunday),
 // the Friday of API in Failed and its Wednesday in Fail rate, and nothing in a row without failures; the
 // hidden word says it for a screen reader. The Total row (forsgren#552) is marked as a project row:
-// Wednesday and Sunday in Failed, Wednesday in Fail rate.
+// Wednesday and Sunday in Failed, Wednesday in Fail rate. The hidden word is
+// also in the five blue Deploys cells (forsgren#597).
 func TestWeekPageMarksTheHighestFailedAndFailRateOfEachRow(t *testing.T) {
 	got := rendered(t, "week.html", weekPageData())
 	wantAll(t, "week.html", got, highestCell("42%"), highestCell("30%"), highestCell("66%"), highestCell("20%"))
 	wantCount(t, got, highestCell("42%"), 2+2)
 	wantCount(t, got, `class="num highest"`, 5+3)
-	wantCount(t, got, `<span class="visually-hidden"> highest</span>`, 5+3)
+	wantCount(t, got, hiddenHighest, 5+3+5)
 }
 
 // TestWeekPageMarksNoTotalCellAndNoRowWithoutFailures: with the failures of
-// the first rows gone, no cell is marked.
+// the first rows gone, no cell is red; the hidden word stays only in the
+// five blue Deploys cells.
 func TestWeekPageMarksNoTotalCellAndNoRowWithoutFailures(t *testing.T) {
 	data := weekPageData()
 	for i := range data.Week.Rows {
 		data.Week.Rows[i].Failed = [7]int{}
 	}
 	got := rendered(t, "week.html", data)
-	wantNone(t, "week.html", got, "highest")
+	wantNone(t, "week.html", got, `class="num highest"`)
+	wantCount(t, got, hiddenHighest, 5)
 }

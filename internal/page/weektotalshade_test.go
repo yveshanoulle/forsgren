@@ -44,21 +44,32 @@ func TestWeekTotalRowIsShadedFromTheTextColour(t *testing.T) {
 		weekTotalRowStart+"\n            <th scope=\"row\">Total</th>")
 }
 
+// weekMarks are the classes of the Week page's highest cells: the red of
+// Failed and Fail rate (forsgren#545) and the blue of Deploys (forsgren#597).
+var weekMarks = []string{"highest", "highest-deploys"}
+
 // TestWeekTotalRowKeepsItsTextAndRedMarksReadable: on the shaded row, the
-// text (black on white, white on each dark canvas) and the light and dark red
-// of .highest reach 4.5:1.
+// text (black on white, white on each dark canvas) and the light and dark
+// colour of each mark, the red of .highest and the blue of .highest-deploys,
+// reach 4.5:1.
 func TestWeekTotalRowKeepsItsTextAndRedMarksReadable(t *testing.T) {
 	percent := shadePercent(t)
-	red, darkRed := trendColours(t, stylesCSS(t), "highest")
+	css := stylesCSS(t)
 	for _, canvas := range lightCanvases {
 		shade := mix("#000000", canvas, percent)
 		wantContrast(t, swatch{"total text", "light", "#000000"}, []string{shade})
-		wantContrast(t, swatch{"highest", "light", red}, []string{shade})
+		for _, mark := range weekMarks {
+			light, _ := trendColours(t, css, mark)
+			wantContrast(t, swatch{mark, "light", light}, []string{shade})
+		}
 	}
 	for _, canvas := range darkCanvases {
 		shade := mix("#ffffff", canvas, percent)
 		wantContrast(t, swatch{"total text", "dark", "#ffffff"}, []string{shade})
-		wantContrast(t, swatch{"highest", "dark", darkRed}, []string{shade})
+		for _, mark := range weekMarks {
+			_, dark := trendColours(t, css, mark)
+			wantContrast(t, swatch{mark, "dark", dark}, []string{shade})
+		}
 	}
 }
 

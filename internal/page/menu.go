@@ -81,8 +81,8 @@ func (p pageData) rootEntries() []menuItem {
 	return menu
 }
 
-// markIf is the aria-current mark of the entry the page is on, empty for the
-// others.
+// markIf is mark when on, else empty: the aria-current mark of the entry the
+// page is on, or the class of a Week cell with the highest value of its row.
 func markIf(on bool, mark string) string {
 	if on {
 		return mark
