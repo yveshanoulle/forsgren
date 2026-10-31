@@ -149,10 +149,12 @@ func MainlineIntervals(projects []config.Project, data Data, now time.Time) []Ma
 	for _, c := range commitsOfPushes(index, data, tips) {
 		authored[c.project] = append(authored[c.project], c.authored)
 	}
-	out := make([]MainlineInterval, len(projects))
-	for i, s := range pushStatesOf(index, data, len(projects)) {
-		out[i] = mainlineOver(projects[i].Name, authored[i])
-		out[i].NotReadable, out[i].Uncollected = s.notReadable, s.uncollected
+	states := pushStatesOf(index, data, len(projects))
+	out := make([]MainlineInterval, 0, len(projects))
+	for i, p := range projects {
+		m := mainlineOver(p.Name, authored[i])
+		m.NotReadable, m.Uncollected = states[i].notReadable, states[i].uncollected
+		out = append(out, m)
 	}
 	return out
 }
