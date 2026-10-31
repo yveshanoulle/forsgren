@@ -1,6 +1,6 @@
 {{define "footer"}}  <footer>
     <p><a href="https://forsgren.be/">Forsgren</a> {{.Version}}{{with .DevCommit}}{{if $.Development}} ({{.}}){{else}}+dev ({{.}}){{end}}{{end}}{{with .Update}} · {{.}} {{if $.WaitingPR}}is waiting in pull request #{{$.WaitingPR}} (merge it to update){{else if $.PRListCut}}is available; unknown (pull request list truncated){{else}}is available{{end}}.{{end}}{{if .NeedsMore}} · needs more configuration: see the job summary of this run.{{end}} Metrics from GitHub data.{{if .AsOf}} Calculated at {{.AsOf}} UTC{{with .ReportStart}} <strong>Report Start</strong> {{.}} <strong>Report End</strong> {{$.ReportEnd}}{{end}}{{end}}</p>
-{{/* Every page links to Settings, the legend and the dictionary, the same three links (forsgren#128, decision #133, forsgren#370), and to the Data page while data_page is true (forsgren#582). */}}    <p><a href="{{.Base}}settings.html">Settings</a> <a href="{{.Base}}legend.html">Legend</a> <a href="{{.Base}}dictionary.html">Dictionary</a>{{if .DataLinked}} <a href="{{.Base}}data.html">Data</a>{{end}}</p>
+{{/* Every page links to Settings, the legend and the dictionary, the same three links (forsgren#128, decision #133, forsgren#370), and to the Data page while data_page is true (forsgren#582); the page's own entry is plain text marked as in the menu (forsgren#596). */}}    <p>{{range $i, $item := .Footer}}{{if $i}} {{end}}{{if .Current}}<span aria-current="{{.Current}}">{{.Label}}</span>{{else}}<a href="{{$.Base}}{{.Href}}">{{.Label}}</a>{{end}}{{end}}</p>
   </footer>
 </body>
 </html>{{end}}

@@ -26,6 +26,25 @@ func (p pageData) listed(name string) bool { return !p.Hidden[name] && !p.Unlist
 // writes and lists it, data_page true.
 func (p pageData) DataLinked() bool { return p.listed(DataPage) }
 
+// footerPages are the pages the footer links on every page, in its order
+// (forsgren#128, decision #133, forsgren#370).
+var footerPages = []rootPage{{settingsPage, "Settings"}, {legendPage, "Legend"}, {dictionaryPage, "Dictionary"}}
+
+// Footer is the footer's line of links: Settings, Legend and Dictionary, then
+// Data while DataLinked (forsgren#582). As in the menu, the page's own entry
+// is marked "page" and every other entry is a link (forsgren#596).
+func (p pageData) Footer() []menuItem {
+	pages := footerPages
+	if p.DataLinked() {
+		pages = append(pages[:len(pages):len(pages)], rootPage{DataPage, "Data"})
+	}
+	footer := make([]menuItem, len(pages))
+	for i, page := range pages {
+		footer[i] = menuItem{page.Name + ".html", page.Label, markIf(page.Name == p.Page, "page")}
+	}
+	return footer
+}
+
 // menuItem is one entry of the menu: its address from the root, its label,
 // and its aria-current, empty for an entry that is a link.
 type menuItem struct{ Href, Label, Current string }

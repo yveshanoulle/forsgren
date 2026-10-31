@@ -22,14 +22,21 @@ var menuEntries = []menuEntry{
 // current plain text, marked aria-current=mark, the others links; no entry is
 // current when current is empty.
 func wantMenu(base, current, mark string) string {
-	parts := make([]string, len(menuEntries))
-	for i, e := range menuEntries {
+	return `<nav class="views">View: ` + strings.Join(entryParts(menuEntries, base, current, mark), " · ") + `</nav>`
+}
+
+// entryParts are entries as the menu and the footer write them: the one whose
+// label or href is current plain text marked aria-current=mark, the others
+// links that start with base.
+func entryParts(entries []menuEntry, base, current, mark string) []string {
+	parts := make([]string, len(entries))
+	for i, e := range entries {
 		parts[i] = `<a href="` + base + e.href + `">` + e.label + `</a>`
-		if e.label == current {
+		if current == e.label || current == e.href {
 			parts[i] = `<span aria-current="` + mark + `">` + e.label + `</span>`
 		}
 	}
-	return `<nav class="views">View: ` + strings.Join(parts, " · ") + `</nav>`
+	return parts
 }
 
 // menuCase is what a page's menu marks: the current entry's label and its
@@ -139,15 +146,13 @@ func TestNoPageLinksBackToTheTable(t *testing.T) {
 // TestEveryPageEndsWithTheSameFooter (forsgren#128, step 11; decision #133):
 // every page, with data or without, ends with one footer: the version line
 // with Calculated at, then Settings, Legend, Dictionary and Data (forsgren#582),
-// linked through ../ one folder down.
+// linked through ../ one folder down, the page's own entry plain text
+// (forsgren#596).
 func TestEveryPageEndsWithTheSameFooter(t *testing.T) {
 	for name, data := range map[string]Data{"with data": viewData(), "placeholder": calculated()} {
 		for _, page := range PageNames() {
 			base := menuCases(menuCase{})[page].base
-			want := " " + footerReport + "\n    <p><a href=\"" + base + "settings.html\">Settings</a> " +
-				"<a href=\"" + base + "legend.html\">Legend</a> " +
-				"<a href=\"" + base + "dictionary.html\">Dictionary</a> " +
-				"<a href=\"" + base + "data.html\">Data</a></p>\n  </footer>\n"
+			want := " " + footerReport + "\n    " + wantFooter(base, page) + "\n  </footer>\n"
 			wantAll(t, name+" "+page, rendered(t, page, data), want)
 		}
 	}
