@@ -78,7 +78,7 @@ never in none. The file names the groups below; the job ids are the keys of
 | `quality_2` (Quality gates 2/2) | macOS | `Scripts/required_tools_quality_2_gates.txt` (go, node, jq) | Go tests and Go coverage, golden pages, and the slower self-tests, among them the exit-trap completion behaviour |
 | `browser_1` (Browser gates 1/2) | macOS | `Scripts/required_tools_browser_1_gates.txt` (go, node) | the browser gate self-test and the fixture-site self-test |
 | `browser` (Browser gates) | macOS | `Scripts/required_tools_browser_gates.txt` (go, node) | the browser gate process self-test, the browser gate and the fixture-site gate, with its own site build |
-| `lint` (Lint gates) | Linux | `Scripts/required_tools_linux.txt` | actionlint, shellcheck, yamllint, zizmor and Go lint, each with its self-test |
+| `lint` (Lint gates) | Linux | `Scripts/required_tools_linux.txt` | actionlint, shellcheck, yamllint, zizmor and Go lint, each with its self-test, and the Go test duplication gate |
 | `workflows` (Workflow gates) | Linux | `Scripts/required_tools_linux_gates.txt` | the gates that read only workflows and scripts, go mod tidy, three Go self-tests and eleven Linux-safe self-tests of the main job |
 | `isolation_1`, `isolation_2` | Linux | `Scripts/required_tools_linux_gates.txt` | the git sandbox isolation self-test, one shard each |
 | `summary` (Summary isolation gates) | Linux | `Scripts/required_tools_linux_gates.txt` | the step summary isolation gate |
@@ -157,6 +157,20 @@ setup the rule asks it to beat. A Linux job with the three slowest Linux-run
 gates (Go test duplication, parallel mutants library self-test, Go coverage
 self-test, about 92 s) saves 62 s by the median and 48 s on average. The run's
 floor is now Workflow gates as much as the main job.
+
+**Go test duplication runs in the Lint gates job** (forsgren#591). The slowest
+gate left in the main job (67 s by the median above) moved to `lint`, which
+took 157 s and so stays well under the main job, with no new setup: the lint
+job already sets up Go and builds the `go.mod`-pinned golangci-lint for Go
+lint, and the gate (`Scripts/check_test_dupl.sh`) runs that same tool through
+`Scripts/lib_go_tool.sh`, with `go list`, `mktemp -d` and `grep`, nothing
+macOS-only; its self-test already ran on Linux in the `workflows` job. The main
+job loses 67 s. The run saves that only up to the main job's lead over the next
+longest job: over the ten leads above that is 40, 67, 67, 0, 0, 67, 0, 0, 67
+and 67 s, about 54 s by the median and 44 s on average. The gate runs once per
+Quality run, in `lint` alone (`Scripts/ci_job_groups.txt`, pinned by
+`Scripts/test_quality_jobs.sh`); `sfl.sh` and `FBP.sh` run it locally as
+before, since the order file is unchanged.
 
 **Jobs** (forsgren#259, decision #260). Quality is one workflow with parallel
 jobs and one verdict: the run's conclusion is success only when every job
@@ -336,7 +350,8 @@ Go-only gates run on Linux (forsgren#447, steps 5 and 6). The `lint` job also
 runs Go lint and its self-test (124 s on the Mac, 146 s at most; they left
 `quality_2`), and the `workflows` job also runs go mod tidy, the Go test
 duplication self-test and the Go vulnerabilities self-test (85 s, 106 s at
-most; they left the main job; the two gates themselves stay in the main job).
+most; they left the main job; the Go vulnerabilities gate stays in the main
+job, and the Go test duplication gate joined `lint` in forsgren#591, above).
 Go ships with the hosted Linux image and `GOTOOLCHAIN` comes from `go.mod`, as
 for the other Linux jobs, and the Go tools run from `go.mod` (`go tool`), so
 neither tools list changes. `quality_2` keeps Go tests and Go coverage together

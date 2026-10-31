@@ -47,8 +47,11 @@
 #      run_ci_phase.sh pre for the job `lint`; no step names a lint gate
 #      itself; the group file gives it actionlint, shellcheck, yamllint and
 #      zizmor with their self-tests and, since forsgren#447 step 5, Go lint
-#      with its self-test (Go ships with the Linux image), so the main job no longer runs them (the
-#      order file is unchanged: the rows keep their pre phase and place)
+#      with its self-test (Go ships with the Linux image), and, since forsgren#591,
+#      the Go test duplication gate (the same go.mod golangci-lint as Go lint;
+#      its self-test already ran on Linux in the workflows job), so the main job
+#      no longer runs them (the order file is unchanged: the rows keep their pre
+#      phase and place)
 #   3d. the workflows job (forsgren#408) has the same setup and runs exactly
 #      run_ci_phase.sh pre for the job `workflows`; no step names one of its
 #      gates itself; the group file gives it the gates that read only the
@@ -496,7 +499,7 @@ groups_findings() {
     'browser_1|browser gate self-test' 'browser_1|browser gate (fixture site) self-test' 'browser|browser gate process self-test' 'browser|browser gate' 'browser|browser gate (fixture site)' \
     'lint|actionlint self-test' 'lint|actionlint forsgren cases self-test' 'lint|actionlint' \
     'lint|shellcheck self-test' 'lint|shellcheck' 'lint|yamllint self-test' 'lint|yamllint' \
-    'lint|zizmor self-test' 'lint|zizmor' 'lint|Go lint self-test' 'lint|Go lint' \
+    'lint|zizmor self-test' 'lint|zizmor' 'lint|Go lint self-test' 'lint|Go lint' 'lint|Go test duplication' \
     "${Q2_ROWS[@]}" \
     'workflows|gate wiring' 'workflows|mutation: checkout pins' 'workflows|metrics workflow' 'workflows|release workflow' \
     'workflows|starter page workflow' 'workflows|quality jobs pin' 'workflows|preview workflow' \
@@ -510,7 +513,7 @@ groups_findings() {
   [[ -f "$GROUPS_FILE" ]] || { echo "groups: ${GROUPS_FILE} does not exist"; return 0; }
   rows="$(grep -v '^#' "$GROUPS_FILE" | grep . | LC_ALL=C sort | tr '\n' ';')"
   [[ "$rows" == "$labels" ]] \
-    || echo "groups: ${GROUPS_FILE} must give the two isolation jobs the git sandbox isolation self-test, one shard each (isolation_1 with --shard 1/2, isolation_2 with --shard 2/2), the summary job the step summary isolation gate, the browser_1 job the browser gate self-test and the browser gate (fixture site) self-test, the browser job the two browser gates and the process self-test, the lint job actionlint, shellcheck, yamllint and zizmor with their self-tests and Go lint with its self-test, the quality_2 job the eleven gates of forsgren#447 (the Go tests with the Go coverage gate, nine more), and the workflows job gate wiring, the checkout pins mutations and the pins of the metrics, release, starter page, vulncheck, auto-update and preview workflows and of this job layout, go mod tidy, the Go test duplication and Go vulnerabilities self-tests and, since step 8b, eleven Linux-safe tail gates of the main job (release pins, browser gate selection, Go tests, release precheck, community-files, DCO sign-off, release plan, release report, release check and release metrics self-tests, and sfl drives from the order file), got: ${rows:-none}"
+    || echo "groups: ${GROUPS_FILE} must give the two isolation jobs the git sandbox isolation self-test, one shard each (isolation_1 with --shard 1/2, isolation_2 with --shard 2/2), the summary job the step summary isolation gate, the browser_1 job the browser gate self-test and the browser gate (fixture site) self-test, the browser job the two browser gates and the process self-test, the lint job actionlint, shellcheck, yamllint and zizmor with their self-tests and Go lint with its self-test and, since forsgren#591, the Go test duplication gate, the quality_2 job the eleven gates of forsgren#447 (the Go tests with the Go coverage gate, nine more), and the workflows job gate wiring, the checkout pins mutations and the pins of the metrics, release, starter page, vulncheck, auto-update and preview workflows and of this job layout, go mod tidy, the Go test duplication and Go vulnerabilities self-tests and, since step 8b, eleven Linux-safe tail gates of the main job (release pins, browser gate selection, Go tests, release precheck, community-files, DCO sign-off, release plan, release report, release check and release metrics self-tests, and sfl drives from the order file), got: ${rows:-none}"
   while IFS='|' read -r job label _args; do
     awk -F'|' -v l="$label" '$1 == l && ($3 == "pre" || $3 == "post")' <(grep -v '^#' "$ORDER") | has . \
       || echo "groups: '${label}' is no pre or post row of ${ORDER}"
