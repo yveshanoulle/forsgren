@@ -131,7 +131,7 @@ func tbdPushes() []metrics.PushMeasures {
 				Deviation: 2 * time.Hour},
 			PerPush: metrics.CountSpread{Count: 20, Mean: 2, Median: 1.5, P90: 6, Deviation: 2.5}},
 		{Project: "Acme Tools", Pushes: 1, Commits: 1, Direct: 1,
-			TimeToMain: metrics.DurationSpread{Count: 1, Mean: 2 * time.Hour},
+			TimeToMain: metrics.DurationSpread{Count: 1, Mean: 100 * time.Minute},
 			PerPush:    metrics.CountSpread{Count: 1, Mean: 1}},
 		{Project: "Acme Docs", NotReadable: true},
 		{Project: "Acme Web", Uncollected: true},
@@ -174,7 +174,7 @@ func tbdDeploys() []metrics.DeployMeasures {
 // deployment and the shares (direct, PR, unknown, bots).
 var tbdTimeCells = map[string][2]string{
 	"Acme Shop":  {"30 m", "1 h | 30 m | 3 h | 2 h"},
-	"Acme Tools": {"-", "2 h | - | - | -"},
+	"Acme Tools": {"-", "1 h 40 | - | - | -"},
 	"Acme Docs":  {"@1Push activity not readable", "@4Push activity not readable"},
 	"Acme Web":   {"@1Pushes not collected yet", "@4Pushes not collected yet"},
 }
