@@ -148,8 +148,9 @@ func Run(ctx context.Context, cfg config.Config, o Options) error {
 	return o.finish(h, before, done, cfg.RepositoryCount())
 }
 
-// loadFiles is h with what the issue files, the pulls file and the mark files
-// hold; one that cannot be read refuses the run before GitHub is asked.
+// loadFiles is h with what the issue files, the pulls file, the pushes files,
+// the commit files progress (forsgren#594) and the mark files hold; one that
+// cannot be read refuses the run before GitHub is asked.
 func (o Options) loadFiles(h held) (held, error) {
 	h, err := o.loadIssueFiles(h)
 	if err != nil {
@@ -159,6 +160,9 @@ func (o Options) loadFiles(h held) (held, error) {
 		return h, err
 	}
 	if h, err = o.loadPushes(h); err != nil {
+		return h, err
+	}
+	if h.filesProgress, err = history.LoadCommitFilesProgress(o.commitFilesProgressFile()); err != nil {
 		return h, err
 	}
 	return o.loadMarks(h)

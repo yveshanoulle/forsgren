@@ -76,6 +76,11 @@ const CommitFilesFile = "commit_files.csv"
 // (forsgren#496).
 const CommitFilesFilledFile = "commit_files_filled.csv"
 
+// CommitFilesProgressFile is the name, next to the history, of the file that
+// keeps how far each repository's commit files read is while it is still
+// going (forsgren#594).
+const CommitFilesProgressFile = "commit_files_progress.csv"
+
 // CommitFilesPerRun is the most commits whose files one run asks for, per
 // repository (forsgren#589, Yves's ruling): a first fill of thousands of
 // commits is spread over several runs instead of spending a request budget.
@@ -126,11 +131,11 @@ func (o Options) fillCommitFiles(ctx context.Context, h held, r config.Repositor
 		return 0, err
 	}
 	read, err := o.readCommitFiles(ctx, r.Name, todo)
-	if _, serr := history.AppendCommitFiles(o.commitFilesFile(), read.lines); serr != nil {
+	at := todo.capped(r.Name, read.reached)
+	if serr := o.storeFiles(h, at, todo, read); serr != nil {
 		return 0, serr
 	}
-	o.noteFileMarks(h, r.Name, todo, read)
-	if o.endedShort(todo.capped(r.Name, read.reached), err) {
+	if o.endedShort(at, err) {
 		return read.commits, nil
 	}
 	return read.commits, err

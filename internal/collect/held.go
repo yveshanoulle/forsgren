@@ -92,6 +92,8 @@ type held struct {
 	startsDone     map[string]bool           // the repositories caught up in this run
 	filledDone     map[string]bool           // the repositories whose legacy commits were backfilled in this run
 	partial        map[string]bool
+	// see filesprogress.go: the progress of each commit files read still going (forsgren#594)
+	filesProgress history.CommitFilesProgress
 }
 
 // loadHeld reads the history at path; a missing file holds nothing.
