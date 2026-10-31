@@ -45,12 +45,14 @@ func TestWeekPageWithoutCommitsHasThreeColumnsPerGroup(t *testing.T) {
 // TestWeekPageWithoutCommitsHasThreeCellsPerGroupInEveryRow: 24 figure cells
 // in every row and in the Total row
 // after the row header, none of them the en dash of a row Per repository, and
-// the deployments figures unchanged.
+// the deployments figures unchanged: Acme Shop's 36 deployments (29
+// successful, 7 failed, forsgren#601), API's Tuesday 2.5% (1 of 39) and Acme
+// Shop's fail rate 19%.
 func TestWeekPageWithoutCommitsHasThreeCellsPerGroupInEveryRow(t *testing.T) {
 	got := rendered(t, "week.html", weekPageDataWithoutCommits())
 	wantCount(t, got, "<td", (4+1)*24) // four rows and the Total row
 	wantNone(t, "week.html", got, "<td>\u2013</td>", "1\u202f338")
-	wantAll(t, "week.html", got, `<td class="num">29</td>`, `<td class="num">2.7%</td>`, `<td class="num">19%</td>`)
+	wantAll(t, "week.html", got, `<td class="num">36</td>`, `<td class="num">2.5%</td>`, `<td class="num">19%</td>`)
 }
 
 // TestWeekPageWithCommitsHasFourColumnsPerGroup: week_commits true brings the

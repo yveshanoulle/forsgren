@@ -1293,6 +1293,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/tbdcells.go:shareOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/weekrows.go:CommitsTotalCell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/weekrows.go:DeploymentsTotalCell": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/weekrows.go:deployed": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/weekrows.go:CommitsShareCell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/weekrows.go:DeploymentsShareCell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/weekfailed.go:FailedTotalCell": 100.0,

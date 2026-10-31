@@ -30,6 +30,18 @@ func TestWeekTotalSumsTheProjectRowsOnly(t *testing.T) {
 	}
 }
 
+// TestWeekTotalDeploymentsAreTheSuccessfulPlusFailedOfTheSums: 11 successful
+// and 4 failed are 15, Monday's 1 and 2 its 20% (forsgren#601).
+func TestWeekTotalDeploymentsAreTheSuccessfulPlusFailedOfTheSums(t *testing.T) {
+	total := weekForTotal().Total()
+	if got, want := total.DeploymentsTotalCell(), "15"; got != want {
+		t.Errorf("Total deployments: want %q, got %q", want, got)
+	}
+	if got, want := total.DeploymentsShareCell(0), "20%"; got != want {
+		t.Errorf("Total Monday deployments share: want %q, got %q", want, got)
+	}
+}
+
 // TestWeekTotalFailRateIsTheRateOfTheSums: 4 failed of 15 successful plus
 // failed, not a mean of the projects' rates.
 func TestWeekTotalFailRateIsTheRateOfTheSums(t *testing.T) {

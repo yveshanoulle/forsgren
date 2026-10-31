@@ -25,7 +25,8 @@ package metrics
 //     judge;
 //   - the deployments of every row are its successful deployments created in
 //     the window (as DeploymentFrequency.InWindow counts them), over the
-//     row's own data for a service or rule;
+//     row's own data for a service or rule; the Deployments cells and the
+//     highest Deploys share count them plus the failed ones (forsgren#601);
 //   - the page shows a Total and, per weekday, the share of the row's commits
 //     and of its deployments (forsgren#540, decision #541; the weekend share
 //     column is gone).
@@ -188,9 +189,13 @@ func (r WeekRow) CommitsTotalCell() string {
 	return GroupDigits(sum(r.Commits))
 }
 
-// DeploymentsTotalCell is the row's successful deployments of the window as
-// a count.
-func (r WeekRow) DeploymentsTotalCell() string { return GroupDigits(sum(r.Deployments)) }
+// DeploymentsTotalCell is the row's deployments of the window, successful
+// plus failed, as a count (forsgren#601).
+func (r WeekRow) DeploymentsTotalCell() string { return GroupDigits(sum(r.deployed())) }
+
+// deployed are the row's deployments per weekday that the Week page counts:
+// the successful and the failed ones, not the other states (forsgren#601).
+func (r WeekRow) deployed() [weekdays]int { return addDays(r.Deployments, r.Failed) }
 
 // CommitsShareCell is the share of the row's commits on weekday day (0
 // Monday to 6 Sunday), written as the TBD shares are (shareOf); a dash for a row with no commits, an en
@@ -202,8 +207,9 @@ func (r WeekRow) CommitsShareCell(day int) string {
 	return shareOf(r.Commits[day], sum(r.Commits))
 }
 
-// DeploymentsShareCell is the share of the row's deployments on weekday day,
-// as CommitsShareCell writes it; a dash for a row with none.
+// DeploymentsShareCell is the share of the row's deployments, successful plus
+// failed, on weekday day, as CommitsShareCell writes it; a dash for a row with
+// none.
 func (r WeekRow) DeploymentsShareCell(day int) string {
-	return shareOf(r.Deployments[day], sum(r.Deployments))
+	return shareOf(r.rated(day), sum(r.deployed()))
 }
