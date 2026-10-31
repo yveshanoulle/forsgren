@@ -7,12 +7,10 @@ import "github.com/yveshanoulle/forsgren/internal/metrics"
 // of the numbers, with the projects it applies to and their counts. The cells
 // carry the markers; this list says what they mean.
 
-// TbdNoteProject is a project a kind of note applies to, with its count and,
-// where the note is a part of a whole, the whole (7 of 13 commits).
+// TbdNoteProject is a project a kind of note applies to, with its count.
 type TbdNoteProject struct {
 	Name  string
 	Count int
-	Of    int
 }
 
 // TbdNote is one kind of note that occurs on the page.
@@ -30,20 +28,19 @@ func (n TbdNote) Number() int { return n.Kind.Number() }
 // Text is the note's generic text.
 func (n TbdNote) Text() string { return n.Kind.Text() }
 
-// notes are the notes of the row's cells: the Mainline Interval's first, then
-// the Mainline Lead Time's (forsgren#463, step 9), then the pull requests' and
-// the bots' (forsgren#479); a
-// project without data (forsgren#394, step 3) has none, a project whose pull
-// requests cells are a sentence has none of those, and one whose Mainline Lead
-// Time cell is a push state has none of that.
+// notes are the notes of the row's cells: the files' (note 8, forsgren#496)
+// first, then the Mainline Lead Time's (forsgren#463, step 9), then the pull
+// requests' and the bots' (forsgren#479); the Mainline Interval has none since
+// forsgren#588. A project without data (forsgren#394, step 3) has none, a
+// project whose pull requests cells are a sentence has none of those, and one
+// whose Mainline Lead Time cell is a push state has none of that.
 // They are the same whichever figures the table shows (forsgren#423): the mean
 // cell has them, or the median cell where it is alone.
 func (r TbdRow) notes() []metrics.Note {
 	if r.NoData() {
 		return nil
 	}
-	notes := append([]metrics.Note{}, r.Interval.MeanCell().Notes...)
-	notes = append(notes, r.filesNotes()...)
+	notes := r.filesNotes()
 	if r.PushAbsent {
 		return notes
 	}
@@ -90,7 +87,7 @@ func projectsWith(kind metrics.NoteKind, row TbdRow) []TbdNoteProject {
 			continue
 		}
 		if len(out) == 0 {
-			out = append(out, TbdNoteProject{Name: row.NotesName(), Of: n.Of})
+			out = append(out, TbdNoteProject{Name: row.NotesName()})
 		}
 		out[0].Count += n.Count
 	}

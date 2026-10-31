@@ -8,15 +8,16 @@ import (
 )
 
 // TestNoteKindsKeepTheirNumbersAndTexts (forsgren#394, step 2, Yves's ruling:
-// the numbers are fixed forever, the legend uses them too): the seven kinds
+// the numbers are fixed forever, the legend uses them too): the five kinds
 // have these numbers and these generic texts; (5) is retired (forsgren#479:
-// the Bot PR Lead Time column took its place), its number reserved forever and
-// never listed; a new kind appends from (9), and changing a line below is
-// changing what (1) to (8) mean on every page.
+// the Bot PR Lead Time column took its place), and so are (1) and (2)
+// (forsgren#588: the Mainline Interval places every pushed commit at its
+// author date by rule, so no commit is timed by author date as a fallback),
+// their numbers reserved forever and never listed; a new kind appends from
+// (9), and changing a line below is changing what (3) to (8) mean on every
+// page.
 func TestNoteKindsKeepTheirNumbersAndTexts(t *testing.T) {
 	want := map[int]string{
-		1: "Mostly estimated: commits timed by author date",
-		2: "Commits timed by author date",
 		3: "A lower bound: a first commit time of a pull request was cut",
 		4: "Pull requests timed by their created time",
 		6: "Pushes left out: their commits are not known (incomplete data), not counted as 0",
@@ -30,7 +31,7 @@ func TestNoteKindsKeepTheirNumbersAndTexts(t *testing.T) {
 	for _, k := range kinds {
 		wantKind(t, k, k.Number(), want[k.Number()])
 	}
-	for _, retired := range []NoteKind{5, 9} {
+	for _, retired := range []NoteKind{1, 2, 5, 9} {
 		if retired.Text() != "" || slices.Contains(kinds, retired) {
 			t.Errorf("want (%d) no kind with no text, got %q", retired, retired.Text())
 		}
@@ -57,7 +58,7 @@ func TestNotedCellDescribedByNamesEachNote(t *testing.T) {
 		want string
 	}{
 		"none": {NotedCell{Value: "-"}, ""},
-		"one":  {NotedCell{Notes: []Note{{Kind: NoteByAuthorDate}}}, "tbd-note-2"},
+		"one":  {NotedCell{Notes: []Note{{Kind: NoteFilling}}}, "tbd-note-7"},
 		"two":  {NotedCell{Notes: []Note{{Kind: NoteLowerBound}, {Kind: NoteUnknownPushes}}}, "tbd-note-3 tbd-note-6"},
 	}
 	for name, c := range cases {
@@ -65,7 +66,7 @@ func TestNotedCellDescribedByNamesEachNote(t *testing.T) {
 			t.Errorf("%s: want %q, got %q", name, c.want, got)
 		}
 	}
-	if n := (Note{Kind: NoteCreatedTime, Count: 2}); n.Number() != 4 || !reflect.DeepEqual(n, Note{4, 2, 0}) {
+	if n := (Note{Kind: NoteCreatedTime, Count: 2}); n.Number() != 4 || !reflect.DeepEqual(n, Note{4, 2}) {
 		t.Errorf("want number 4, got %d", n.Number())
 	}
 }

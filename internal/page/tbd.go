@@ -32,12 +32,13 @@ const pullsUncollectedCell = "No pull requests have been collected yet"
 func (d Data) TbdTitle() string { return tbdTitle }
 
 // TbdMessage is the one line the TBD page shows in place of its table: there
-// are no projects, or no Mainline Interval has been read.
+// are no projects, or no data was given, so no push (the Mainline Interval
+// reads the pushes since forsgren#588) has been read.
 func (d Data) TbdMessage() string {
 	if d.NoProjects {
 		return "No projects are listed yet, so there is no Mainline Interval to show."
 	}
-	return "No commits have been collected yet, so there is no Mainline Interval to show."
+	return "No pushes have been collected yet, so there is no Mainline Interval to show."
 }
 
 // TbdRow is one row of the TBD page (forsgren#397, step 5; forsgren#422, step

@@ -181,7 +181,8 @@ projects:
     the commits per push, the time to deploy and the commits per deployment
     from the deployments, the Mainline Lead Time of every commit that
     reached main and its view, the PR Lead Time of merged human pull
-    requests and the Bot PR Lead Time of the bots' (forsgren#479), the Mainline Interval and the number of developers
+    requests and the Bot PR Lead Time of the bots' (forsgren#479), the Mainline Interval between the
+    commits pushed to the main branch and the number of developers
     (forsgren#397; see [The TBD page](pages-and-views.md#the-tbd-page)); the
     legend explains every group. Which figures each measure shows is the key
     `tbd_figures`, below.
@@ -198,8 +199,10 @@ projects:
   plain literals:
   - `median`: the median of each measure, one column each. This is the default.
     In this mode PR Lead Time and Mainline Lead Time show their median only.
-  - `all`: the mean, the median and the 90th percentile of each measure, under
-    two rows of headers.
+  - `all`: the mean, the median, the 90th percentile and the standard deviation
+    of each measure, under two rows of headers. The standard deviation is the
+    sample one, headed `SD` (forsgren#588, decision #599 A); the table is
+    wider, and scrolls sideways inside its region.
 
   Left out, or without a value, the key is `median`. So an installation that
   does not set it sees the median alone on the TBD page after updating to

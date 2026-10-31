@@ -52,40 +52,16 @@ type MainlineInterval struct {
 	// Deviation is the sample standard deviation of the gaps; zero below two
 	// gaps (see HasMedian).
 	Deviation time.Duration
-	// ByAuthorDate counts the commits placed by their author date as a
-	// fallback, the old approximation of the deployed commits (forsgren#254).
-	// MainlineIntervals sets none since forsgren#588: a pushed commit is at
-	// its author date by rule, not by a fallback.
-	ByAuthorDate int
 	// NotReadable says collect was refused the push read of one of the
 	// project's repositories, Uncollected that no push has been collected:
 	// the push measures' states, never a fallback to the deployed commits.
 	NotReadable, Uncollected bool
 }
 
-// Notes are the notes on the mean cell (forsgren#394, step 2): none without a
-// commit timed by author date; when they are more than half of the commits
-// counted, the figure is mostly the old approximation and the note says so
-// (forsgren#345, step 3, Yves's wording on #344), with the commits it is part
-// of; else the plain count.
-func (m MainlineInterval) Notes() []Note {
-	switch {
-	case m.ByAuthorDate == 0:
-		return nil
-	case mostOf(m.ByAuthorDate, m.Commits):
-		return []Note{{Kind: NoteMostlyEstimated, Count: m.ByAuthorDate, Of: m.Commits}}
-	}
-	return []Note{{Kind: NoteByAuthorDate, Count: m.ByAuthorDate}}
-}
-
 // State is PushesNotReadable for a project whose push read was refused,
 // PushesNotCollected when no push has been collected, else empty: the push
 // measures' words, since the interval is read from the pushes (forsgren#588).
 func (m MainlineInterval) State() string { return pushState{m.NotReadable, m.Uncollected}.words() }
-
-// mostOf says whether part is more than half of whole: at half, or below, it
-// is not (forsgren#345, step 3, #344).
-func mostOf(part, whole int) bool { return 2*part > whole }
 
 // HasInterval says whether there is a gap, so a mean to show.
 func (m MainlineInterval) HasInterval() bool { return m.Gaps > 0 }
@@ -101,36 +77,22 @@ func (m MainlineInterval) HasMedian() bool { return m.Gaps > 1 }
 // HasP90 says whether the 90th percentile is shown: it needs minP90Gaps gaps.
 func (m MainlineInterval) HasP90() bool { return m.Gaps >= minP90Gaps }
 
-// The Mainline Interval is three columns of the TBD page, one number each,
-// the mean, the median and the p90, or the median alone (forsgren#423, Yves's
-// decision #424 C: the deviation and the gaps left the table, they were five
-// columns from forsgren#387). A figure that is not shown yet is a dash in its
-// own cell, and so is every cell of a project with no gap.
+// The Mainline Interval is four columns of the TBD page, one number each,
+// the mean, the median, the p90 and the standard deviation (forsgren#588,
+// decision #599 A), or the median alone (forsgren#423, Yves's decision #424 C:
+// the gaps left the table, they were five columns from forsgren#387). A figure that is not shown yet is a dash in its
+// own cell, and so is every cell of a project with no gap. No cell carries a
+// note since forsgren#588: notes 1 and 2, on the commits timed by author date
+// for want of a committer date, are retired.
 
-// MeanCell is the mean gap, "2 h"; "-" without a gap. It carries the Notes,
-// so the note stays on the mean when the gaps leave the table (forsgren#423).
-func (m MainlineInterval) MeanCell() NotedCell {
-	if !m.HasInterval() {
-		return NotedCell{Value: noNumber}
-	}
-	return NotedCell{Value: tbdDuration(m.Mean), Notes: m.Notes()}
-}
+// MeanCell is the mean gap, "2 h"; "-" without a gap.
+func (m MainlineInterval) MeanCell() string { return m.shown(m.HasInterval(), m.Mean) }
 
 // MedianCell is the median gap; "-" below two gaps.
 func (m MainlineInterval) MedianCell() string { return m.shown(m.HasMedian(), m.Median) }
 
 // P90Cell is the 90th percentile of the gaps; "-" below ten gaps.
 func (m MainlineInterval) P90Cell() string { return m.shown(m.HasP90(), m.P90) }
-
-// MedianNotedCell is the median gap with the Notes, for the table that shows
-// the median alone, where the mean cell is not there to carry them
-// (forsgren#423): a dash below two gaps, the notes while there is a gap.
-func (m MainlineInterval) MedianNotedCell() NotedCell {
-	if !m.HasInterval() {
-		return NotedCell{Value: noNumber}
-	}
-	return NotedCell{Value: m.MedianCell(), Notes: m.Notes()}
-}
 
 // shown is d written for a cell when there is one, else a dash.
 func (m MainlineInterval) shown(has bool, d time.Duration) string {

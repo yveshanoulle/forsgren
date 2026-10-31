@@ -231,3 +231,11 @@ func TestDevelopersKeepBotsOutOfGroups(t *testing.T) {
 		t.Errorf("the human of the group counts once, got %+v", got)
 	}
 }
+
+// legacyBy is by's commit as the commits formats v1 and v2 stored it: no
+// parents and no committer date, so stored before forsgren kept them.
+func legacyBy(login, sha string) history.Commit {
+	c := by(login, sha)
+	c.Parents, c.CommittedAt = nil, time.Time{}
+	return c
+}

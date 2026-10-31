@@ -27,20 +27,19 @@ func subRowsData() Data {
 	ios := metrics.TbdRow{Level: metrics.LabelRow, Name: "IOS", Project: shop, Service: true,
 		IntervalAbsent: true, PushAbsent: true}
 	total := tbdData().TbdMetrics[0]
-	total.Interval.ByAuthorDate = 0
 	data := calculated()
 	data.TbdMetrics = []metrics.TbdRow{total, api, ios, websiteRow(total)}
 	return data
 }
 
 // websiteRow is the row of the repository label Website: a one-repository
-// project with every measure of its own, two of its four commits timed by
-// author date, none of them the total's.
+// project with every measure of its own, one push of its own left out (note
+// 6), none of them the total's.
 func websiteRow(total metrics.TbdRow) metrics.TbdRow {
 	site := total
 	site.Level, site.Name = metrics.LabelRow, "Website"
 	site.Interval = metrics.MainlineInterval{Project: "Website", Commits: 4, Gaps: 3, Mean: 3 * time.Hour,
-		Median: 2 * time.Hour, P90: 5 * time.Hour, Deviation: 100 * time.Minute, ByAuthorDate: 2}
+		Median: 2 * time.Hour, P90: 5 * time.Hour, Deviation: 100 * time.Minute}
 	site.Lead.Median, site.Lead.Mean, site.Lead.Deviation = 5*time.Hour, 6*time.Hour, 4*time.Hour
 	site.BotLead.Median, site.BotLead.Mean, site.BotLead.Deviation = 35*time.Minute, 50*time.Minute, 20*time.Minute
 	site.Push = metrics.PushMeasures{Pushes: 7, Commits: 12, PullRequests: 3, Direct: 9, UnknownAuthors: 1,
@@ -122,7 +121,7 @@ func TestAServiceWithoutDataHasItsOwnSentence(t *testing.T) {
 // the row Project: label.
 func TestTheNotesListNamesALabelRowWithItsProject(t *testing.T) {
 	got := rendered(t, "tbd.html", subRowsData())
-	wantAll(t, "tbd.html", got, "(2) Commits timed by author date: Acme Shop: Website 2</li>")
+	wantAll(t, "tbd.html", got, "not counted as 0: Acme Shop 2, Acme Shop: Website 1</li>")
 }
 
 // TestTbdSubRowsGolden: the page with a total row and a service, a no-data
@@ -140,8 +139,7 @@ func TestTbdSubRowsGolden(t *testing.T) {
 func TestAnAbsentMeasureIsADashBecauseTheRowSaysAbsent(t *testing.T) {
 	data := subRowsData()
 	api := &data.TbdMetrics[1]
-	api.Interval = metrics.MainlineInterval{Project: "API", Commits: 4, Gaps: 3, Mean: time.Hour, Median: time.Hour,
-		ByAuthorDate: 2}
+	api.Interval = metrics.MainlineInterval{Project: "API", Commits: 4, Gaps: 3, Mean: time.Hour, Median: time.Hour}
 	api.Lead = metrics.PRLeadTime{PullRequests: 5, Mean: time.Hour, Median: time.Hour}
 	api.BotLead = metrics.PRLeadTime{PullRequests: 2, Mean: time.Hour, Median: time.Hour}
 	api.Push = metrics.PushMeasures{Pushes: 9, Commits: 9, Direct: 9,

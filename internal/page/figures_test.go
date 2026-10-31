@@ -12,9 +12,9 @@ import (
 // counts the Notes list names are written like the cells' counts.
 func TestTbdNotesCountsOfAThousandOrMoreHaveTheSeparator(t *testing.T) {
 	data := tbdData()
-	data.TbdMetrics[3].Interval.ByAuthorDate, data.TbdMetrics[3].Interval.Commits = 1282, 2000
+	data.TbdMetrics[0].MainLead.UnknownPushes = 1282
 	got := rendered(t, "tbd.html", data)
-	wantAll(t, "tbd.html", got, "Acme Web 1\u202f282 of 2\u202f000</li>")
+	wantAll(t, "tbd.html", got, "Acme Shop 1\u202f282</li>")
 }
 
 // TestIssuesTableCountsOfAThousandOrMoreHaveTheSeparator (forsgren#528,

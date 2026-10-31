@@ -24,7 +24,7 @@ var legendTbdText = []string{
 		"per deployment carry their measure for a screen reader, such as the mean of time to main or the " +
 		"standard deviation of time to main",
 	"The Notes below the table say what each number means",
-	"They explain estimates, a lower bound and a stand-in time",
+	"They explain a lower bound, a stand-in time and data left out or still being read",
 	"Missing data is shown as a dash, a no-data row or a not-readable cell, not as a note",
 	"The Mainline Interval is the time between commits reaching the main branch",
 	"A shorter interval means changes are integrated more often",
@@ -34,11 +34,14 @@ var legendTbdText = []string{
 		"commit is",
 	"A merge commit and a squash each add one commit to the main line. A rebase merge adds each rebased " +
 		"commit as its own step",
-	"Each commit is placed at the time it landed, its committer date",
-	"Only commits that deployments of the last 30 days shipped are measured, each once",
+	"Each commit is placed at its author date, when it was written",
+	"The push data holds no other time for a commit, and the time of the push would place all the commits " +
+		"of one push at the same moment",
+	"Only the commits pushed to the main branch in the last 30 days are measured, each once, also the ones no " +
+		"deployment shipped",
 	"Fewer than two commits make no interval, so the cell is a dash",
-	"When forsgren does not know the committer date of a commit, it places the commit at its " +
-		"author date",
+	"When the pushes of a project cannot be read, Push activity not readable or Pushes not collected yet " +
+		"takes the place of the interval, as for Mainline Lead Time",
 	"Time to main per commit is how old one change is when it reaches the main branch",
 	"For each commit it runs from the author date of the commit to the push that brought it " +
 		"to main",
@@ -62,9 +65,8 @@ var legendTbdText = []string{
 	"One is a rhythm and the other is an age",
 	"Mainline Lead Time, described below, is a third number: an age like Time to main, but over every " +
 		"commit that reached main",
-	"The Mainline Interval counts deployed commits, so a repository without deployments shows a dash. " +
-		"Time to main and Mainline Lead Time count what was pushed to main, and PR Lead Time counts " +
-		"merged pull requests",
+	"The Mainline Interval, Time to main and Mainline Lead Time count what was pushed to main, so a " +
+		"repository without deployments has them too, and PR Lead Time counts merged pull requests",
 	"Time to deploy per commit is how old one change is when it is first deployed",
 	"For each commit it runs from the author date of the commit to the first deployment that " +
 		"contains it",
@@ -212,8 +214,6 @@ var legendTbdText = []string{
 	"(8) Files still being read: commits whose changed files forsgren has not read yet are left out. It " +
 		"applies to Time to deploy per commit and Commits per deployment of a service with paths",
 	"The Notes list gives the name of such a row as Project: label, for example Acme Shop: Website",
-	"(1) Mostly estimated: commits timed by author date. It applies to the Mainline Interval",
-	"(2) Commits timed by author date. It applies to the Mainline Interval",
 	"(3) A lower bound: a first commit time of a pull request was cut. It applies to PR Lead Time " +
 		"and Bot PR Lead Time",
 	"(4) Pull requests timed by their created time. It applies to PR Lead Time and Bot PR Lead Time",
@@ -367,6 +367,18 @@ var legendTbdRetired = []string{
 	"the p90 stands in for the variation",
 	"all three figures",
 	"all three are shown",
+	// The Mainline Interval reads the pushed commits at their author dates
+	// since forsgren#588: notes 1 and 2 are retired, and no deployment
+	// decides which commits count.
+	"Mostly estimated",
+	"Commits timed by author date",
+	"note (1)",
+	"Note (2)",
+	"its committer date",
+	"deployments of the last 30 days shipped",
+	"an interval between deployed commits",
+	"counts deployed commits",
+	"They explain estimates",
 }
 
 // TestLegendExplainsTheTbdPage (forsgren#253, forsgren#273): the legend has a
@@ -384,7 +396,7 @@ func TestLegendExplainsTheTbdPage(t *testing.T) {
 	}
 	data := calculated()
 	data.DoraDays = 90
-	if !strings.Contains(rendered(t, "legend.html", data), "deployments of the last 90 days shipped") {
+	if !strings.Contains(rendered(t, "legend.html", data), "pushed to the main branch in the last 90 days") {
 		t.Error("want the TBD section to name the window in force")
 	}
 	tbdHeading, historyHeading := "<h2>Trunk-based development [TBD]</h2>", "<h2>History page (BETA)</h2>"
@@ -423,8 +435,8 @@ func TestLegendSaysEachTbdSentenceOnce(t *testing.T) {
 	got := rendered(t, "legend.html", calculated())
 	for _, once := range []string{"It includes only merged pull requests opened by people",
 		"Fewer than two commits make no interval, so the cell is a dash",
-		"Each commit is placed at the time it landed, its committer date",
-		"deployments of the last 30 days shipped"} {
+		"Each commit is placed at its author date, when it was written",
+		"pushed to the main branch in the last 30 days"} {
 		if n := strings.Count(got, once); n != 1 {
 			t.Errorf("want %q once in the legend, got %d", once, n)
 		}
@@ -461,7 +473,7 @@ var legendTbdGroups = []struct{ id, title, sentence string }{
 	{"tbd-what-to-look-for", "What should I look for?", "No single number proves"},
 	{"tbd-missing-data", "What if data is missing or incomplete?", "Some figures are estimates"},
 	{"tbd-names", "Where do the names come from?", "Mainline Interval and Mainline Lead Time are the two metrics"},
-	{"tbd-notes", "Notes", "(1) Mostly estimated"},
+	{"tbd-notes", "Notes", "(3) A lower bound"},
 	{"tbd-reference", "Where is the calculation explained?", "The exact calculations are in the technical reference"},
 }
 

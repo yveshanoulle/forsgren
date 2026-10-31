@@ -882,8 +882,8 @@ Then check what the run did:
      menu), `week_commits` shows `false (not set)` (the Week page leaves out its
      Commits columns; `week_commits: true` shows them), `data_page` shows
      `true (not set)` (the Data page, `data.html`, is generated and linked in the footer) and `tbd_figures` shows `median (not set)` (the TBD table shows the median
-     of each measure; `tbd_figures: all` shows the mean, the median and the
-     90th percentile). `sub_rows`, `tbd_time_to_main`, `tbd_pr_lead_time` and
+     of each measure; `tbd_figures: all` shows the mean, the median, the
+     90th percentile and the standard deviation). `sub_rows`, `tbd_time_to_main`, `tbd_pr_lead_time` and
      `tbd_bot_pr_lead_time` each show `true (not set)` (every table shows its
      label and service rows, and the TBD table its Time to main, PR Lead Time
      and Bot PR Lead Time columns). The installer does not ask about these.

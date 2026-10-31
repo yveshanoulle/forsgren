@@ -39,12 +39,11 @@ func tbdLeads() []metrics.PRLeadTime {
 // tbdDataWith is tbdData with the PR Lead Times leads.
 func tbdDataWith(leads []metrics.PRLeadTime) Data {
 	intervals := []metrics.MainlineInterval{
-		{Project: "Acme Shop", Commits: 4, Gaps: 3, Mean: 2 * time.Hour, Median: 2 * time.Hour, Deviation: time.Hour,
-			ByAuthorDate: 2},
+		{Project: "Acme Shop", Commits: 4, Gaps: 3, Mean: 2 * time.Hour, Median: 2 * time.Hour, Deviation: time.Hour},
 		{Project: "Acme Tools", Commits: 2, Gaps: 1, Mean: 2 * time.Hour},
 		{Project: "Acme Docs", NotReadable: true},
 		{Project: "Acme Web", Commits: 13, Gaps: 12, Mean: 24 * time.Minute, Median: 5 * time.Minute, P90: time.Hour,
-			Deviation: 45 * time.Minute, ByAuthorDate: 7},
+			Deviation: 45 * time.Minute},
 	}
 	developers := []metrics.Developers{
 		{Project: "Acme Shop", Count: 3, Commits: 4},
@@ -199,17 +198,15 @@ var tbdCountCells = map[string][2]string{
 		"- | - | 1 | 1 | @4Pushes not collected yet | 2.0 | - | - | - | @4Pushes not collected yet"},
 }
 
-// tbdIntervalCells are the Mainline Interval cells of tbdData's projects: Acme
-// Shop with half of its commits timed by author date, Acme Web with more than
-// half (forsgren#345, step 3), the note on the median cell when only the
-// median is shown and on the mean cell with all (forsgren#423); Acme Docs,
-// its push read refused, the push state cell, as the Mainline Lead Time
-// (forsgren#588: the interval is read from the pushes).
+// tbdIntervalCells are the Mainline Interval cells of tbdData's projects, with
+// no note since forsgren#588 (notes 1 and 2 retired); Acme Docs, its push read
+// refused, the push state cell, as the Mainline Lead Time (forsgren#588: the
+// interval is read from the pushes).
 var tbdIntervalCells = map[string][2]string{
-	"Acme Shop":  {"{2}2 h", "{2}2 h | 2 h | - | 1 h"},
+	"Acme Shop":  {"2 h", "2 h | 2 h | - | 1 h"},
 	"Acme Tools": {"-", "2 h | - | - | -"},
 	"Acme Docs":  {"@1Push activity not readable", "@4Push activity not readable"},
-	"Acme Web":   {"{1}5 m", "{1}24 m | 5 m | 1 h | 45 m"},
+	"Acme Web":   {"5 m", "24 m | 5 m | 1 h | 45 m"},
 }
 
 // tbdLeadCells are the PR Lead Time cells of tbdData's projects (forsgren#423,
@@ -683,7 +680,7 @@ func TestTbdPageSaysWhyItHasNoTable(t *testing.T) {
 		want string
 	}{
 		"no projects": {noProjects, "No projects are listed yet, so there is no Mainline Interval to show."},
-		"no data":     {calculated(), "No commits have been collected yet, so there is no Mainline Interval to show."},
+		"no data":     {calculated(), "No pushes have been collected yet, so there is no Mainline Interval to show."},
 	} {
 		got := rendered(t, "tbd.html", c.data)
 		wantAll(t, name, got, "<p>"+c.want+"</p>")

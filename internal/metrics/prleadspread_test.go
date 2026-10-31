@@ -50,12 +50,12 @@ func TestPRLeadTimeCellsShowMeanMedianAndP90(t *testing.T) {
 	}{
 		"none": {PRLeadTime{}, "-", "-", "-", nil},
 		"one, cut": {PRLeadTime{PullRequests: 1, Mean: 5 * h, Cut: 1}, "5 h", "-", "-",
-			[]Note{{NoteLowerBound, 1, 0}}},
+			[]Note{{NoteLowerBound, 1}}},
 		"two": {PRLeadTime{PullRequests: 2, Mean: 2 * h, Median: 2 * h}, "2 h", "2 h", "-", nil},
 		"ten": {PRLeadTime{PullRequests: 10, Mean: 3 * h, Median: 2 * h, P90: 9 * h},
 			"3 h", "2 h", "9 h", nil},
 		"cut and created": {PRLeadTime{PullRequests: 3, Mean: h, Median: h, Cut: 1, CreatedStandsIn: 2},
-			"1 h", "1 h", "-", []Note{{NoteLowerBound, 1, 0}, {NoteCreatedTime, 2, 0}}},
+			"1 h", "1 h", "-", []Note{{NoteLowerBound, 1}, {NoteCreatedTime, 2}}},
 	}
 	for name, c := range cases {
 		l := c.lead
@@ -94,32 +94,5 @@ func TestPRLeadTimeStateIsNotReadable(t *testing.T) {
 	}
 	if got := (PRLeadTime{PullRequests: 2}).State(); got != "" {
 		t.Errorf("want no state, got %q", got)
-	}
-}
-
-// TestMainlineIntervalMedianNotedCellCarriesTheNotes (forsgren#423): in the
-// table that shows the median only the note on the commits timed by author
-// date sits on the median cell, a dash below two gaps with the note when there
-// is a gap, none without one.
-func TestMainlineIntervalMedianNotedCellCarriesTheNotes(t *testing.T) {
-	h := time.Hour
-	cases := map[string]struct {
-		in    MainlineInterval
-		value string
-		notes []Note
-	}{
-		"no commit":      {MainlineInterval{}, "-", nil},
-		"no gap, a note": {MainlineInterval{Commits: 1, ByAuthorDate: 1}, "-", nil},
-		"one gap, a note": {MainlineInterval{Commits: 2, Gaps: 1, Mean: h, ByAuthorDate: 2}, "-",
-			[]Note{{NoteMostlyEstimated, 2, 2}}},
-		"three gaps, some": {MainlineInterval{Commits: 4, Gaps: 3, Mean: h, Median: 2 * h, ByAuthorDate: 2}, "2 h",
-			[]Note{{NoteByAuthorDate, 2, 0}}},
-		"three gaps, none": {MainlineInterval{Commits: 4, Gaps: 3, Mean: h, Median: 2 * h}, "2 h", nil},
-	}
-	for name, c := range cases {
-		got := c.in.MedianNotedCell()
-		if got.Value != c.value || !sameNotes(got.Notes, c.notes) {
-			t.Errorf("%s: want %q with %v, got %+v", name, c.value, c.notes, got)
-		}
 	}
 }

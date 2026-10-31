@@ -55,7 +55,7 @@
 {{with .TbdNotes}}    <details class="tbd-notes" open>
       <summary>Notes</summary>
       <ul>
-{{range .}}        <li id="{{.ID}}">({{.Number}}) {{.Text}}: {{range $i, $p := .Projects}}{{if $i}}, {{end}}{{$p.Name}}{{with $p.Count}} {{count .}}{{end}}{{with $p.Of}} of {{count .}}{{end}}{{end}}</li>
+{{range .}}        <li id="{{.ID}}">({{.Number}}) {{.Text}}: {{range $i, $p := .Projects}}{{if $i}}, {{end}}{{$p.Name}}{{with $p.Count}} {{count .}}{{end}}{{end}}</li>
 {{end}}      </ul>
     </details>
 {{end}}{{else}}    <p>{{.TbdMessage}}</p>

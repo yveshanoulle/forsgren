@@ -6,16 +6,13 @@ import "testing"
 // decisions #430 and #431): below the table a details element, summary Notes,
 // open by default, lists one line per kind of note that occurs, in the order of
 // the numbers, each with the id its cells point to, the generic text and the
-// projects it applies to with their counts; "7 of 13" where the note is a part
-// of a whole.
+// projects it applies to with their counts.
 func TestTbdPageListsTheNotesThatOccurBelowTheTable(t *testing.T) {
 	got := rendered(t, "tbd.html", tbdData())
 	const open = "</table>\n    </div>\n    <details class=\"tbd-notes\" open>\n" +
 		"      <summary>Notes</summary>\n      <ul>\n"
 	const end = "      </ul>\n    </details>\n"
-	list := "        <li id=\"tbd-note-1\">(1) Mostly estimated: commits timed by author date: Acme Web 7 of 13</li>\n" +
-		"        <li id=\"tbd-note-2\">(2) Commits timed by author date: Acme Shop 2</li>\n" +
-		"        <li id=\"tbd-note-3\">(3) A lower bound: a first commit time of a pull request was cut: " +
+	list := "        <li id=\"tbd-note-3\">(3) A lower bound: a first commit time of a pull request was cut: " +
 		"Acme Tools 2</li>\n" +
 		"        <li id=\"tbd-note-4\">(4) Pull requests timed by their created time: " +
 		"Acme Tools 1, Acme Web 1</li>\n" +
@@ -47,13 +44,12 @@ func TestTbdPageListsTheMainlineLeadTimeNotesOnlyWhileTheyApply(t *testing.T) {
 func TestTbdPageListsOnlyTheKindsThatOccur(t *testing.T) {
 	none := noPulls()
 	for i := range none.TbdMetrics {
-		none.TbdMetrics[i].Interval.ByAuthorDate = 0
 		none.TbdMetrics[i].MainLead.UnknownPushes, none.TbdMetrics[i].MainLead.Filling = 0, false
 	}
 	wantNone(t, "no note", rendered(t, "tbd.html", none), "<details", "Notes", "tbd-note-", "visually-hidden")
 	partial := noPulls()
-	partial.TbdMetrics[3].Interval.ByAuthorDate = 0
+	partial.TbdMetrics[0].MainLead.Filling = false
 	got := rendered(t, "tbd.html", partial)
-	wantAll(t, "kind 2 stays", got, `id="tbd-note-2"`)
-	wantNone(t, "kind 1 gone", got, `id="tbd-note-1"`, `id="tbd-note-3"`)
+	wantAll(t, "kind 6 stays", got, `id="tbd-note-6"`)
+	wantNone(t, "kind 7 gone", got, `id="tbd-note-7"`, `id="tbd-note-3"`)
 }

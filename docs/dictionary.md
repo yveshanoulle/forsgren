@@ -304,9 +304,9 @@ From: Commits of data/commits.csv and their deployments, over the window.
 
 ### Mainline Interval
 
-The time between commits reaching the main branch, among the commits that deployments shipped. A shorter interval means changes are integrated more often.
+The time between commits reaching the main branch: the commits of the main line pushed to the main branch in the window, each once at its author date, deployed or not. A shorter interval means changes are integrated more often.
 
-From: Commits of data/commits.csv, over the window.
+From: Pushes of data/pushes.csv and data/push\_commits.csv, over the window.
 
 ### Mainline Lead Time
 

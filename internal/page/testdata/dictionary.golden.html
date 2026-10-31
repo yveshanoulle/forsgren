@@ -166,8 +166,8 @@
       <dd>The median time from a commit to the successful deployment that shipped it, with the number of commits deployed in the window in brackets.</dd>
       <dd>From: Commits of data/commits.csv and their deployments, over the window.</dd>
       <dt id="mainline-interval">Mainline Interval</dt>
-      <dd>The time between commits reaching the main branch, among the commits that deployments shipped. A shorter interval means changes are integrated more often.</dd>
-      <dd>From: Commits of data/commits.csv, over the window.</dd>
+      <dd>The time between commits reaching the main branch: the commits of the main line pushed to the main branch in the window, each once at its author date, deployed or not. A shorter interval means changes are integrated more often.</dd>
+      <dd>From: Pushes of data/pushes.csv and data/push_commits.csv, over the window.</dd>
       <dt id="mainline-lead-time">Mainline Lead Time</dt>
       <dd>The time from the author date of every commit that reached main to the earliest push that brought it there, however it got there. Steve Smith&#39;s book counts from the push of the commit to a remote branch, a time GitHub does not give, so a commit pushed directly to main shows seconds, not 0.</dd>
       <dd>From: Pushes and their commits (data/pushes.csv, data/push_commits.csv) and pull requests of data/pulls.csv, over the window.</dd>

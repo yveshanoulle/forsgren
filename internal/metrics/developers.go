@@ -1,9 +1,10 @@
 package metrics
 
-// Developers (forsgren#273, step 2) is the number next to the Mainline
-// Interval: how many people made the commits it counts, because a team of ten
-// makes more commits than one person with the same habits. The interval
-// itself is not divided by it.
+// Developers (forsgren#273, step 2) is the last number of the TBD page: how
+// many people made the commits the deployments of the window shipped, because
+// a team of ten makes more commits than one person with the same habits. No
+// figure is divided by it. It counts other commits than the Mainline Interval,
+// which reads the pushed commits since forsgren#588.
 //
 //   - the commits are those deployed in the DORA window (distinctInWindow),
 //     each once by repository (ignoring case) and SHA, in the project whose

@@ -209,14 +209,14 @@ func TestRenderTbdPageUsesTheDoraWindow(t *testing.T) {
 	if got := readSite(t, dir, "tbd.html"); !strings.Contains(got, cell) {
 		t.Errorf("want Acme Shop's three gaps over 90 days, got:\n%s", got)
 	}
-	if got := readSite(t, dir, "legend.html"); !strings.Contains(got, "deployments of the last 90 days shipped") {
+	if got := readSite(t, dir, "legend.html"); !strings.Contains(got, "pushed to the main branch in the last 90 days") {
 		t.Errorf("want the legend to name the 90 days, got:\n%s", got)
 	}
 }
 
 // TestRenderTbdPageWithoutProjectsOrData (forsgren#253, step 5): no projects
 // keep the no-projects line, with data or not; projects but no --data say that
-// no commits were collected.
+// no pushes were collected (forsgren#588: the interval reads the pushes).
 func TestRenderTbdPageWithoutProjectsOrData(t *testing.T) {
 	pinNow(t)
 	none := "version: 1\nprojects: []\n"
@@ -226,7 +226,7 @@ func TestRenderTbdPageWithoutProjectsOrData(t *testing.T) {
 		"no projects, no data": {tbdSiteOf(t, none, ""),
 			"No projects are listed yet, so there is no Mainline Interval to show."},
 		"projects, no data": {tbdSiteOf(t, validConfig, ""),
-			"No commits have been collected yet, so there is no Mainline Interval to show."},
+			"No pushes have been collected yet, so there is no Mainline Interval to show."},
 	}
 	for name, c := range cases {
 		if !strings.Contains(c.got, "<p>"+c.want+"</p>") || strings.Contains(c.got, "<table") {

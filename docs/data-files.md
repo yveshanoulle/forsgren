@@ -149,8 +149,10 @@ acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z,ada
   merge's first parent is the line it was made on, the second the line it
   brought in. Empty means none known: a commit stored before v3, or a root
   commit, which a comparison of two deployments does not reach. Only SHAs are
-  accepted. The Mainline Interval follows the first parents and places those
-  commits at `committed_at` (see [The TBD page](pages-and-views.md#the-tbd-page)).
+  accepted. Time to deploy per commit and Commits per deployment follow the
+  first parents (see [The TBD page](pages-and-views.md#the-tbd-page)); the
+  Mainline Interval reads the pushed commits of `data/push_commits.csv` since
+  forsgren#588, not this file.
 - `committed_at` (format v3, forsgren#254) is the commit's git committer date
   (`commit.committer.date` of the answer), UTC, whole seconds: when the commit
   landed where it is now. Empty when GitHub gives none or the commit was stored
@@ -601,7 +603,8 @@ acme/app,2026-10-23T06:00:00Z,FORSGREN_TOKEN
   files.
 
 **The pushes to main**, for time to main and batch size per push
-(forsgren#397, decision #400), are kept in `data/pushes.csv`, next to the
+(forsgren#397, decision #400) and, since forsgren#588, the Mainline Interval,
+are kept in `data/pushes.csv`, next to the
 history, with its own format version (the pushes format v1):
 
 ```
@@ -671,7 +674,8 @@ acme/app,<40 hex>,<40 hex>,acme-dev,2026-10-23T08:10:00Z,false,1
 - Held by repository (ignoring case), `after` and `sha`: a commit already in
   the file is skipped. A push whose `commits` is empty (a force push, a
   compare that failed or was cut) has no lines.
-- The Time to main and the shares count the `first_parent` lines only; the
+- The Time to main, the shares and the Mainline Interval (since forsgren#588,
+  each commit at its `authored_at`) count the `first_parent` lines only; the
   Mainline Lead Time counts the others too, and leaves the commits with two
   parents or more out.
 - `collect` writes it before `pushes.csv` for the same repository, so a push

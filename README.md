@@ -43,7 +43,8 @@ branch: the time from its author date until it lands on main, over every
 commit that reached main, pushed directly or merged through a pull request.
 
 **Mainline Interval** answers how often changes land on the main branch: the
-time between one deployed commit and the next on the main line.
+time between one commit pushed to the main branch and the next on the main
+line, deployed or not.
 
 ## What it produces
 

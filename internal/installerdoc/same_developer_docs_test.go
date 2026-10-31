@@ -43,13 +43,16 @@ func TestInstallerAndUpgraderAskAboutSeveralAccounts(t *testing.T) {
 
 // TestManualDescribesTheTbdFiguresAndTheRefusedPushRead (forsgren#417, for
 // #423 and #414): the configuration manual describes tbd_figures and its
-// default, the release notes tell what 1.22.0 changes on the TBD page, and
-// they have the refused push read.
+// default, its four figures under all (the standard deviation since
+// forsgren#588) in the manual and the installer, the release notes tell what
+// 1.22.0 changes on the TBD page, and they have the refused push read.
 func TestManualDescribesTheTbdFiguresAndTheRefusedPushRead(t *testing.T) {
 	wantAll(t, "docs/configuration.md", readRepoFileAsOneLine(t, "docs/configuration.md"),
 		"**`tbd_figures`** is optional",
 		"`median`: the median of each measure, one column each. This is the default.",
-		"`all`: the mean, the median and the 90th percentile of each measure")
+		"`all`: the mean, the median, the 90th percentile and the standard deviation of each measure")
+	wantAll(t, "agent-installer.md", readRepoFileAsOneLine(t, "agent-installer.md"),
+		"`tbd_figures: all` shows the mean, the median, the 90th percentile and the standard deviation")
 	wantAll(t, "docs/updating-and-releases.md", readRepoFileAsOneLine(t, "docs/updating-and-releases.md"),
 		"Upgrading to 1.22.0, which shows the median on the TBD page",
 		"add `tbd_figures: all`",

@@ -9,6 +9,32 @@ Active work lives in
 
 ---
 
+## 2026-10-31 — The Mainline Interval counts the commits pushed to main, and every TBD measure has its standard deviation ([#588](https://github.com/yveshanoulle/forsgren/issues/588), 3 steps)
+
+forsgren issue 588, after the review in #586. The Mainline Interval, how
+often changes reach the main branch, counted only the commits that
+deployments shipped, so a commit pushed and not deployed yet was missing,
+and a repository without deployments showed a dash. It now counts the
+commits pushed to the main branch in the window, the same commits as the
+Commits column, each once at its author date, deployed or not. A project
+whose pushes cannot be read, or are not collected yet, shows that in the
+interval's cells, as the Mainline Lead Time does, never an interval over
+its deployments. The notes (1) and (2), on commits timed by their author
+date for want of a committer date, no longer apply and are retired; their
+numbers stay reserved. Under `tbd_figures: all` every measure of the TBD
+page now shows a fourth figure after the p90: the sample standard
+deviation, headed SD with its full name for a screen reader, the variation
+Steve Smith's book reads the indicator by (decision
+[#599](https://github.com/yveshanoulle/forsgren/issues/599), option A). The
+table is wider with it; Yves ruled that whoever turns `all` on knows this,
+so the browser baseline of the TBD page was raised to the measured width.
+The legend's TBD section, the Dictionary,
+[Configuration](docs/configuration.md),
+[Pages and views](docs/pages-and-views.md) and
+[Data files](docs/data-files.md) follow. A patch release.
+
+---
+
 ## 2026-10-31 — The Week page's Total row shade is visible in dark mode too ([#598](https://github.com/yveshanoulle/forsgren/issues/598), 2 steps)
 
 forsgren issue 598. The Total row of the Week page is shaded so it stands

@@ -1,7 +1,7 @@
 package metrics
 
 // The notes of the TBD page's cells (forsgren#394, step 2): each kind of
-// note has a number that is fixed forever (Yves's ruling on #394), so (1) means
+// note has a number that is fixed forever (Yves's ruling on #394), so (3) means
 // the same on every page and in the legend, and a generic text that says what
 // the kind claims, without a count. A cell returns its value and the kinds of
 // note that apply to it, each with the count behind it; the page writes the
@@ -10,16 +10,18 @@ package metrics
 
 import "fmt"
 
-// NoteKind is the number of one kind of note, 1 to 8 today, 5 retired.
+// NoteKind is the number of one kind of note, 3 to 8 today, 5 retired; 1
+// and 2 are retired too.
 type NoteKind int
 
 // The kinds of note, by their fixed numbers.
 const (
-	// NoteMostlyEstimated: more than half of the commits of an interval are
-	// timed by author date.
-	NoteMostlyEstimated NoteKind = 1
-	// NoteByAuthorDate: some, at most half, of the commits are.
-	NoteByAuthorDate NoteKind = 2
+	// Numbers 1 and 2 are retired (forsgren#588): they said that more than
+	// half, or some, of the commits of the Mainline Interval were timed by
+	// author date for want of a committer date; the interval reads the pushed
+	// commits now, each at its author date by rule, so neither applies. Their
+	// numbers stay reserved forever, no cell shows them and the Notes list
+	// never lists them.
 	// NoteLowerBound: a pull request's first commit time was cut, so the mean
 	// is a lower bound.
 	NoteLowerBound NoteKind = 3
@@ -49,8 +51,6 @@ var noteTexts = []struct {
 	kind NoteKind
 	text string
 }{
-	{NoteMostlyEstimated, "Mostly estimated: commits timed by author date"},
-	{NoteByAuthorDate, "Commits timed by author date"},
 	{NoteLowerBound, "A lower bound: a first commit time of a pull request was cut"},
 	{NoteCreatedTime, "Pull requests timed by their created time"},
 	{NoteUnknownPushes, "Pushes left out: their commits are not known (incomplete data), not counted as 0"},
@@ -67,7 +67,7 @@ func NoteKinds() []NoteKind {
 	return kinds
 }
 
-// Number is the kind's fixed number, 1 for NoteMostlyEstimated.
+// Number is the kind's fixed number, 3 for NoteLowerBound.
 func (k NoteKind) Number() int { return int(k) }
 
 // ID is the id of the kind's line below the TBD table, "tbd-note-1", which a
@@ -84,13 +84,10 @@ func (k NoteKind) Text() string {
 	return ""
 }
 
-// Note is one kind of note that applies to a cell, with the count behind it
-// and, for the commits timed by author date, the commits they are among.
+// Note is one kind of note that applies to a cell, with the count behind it.
 type Note struct {
 	Kind  NoteKind
 	Count int
-	// Of is the whole Count is part of, or 0 when the note has none.
-	Of int
 }
 
 // Number is the note's kind number, for the marker.

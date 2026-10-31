@@ -10,12 +10,13 @@ import (
 
 // withoutData is tbdData with Acme Docs (the third project) without data in
 // the window: no deployed commit, no deployment, no push and no merged pull
-// request. Its Mainline Interval keeps a note, to see that no marker or note
+// request. Its Mainline Lead Time keeps a note, to see that no marker or note
 // line comes from the row (forsgren#394, step 3, decision #433).
 func withoutData(all bool) Data {
 	data := inFigures(tbdData(), all)
 	data.TbdMetrics[2] = metrics.TbdRow{Level: metrics.ProjectRow, Name: "Acme Docs", Project: "Acme Docs",
-		Interval: metrics.MainlineInterval{Project: "Acme Docs", Commits: 4, Gaps: 3, Mean: 2 * 3600e9, ByAuthorDate: 4}}
+		Interval: metrics.MainlineInterval{Project: "Acme Docs", Commits: 4, Gaps: 3, Mean: 2 * 3600e9},
+		MainLead: metrics.MainlineLeadTime{Project: "Acme Docs", UnknownPushes: 4}}
 	return data
 }
 

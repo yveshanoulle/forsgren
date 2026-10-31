@@ -267,7 +267,7 @@ fi
 if [[ -f "${FIXTURE_HAPPY}/tbd.html" ]] && grep -qF '<th scope="row">Acme Shop</th>' "${FIXTURE_HAPPY}/tbd.html" \
   && tr -d '\n' <"${FIXTURE_HAPPY}/tbd.html" \
     | has -qE '<th scope="row">[^<]*</th> *<td[^>]*>[0-9][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td[^>]*>[^<]*</td> *){2}<td[^>]*>[^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' \
-  && ! grep -qF 'No commits have been collected yet' "${FIXTURE_HAPPY}/tbd.html"; then
+  && ! grep -qF 'No pushes have been collected yet' "${FIXTURE_HAPPY}/tbd.html"; then
   pass 31 "tbd.html has a Mainline Interval row and not the no-data line"
 else
   fail_check 31 "tbd.html has a Mainline Interval row and not the no-data line"
