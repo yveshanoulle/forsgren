@@ -154,11 +154,14 @@ Run `./sfl.sh pre` (or `./FBP.sh`) and the tools install themselves.
 `Scripts/required_tools.txt` lists them, and `Scripts/install_tools.sh` installs
 each missing one with Homebrew and upgrades the ones already there. Homebrew
 must already be installed. Only the tools the quality gates use are listed.
-In CI the `quality_2`, `browser_1` and `browser` jobs install only what their
-gates need, from `Scripts/required_tools_quality_2_gates.txt`,
+In CI every macOS gate job installs only what its gates need, from its own
+list (the installer's optional argument): the main job from
+`Scripts/required_tools_quality_gates.txt` (the full list less the four lint
+tools, forsgren#591), and the `quality_2`, `browser_1` and `browser` jobs from
+`Scripts/required_tools_quality_2_gates.txt`,
 `Scripts/required_tools_browser_1_gates.txt` and
-`Scripts/required_tools_browser_gates.txt` (the installer's optional argument);
-the main job installs the full list (forsgren#447, [docs/ci.md](ci.md)).
+`Scripts/required_tools_browser_gates.txt` (forsgren#447,
+[docs/ci.md](ci.md)).
 
 **Go is pinned separately.** `brew install go` also upgrades an outdated Go for
 the whole machine, which would be a surprise if forsgren followed it. So

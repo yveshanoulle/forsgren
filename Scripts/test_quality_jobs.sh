@@ -73,14 +73,18 @@
 #      group file gives it the browser gate self-test alone (about 256 s, 46
 #      percent of the browser job), and the browser job keeps the other four
 #      browser rows and its site build; no gate is in browser_1 and another job
-#   3g. the tools each macOS job installs (forsgren#447, step 4): the main job
-#      runs the full ./Scripts/install_tools.sh (it runs the language gate, the
-#      secret scan and the exit-trap gate); quality_2, browser_1 and browser
-#      pass their own list, Scripts/required_tools_<job>_gates.txt, which
-#      exists and lists exactly the tools its gates need (go and node for the
-#      browser job, go and node for browser_1, go, node and jq for quality_2),
-#      and no gate of a job names a tool of Scripts/required_tools.txt that
-#      the job's list lacks (a missing tool must fail the gate, not skip it)
+#   3g. the tools each macOS job installs (forsgren#447, step 4): quality_2,
+#      browser_1 and browser pass their own list,
+#      Scripts/required_tools_<job>_gates.txt, which exists and lists exactly
+#      the tools its gates need (go and node for the browser job, go and node
+#      for browser_1, go, node and jq for quality_2), and no gate of a job
+#      names a tool of Scripts/required_tools.txt that the job's list lacks (a
+#      missing tool must fail the gate, not skip it); since forsgren#591 step 2
+#      the main job (id `quality`) passes its list too,
+#      Scripts/required_tools_quality_gates.txt: gitleaks, go, jq, languagetool
+#      and node, the full list less the four lint tools, whose gates all run in
+#      the lint job (main_tools_findings: no script a main gate reaches, other
+#      than another job's gate, runs a tool the list lacks)
 #   5b. the report job takes every gate job's result into QS_JOB_STATUS:
 #      a QS_<JOB>_RESULT from needs.<job>.result per gate job, each passed to
 #      Scripts/merge_quality_report.sh status, so a red lint job is a failed
@@ -230,7 +234,7 @@ handover_findings() {
 LINUX_GATES_INSTALL="Scripts/install_tools_linux.sh Scripts/required_tools_linux_gates.txt"
 
 # tools_file_of <job>: the tools list of a macOS gate job (forsgren#447, step 4),
-# named after the job; the main job has none and installs the full list.
+# named after the job; the main job's id is quality (forsgren#591 step 2).
 tools_file_of() {
   echo "Scripts/required_tools_${1}_gates.txt"
 }
@@ -313,6 +317,88 @@ gates_of() {
 
 workflows_gates() { gates_of workflows; }
 
+# MAIN_WANT: the tools of the main job's list (forsgren#591 step 2), sorted as
+# listed_tools prints them: the secret scan's gitleaks, the language gate's
+# languagetool, npm audit's jq, and go and node for the build and the Go and
+# npm gates. The four lint tools are left out: their gates run in the lint job.
+MAIN_WANT='gitleaks go jq languagetool node '
+
+# run_pattern <tool>: a line that runs the tool as a command with an argument
+# (at the start of a command, after if, then, do, !, $( or command -v), not one
+# that only names it (a fixture's stub, a file name, a list, a word alone on a
+# line of a here-document, prose in parentheses): the main job's gates name the
+# lint tools in their fixtures and in other jobs' gate scripts they read as text.
+run_pattern() {
+  printf '%s%s%s\n' '(^|[;&|{!]|\$\(|(then|do|if|else|exec|time|command -v))[[:space:]]*' "$1" '[[:space:]]+[^[:space:]]'
+}
+
+# main_gates: the scripts of the main job's rows, every row of the order file
+# with a script that the group file gives to no other job.
+main_gates() {
+  local grouped label script
+  grouped="$(grep -v '^#' "$GROUPS_FILE" | grep . | cut -d'|' -f2)"
+  while IFS='|' read -r label script _rest; do
+    [[ "$script" == Scripts/*.sh ]] || continue
+    has -xF -- "$label" <<< "$grouped" && continue
+    echo "$script"
+  done < <(grep -v '^#' "$ORDER" | grep .)
+}
+
+# other_job_gates: the scripts of the rows the group file gives to another job.
+other_job_gates() {
+  local label
+  while IFS='|' read -r _job label _args; do
+    awk -F'|' -v l="$label" '$1 == l { print $2 }' <(grep -v '^#' "$ORDER")
+  done < <(grep -v '^#' "$GROUPS_FILE" | grep .) | sort -u
+}
+
+# main_reach: one line per main gate and script it reaches, "<gate> <script>",
+# the closure as tools_file_findings reads it, less the scripts that are
+# another job's gates (a main gate that names check_shellcheck.sh, the lint
+# job's gate, reads it as text; the lint job runs it with its own tools).
+main_reach() {
+  local others gate reached
+  others="$(other_job_gates)"
+  for gate in $(main_gates); do
+    for reached in $(closure "$gate" | grep '^Scripts/.*[.]sh$'); do
+      [[ "$reached" != "$gate" ]] && has -xF -- "$reached" <<< "$others" && continue
+      echo "${gate} ${reached}"
+    done
+  done
+}
+
+# main_tools_findings [reach-file]: pin 3g for the main job (forsgren#591 step 2).
+# Its list exists and holds exactly MAIN_WANT, every tool of it is in
+# Scripts/required_tools.txt (the list sfl installs), and no script a main gate
+# reaches runs a tool of the full list that the main list lacks. The reach is
+# read from the file when given (main_reach's lines), else computed.
+main_tools_findings() {
+  local file listed missing tool gate reached reach
+  file="${TOOLS_DIR}/$(basename "$(tools_file_of quality)")"
+  if [[ ! -s "$file" ]]; then
+    echo "tools: ${file} does not exist or is empty"
+    return 0
+  fi
+  listed="$(listed_tools "$file")"
+  [[ "$listed" == "$MAIN_WANT" ]] || echo "tools: ${file} lists '${listed}', the quality job needs '${MAIN_WANT}'"
+  missing=""
+  for tool in $(listed_tools Scripts/required_tools.txt); do
+    [[ " ${listed}" == *" ${tool} "* ]] || missing+="${tool} "
+  done
+  for tool in $listed; do
+    [[ " $(listed_tools Scripts/required_tools.txt)" == *" ${tool} "* ]] \
+      || echo "tools: ${file} lists ${tool}, which Scripts/required_tools.txt does not"
+  done
+  if [[ -n "${1:-}" ]]; then reach="$(cat "$1")"; else reach="$(main_reach)"; fi
+  while read -r gate reached; do
+    [[ -n "$reached" ]] || continue
+    for tool in $missing; do
+      code "$reached" | has -E "$(run_pattern "$tool")" || continue
+      echo "tools: the quality gate $(basename "$gate" .sh) runs ${tool} in ${reached}, which ${file} does not list"
+    done
+  done <<< "$reach"
+}
+
 # phase_calls <job file>: the run_ci_phase.sh call lines.
 phase_calls() {
   code "$1" | grep -E '^[[:space:]]*\./Scripts/run_ci_phase\.sh ' || true
@@ -342,8 +428,8 @@ job_findings() {
   job_of "$wf" report > "$rep"
 
   setup_findings "$q2" quality_2 macos-latest "Scripts/install_tools.sh $(tools_file_of quality_2)"
-  code "$main" | has -xF '          ./Scripts/install_tools.sh' \
-    || echo "tools: the main job must run the full ./Scripts/install_tools.sh with no tools file: it runs the language gate, the secret scan and the exit-trap gate"
+  code "$main" | has -xF "          ./Scripts/install_tools.sh $(tools_file_of quality)" \
+    || echo "setup: the quality job does not run Scripts/install_tools.sh $(tools_file_of quality)"
   setup_findings "$lnt" lint ubuntu-latest "Scripts/install_tools_linux.sh Scripts/required_tools_linux.txt"
   for n in 1 2; do
     setup_findings "${JOBS_TMP}/isolation_${n}.yml" "isolation_${n}" ubuntu-latest "$LINUX_GATES_INSTALL"
@@ -577,6 +663,18 @@ else
   fail "the tools lists break a pin:"$'\n'"$OUT"
 fi
 
+# The main job's list (forsgren#591 step 2). The reach of its gates is read once
+# and shared with the list mutants below, which change only the list.
+MAIN_REACH="${TMP}/main_reach.txt"
+main_reach > "$MAIN_REACH"
+[[ -s "$MAIN_REACH" ]] || fail "the main job's gates reach no script: main_reach read no row"
+OUT="$(main_tools_findings "$MAIN_REACH")"
+if [[ -z "$OUT" ]]; then
+  echo "  ok: the main job's tools list holds every pin"
+else
+  fail "the main job's tools list breaks a pin:"$'\n'"$OUT"
+fi
+
 # mutant_case <name> <sed-expression> <finding>: one mutation proof, in the folder of
 # its own (MUTANT_DIR) that Scripts/lib_parallel_mutants.sh gives it.
 mutant_case() {
@@ -739,8 +837,10 @@ for j in quality_2:"$Q2" browser_1:"$B1" browser:"$B"; do
   mutant "${jid} installing another job's list" "${jrange}"'s#required_tools_[a-z0-9_]*_gates\.txt#required_tools_linux_gates.txt#' \
     "setup: the ${jid} job does not run Scripts/install_tools.sh $(tools_file_of "$jid")"
 done
-mutant "main installing a short tool list" "${Q}"'s#\./Scripts/install_tools\.sh#./Scripts/install_tools.sh Scripts/required_tools_browser_gates.txt#' \
-  "tools: the main job must run the full ./Scripts/install_tools.sh"
+mutant "main installing the full tool list" "${Q}"'s#install_tools\.sh Scripts/required_tools_quality_gates\.txt#install_tools.sh#' \
+  "setup: the quality job does not run Scripts/install_tools.sh $(tools_file_of quality)"
+mutant "main installing another job's list" "${Q}"'s#required_tools_quality_gates\.txt#required_tools_browser_gates.txt#' \
+  "setup: the quality job does not run Scripts/install_tools.sh $(tools_file_of quality)"
 mutants_wait
 
 # expect_named <what> <finding>: OUT, the findings of the last mutant, names it.
@@ -834,6 +934,31 @@ printf '%s\n' '#!/usr/bin/env bash' './Scripts/zz_deep_end.sh' > "${DEEP}/Script
 printf '%s\n' '#!/usr/bin/env bash' 'jq . /dev/null' > "${DEEP}/Scripts/zz_deep_end.sh"
 OUT="$(cd "$DEEP" && tools_file_findings)"
 expect_named "a tool two calls below a gate" "the browser_1 gate test_gate_browser reaches jq in Scripts/zz_deep_end.sh"
+
+# The main job's list (forsgren#591 step 2): each mutant a copy of the list in a
+# directory of its own, read against the reach of the real gates.
+mkdir -p "${VERDICT_TMP}/nolt" "${VERDICT_TMP}/mainextra" "${VERDICT_TMP}/mainnone"
+grep -vx 'languagetool' "$(tools_file_of quality)" > "${VERDICT_TMP}/nolt/required_tools_quality_gates.txt" || true
+OUT="$(TOOLS_DIR="${VERDICT_TMP}/nolt" main_tools_findings "$MAIN_REACH")"
+expect_named "a main list without languagetool" "lists 'gitleaks go jq node ', the quality job needs '${MAIN_WANT}'"
+expect_named "the language gate that runs languagetool" "the quality gate gate_language_pages runs languagetool in Scripts/gate_language.sh"
+{ cat "$(tools_file_of quality)" 2> /dev/null || true; echo 'shellcheck'; } > "${VERDICT_TMP}/mainextra/required_tools_quality_gates.txt"
+OUT="$(TOOLS_DIR="${VERDICT_TMP}/mainextra" main_tools_findings "$MAIN_REACH")"
+expect_named "a main list with a lint tool its gates do not run" "lists 'gitleaks go jq languagetool node shellcheck ', the quality job needs '${MAIN_WANT}'"
+OUT="$(TOOLS_DIR="${VERDICT_TMP}/mainnone" main_tools_findings "$MAIN_REACH")"
+expect_named "no main list" "required_tools_quality_gates.txt does not exist or is empty"
+# A lint tool run two calls below a main gate: a copy of Scripts/ where the
+# community files gate calls a script that runs shellcheck, read through an
+# order file of that one row, so the reach is computed in the copy.
+MDEEP="${VERDICT_TMP}/maindeep"
+mkdir -p "$MDEEP"
+cp -R Scripts "${MDEEP}/Scripts"
+printf '%s\n' './Scripts/zz_main_mid.sh' >> "${MDEEP}/Scripts/check_community_files.sh"
+printf '%s\n' '#!/usr/bin/env bash' './Scripts/zz_main_end.sh' > "${MDEEP}/Scripts/zz_main_mid.sh"
+printf '%s\n' '#!/usr/bin/env bash' 'shellcheck -x Scripts/zz_main_mid.sh' > "${MDEEP}/Scripts/zz_main_end.sh"
+grep -F 'community files|Scripts/check_community_files.sh|' "$ORDER" > "${MDEEP}/order.txt"
+OUT="$(cd "$MDEEP" && ORDER="${MDEEP}/order.txt" main_tools_findings)"
+expect_named "a lint tool two calls below a main gate" "the quality gate check_community_files runs shellcheck in Scripts/zz_main_end.sh"
 
 mkdir -p "${VERDICT_TMP}/order"
 sed 's/^shellcheck|Scripts\/check_shellcheck.sh|pre|/shellcheck|Scripts\/check_shellcheck.sh|post|/' "$ORDER" > "${VERDICT_TMP}/order/gate_report_order.txt"

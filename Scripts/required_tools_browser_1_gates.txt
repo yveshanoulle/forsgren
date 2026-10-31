@@ -1,6 +1,6 @@
 # Tools the browser_1 job of quality.yml needs (forsgren#447, step 4), one per
 # line. Read by Scripts/install_tools.sh, which the job runs with this file in
-# place of Scripts/required_tools.txt; the main quality job keeps the full list.
+# place of Scripts/required_tools.txt; sfl.sh keeps the full list.
 #
 # ONLY what its two gates run: the browser gate self-test
 # (Scripts/test_gate_browser.sh), which drives Scripts/browser_gate.mjs with

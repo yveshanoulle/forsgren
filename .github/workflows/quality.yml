@@ -19,20 +19,26 @@
 # verdict: the run's conclusion is success only when every job succeeded, which
 # is what Scripts/release_quality.sh reads (the run, never a job). The main job
 # `quality` runs every gate that Scripts/ci_job_groups.txt does not give to
-# another job; the `lint` job runs actionlint, shellcheck, yamllint and zizmor
-# with their self-tests (forsgren#282), the jobs `isolation_1` and `isolation_2`
-# the git sandbox isolation self-test in two shards, one each (forsgren#426),
-# the `summary` job the step summary isolation gate
-# (forsgren#425), the `quality_2` job twelve gates of the main job and the Go
-# coverage gate (forsgren#447), the `browser_1` job the browser gate self-test
-# alone (forsgren#447) and the `browser` job
-# the other browser gates (with their own site build), and the `workflows` job the
-# pins of the workflows and the wiring of the gates (forsgren#408), all with
-# the same setup; the
-# `report` job merges
-# what each job handed over (an artifact quality-report-<job>) into the one
-# Quality report; `preview` needs them all. Scripts/test_quality_jobs.sh pins
-# the layout.
+# another job. The group file gives the `lint` job the static lint gates:
+# actionlint, shellcheck, yamllint and zizmor with their self-tests
+# (forsgren#282), Go lint with its self-test (forsgren#447 step 5) and the Go
+# test duplication gate (forsgren#591); the jobs `isolation_1` and
+# `isolation_2` the git sandbox isolation self-test in two shards, one each
+# (forsgren#426); the `summary` job the step summary isolation gate
+# (forsgren#425); the `quality_2` job eleven gates of the main job, the Go
+# tests and Go coverage among them (forsgren#447); the `browser_1` job the
+# browser gate self-test and the fixture site self-test, and the `browser` job
+# the other browser gates, with its own site build (forsgren#447); and the
+# `workflows` job the pins of the workflows and the wiring of the gates
+# (forsgren#408), go mod tidy, the Go test duplication and Go vulnerabilities
+# self-tests and eleven Linux-safe tail gates of the main job (forsgren#447).
+# Each gate job checks out the same
+# commit and sets up its gate environment, Node and the tools its gates run:
+# the macOS jobs with Scripts/install_tools.sh and their own list
+# (Scripts/required_tools_<job>_gates.txt), the Linux jobs with setup-go and
+# Scripts/install_tools_linux.sh. The `report` job merges what each job
+# handed over (an artifact quality-report-<job>) into the one Quality report;
+# `preview` needs them all. Scripts/test_quality_jobs.sh pins the layout.
 #
 # RUNNERS (forsgren#427, forsgren#447 step 3). GitHub runs at most 5 macOS jobs
 # at once for the account, so the jobs whose gates need no macOS run on
@@ -141,10 +147,13 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
-      # The Homebrew tools of Scripts/required_tools.txt, with the script sfl
-      # runs before its gates. The hosted image has none of gitleaks,
-      # yamllint, actionlint or zizmor, so without this every gate needing
-      # one is red with `command not found`. Installing and upgrading is
+      # The Homebrew tools this job's gates run, with the script sfl runs
+      # before its gates, from Scripts/required_tools_quality_gates.txt
+      # (forsgren#591 step 2): Scripts/required_tools.txt less shellcheck,
+      # yamllint, actionlint and zizmor, whose gates all run in the lint job.
+      # The hosted image has neither gitleaks nor languagetool, so without
+      # this every gate needing one is red with `command not found`.
+      # Scripts/test_quality_jobs.sh pins the list. Installing and upgrading is
       # right here: the machine is thrown away after the job, so nothing
       # outlives the run, and Homebrew's current formulae are what a local
       # sfl run upgrades to as well. A tool still missing afterwards fails
@@ -159,7 +168,7 @@ jobs:
           HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
         run: |
           set -euo pipefail
-          ./Scripts/install_tools.sh
+          ./Scripts/install_tools.sh Scripts/required_tools_quality_gates.txt
 
       - name: Install dependencies
         # npm ci installs exactly package-lock.json, the same versions sfl.sh
@@ -373,14 +382,17 @@ jobs:
 
   # The lint job (forsgren#282): actionlint, shellcheck, yamllint and zizmor
   # with their self-tests, the static lint rows of the order file's static
-  # block (Scripts/ci_job_groups.txt gives them to this job, and
-  # Scripts/run_ci_phase.sh skips them in the main job), so a lint finding is
-  # its own red check on the run. The same setup as the main job, step for
-  # step: its comments are the main job's. No site build: all are PRE rows.
-  # No secret reaches it: none of its gates reads one or is secret-class.
-  # It runs on ubuntu-latest (forsgren#427): the four tools behave the same on
-  # Linux and read files only. Its tools come from pinned, checksum-verified
-  # builds (Scripts/install_tools_linux.sh), not Homebrew.
+  # block, Go lint with its self-test (forsgren#447 step 5) and the Go test
+  # duplication gate (forsgren#591) (Scripts/ci_job_groups.txt gives them to
+  # this job, and Scripts/run_ci_phase.sh skips them in the main job), so a
+  # lint finding is its own red check on the run. The main job's setup, with
+  # setup-go first as every Linux job: the comments of the steps they share
+  # are the main job's. No site build: all are PRE rows. No secret reaches
+  # it: none of its gates reads one or is secret-class. It runs on
+  # ubuntu-latest (forsgren#427): the four lint tools behave the same on Linux
+  # and read files only, and the two Go gates run the go.mod-pinned
+  # golangci-lint. Its tools come from pinned, checksum-verified builds
+  # (Scripts/install_tools_linux.sh), not Homebrew.
   lint:
     name: Lint gates
     runs-on: ubuntu-latest

@@ -1,0 +1,31 @@
+# Tools the main quality job of quality.yml needs (forsgren#591, step 2), one
+# per line. Read by Scripts/install_tools.sh, which the job runs with this file
+# in place of Scripts/required_tools.txt. sfl.sh keeps the full list: it runs
+# every gate, the lint job's too.
+#
+# ONLY what its gates run: every row of Scripts/gate_report_order.txt that
+# Scripts/ci_job_groups.txt gives to no other job, read from their scripts and
+# the scripts those call. Left out: shellcheck, yamllint, actionlint and zizmor.
+# Their gates and self-tests all run in the lint job (forsgren#282), which
+# installs its own pinned builds; a main gate only names them (a fixture's
+# stub, a config file name, another job's gate script read as text). Measured
+# on five green Quality runs of main (docs/ci.md): the four took 10 to 19 s of
+# the main job's 43 to 87 s install. A tool a gate runs but this list lacks
+# fails the gate, never skips it; Scripts/test_quality_jobs.sh is red when a
+# script a main gate reaches runs a tool of Scripts/required_tools.txt that is
+# not here.
+
+# The secret scan (Scripts/check_secrets.sh) and its self-test.
+gitleaks
+
+# Scripts/build_site.sh, the starter page build and the Go gates of the job.
+go
+
+# npm audit reads `npm audit --json`.
+jq
+
+# The language gate (Scripts/gate_language.sh) and its self-tests.
+languagetool
+
+# npm, for the npm gates, HTMLHint and Stylelint, and Node pin.
+node

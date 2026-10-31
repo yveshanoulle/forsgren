@@ -50,12 +50,15 @@ so the installer puts them there; installing and upgrading costs nothing
 lasting on a machine that is thrown away after the job. A tool still missing
 after it fails the Install tools step by name.
 
-**Which tools each macOS job installs** (forsgren#447, step 4). The main
-`quality` job runs the full `Scripts/install_tools.sh`, the whole of
-`Scripts/required_tools.txt`: it runs the language gate (LanguageTool), the
-secret scan (gitleaks) and the exit-trap gate. The other three macOS jobs pass
-the installer a list of their own, so a job installs only what its gates and
-its site build run, not the 75 to 219 seconds of the full set:
+**Which tools each macOS job installs** (forsgren#447, step 4). Every macOS
+gate job passes `Scripts/install_tools.sh` a list of its own, so a job installs
+only what its gates and its site build run, not the full set of
+`Scripts/required_tools.txt`, which `sfl.sh` keeps installing locally. The main
+`quality` job takes `Scripts/required_tools_quality_gates.txt` (gitleaks, go,
+jq, languagetool, node; forsgren#591 step 2): it runs the language gate
+(LanguageTool), the secret scan (gitleaks) and npm audit (jq), and no longer
+installs shellcheck, yamllint, actionlint and zizmor, whose gates all run in
+the `lint` job.
 `quality_2` takes `Scripts/required_tools_quality_2_gates.txt` (go, node, jq),
 `browser_1` takes `Scripts/required_tools_browser_1_gates.txt` (go, node) and
 `browser` takes `Scripts/required_tools_browser_gates.txt` (go, node). Each list
@@ -74,7 +77,7 @@ never in none. The file names the groups below; the job ids are the keys of
 
 | Job (name) | OS | Install tools step | Gates it runs |
 |---|---|---|---|
-| `quality` (Quality gates) | macOS | full `Scripts/install_tools.sh` (`Scripts/required_tools.txt`) | every gate no group names: the language gate, the secret scan, the site build and the POST gates, the long tail of small gates |
+| `quality` (Quality gates) | macOS | `Scripts/required_tools_quality_gates.txt` (gitleaks, go, jq, languagetool, node) | every gate no group names: the language gate, the secret scan, the site build and the POST gates, the long tail of small gates |
 | `quality_2` (Quality gates 2/2) | macOS | `Scripts/required_tools_quality_2_gates.txt` (go, node, jq) | Go tests and Go coverage, golden pages, and the slower self-tests, among them the exit-trap completion behaviour |
 | `browser_1` (Browser gates 1/2) | macOS | `Scripts/required_tools_browser_1_gates.txt` (go, node) | the browser gate self-test and the fixture-site self-test |
 | `browser` (Browser gates) | macOS | `Scripts/required_tools_browser_gates.txt` (go, node) | the browser gate process self-test, the browser gate and the fixture-site gate, with its own site build |
@@ -99,7 +102,57 @@ of each job's gates and the `Scripts/*.sh` those call, transitively (the
 closure of `Scripts/lib_gate_select.sh`), and is red when a gate of a macOS job
 names a tool of `Scripts/required_tools.txt` that the job's own list lacks. A
 tool needed two calls deep, such as go through `Scripts/build_fixture_site.sh`,
-is therefore found.
+is therefore found. The main job's ~110 gates name the lint tools as text (a
+fixture's stub in the installer self-tests, `.yamllint.yml` as a file name,
+the static block self-test listing `Scripts/check_shellcheck.sh`), so its
+check (`main_tools_findings`, forsgren#591 step 2) is narrower: a script a main
+gate reaches, other than another job's gate script, must not run a tool its
+list lacks as a command with an argument (at the start of a command, after `if`, `then`, `do`,
+`!`, `$(` or `command -v`). Only `Scripts/check_*.sh` and the self-tests of the
+four lint gates run those tools, and all of them are `lint` rows.
+
+**The main job's tool install** (forsgren#591 step 2). Five green Quality runs
+of `main` on 2026-10-31 (41201888104, 41206328973, 41208874000, 41211044377,
+41212536251), seconds per part of the Install tools step from the log's line
+times; `(i)` installed, the image lacked it, `(u)` upgraded, the image had it:
+
+| Part | Main job | quality_2 | browser | browser_1 |
+|---|---|---|---|---|
+| `brew update` | 16 to 36 (median 30) | 16 to 36 (26) | 18 to 34 (24) | 26 to 33 (30) |
+| go (i) | 5 to 14 (13) | 6 to 16 (11) | 7 to 14 (12) | 10 to 13 (12) |
+| node (u) | 0.3 to 0.7 | 0.4 to 0.8 | 0.5 to 0.9 | 0.6 to 1.3 |
+| jq (u) | 0.3 to 0.7 | 0.4 to 0.7 | - | - |
+| gitleaks (i) | 2 to 5 (4) | - | - | - |
+| shellcheck (i) | 3 to 5 (4) | - | - | - |
+| yamllint (i) | 2 to 5 (4) | - | - | - |
+| actionlint (i) | 2 to 4 (3) | - | - | - |
+| zizmor (i) | 2 to 5 (3) | - | - | - |
+| languagetool (i) | 10 to 18 (17) | - | - | - |
+| Install tools, total | 43 to 87 (82) | 23 to 50 (43) | 27 to 47 (39) | 37 to 47 (42) |
+| `npm ci` (its own step) | 2 to 7 | 2 to 6 | 2 to 6 | 4 to 7 |
+
+The Linux jobs install in 3 to 6 s (pinned builds) after 7 to 11 s of
+`actions/setup-go`. So `brew update` and go cost every macOS job about the
+same 40 s; what the main job adds is LanguageTool (17 s by the median, with its
+own Java), gitleaks (4 s) and the four lint tools (10 to 19 s together, 14 s by
+the median: 15, 13, 19, 10 and 14 s over the five runs). The four lint tools
+are the part no gate of the job runs, so the main job's list leaves them out:
+about 14 s off the main job's setup by the median, 10 to 19 s. The run saves
+that only while the main job is the longest job.
+
+Left as it is, with the reason:
+
+- `brew update` (16 to 36 s in every macOS job) stays: `Scripts/install_tools.sh`
+  is the estate's script, byte-identical in every repository, and the language
+  gate pins LanguageTool's version and is red on another, so the job must see
+  Homebrew's current formulae, not the image's snapshot.
+- No `actions/cache` for a Homebrew download: none is pinned exactly. Homebrew
+  installs the formula's current bottle and has no lockfile, so a cache key on
+  a pin file would restore whatever was current when the cache was made.
+  LanguageTool's version is pinned by the gate, not by the install.
+- go (5 to 16 s in every macOS job) stays a Homebrew install: Go starts the
+  `go.mod` toolchain (`GOTOOLCHAIN`), and `actions/setup-go` takes 7 to 11 s on
+  the Linux jobs, so swapping it is no measurable saving.
 
 **Measured minutes.** Longest job of three or four green Quality runs of `main`,
 before the rebalance (the step 4 measurement of the layout after steps 1 to 3) and after the last

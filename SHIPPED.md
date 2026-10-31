@@ -9,6 +9,29 @@ Active work lives in
 
 ---
 
+## 2026-10-31 — Quality: Go test duplication runs in the Lint job, and the main job no longer installs the lint tools ([#591](https://github.com/yveshanoulle/forsgren/issues/591), 2 steps)
+
+forsgren issue 591, tools: no release. Step 1: the Go test duplication gate,
+the slowest gate left in the main Quality job (67 s by the median), runs in
+the Lint gates job on Linux, which already builds the same `go.mod`-pinned
+golangci-lint; the run saves about 54 s by the median. Step 2: the main job's
+Install tools step took 43 to 87 s (82 s by the median of five green runs),
+against 23 to 50 s in the other macOS jobs. Measured per tool from the logs:
+`brew update` and go cost every macOS job about 40 s; the main job adds
+LanguageTool (17 s), gitleaks (4 s) and shellcheck, yamllint, actionlint and
+zizmor (10 to 19 s together), whose gates all run in the Lint job. The main
+job now installs from its own list, `Scripts/required_tools_quality_gates.txt`
+(gitleaks, go, jq, languagetool, node), about 14 s less setup by the median;
+`sfl.sh` keeps installing the full list. `Scripts/test_quality_jobs.sh` pins
+the list and the install command, and is red when a script a main gate
+reaches runs a tool the list lacks, with mutation proofs. No cache was added:
+Homebrew pins no download exactly, and `brew update` stays, since the
+language gate pins LanguageTool's version. The header comments of
+`quality.yml` now name every gate of the Lint job. Numbers in
+[CI](docs/ci.md).
+
+---
+
 ## 2026-10-31 — The Week page's Deployments counts every deployment, successful and failed ([#601](https://github.com/yveshanoulle/forsgren/issues/601), 2 steps)
 
 forsgren issue 601. On the Week page, Total's Deployments counted the

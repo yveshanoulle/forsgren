@@ -1,6 +1,6 @@
 # Tools the quality_2 job of quality.yml needs (forsgren#447, step 4), one per
 # line. Read by Scripts/install_tools.sh, which the job runs with this file in
-# place of Scripts/required_tools.txt; the main quality job keeps the full list.
+# place of Scripts/required_tools.txt; sfl.sh keeps the full list.
 #
 # ONLY what its gates run (Scripts/ci_job_groups.txt gives it the rows; read
 # from their scripts, and from the scripts those call). A tool a gate calls but
