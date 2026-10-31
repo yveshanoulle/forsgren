@@ -9,6 +9,18 @@ Active work lives in
 
 ---
 
+## 2026-10-31 — The footer marks the page it is on as the menu does ([#596](https://github.com/yveshanoulle/forsgren/issues/596), 2 steps)
+
+forsgren issue 596. The menu at the top shows the page you are on as plain
+text, marked `aria-current="page"`, but the footer still linked the Settings,
+Legend, Dictionary and Data pages to themselves. The footer now works as the
+menu: on `settings.html`, `legend.html`, `dictionary.html` and `data.html`
+that page's footer entry is plain text with `aria-current="page"`, every
+other entry stays a link, and on every other page the footer is unchanged.
+[Pages and views](docs/pages-and-views.md) follows. A patch release.
+
+---
+
 ## 2026-10-31 — The Data page says how far a commit files read is ([#594](https://github.com/yveshanoulle/forsgren/issues/594), 3 steps)
 
 forsgren issue 594, the follow-up of #593. The run summary said how far a
