@@ -275,6 +275,16 @@ audit stopped reporting it). The gate is red on a moderate, high or critical
 advisory (forsgren#434, decision #420); a low one is listed, not red, and is
 fixed by updating the lockfile.
 
+**An override before an exception** (forsgren#595). When the advisory sits in
+a dependency of a linter that is already at its latest version, and npm's
+only fix is a downgrade of the linter, an exact `overrides` entry in
+`package.json` gives that one linter a fixed version of the dependency, and
+the lockfile is updated with it: `"overrides": {"htmlhint": {"glob":
+"14.0.3"}}` gives htmlhint glob 14.0.3 (and so minimatch 11.0.3). The
+override is exact, like every pin, and scoped to the one linter; the linter's
+own gate must stay green on it. Remove the override once the linter's own
+release asks for a fixed version.
+
 **To move a linter to a new version,** change its exact pin and the lockfile
 together, then run `./FBP.sh`:
 

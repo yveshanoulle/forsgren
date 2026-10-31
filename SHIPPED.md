@@ -9,6 +9,39 @@ Active work lives in
 
 ---
 
+## 2026-10-31 — The Data page says how far a commit files read is ([#594](https://github.com/yveshanoulle/forsgren/issues/594), 3 steps)
+
+forsgren issue 594, the follow-up of #593. The run summary said how far a
+capped commit files read was, but the Data page showed only `… <date>
+(earlier data not yet read)`, so a reader of the site could not tell how far
+the read was or when it ends. collect now keeps
+`data/commit_files_progress.csv` (format v1, `repository,read,left`): one line
+per repository whose read is still going, set by every read that ran,
+whatever ended it, and removed when a read leaves no commit without files;
+the data guard knows the name. The Data page reads it and says, under the
+table, per project with a read still going, `Konenki: the files of 4 199 of
+8 124 commits are read, 3 925 left (about 4 more runs).`: summed over the
+project's repositories, never naming one, the counts with the thousands
+separator, gone once the read is complete; the runs left are rounded as the
+Collected line rounds them. [Data files](docs/data-files.md),
+[Pages and views](docs/pages-and-views.md#the-data-page) and the legend's
+Data page section follow. A patch release.
+
+---
+
+## 2026-10-31 — npm audit: htmlhint gets glob 14.0.3 by an override ([#595](https://github.com/yveshanoulle/forsgren/issues/595), 1 step)
+
+forsgren issue 595, tools: no release. The npm audit gate went red on two
+new moderate advisories, GHSA-3g3m-2fjr-6pw4 (glob) and GHSA-g3hv-75wg-m249
+(minimatch), both through htmlhint 1.9.2, the latest, which asks for glob
+^13.0.6; `npm audit fix` could only offer a downgrade of htmlhint to 1.7.0.
+`package.json` now holds an exact override, glob 14.0.3 for htmlhint (it
+brings minimatch 11.0.x), with the lockfile; the htmlhint gate stays green
+and no exception was added to `Scripts/npm_audit_exceptions.txt`. It landed
+on the red of #594's step 2.
+
+---
+
 ## 2026-10-31 — The Collected line says how far a capped commit files read is ([#593](https://github.com/yveshanoulle/forsgren/issues/593), 2 steps)
 
 forsgren issue 593, the follow-up of #589. A repository whose read of the

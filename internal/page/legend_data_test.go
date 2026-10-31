@@ -6,7 +6,7 @@ import (
 )
 
 // legendDataText are the sentences of the legend's Data page section
-// (forsgren#579, step 4; forsgren#582; forsgren#589).
+// (forsgren#579, step 4; forsgren#582; forsgren#589; forsgren#594).
 var legendDataText = []string{
 	"The Data page shows, for each project and under it for each label, service or rule, " +
 		"the first date forsgren stored data of each kind: Issues, Commits, Pushes, " +
@@ -36,6 +36,9 @@ var legendDataText = []string{
 	"A project's date is the earliest over its repositories.",
 	"The first stored date is when forsgren started collecting that data, " +
 		"not when the repository started.",
+	"Right under the table, a line for each project whose commit files are still being read says " +
+		"how many commits have their files read, how many are left and about how many more runs that takes, " +
+		"at most 1000 commits a run; the line is gone once every commit is read.",
 	"Under the table, Which pages use which data names the pages each kind feeds.",
 	"The Data page is linked in the footer, next to Settings, Legend and Dictionary, by default. " +
 		"Set data_page: unlisted to take the link away; the page is still generated, can be opened at data.html, " +

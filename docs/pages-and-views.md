@@ -1562,7 +1562,18 @@ deployments, and its commits as above; issues, pushes and merged pull requests a
 read per repository, so its cells for them read `Per repository`. The first stored date is what forsgren collected, not when
 the repository started.
 
-Under the table, the heading "Which pages use which data" lists each kind with
+Right under the table, each project whose commit files are still being read
+(a line in `data/commit_files_progress.csv` for one of its repositories,
+forsgren#594) has one sentence, `Konenki: the files of 4 199 of 8 124 commits
+are read, 3 925 left (about 4 more runs).`: the counts summed over the
+project's repositories, the runs left rounded up at 1000 commits a run, as
+the run summary's Collected line rounds them. It names the project, never a
+repository, as the page is public and a repository may be private; the
+counts are written with the thousands separator (`thousands_separator`), and
+the sentence is gone once the project's reads are complete. A repository in
+no project is left out.
+
+Then the heading "Which pages use which data" lists each kind with
 the pages that read it. With no projects, or nothing collected, the page shows
 one line in place of the table.
 
@@ -1572,7 +1583,8 @@ one line in place of the table.
   link and with the noindex tag; `false` does not generate it. See
   [Configuration](configuration.md#configuration).
 
-The legend has a Data page section that says how to read the table.
+The legend has a Data page section that says how to read the table and the
+sentences under it.
 
 ## Privacy
 

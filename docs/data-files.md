@@ -1103,10 +1103,41 @@ format v1, `repository,filled_at`, a mark file):
   none; an unknown version or a malformed line refuses the collect run and the
   render, naming the file.
 
-- The data guard knows the three names: a `commit_files.csv`, a
-  `commit_files_filled.csv` or a `push_files_filled.csv` that the repository
-  tracks or does not ignore, outside `testdata/`, blocks the commit, like the
-  other data files.
+**The commit files progress** (forsgren#594) is kept in
+`data/commit_files_progress.csv`, next to the history (the commit files
+progress format v1, package `internal/history`, columns
+`repository,read,left`), so the Data page, which is rendered from the data
+files and never sees a run's report, can say how far a read is:
+
+```
+# forsgren commit files progress v1
+repository,read,left
+acme/app,4120,2340
+```
+
+- One line per repository whose read of the commit files is still going:
+  `read` the commits with lines, `left` those still without, the counts of
+  the `commit-files-capped` line (forsgren#593), from the lines already stored
+  and the commits the run had to read, no request. `left` is never 0 and
+  `read` never below 0; lines are sorted by repository, and the file is
+  rewritten whole when a line changes, right after the commit files are
+  stored, so it never runs ahead of them.
+- Every read that ran sets its repository's line to what it reached, whatever
+  ended it: the cap, a budget stop, a refusal or another error. A read that
+  leaves no commit without lines (a commit GitHub no longer has counts as
+  read, as for `data/push_files_filled.csv`) removes the line. A repository
+  whose read does not start (no `paths`, its stored commits unreadable, or the
+  run never reached it) keeps its line as it was.
+- The Data page reads it: a sentence under the table per project with a
+  read still going (see
+  [Pages and views](pages-and-views.md#the-data-page)). A missing file is no
+  read going; an unknown version or a malformed line refuses the collect run
+  and the render, naming the file.
+
+- The data guard knows the four names: a `commit_files.csv`, a
+  `commit_files_filled.csv`, a `push_files_filled.csv` or a
+  `commit_files_progress.csv` that the repository tracks or does not ignore,
+  outside `testdata/`, blocks the commit, like the other data files.
 
 ## Collecting deployments (`collect`)
 
