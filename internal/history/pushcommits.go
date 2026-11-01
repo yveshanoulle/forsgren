@@ -3,7 +3,6 @@ package history
 import (
 	"cmp"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -103,21 +102,17 @@ func parentsField(n int) string {
 	return strconv.Itoa(n)
 }
 
-// parseParents reads the parents column: a decimal of 0 to math.MaxInt32, or
-// empty. The upper bound makes a file read the same on a 32-bit build, where
-// int would wrap (forsgren#576).
+// parseParents reads the parents column: a count of 0 to math.MaxInt32
+// (parseCount, forsgren#576, #608), or empty.
 func parseParents(s string) (int, error) {
 	if s == "" {
 		return ParentsUnknown, nil
 	}
-	n, err := parseNumber("parents", s)
-	if err != nil || n < 0 {
+	n, err := parseCount("parents", s)
+	if err != nil {
 		return 0, badParents(s)
 	}
-	if n > math.MaxInt32 {
-		return 0, badParents(s)
-	}
-	return int(n), nil
+	return n, nil
 }
 
 // badParents is the error of a parents column parseParents refuses.

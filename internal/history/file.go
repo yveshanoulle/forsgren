@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -165,6 +166,25 @@ func parseNumber(column, s string) (int64, error) {
 		return 0, fmt.Errorf("%s %q is not a whole number", column, s)
 	}
 	return n, nil
+}
+
+// parseCount reads the count column named column: a whole number from 0 to
+// math.MaxInt32, written as Go writes it. The upper bound makes a file read
+// the same on a 32-bit build, where int would wrap (forsgren#576, #608).
+func parseCount(column, s string) (int, error) {
+	n, err := parseNumber(column, s)
+	if err != nil || n < 0 {
+		return 0, badCount(column, s)
+	}
+	if n > math.MaxInt32 {
+		return 0, badCount(column, s)
+	}
+	return int(n), nil
+}
+
+// badCount is the error of a count column parseCount refuses.
+func badCount(column, s string) error {
+	return fmt.Errorf("%s %q is not a whole number from 0 to 2147483647", column, s)
 }
 
 // parseTime reads the time column named column.

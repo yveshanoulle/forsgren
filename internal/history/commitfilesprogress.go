@@ -51,12 +51,12 @@ var commitFilesProgressFile = format[progressRow, string]{
 
 // toProgressRow reads the three fields of a line.
 func toProgressRow(f []string) (progressRow, error) {
-	read, err := parseNumber("read", f[1])
+	read, err := parseCount("read", f[1])
 	if err != nil {
 		return progressRow{}, err
 	}
-	left, err := parseNumber("left", f[2])
-	return progressRow{Repository: f[0], FilesProgress: FilesProgress{Read: int(read), Left: int(left)}}, err
+	left, err := parseCount("left", f[2])
+	return progressRow{Repository: f[0], FilesProgress: FilesProgress{Read: read, Left: left}}, err
 }
 
 // fields are the columns of r's line.

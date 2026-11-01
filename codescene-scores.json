@@ -485,7 +485,7 @@
   {
    "path": "internal/history/file.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-11-01",
    "minScore": 10.0
   },
   {
@@ -2327,7 +2327,7 @@
   {
    "path": "internal/history/pushcommits.go",
    "score": 10.0,
-   "checkedAt": "2026-10-29",
+   "checkedAt": "2026-11-01",
    "minScore": 10.0
   },
   {

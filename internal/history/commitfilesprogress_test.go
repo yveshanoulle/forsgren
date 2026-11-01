@@ -67,3 +67,23 @@ func TestFilesProgressRunsRoundUp(t *testing.T) {
 		}
 	}
 }
+
+// TestACommitFilesProgressCountAbove2147483647IsRefusedOnRead (forsgren#608):
+// a read or left count above math.MaxInt32 is refused with a reason naming
+// the column and the bound, so a file reads the same on a 32-bit build, like
+// the parents column (forsgren#576).
+func TestACommitFilesProgressCountAbove2147483647IsRefusedOnRead(t *testing.T) {
+	for column, line := range map[string]string{
+		"read": "acme/app,2147483648,2\n",
+		"left": "acme/app,3,2147483648\n",
+	} {
+		t.Run(column, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "commit_files_progress.csv")
+			writeAt(t, path, "# forsgren commit files progress v1\nrepository,read,left\n"+line)
+			_, err := LoadCommitFilesProgress(path)
+			if !malformedOn(err, 3, column+` "2147483648"`) || !malformedOn(err, 3, "to 2147483647") {
+				t.Errorf("want line 3 refused for %s above 2147483647, got %v", column, err)
+			}
+		})
+	}
+}

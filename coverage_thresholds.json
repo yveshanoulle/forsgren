@@ -751,6 +751,8 @@
     "github.com/yveshanoulle/forsgren/internal/history/record.go:fields": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/record.go:toRecord": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/file.go:parseNumber": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/history/file.go:parseCount": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/history/file.go:badCount": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/file.go:parseTime": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/file.go:parseOptionalTime": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/reach.go:Holds": 100.0,
