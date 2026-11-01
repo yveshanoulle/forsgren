@@ -105,7 +105,7 @@ fi
 # jscpd answers --version with the bare version (4.2.4 and 5.x alike); anything
 # else, or a non-zero exit, is the fallback label.
 JSCPD_VERSION="$("$JSCPD" --version 2>/dev/null)" || JSCPD_VERSION=""
-if printf '%s' "$JSCPD_VERSION" | grep -qxE '[0-9]+[.][0-9]+[.][0-9]+[^[:space:]]*'; then
+if [[ "$JSCPD_VERSION" =~ ^[0-9]+[.][0-9]+[.][0-9]+[^[:space:]]*$ ]]; then
   JSCPD_LABEL="jscpd@${JSCPD_VERSION}"
 else
   JSCPD_LABEL="jscpd (version unreadable from jscpd --version)"
