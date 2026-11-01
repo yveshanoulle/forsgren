@@ -148,7 +148,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 108 | starter page links self-test | `test_check_starter_links.sh` | pre | required |
 | 109 | starter page gates self-test | `test_starter_page_gates.sh` | pre | required |
 | 110 | workflow node pin | `test_workflow_node_pin.sh` | pre | required, `test_workflow_node_pin v1` |
-| 152 | dependabot config | `test_dependabot_config.sh` | pre | required; forsgren's own (forsgren#86): `.github/dependabot.yml` has `gomod` and `github-actions` at `/`, a cron schedule, a commit-message prefix, groups, a cooldown and a comment per choice; 3 mutations (comments, cooldown, groups) |
+| 152 | dependabot config | `test_dependabot_config.sh` | pre | required; forsgren's own (forsgren#86): `.github/dependabot.yml` has `gomod`, `github-actions` and `npm` (forsgren#605) at `/`, a cron schedule, a commit-message prefix, groups, a cooldown and a comment per choice; 4 mutations (comments, cooldown, groups, npm) |
 | 111 | npm lockfile sync self-test | `test_check_npm_lock_sync.sh` | pre | required, `test_check_npm_lock_sync v1` |
 | 112 | npm lockfile sync | `check_npm_lock_sync.sh` | pre | required, `check_npm_lock_sync v1` |
 | 113 | workflow-triggers self-test | `test_check_workflow_triggers.sh` | pre | required, `test_check_workflow_triggers v1` |

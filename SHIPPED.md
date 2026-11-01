@@ -9,6 +9,21 @@ Active work lives in
 
 ---
 
+## 2026-11-01 — Dependabot proposes upgrades of the npm gate tooling ([#605](https://github.com/yveshanoulle/forsgren/issues/605), 1 step)
+
+forsgren issue 605, tools: no release. `.github/dependabot.yml` gets an
+`npm` entry for `/`, so the gate tooling pinned in `package.json` and
+`package-lock.json` (axe-core, htmlhint, jscpd, puppeteer-core, stylelint,
+stylelint-config-standard) gets update pull requests instead of moving only
+when `npm audit` complains. Same shape as the Go modules entry: a daily cron
+at 04:00 UTC, the commit-message prefix `npm`, one group for minor and patch
+updates, a cooldown of 3 days and a comment above each choice.
+`Scripts/test_dependabot_config.sh` judges the npm entry too, with a case for
+a file without it and one for an uncommented npm entry, and a mutation proof
+that a judge skipping the npm check accepts the file without the entry.
+
+---
+
 ## 2026-10-31 — Quality: Go test duplication runs in the Lint job, and the main job no longer installs the lint tools ([#591](https://github.com/yveshanoulle/forsgren/issues/591), 2 steps)
 
 forsgren issue 591, tools: no release. Step 1: the Go test duplication gate,

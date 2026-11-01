@@ -1,5 +1,6 @@
 # Proposes dependency updates as pull requests (forsgren#86): the Go modules in
-# go.mod / go.sum, and the commit-pinned `uses:` lines in .github/workflows.
+# go.mod / go.sum, the commit-pinned `uses:` lines in .github/workflows, and
+# the gate tooling in package.json / package-lock.json (forsgren#605).
 # Scripts/test_dependabot_config.sh keeps this file's shape. Whether the pull
 # requests keep the `uses: owner/action@<commit>  # vX.Y.Z` pin format, and
 # whether Dependabot also moves the `toolchain` line of go.mod or a
@@ -46,6 +47,28 @@ updates:
     # its own pull request.
     groups:
       actions:
+        patterns:
+          - "*"
+        update-types: [minor, patch]
+    # An update is proposed once it is 3 days old (the documented default,
+    # written out): a window for a bad release to be replaced or yanked.
+    cooldown:
+      default-days: 3
+  - package-ecosystem: npm
+    directory: /
+    # Every day, weekends included, as for the Go modules.
+    schedule:
+      interval: cron
+      cronjob: "0 4 * * *"   # 04:00 UTC, before the working day
+      timezone: UTC
+    # A pull request title and commit start with this prefix.
+    commit-message:
+      prefix: npm
+    # One pull request for all minor and patch updates of the gate tooling,
+    # so a run does not open one pull request per package. A major update
+    # stays its own pull request, read on its own.
+    groups:
+      npm-tooling:
         patterns:
           - "*"
         update-types: [minor, patch]

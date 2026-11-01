@@ -687,8 +687,8 @@ starter page gates self-test|Scripts/test_starter_page_gates.sh|pre|
 # installs. Beside the checkout pins, its neighbour in kind.
 workflow node pin|Scripts/test_workflow_node_pin.sh|pre|
 #
-# The Dependabot configuration (forsgren#86): gomod and github-actions at /, with
-# the schedule, prefix, groups, cooldown and a comment per choice. Beside the
+# The Dependabot configuration (forsgren#86, #605): gomod, github-actions and npm
+# at /, with the schedule, prefix, groups, cooldown and a comment per choice. Beside the
 # workflow pins, the files Dependabot's pull requests change.
 dependabot config|Scripts/test_dependabot_config.sh|pre|
 #

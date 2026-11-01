@@ -469,15 +469,16 @@ Seven PRE gates read the repository's own scripts and files:
   merge self-test proves the hand-over, the merge, the duplicate refusal and
   the status (cancelled outranks failure, a skipped job is a failure).
 - **dependabot config** (`Scripts/test_dependabot_config.sh`, forsgren's own,
-  forsgren#86): `.github/dependabot.yml` declares `gomod` and `github-actions`,
-  each at directory `/`, with `schedule: interval: cron` (04:00 UTC, so a
-  weekend release is seen; `interval: daily` runs Monday to Friday only), a
+  forsgren#86): `.github/dependabot.yml` declares `gomod`, `github-actions`
+  and `npm` (the gate tooling of `package.json` and `package-lock.json`,
+  forsgren#605), each at directory `/`, with `schedule: interval: cron`
+  (04:00 UTC, so a weekend release is seen; `interval: daily` runs Monday to Friday only), a
   `commit-message` prefix, `groups` with `patterns`, `cooldown` with
   `default-days: 3`, and a comment line directly above each of `schedule:`,
   `commit-message:`, `groups:` and `cooldown:`. Red with the file and the
   broken part. Its fixtures are synthetic files (one per broken shape) plus the
-  real one, and three mutation proofs show the comment, cooldown and groups
-  checks are what refuse their file.
+  real one, and four mutation proofs show the comment, cooldown, groups and
+  npm checks are what refuse their file.
 
 actionlint, zizmor, shellcheck and yamllint come from Homebrew, through
 `Scripts/required_tools.txt` (see [The tools](development.md)). shellcheck

@@ -6,7 +6,8 @@
 # missing file, a missing ecosystem or a wrong directory silently means no
 # updates (the go1.27.1 to go1.27.2 question that started forsgren#86).
 #
-# Per ecosystem, gomod and github-actions, both at directory / :
+# Per ecosystem, gomod, github-actions and npm (the gate tooling in
+# package.json and package-lock.json, forsgren#605), all at directory / :
 #   1. the ecosystem is declared, with directory: /;
 #   2. schedule: interval: cron with a cronjob and timezone UTC, so a
 #      weekend release is seen too (interval daily runs Monday to Friday only);
@@ -19,7 +20,8 @@
 # Synthetic files show each broken shape red, with its reason, and the real
 # file green. Mutation proofs: a judge that skips the comment check must accept
 # the uncommented file, one that skips the cooldown check the file without it,
-# one that skips the groups check the file without groups.
+# one that skips the groups check the file without groups, one that skips the
+# npm check the file without the npm entry.
 
 set -euo pipefail
 
@@ -61,9 +63,10 @@ judge_file() {
     }
     NF { prev = $0 }
     END {
-      n = split("gomod github-actions", want, " ")
+      n = split("gomod github-actions npm", want, " ")
       for (i = 1; i <= n; i++) {
         e = want[i]
+        if (skipped(e)) continue
         if (!seen[e]) { print file ": the " e " ecosystem is not declared"; continue }
         if (dir[e] != "/") print file ": " e ": directory is not /"
         if (interval[e] != "cron" || !cron[e] || tz[e] != "UTC")
@@ -95,22 +98,23 @@ block() {
   fi
 }
 
-# synth <name> <gomod-args...> -- <actions-args...> — writes a file, sets WF.
+# synth <name> <block-args...> [-- <block-args...>]... — writes a file with one
+# ecosystem entry per group of block arguments (an empty group writes none),
+# sets WF.
 synth() {
   local name="$1"; shift
-  local g=() a=() side=g
-  for x in "$@"; do
-    if [[ "$x" == -- ]]; then side=a; continue; fi
-    if [[ "$side" == g ]]; then g+=("$x"); else a+=("$x"); fi
-  done
+  local args=()
   WF="${TMP}/${name}.yml"
-  {
-    printf 'version: 2\nupdates:\n'
-    [[ ${#g[@]} -gt 0 ]] && block "${g[@]}"
-    [[ ${#a[@]} -gt 0 ]] && block "${a[@]}"
-  } > "$WF"
-  return 0
+  printf 'version: 2\nupdates:\n' > "$WF"
+  for x in "$@" --; do
+    if [[ "$x" != -- ]]; then args+=("$x"); continue; fi
+    if [[ ${#args[@]} -gt 0 ]]; then block "${args[@]}" >> "$WF"; fi
+    args=()
+  done
 }
+
+# The npm entry, complete, for the cases that break another ecosystem.
+NPM=(npm npm / 1 1 1)
 
 # judge <file> — sets OUT and RC (1 when there are problems).
 judge() {
@@ -118,36 +122,36 @@ judge() {
   if [[ -n "$OUT" ]]; then RC=1; else RC=0; fi
 }
 
-synth good gomod go / 1 1 1 -- github-actions actions / 1 1 1
+synth good gomod go / 1 1 1 -- github-actions actions / 1 1 1 -- "${NPM[@]}"
 judge "$WF"
-want_rc "1. both ecosystems at /, cron schedule, prefix, groups, cooldown, comments is accepted" 0
+want_rc "1. the three ecosystems at /, cron schedule, prefix, groups, cooldown, comments is accepted" 0
 
 judge "${TMP}/absent.yml"
 want_red "2. no file" "there is no dependabot.yml"
 
-synth nogomod -- github-actions actions / 1 1 1
+synth nogomod -- github-actions actions / 1 1 1 -- "${NPM[@]}"
 judge "$WF"
 want_red "3. no gomod ecosystem" "the gomod ecosystem is not declared"
 
-synth noactions gomod go / 1 1 1 --
+synth noactions gomod go / 1 1 1 -- -- "${NPM[@]}"
 judge "$WF"
 want_red "4. no github-actions ecosystem" "the github-actions ecosystem is not declared"
 
-synth subdir gomod go /sub 1 1 1 -- github-actions actions / 1 1 1
+synth subdir gomod go /sub 1 1 1 -- github-actions actions / 1 1 1 -- "${NPM[@]}"
 judge "$WF"
 want_red "5. gomod at another directory" "gomod: directory is not /"
 
-synth nocooldown gomod go / 1 1 0 -- github-actions actions / 1 1 1
+synth nocooldown gomod go / 1 1 0 -- github-actions actions / 1 1 1 -- "${NPM[@]}"
 judge "$WF"
 want_red "6. no cooldown" "gomod: no cooldown with default-days: 3"
 COOLDOWN_WF="$WF"
 
-synth nogroups gomod go / 1 1 1 -- github-actions actions / 1 0 1
+synth nogroups gomod go / 1 1 1 -- github-actions actions / 1 0 1 -- "${NPM[@]}"
 judge "$WF"
 want_red "7. no groups" "github-actions: no groups with patterns"
 GROUPS_WF="$WF"
 
-synth nocomments gomod go / 0 1 1 -- github-actions actions / 0 1 1
+synth nocomments gomod go / 0 1 1 -- github-actions actions / 0 1 1 -- "${NPM[@]}"
 judge "$WF"
 want_red "8. no comment above a choice" "gomod: no comment line directly above schedule:"
 COMMENTS_WF="$WF"
@@ -157,9 +161,18 @@ sed 's/interval: cron/interval: daily/' "${TMP}/good.yml" > "${TMP}/daily.yml"
 judge "${TMP}/daily.yml"
 want_red "9. interval daily instead of cron" "schedule is not interval: cron"
 
+synth nonpm gomod go / 1 1 1 -- github-actions actions / 1 1 1
+judge "$WF"
+want_red "10. no npm ecosystem" "the npm ecosystem is not declared"
+NPM_WF="$WF"
+
+synth npmuncommented gomod go / 1 1 1 -- github-actions actions / 1 1 1 -- npm npm / 0 1 1
+judge "$WF"
+want_red "11. npm entry without a comment above a choice" "npm: no comment line directly above schedule:"
+
 # The real file.
 judge .github/dependabot.yml
-want_rc "10. .github/dependabot.yml has both ecosystems with every choice commented" 0
+want_rc "12. .github/dependabot.yml has the three ecosystems with every choice commented" 0
 
 # --- mutation proofs ----------------------------------------------------------
 SKIP=comments judge "$COMMENTS_WF"
@@ -181,5 +194,12 @@ else
   fail "mutation proof: the groups-blind judge still refused the file. Output: ${OUT}"
 fi
 
+SKIP=npm judge "$NPM_WF"
+if [[ "$RC" -eq 0 ]]; then
+  echo "  ok: mutation proof: without the npm check a file with no npm entry is accepted, so case 10 is red because of it"
+else
+  fail "mutation proof: the npm-blind judge still refused the file. Output: ${OUT}"
+fi
+
 selftest_end "the dependabot config does not hold" \
-  "dependabot config: gomod and github-actions at /, cron schedule, commit-message prefix, groups, cooldown and a comment per choice; each broken shape is red; mutation proven"
+  "dependabot config: gomod, github-actions and npm at /, cron schedule, commit-message prefix, groups, cooldown and a comment per choice; each broken shape is red; mutation proven"
