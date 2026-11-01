@@ -86,7 +86,10 @@ before it is ever published.
 
 **Before handing back** (forsgren#439): Writers run their tests red first, and FBP (fail fast, forsgren#441) is the check.
 
-**`./sfl.sh pre|post`** runs one phase of the gates. Before PRE it runs
+**`./sfl.sh pre|post`** runs one phase of the gates. Before PRE it refuses a
+half-merged repo (exit 3, before any pull or gate): unmerged files (`git diff
+--name-only --diff-filter=U`) or a leftover `autostash` stash entry, each named
+(forsgren#603, an estate fix). Then it runs
 `git pull --ff-only`. When that cannot fast-forward (local commits not on the
 remote, a local RED commit say), it rebases the local commits onto the
 upstream if the files the incoming commits changed overlap neither the local
@@ -96,7 +99,9 @@ with `--index`, so staged stays staged, and only the stash this run made is
 popped), and the gates run on the rebased tree (forsgren#283, step 2 of 2,
 `Scripts/sfl_pull.sh`). Any overlap or failure stops it (exit 3) with the
 files named and `git pull --rebase --autostash` to run, the commits and the
-changes as they were. Then it installs the tools (see [The tools](#the-tools)), checks the Node pin, runs
+changes as they were; the recovery text warns that a conflicting autostash
+leaves unmerged files and keeps the stash entry while git still exits 0, so
+check `git status` and `git stash list` before re-running. Then it installs the tools (see [The tools](#the-tools)), checks the Node pin, runs
 `npm ci` when `node_modules` is missing or stale (see [The tools](#the-tools)),
 and exports the Go pin. **It stops at the first red gate**
 (forsgren#441, decision #440): each later gate of the phase is printed
@@ -307,11 +312,12 @@ The rest of the PRE rows test the build and gate tooling itself, so a
 broken runner cannot report green:
 
 - **sfl pull contract** (`Scripts/test_sfl_pull.sh`): sfl pulls with
-  `--ff-only` and stops with exit 3, naming the recovery command, when it
-  can neither fast-forward nor rebase.
+  `--ff-only` and stops with exit 3, naming the recovery command and the
+  autostash warning, when it can neither fast-forward nor rebase.
 - **sfl pull rebase self-test** (`Scripts/test_sfl_pull_rebase.sh`): the
-  opening pull's rebase over unrelated incoming commits, and its stop on an
-  overlap with the local side untouched, in a temp bare remote and two clones.
+  opening pull's rebase over unrelated incoming commits, its stop on an
+  overlap with the local side untouched, and its refusal of a half-merged repo
+  before any pull, in a temp bare remote and two clones.
 - **npm manifest policy self-test**, **npm-audit self-test** and the other
   `... self-test` rows: each drives its gate on made-up input before the
   gate runs.

@@ -927,6 +927,17 @@ The POST gates, on the generated site:
   clones (three cases) with two mutation proofs, each asserting its reason:
   without the overlap check the local commit's file is rebased, and without the
   working-tree part of the overlap list the staged file is rebased.
+  Since forsgren#603 (an estate fix) `sfl_pull_refuse_half_merged` runs first:
+  unmerged files (`git diff --name-only --diff-filter=U`) or a leftover
+  `stash@{N}: autostash` entry refuse the repo with exit 3 before any fetch,
+  pull or gate, each named on a `❌` line (a failed git read refuses too), and
+  the recovery text warns that a conflicting `git pull --rebase --autostash`
+  leaves unmerged files and the stash entry while git still exits 0. Four more
+  cases (unmerged after a stash pop, the autostash entry alone, both, a clean
+  tree with an ordinary stash entry that still pulls) and two mutation proofs:
+  without the unmerged-files check, or without the autostash check, the repo is
+  pulled and the case fails on exactly that reason. `Scripts/test_sfl_pull.sh`
+  pins the warning with one more mutant.
 
 - **live check** (`Scripts/live_check.sh`, self-test `Scripts/test_live_check.sh`,
   forsgren#205 step 2 of 2, ruling item 3): after every forsgren.be deploy, the

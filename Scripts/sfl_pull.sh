@@ -17,6 +17,11 @@
 # failed fetch, no upstream or a failed rebase: a hard stop, the local commits
 # and the uncommitted changes left as they were, and the recovery command
 # named.
+#
+# forsgren#603, ported from an estate fix: before it pulls, sfl refuses a
+# half-merged repo (unmerged files, or a leftover `autostash` stash entry) with
+# exit 3 and the files or entries named, and the recovery text warns that a
+# conflicting autostash must be resolved before re-running.
 
 # shellcheck source=Scripts/fbp_push_or_rebase.sh
 . "$(dirname "${BASH_SOURCE[0]}")/fbp_push_or_rebase.sh"
@@ -27,6 +32,7 @@
 # incoming commits. On any other outcome it prints the recovery command to
 # stderr and returns 3.
 sfl_pull_or_stop() {
+  sfl_pull_refuse_half_merged || return 3
   if git pull --ff-only; then
     return 0
   fi
@@ -35,7 +41,40 @@ sfl_pull_or_stop() {
   fi
 
   printf 'sfl: origin moved or no upstream — run: git pull --rebase --autostash  then re-run\n' >&2
+  printf 'sfl: careful — a conflicting autostash leaves unmerged files and keeps the stash entry while git still exits 0: check git status and git stash list, fix the files, apply or drop the autostash entry, then re-run\n' >&2
   return 3
+}
+
+# sfl_pull_refuse_half_merged — forsgren#603: `git pull --rebase --autostash`
+# whose re-apply of the autostash conflicts exits 0 and leaves the repo
+# half-merged: unmerged files (no MERGE_HEAD, git status only says "both
+# modified") and the uncommitted changes kept as `stash@{N}: autostash`. sfl
+# refuses such a repo before it pulls or runs a gate. Returns 0 when there is
+# no unmerged file and no autostash entry; otherwise prints a ❌ line per
+# reason, naming the files and the entries, to stderr and returns 1. A git
+# read that fails refuses too.
+sfl_pull_refuse_half_merged() {
+  local unmerged stashes autostash refused=0
+  if ! unmerged=$(git diff --name-only --diff-filter=U); then
+    printf '❌ sfl: could not list the unmerged files (git diff failed) — nothing pulled, no gate ran.\n' >&2
+    return 1
+  fi
+  if ! stashes=$(git stash list); then
+    printf '❌ sfl: could not read the stash list (git stash list failed) — nothing pulled, no gate ran.\n' >&2
+    return 1
+  fi
+  autostash=$(grep -E ': autostash$' <<< "$stashes" || true)
+  if [ -n "$unmerged" ]; then # unmerged-check
+    printf '❌ sfl: half-merged repo — unmerged files: %s— fix them (edit, then git add, or git checkout HEAD -- <file>) before re-running; nothing pulled, no gate ran.\n' \
+      "$(printf '%s' "$unmerged" | tr '\n' ' ') " >&2
+    refused=1
+  fi
+  if [ -n "$autostash" ]; then # autostash-check
+    printf '❌ sfl: half-merged repo — leftover autostash entry: %s — its changes exist only in the stash: apply it (git stash apply <entry>) or drop it (git stash drop <entry>) before re-running; nothing pulled, no gate ran.\n' \
+      "$(printf '%s' "$autostash" | tr '\n' ';' | sed 's/;$//; s/;/; /g')" >&2
+    refused=1
+  fi
+  return "$refused"
 }
 
 # sfl_pull_rebase_unrelated — the rebase of sfl_pull_or_stop. Returns 0 when the

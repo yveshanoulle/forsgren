@@ -9,6 +9,32 @@ Active work lives in
 
 ---
 
+## 2026-11-01 — sfl pull refuses a half-merged repo ([#603](https://github.com/yveshanoulle/forsgren/issues/603), 1 step)
+
+forsgren issue 603, tools (no release), ported from an estate fix. A
+`git pull --rebase --autostash` (the recovery command sfl names) whose
+re-apply of the autostash conflicts exits 0 and leaves the repo half-merged:
+unmerged files and the uncommitted changes kept as `stash@{N}: autostash`.
+`Scripts/sfl_pull.sh` now runs `sfl_pull_refuse_half_merged` first: unmerged
+files (`git diff --name-only --diff-filter=U`) or an autostash entry stop sfl
+with exit 3 before any fetch, pull or gate, each named on a `❌` line with
+what to do (a failed git read refuses too); an ordinary stash entry does not.
+forsgren's rebase over unrelated incoming commits (#283) is unchanged after
+it. The recovery text adds a line warning that a conflicting autostash leaves
+unmerged files and keeps the stash entry while git still exits 0.
+
+- Red first: `Scripts/test_sfl_pull_rebase.sh` failed on its new cases only
+  (the unmerged repo pulled, the autostash entry pulled, both, the mutation
+  marker lines missing), and `Scripts/test_sfl_pull.sh` on the missing
+  warning. Then green, with four cases (unmerged after a stash pop, the
+  autostash entry alone, both, a clean tree with an ordinary stash entry that
+  still fast-forwards) and two mutation proofs asserting the reason: without
+  the unmerged-files check, or without the autostash check, the repo is
+  pulled. `Scripts/test_sfl_pull.sh`'s git stub reads a clean repo for the
+  check, and one more mutant (the warning removed) must be red.
+- Docs: docs/development.md, docs/quality-gates.md, docs/gate-classification.md,
+  CLAUDE.md.
+
 ## 2026-11-01 — The html duplication gate reads jscpd's JSON report ([#609](https://github.com/yveshanoulle/forsgren/issues/609), 1 step)
 
 forsgren issue 609, tools (no release). Dependabot pull request #607 (jscpd

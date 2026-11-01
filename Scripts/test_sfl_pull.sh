@@ -14,7 +14,10 @@ source Scripts/lib_git_sandbox.sh
 # exit 3, never warn-and-continue. Since forsgren#283 step 2 a pull that cannot
 # fast-forward is rebased instead when the incoming commits touch none of the
 # local files; that path is Scripts/test_sfl_pull_rebase.sh's, and against this
-# fixture's failing git stub it stops with exit 3 as before.
+# fixture's failing git stub it stops with exit 3 as before. Since forsgren#603
+# (an estate fix) sfl refuses a half-merged repo before it pulls; the stub reads
+# a clean repo for that check, and the refusal itself is
+# Scripts/test_sfl_pull_rebase.sh's, with real git.
 #
 # THIS FIXTURE ALSO PINS THE WIRING. It is not enough for Scripts/sfl_pull.sh
 # to behave correctly in isolation (cases 1/2/3 below) if sfl.sh never calls it, or if the old warn-and-continue
@@ -28,7 +31,8 @@ source Scripts/lib_git_sandbox.sh
 #
 # MUTATION PROOF, at the end: the behavioural cases run against weakened copies
 # of Scripts/sfl_pull.sh (a failed pull that returns 0, a pull without --ff-only,
-# a silent failure), and each copy must be red. The script under test is the
+# a silent failure, a recovery text without the autostash warning), and each
+# copy must be red. The script under test is the
 # optional first argument; without one it is the real script and the mutation
 # proof runs.
 SRC="${1:-Scripts/sfl_pull.sh}"
@@ -73,6 +77,12 @@ else
   cat > "$TMP/bin/git" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$GIT_CALLS"
+# forsgren#603: the half-merged check before the pull (unmerged files, an
+# autostash entry) reads a clean repo; GIT_RESULT drives the pull and what
+# follows it.
+case "$1" in
+  diff|stash) exit 0 ;;
+esac
 exit "${GIT_RESULT:-0}"
 EOF
   chmod +x "$TMP/bin/git"
@@ -121,6 +131,14 @@ EOF
   if ! grep -qF "git pull --rebase --autostash" "$TMP/stderr"; then
     fail "failure did not name the manual rebase/autostash recovery command"
   fi
+  # forsgren#603: the recovery command can itself leave the repo half-merged
+  # (the autostash re-apply conflicts, git exits 0); the text must say so.
+  if grep -qF "a conflicting autostash leaves unmerged files and keeps the stash entry" "$TMP/stderr" &&
+    grep -qF "apply or drop the autostash entry" "$TMP/stderr"; then
+    echo "OK:   the recovery text warns that a conflicting autostash must be resolved before re-running"
+  else
+    fail "the recovery text does not warn that a conflicting autostash (unmerged files, a kept stash entry) must be resolved before re-running"
+  fi
 
   rm -rf "$TMP"
 fi
@@ -146,6 +164,7 @@ if [ $# -eq 0 ]; then
   mutant_must_fail "a failed pull returns 0" 's/^  return 3$/  return 0/'
   mutant_must_fail "the pull is not --ff-only" 's/git pull --ff-only; then/git pull; then/'
   mutant_must_fail "the recovery command is not named" 's/git pull --rebase --autostash/git pull/'
+  mutant_must_fail "the autostash warning is gone" '/a conflicting autostash leaves unmerged files/d'
   rm -rf "$MUT"
 fi
 

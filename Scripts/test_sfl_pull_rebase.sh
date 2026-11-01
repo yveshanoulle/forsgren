@@ -29,6 +29,16 @@
 # working-tree part of the shared overlap list (fbp_overlap_files in
 # Scripts/fbp_push_or_rebase.sh) (b) is rebased; each case must fail with
 # exactly that reason.
+#
+# forsgren#603, ported from an estate fix: a half-merged repo is refused before
+# any pull. (d) a stash pop that conflicted, a.txt unmerged; (e) the conflicting
+# `git pull --rebase --autostash` (the recovery command sfl names) with a.txt
+# then put back, so only `stash@{0}: autostash` is left; (f) both; each with an
+# incoming commit waiting -> return 3, the files or the entry named on a ❌
+# line, HEAD, origin/main, status and stash list as they were (no fetch, no
+# pull). (g) a clean tree with an ordinary stash entry -> fast-forward, return
+# 0. Mutation proofs: without the unmerged-files check (d) pulls, and without
+# the autostash check (e) pulls; each must fail with exactly that reason.
 
 set -euo pipefail
 
@@ -186,5 +196,128 @@ else
   fi
 fi
 
+# --- forsgren#603: a half-merged repo is refused before any pull -------------
+# make_plain NAME — bare remote + clean clones "local" and "other", one seed
+# commit with a.txt and b.txt; local tracks origin/main.
+make_plain() {
+  W="$SANDBOX/$1"
+  mkdir -p "$W"
+  git init -q --bare -b main "$W/remote.git"
+  git clone -q "$W/remote.git" "$W/local" 2>/dev/null
+  g "$W/local" checkout -q -b main
+  printf 'a1\n' > "$W/local/a.txt"; printf 'b1\n' > "$W/local/b.txt"
+  g "$W/local" add -A; g "$W/local" commit -q -m seed
+  g "$W/local" push -q -u origin main 2>/dev/null
+  git clone -q "$W/remote.git" "$W/other" 2>/dev/null
+}
+
+# leave_autostash — the recovery command sfl names, run where the re-apply of
+# the autostash conflicts: a.txt unmerged, `stash@{0}: autostash` kept, git
+# still exiting 0.
+leave_autostash() {
+  printf 'a other\n' > "$W/other/a.txt"
+  g "$W/other" commit -q -am "other on a.txt"; g "$W/other" push -q origin HEAD:main 2>/dev/null
+  printf 'a local\n' > "$W/local/a.txt"
+  g "$W/local" pull -q --rebase --autostash >/dev/null 2>&1 || true
+}
+
+# half_snapshot — HEAD, origin/main, status and stash list of the local clone.
+half_snapshot() {
+  printf '%s\n%s\n--status--\n%s\n--stash--\n%s\n' \
+    "$(g "$W/local" rev-parse HEAD)" "$(g "$W/local" rev-parse origin/main)" \
+    "$(g "$W/local" status --porcelain)" "$(g "$W/local" stash list)"
+}
+
+# expect_refused LETTER NEEDLE... — after run_pull: exit 3, nothing pulled or
+# fetched, the local side as it was ($BEFORE), each NEEDLE on a ❌ line.
+expect_refused() {
+  local letter="$1" needle rc_ok=0; shift
+  [ "$RC" -eq 3 ] || { fail "($letter) exit $RC, wanted 3 (the run must stop): $OUT"; rc_ok=1; }
+  [ "$(half_snapshot)" = "$BEFORE" ] || { fail "($letter) the pull ran although the repo is half-merged (HEAD, origin/main, status or stash list changed)"; rc_ok=1; }
+  for needle in "$@"; do
+    grep -Fq -- "$needle" <<< "$(grep -F '❌' <<< "$OUT")" || { fail "($letter) no ❌ line names '$needle': $OUT"; rc_ok=1; }
+  done
+  return "$rc_ok"
+}
+
+# case_unmerged LIBDIR [TAG] — (d) a stash pop that conflicted: a.txt unmerged,
+# the stash entry kept under its own name (not autostash); an incoming commit
+# on b.txt waits on the remote.
+case_unmerged() {
+  make_plain "unmerged${2:-}"
+  printf 'a stashed\n' > "$W/local/a.txt"
+  g "$W/local" stash push -q -m mywork
+  printf 'a committed\n' > "$W/local/a.txt"
+  g "$W/local" commit -q -am "local on a.txt"
+  g "$W/local" stash pop -q >/dev/null 2>&1 || true
+  incoming b.txt
+  BEFORE="$(half_snapshot)"
+  run_pull "$1"
+  expect_refused d "unmerged" "a.txt" && ok "(d) unmerged a.txt after a conflicting stash pop: refused with exit 3, a.txt named, nothing pulled"
+}
+
+# case_autostash LIBDIR [TAG] — (e) the conflicting autostash, a.txt then put
+# back to HEAD by hand: a clean tree, `stash@{0}: autostash` left; an incoming
+# commit on b.txt would fast-forward.
+case_autostash() {
+  make_plain "autostash${2:-}"
+  leave_autostash
+  g "$W/local" checkout -q HEAD -- a.txt
+  incoming b.txt
+  BEFORE="$(half_snapshot)"
+  run_pull "$1"
+  expect_refused e "stash@{0}: autostash" && ok "(e) a leftover autostash entry on a clean tree: refused with exit 3, stash@{0}: autostash named, nothing pulled"
+}
+
+case_unmerged "$LIBDIR" || true
+case_autostash "$LIBDIR" || true
+
+# (f) unmerged a.txt AND the autostash entry, both named.
+make_plain both
+leave_autostash
+incoming b.txt
+BEFORE="$(half_snapshot)"
+run_pull "$LIBDIR"
+if expect_refused f "a.txt" "stash@{0}: autostash"; then
+  ok "(f) unmerged a.txt plus the autostash entry: refused with exit 3, both named"
+fi
+
+# (g) clean, with an ordinary stash entry: not half-merged, the pull runs.
+make_plain clean
+printf 'a kept\n' > "$W/local/a.txt"
+g "$W/local" stash push -q -m keep
+incoming b.txt
+run_pull "$LIBDIR"
+if [ "$RC" -eq 0 ] && [ "$(g "$W/local" rev-parse HEAD)" = "$(g "$W/local" rev-parse origin/main)" ] &&
+  ! grep -Fq '❌' <<< "$OUT"; then
+  ok "(g) clean tree with an ordinary stash entry: fast-forwarded, exit 0, nothing refused"
+else
+  fail "(g) clean repo: exit $RC, wanted 0 and a fast-forward with no ❌ line: $OUT"
+fi
+
+# Mutation 3: sfl_pull.sh without the unmerged-files check — (d) must pull.
+if ! MUT3="$(mutate mut-unmerged sfl_pull.sh '/# unmerged-check$/s/\[ -n "[^"]*" \]/false/')"; then
+  fail "mutation 3: the '# unmerged-check' line was not found in Scripts/sfl_pull.sh"
+else
+  mut_out="$(case_unmerged "$MUT3" -mut3 2>&1)" || true
+  if grep -Fq "(d) the pull ran although the repo is half-merged" <<< "$mut_out"; then
+    ok "mutation 3: without the unmerged-files check (d) fails with 'the pull ran although the repo is half-merged'"
+  else
+    fail "mutation 3: (d) did not fail for the right reason: $mut_out"
+  fi
+fi
+
+# Mutation 4: sfl_pull.sh without the autostash check — (e) must pull.
+if ! MUT4="$(mutate mut-autostash sfl_pull.sh '/# autostash-check$/s/\[ -n "[^"]*" \]/false/')"; then
+  fail "mutation 4: the '# autostash-check' line was not found in Scripts/sfl_pull.sh"
+else
+  mut_out="$(case_autostash "$MUT4" -mut4 2>&1)" || true
+  if grep -Fq "(e) the pull ran although the repo is half-merged" <<< "$mut_out"; then
+    ok "mutation 4: without the autostash check (e) fails with 'the pull ran although the repo is half-merged'"
+  else
+    fail "mutation 4: (e) did not fail for the right reason: $mut_out"
+  fi
+fi
+
 selftest_end "sfl's opening pull did not rebase or stop as expected" \
-  "sfl's opening pull rebases when the incoming files are unrelated, stops with the local side untouched when they overlap"
+  "sfl's opening pull rebases when the incoming files are unrelated, stops with the local side untouched when they overlap, and refuses a half-merged repo before pulling"
