@@ -9,6 +9,29 @@ Active work lives in
 
 ---
 
+## 2026-11-01 — html duplication gate labels jscpd 5 by its version ([#610](https://github.com/yveshanoulle/forsgren/issues/610), 1 step)
+
+forsgren issue 610, tools (no release). Since the jscpd 5.4.2 bump (#607)
+the html duplication gate labelled its result `jscpd (version unreadable from
+jscpd --version)`: jscpd 5 answers `jscpd 5.4.2` where 4.x answered the bare
+`4.2.4`. `Scripts/check_html_dupl.sh` and `Scripts/test_check_html_dupl.sh`
+now carry the estate canon v7 of the gate and v10 of its self-test,
+byte-identical: both answer shapes read as `jscpd@<version>`, an unreadable
+answer is `jscpd@unknown` (never the pin) and still measures, no readable
+jscpd pin in `package.json` devDependencies is exit 2 (mutation proof F), and
+an installed jscpd that differs from the pin never fails the gate by itself.
+forsgren's `Scripts/lib_site_settings.sh` (v2) declares no per-major ceiling
+family, so the canon's single-form path reads `html_dupl_ceiling` from
+`Scripts/site_settings.txt` as before; no adapter.
+
+- Red first: the v10 self-test against the previous gate failed on the
+  labels (the real jscpd 5.4.2 among them), the pin check, the per-major
+  ceiling form and mutation proofs C, F, G and H. Then green, 79 of 79.
+- The gate on `internal/page/templates`: 0.00% over 16 files (ceiling
+  0.00%, jscpd@5.4.2).
+- Docs: `docs/quality-gates.md` (the label, the pin check, the single
+  ceiling), `docs/gate-classification.md` canon rows (v7, v10).
+
 ## 2026-11-01 — sfl pull refuses a half-merged repo ([#603](https://github.com/yveshanoulle/forsgren/issues/603), 1 step)
 
 forsgren issue 603, tools (no release), ported from an estate fix. A

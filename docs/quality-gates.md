@@ -98,8 +98,16 @@ Two PRE gates check the page templates and the pages they render:
   number. Red on a run that scanned zero `.html` files. The gate reads the
   file count, the percentage and the clones from jscpd's JSON report, never
   its console text, so a jscpd whose printed wording changes (5.x against
-  4.2.4) gates the same; every line names the jscpd version it measured with,
-  as `jscpd --version` answers it. jscpd is pinned like the linters below.
+  4.2.4) gates the same; every line names the jscpd that ran, as
+  `jscpd --version` answers it (4.2.4 answers `4.2.4`, 5.x answers
+  `jscpd 5.4.2`; both read as `jscpd@<version>`), and `jscpd@unknown` when
+  that answer is unreadable, never the pin; the gate still measures. jscpd is
+  pinned like the linters below, and the gate checks the pin: no readable
+  jscpd pin in `package.json` devDependencies (no file, no JSON, no jscpd) is
+  exit 2. An installed jscpd that differs from the pin never fails this gate
+  by itself; that match is the npm dependency policy's check. forsgren's
+  settings lib declares no per-major ceiling family, so the gate keeps its
+  single `html_dupl_ceiling` whatever jscpd major runs.
 - **site settings** (`Scripts/lib_site_settings.sh` and
   `Scripts/site_settings.txt`, the estate canon, forsgren#215): the values
   the shared gate scripts read per repository, through one reader that fails
