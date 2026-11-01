@@ -6,8 +6,8 @@
     "axe-core": "4.14.0",
     "htmlhint": "1.9.2",
     "jscpd": "4.2.4",
-    "puppeteer-core": "25.14.0",
-    "stylelint": "17.14.1",
+    "puppeteer-core": "25.16.0",
+    "stylelint": "17.16.0",
     "stylelint-config-standard": "40.0.0"
   },
   "overrides": {
