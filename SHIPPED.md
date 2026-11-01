@@ -9,6 +9,31 @@ Active work lives in
 
 ---
 
+## 2026-11-01 — Counts read from the data files are bounded, and a test guards the class ([#608](https://github.com/yveshanoulle/forsgren/issues/608), 2 steps)
+
+forsgren issue 608, a bug fix for the next patch release. Code scanning
+alerts 2 and 3 (CodeQL `go/incorrect-integer-conversion`): the `read` and
+`left` columns of `data/commit_files_progress.csv` were parsed as 64-bit
+numbers and converted to `int` without an upper bound, the same rule as
+alert 1 (#576). Step 1: one bounded count parser, `parseCount` in
+`internal/history` (0 to 2147483647, the #576 bound), reads `read`, `left`
+and the `parents` column; a value above the bound is refused naming its
+column, where it was accepted before. Step 2: no local gate reported the
+rule (golangci-lint's gosec G115 prints nothing on the original line, also
+for a 32-bit build), so `cmd/forsgren/intconversion_test.go` parses every
+non-test Go file of the module and is red, naming file, line and reason, on
+a conversion narrower than 64 bits of a 64-bit `strconv.ParseInt` or
+`ParseUint` result, directly or through a same-package wrapper such as
+`parseNumber`, unless a `math.Max` bound that fits the type is compared
+first. Seen red on the code before step 1 (`commitfilesprogress.go:59`, both
+columns) and on `parseCount` without its bound, with mutation proofs for the
+bound rule and the wrapper tracking. The other 64-bit parses of the module
+(the failure-service issue number, `X-RateLimit-Reset`, `SOURCE_DATE_EPOCH`,
+`--pull`) keep their `int64` and pass. [Quality gates](docs/quality-gates.md)
+follows.
+
+---
+
 ## 2026-11-01 — Dependabot proposes upgrades of the npm gate tooling ([#605](https://github.com/yveshanoulle/forsgren/issues/605), 1 step)
 
 forsgren issue 605, tools: no release. `.github/dependabot.yml` gets an

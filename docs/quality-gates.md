@@ -144,6 +144,23 @@ Two PRE gates run the Go tests and the formatting:
     Tested-with line (the last version on it) names the new major, through
     `Scripts/release_agent_proofs.sh`; its self-test also holds the real agent
     files to one common major, so the rule cannot go vacuous.
+
+  One more guards a code scanning rule locally (forsgren#608):
+  - **No unbounded conversion of a 64-bit parse**
+    (`cmd/forsgren/intconversion_test.go`, the checker in
+    `intconversion_check_test.go`): CodeQL's
+    `go/incorrect-integer-conversion` runs only on GitHub after a push, and
+    golangci-lint's gosec G115 does not report the pattern. The test parses
+    every non-test Go file of the module and is red, naming file, line and
+    reason, on a conversion to `int`, `int32` or another type narrower than
+    64 bits of a number from `strconv.ParseInt` or `ParseUint` with bitSize
+    64, directly or through a function of the same package that returns one
+    (`parseNumber` in `internal/history`), unless the function compares it
+    with a `math.Max` constant that fits the type on a 32-bit build before the
+    conversion. Its limits (names, not objects; no flow; the upper bound
+    only) are in the checker's comment. Fixtures in the test pin each shape,
+    the one before forsgren#608 included, and two mutation proofs show the
+    bound rule and the wrapper tracking are needed.
 - **gofmt** (`Scripts/check_gofmt.sh`): check-only, `gofmt -l` over every
   Go file git tracks or would add; red naming each unformatted file, and on
   no Go file found. `./FBP.sh` runs the same script with `--fix` before the

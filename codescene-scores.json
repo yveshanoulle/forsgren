@@ -3205,6 +3205,18 @@
    "score": 10.0,
    "checkedAt": "2026-10-30",
    "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/intconversion_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-01",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/intconversion_check_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-01",
+   "minScore": 10.0
   }
  ]
 }
