@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_check_html_dupl v3
+# canon: test_check_html_dupl v4
 # Scripts/test_check_html_dupl.sh
 
 set -euo pipefail
@@ -29,11 +29,15 @@ source Scripts/lib_has.sh
 #     proof B: without the zero-sources check the reason is no longer named);
 #   - a missing node_modules/.bin/jscpd is exit 2, and a stub `npx` first on
 #     PATH is never called: there is no fallback;
-#   - an over-ceiling red shows the gate's own ceiling and verdict, never
-#     jscpd's "over threshold (0%)" line (the -t 0 it runs with is only there
-#     to print the number), and keeps the measured percentage (mutation proof D);
-#   - a jscpd failure for any other reason (a crash, exit not 0 or 1) shows
-#     jscpd's own error and is exit 2 (mutation proof E);
+#   - an over-ceiling red shows the gate's own ceiling and verdict and the
+#     measured percentage, never jscpd's "over threshold" line;
+#   - the percentage, the file count and the clones come from jscpd's JSON
+#     report, never its console text: a stub replaying jscpd 5.4.2's run gates
+#     as the installed jscpd does, and a stub whose console text says 0% while
+#     its report says 50% is red (mutation proof D: a copy that reads the
+#     percentage from the console text turns it green);
+#   - a jscpd failure (a crash, any exit but 0) shows jscpd's own error and is
+#     exit 2 (mutation proof E);
 #   - mutation proof A: the duplicated fixture turns green against a copy whose
 #     ceiling comparison always says "under";
 #   - mutation proof C: the lowered-settings-ceiling case turns green against a
@@ -188,7 +192,7 @@ check_says "the red names the ceiling it exceeded" "EXCEEDS the 0.00% ceiling"
 # the real bar, so that line is not shown and the number is kept.
 run "$FIXTURE_DIR" 7.5
 check "FAILS over a non-zero ceiling" 1 "$RC"
-check_not_says "the red does not show jscpd's over threshold (0%) line" "over threshold (0%)"
+check_not_says "the red does not show jscpd's over threshold line" "over threshold"
 check_says "the red names the real ceiling" "EXCEEDS the 7.5% ceiling"
 if grep -qE 'measured [0-9]+(\.[0-9]+)?%' <<< "$OUT"; then
   echo "  ✅ the red keeps the measured percentage on a line of its own"
@@ -196,6 +200,66 @@ else
   echo "  ❌ the red lost the measured percentage"
   failures=$((failures + 1))
 fi
+
+# --- a jscpd 5.4.2-shaped run -----------------------------------------------
+# The gate reads jscpd's JSON report, so a jscpd whose console wording differs
+# from the installed one (5.4.2 prints "(50.0%) over threshold (0.0%)") gates
+# the same. The stub replays what jscpd 5.4.2 printed and wrote for the
+# duplicated fixture (its report trimmed to the fields the gate reads), and
+# exits as jscpd does: 1 only when given a threshold (-t) that clones exceed.
+JSCPD5_CONSOLE="${TMP}/jscpd5-console.txt"
+cat > "$JSCPD5_CONSOLE" <<'CONSOLE'
+Clone found (markup)
+ - first.html [1:1 - 21:8]
+   second.html [1:1 - 21:8]
+Found 1 clones.
+ERROR: jscpd found too many duplicates (50.0%) over threshold (0.0%)
+time: 5.400ms
+CONSOLE
+JSCPD5_REPORT="${TMP}/jscpd5-report.json"
+cat > "$JSCPD5_REPORT" <<'REPORT'
+{"duplicates":[{"format":"markup","lines":21,"tokens":267,
+ "firstFile":{"name":"first.html","start":1,"end":21},
+ "secondFile":{"name":"second.html","start":1,"end":21}}],
+ "statistics":{"total":{"clones":1,"duplicatedLines":21,"duplicatedTokens":267,"lines":42,
+ "percentage":50,"percentageTokens":50,"sources":2,"tokens":534}}}
+REPORT
+
+# stub_jscpd <root> <version> <console-file> <report-file> — a jscpd in
+# <root>/node_modules that prints <console-file>, writes <report-file> as
+# jscpd-report.json into its -o directory, and exits 1 if given -t, else 0.
+stub_jscpd() {
+  mkdir -p "$1/node_modules/.bin" "$1/node_modules/jscpd"
+  printf '{"name":"jscpd","version":"%s"}\n' "$2" > "$1/node_modules/jscpd/package.json"
+  cat > "$1/node_modules/.bin/jscpd" <<STUB
+#!/usr/bin/env bash
+out=""; threshold=0
+while [ \$# -gt 0 ]; do
+  case "\$1" in
+    -o) out="\$2"; shift ;;
+    -t) threshold=1; shift ;;
+  esac
+  shift
+done
+mkdir -p "\$out"
+cp "$4" "\$out/jscpd-report.json"
+cat "$3"
+exit "\$threshold"
+STUB
+  chmod +x "$1/node_modules/.bin/jscpd"
+}
+
+new_root jscpd5 "$CHECK" dup 99 no-jscpd
+cp -R "$FIXTURE_DIR" "${ROOT}/dup"
+stub_jscpd "$ROOT" 5.4.2 "$JSCPD5_CONSOLE" "$JSCPD5_REPORT"
+run_root dup 7.5
+check "a jscpd 5.4.2-shaped run over the ceiling is exit 1" 1 "$RC"
+check_says "the jscpd 5.4.2-shaped red keeps the measured percentage" "measured 50.00%"
+check_says "the jscpd 5.4.2-shaped red names the real ceiling" "EXCEEDS the 7.5% ceiling"
+check_not_says "the jscpd 5.4.2-shaped red does not show jscpd's over threshold line" "over threshold"
+run_root dup 99
+check "a jscpd 5.4.2-shaped run under the ceiling is exit 0" 0 "$RC"
+check_says "the jscpd 5.4.2-shaped pass reports the number, the file count and the version" "html duplication 50.00% over 2 file(s) in dup (ceiling 99%, jscpd@5.4.2)"
 
 run does-not-exist 99
 check "exits 2 on a missing target dir, never 0" 2 "$RC"
@@ -311,22 +375,38 @@ else
   check "mutation proof C: the lowered-ceiling case turns green when the ceiling is hard-coded" 0 "$RC"
 fi
 
-# --- Mutation proof D: a copy that shows jscpd's output unfiltered ----------
+# --- Mutation proof D: the verdict is the report's, never the console's -----
+# A stub whose console text says 0% while its report says 50%: the gate reads
+# the report and is red. A copy that reads the percentage from the console
+# text, as the gate did up to v2, turns it green.
+LYING_CONSOLE="${TMP}/lying-console.txt"
+printf 'Found 0 clones.\nERROR: jscpd found too many duplicates (0%%) over threshold (0%%)\n' > "$LYING_CONSOLE"
+new_root lying "$CHECK" dup 99 no-jscpd
+cp -R "$FIXTURE_DIR" "${ROOT}/dup"
+stub_jscpd "$ROOT" 5.4.2 "$LYING_CONSOLE" "$JSCPD5_REPORT"
+run_root dup 7.5
+check "a console that says 0% does not clear a report that says 50%" 1 "$RC"
+check_says "the red quotes the report's percentage" "measured 50.00%"
+LYING_ROOT="$ROOT"
+
 MUTANT_D="${TMP}/mutant_d.sh"
-sed "s/^ *shown=.*/  shown=\"\${plain}\"/" "$CHECK" > "$MUTANT_D"
+cat > "${TMP}/console_pct.line" <<'LINE'
+pct="$(sed -nE 's/.*duplicates \(([0-9.]+)%\).*/\1/p' <<<"$out" | tail -1)"
+LINE
+awk -v f="${TMP}/console_pct.line" 'BEGIN { getline r < f } /^pct=/ { print r; next } { print }' "$CHECK" > "$MUTANT_D"
 if cmp -s "$CHECK" "$MUTANT_D"; then
-  echo "  ❌ mutation proof D: the sed no longer matches the output filter, so this proof proves nothing"
+  echo "  ❌ mutation proof D: the awk no longer matches the percentage read, so this proof proves nothing"
   failures=$((failures + 1))
 else
-  new_root mut-d "$MUTANT_D" dup 99
-  cp -R "$FIXTURE_DIR" "${ROOT}/dup"
+  ROOT="$LYING_ROOT"
+  cp "$MUTANT_D" "${ROOT}/Scripts/check_html_dupl.sh"
   run_root dup 7.5
-  check_says "mutation proof D: without the filter jscpd's over threshold (0%) line is shown again" "over threshold (0%)"
+  check "mutation proof D: reading the percentage from jscpd's console text turns the lying-console case green" 0 "$RC"
 fi
 
 # --- Mutation proof E: a copy without the jscpd-failure check ---------------
 MUTANT_E="${TMP}/mutant_e.sh"
-sed 's/\[ "[$]status" -ne 0 \] &&/false \&\&/' "$CHECK" > "$MUTANT_E"
+sed 's/^if \[ "[$]status" -ne 0 \]; then/if false; then/' "$CHECK" > "$MUTANT_E"
 if cmp -s "$CHECK" "$MUTANT_E"; then
   echo "  ❌ mutation proof E: the sed no longer matches the failure check, so this proof proves nothing"
   failures=$((failures + 1))

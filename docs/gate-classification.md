@@ -81,8 +81,8 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 44 | publish-release shape | n/a | n/a | n/a: forsgren has no publish-release script: a release is a git tag made by the maintainer |
 | 45 | mutation: checkout pins | `test_workflow_checkout_pins_mutations.sh` | pre | required, `test_workflow_checkout_pins_mutations v1` |
 | 46 | checkout pins | `test_workflow_checkout_pins.sh` | pre | required, `test_workflow_checkout_pins v1` |
-| 47 | html-duplication self-test | `test_check_html_dupl.sh` | pre | required, `test_check_html_dupl v1` |
-| 48 | html duplication | `check_html_dupl.sh` | pre | required, `check_html_dupl v1` |
+| 47 | html-duplication self-test | `test_check_html_dupl.sh` | pre | required, `test_check_html_dupl v4` |
+| 48 | html duplication | `check_html_dupl.sh` | pre | required, `check_html_dupl v3` |
 | 49 | html duplication, generated page self-test | `test_check_html_dupl_site.sh` | pre | required |
 | 50 | html duplication, generated page | `check_html_dupl_site.sh` | post | required |
 | 51 | golden-pages self-test | `test_check_golden_pages.sh` | pre | required |

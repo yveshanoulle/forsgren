@@ -9,6 +9,34 @@ Active work lives in
 
 ---
 
+## 2026-11-01 — The html duplication gate reads jscpd's JSON report ([#609](https://github.com/yveshanoulle/forsgren/issues/609), 1 step)
+
+forsgren issue 609, tools (no release). Dependabot pull request #607 (jscpd
+4.2.4 to 5.4.2) was red in the html-duplication self-test: the gate parsed
+jscpd's console text for the percentage and rephrased its
+`over threshold (0%)` line, and jscpd 5 prints `(50.0%) over threshold
+(0.0%)`. `Scripts/check_html_dupl.sh` (canon `check_html_dupl` v3) now runs
+jscpd without a threshold and with the json reporter only, and reads the file
+count, the percentage (two decimals) and the clone list from
+`jscpd-report.json`; jscpd's console output is shown only when jscpd fails
+(any exit but 0, exit 2). Its lines name the installed version from
+`node_modules/jscpd/package.json` instead of a hard-coded `jscpd@4.2.4`. The
+version bump itself stays Dependabot's pull request, merged on GitHub.
+`Scripts/test_check_html_dupl.sh` (v4) adds a stub jscpd that replays jscpd
+5.4.2's console text and report for the duplicated fixture, and a stub whose
+console says 0% while its report says 50%; mutation proof D is now a copy that
+reads the percentage from the console text, which turns that case green, and
+proof E follows the failure check's new shape.
+
+- Red first: the jscpd 5.4.2-shaped case on the v2 gate failed with
+  `the jscpd 5.4.2-shaped red keeps the measured percentage — output does not
+  carry 'measured 50.00%'` and `... does not show jscpd's over threshold line
+  — output carries 'over threshold'`, the two failures of #607's run.
+- Green with jscpd 4.2.4 and with jscpd 5.4.2 (installed offline from the npm
+  cache with the pull request's lockfile, outside the repository): the
+  self-test, the generated-page self-test, the gate (0.00% over 16 files) and
+  the golden-pages gate (56 pages).
+
 ## 2026-11-01 — Counts read from the data files are bounded, and a test guards the class ([#608](https://github.com/yveshanoulle/forsgren/issues/608), 2 steps)
 
 forsgren issue 608, a bug fix for the next patch release. Code scanning
