@@ -98,8 +98,8 @@ Two PRE gates check the page templates and the pages they render:
   number. Red on a run that scanned zero `.html` files. The gate reads the
   file count, the percentage and the clones from jscpd's JSON report, never
   its console text, so a jscpd whose printed wording changes (5.x against
-  4.2.4) gates the same; every line names the jscpd version it measured with.
-  jscpd is pinned like the linters below.
+  4.2.4) gates the same; every line names the jscpd version it measured with,
+  as `jscpd --version` answers it. jscpd is pinned like the linters below.
 - **site settings** (`Scripts/lib_site_settings.sh` and
   `Scripts/site_settings.txt`, the estate canon, forsgren#215): the values
   the shared gate scripts read per repository, through one reader that fails

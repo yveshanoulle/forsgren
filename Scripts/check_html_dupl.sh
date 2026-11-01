@@ -41,7 +41,7 @@ cd "$(dirname "$0")/.." || exit 1
 # measurement to a recorded constant, so the measurement must not depend on
 # what happens to be installed: the same files measured 8.67% with jscpd 4.2.4
 # and 7.84% with 5.0.15. Every line this script prints names the version it
-# measured with, read from node_modules/jscpd/package.json.
+# measured with, as the pinned jscpd itself answers it (jscpd --version).
 #
 # jscpd MEASURES; this script GATES. Everything it reads comes from jscpd's
 # JSON report (the json reporter, written to a temp folder): the files
@@ -70,7 +70,6 @@ if [ -z "$TARGET_DIR" ] || [ -z "$MAX_PCT" ]; then
 fi
 
 JSCPD="$(pwd)/node_modules/.bin/jscpd"
-JSCPD_PACKAGE="$(pwd)/node_modules/jscpd/package.json"
 
 REPORT_DIR="$(mktemp -d)"
 trap 'rm -rf "$REPORT_DIR"' EXIT
@@ -103,8 +102,14 @@ if [ "$status" -eq 127 ]; then
 fi
 
 # The version names the measurement; it is a label, never a verdict.
-JSCPD_LABEL="jscpd@$(node -e 'process.stdout.write(String(require(process.argv[1]).version))' "$JSCPD_PACKAGE" 2>/dev/null)"
-[ "$JSCPD_LABEL" != "jscpd@" ] || JSCPD_LABEL="jscpd (version unreadable in node_modules/jscpd/package.json)"
+# jscpd answers --version with the bare version (4.2.4 and 5.x alike); anything
+# else, or a non-zero exit, is the fallback label.
+JSCPD_VERSION="$("$JSCPD" --version 2>/dev/null)" || JSCPD_VERSION=""
+if printf '%s' "$JSCPD_VERSION" | grep -qxE '[0-9]+[.][0-9]+[.][0-9]+[^[:space:]]*'; then
+  JSCPD_LABEL="jscpd@${JSCPD_VERSION}"
+else
+  JSCPD_LABEL="jscpd (version unreadable from jscpd --version)"
+fi
 
 # Without a threshold jscpd exits 0 on any finding, so a non-zero exit is a real
 # failure: show it, never hide it.

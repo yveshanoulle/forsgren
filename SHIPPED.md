@@ -19,12 +19,14 @@ jscpd's console text for the percentage and rephrased its
 jscpd without a threshold and with the json reporter only, and reads the file
 count, the percentage (two decimals) and the clone list from
 `jscpd-report.json`; jscpd's console output is shown only when jscpd fails
-(any exit but 0, exit 2). Its lines name the installed version from
-`node_modules/jscpd/package.json` instead of a hard-coded `jscpd@4.2.4`. The
+(any exit but 0, exit 2). Its lines name the version the installed jscpd
+answers to `jscpd --version` instead of a hard-coded `jscpd@4.2.4`. The
 version bump itself stays Dependabot's pull request, merged on GitHub.
 `Scripts/test_check_html_dupl.sh` (v4) adds a stub jscpd that replays jscpd
 5.4.2's console text and report for the duplicated fixture, and a stub whose
-console says 0% while its report says 50%; mutation proof D is now a copy that
+console says 0% while its report says 50% (the stubs answer `--version`
+with the version they replay, and a jscpd that cannot answer gets the
+fallback label); mutation proof D is now a copy that
 reads the percentage from the console text, which turns that case green, and
 proof E follows the failure check's new shape.
 

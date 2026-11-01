@@ -226,13 +226,14 @@ cat > "$JSCPD5_REPORT" <<'REPORT'
 REPORT
 
 # stub_jscpd <root> <version> <console-file> <report-file> — a jscpd in
-# <root>/node_modules that prints <console-file>, writes <report-file> as
-# jscpd-report.json into its -o directory, and exits 1 if given -t, else 0.
+# <root>/node_modules that answers --version with <version>, otherwise prints
+# <console-file>, writes <report-file> as jscpd-report.json into its -o
+# directory, and exits 1 if given -t, else 0.
 stub_jscpd() {
-  mkdir -p "$1/node_modules/.bin" "$1/node_modules/jscpd"
-  printf '{"name":"jscpd","version":"%s"}\n' "$2" > "$1/node_modules/jscpd/package.json"
+  mkdir -p "$1/node_modules/.bin"
   cat > "$1/node_modules/.bin/jscpd" <<STUB
 #!/usr/bin/env bash
+if [ "\$1" = "--version" ]; then echo "$2"; exit 0; fi
 out=""; threshold=0
 while [ \$# -gt 0 ]; do
   case "\$1" in
@@ -334,6 +335,7 @@ chmod +x "${ROOT}/node_modules/.bin/jscpd"
 run_root dup 99
 check "a jscpd crash (exit 3) is exit 2, never 0 or 1" 2 "$RC"
 check_says "the crash shows jscpd's own error" "boom, cannot read config"
+check_says "a jscpd that cannot answer --version gets the fallback label" "jscpd (version unreadable from jscpd --version) failed"
 
 # --- Mutation proof A: the ceiling comparison is what reds the fixture ------
 MUTANT_A="${TMP}/mutant_a.sh"
