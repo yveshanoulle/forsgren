@@ -750,12 +750,13 @@ The POST gates, on the generated site:
   once per variant of `Scripts/browser_gate_variants.txt` (one: `light|scheme:light`).
   Red on an axe serious or critical finding, a missing doctype or charset, a
   console or page error, a failed request, a request that leaves loopback, and a
-  layout shift (CLS) other than exactly 0, the largest of five cold loads, and
-  sideways scrolling (forsgren#350): at 1280x800 and at 390x844 the page may not
+  layout shift (CLS) other than exactly 0, the largest of five cold loads and
+  one delayed-delivery load (the page's HTML sent in 4 pieces 150 ms apart,
+  forsgren#611), and sideways scrolling (forsgren#350): at 1280x800 and at 390x844 the page may not
   be wider than the window, nor any table wider than the box it sits in
   (scrollWidth above clientWidth), each finding naming the page, the width and
   the overflow in pixels; one rule for every page with a table (the engine
-  `browser_gate v6`, decisions #365, #380 and #410; the CLS stays measured at 1280x800 alone).
+  `browser_gate v7`, decisions #365, #380, #410 and #611; the CLS stays measured at 1280x800 alone).
   v4 = v3 plus the CLS interval from the load (default 1000 ms, no second read
   after axe) and the sideways measurement without scrollbar room (forsgren#377);
   the baseline format is unchanged, no migration.
@@ -768,6 +769,27 @@ The POST gates, on the generated site:
   that died meanwhile), the watch on Chrome's process and connection is on
   the moment the launch resolves, so a Chrome that dies while the run starts
   ends it within seconds with exit 2.
+  v7 = v6 plus the delayed-delivery load (forsgren#611, decision C on #611):
+  after its five full-response cold loads every page gets one more cold load
+  whose HTML the gate's server sends in 4 pieces 150 ms apart (asked for by a
+  header on the page's own navigation request only; every other response is
+  sent whole), so the browser paints the page before all of it has arrived.
+  A slow hosted runner did that only now and then: a table painted half-parsed
+  shifted as its later rows arrived, and the gate caught it in 2 of 60 runs
+  (forsgren#558). With the pieces a page that paints before its end and then
+  moves is red on every run, on every page. The pages hold their first paint
+  until their footer has arrived (`<link rel="expect" href="#page-end"
+  blocking="render">` in the head, `<footer id="page-end">`, forsgren#558), so
+  they measure 0 under it; with the link removed, 12 of the fixture site's 14
+  pages (all but the legend and the dictionary) were red in each of 5 runs,
+  with the same values every run, while the gate before v7 passed that site.
+  A link whose id is missing still holds, to the end of the parse. The page's CLS is the largest over all six loads, so the
+  baseline and its judgement are unchanged, and a CLS finding names the
+  delayed-delivery load's own value. The self-test's cases 54 to 56 and
+  mutation proofs T (the load removed) and U (no pause between the pieces)
+  prove it. Cost: about 0.45 s of delivery plus that load's 1 s observation
+  interval per page and variant, about 1.5 s in all (the fixture site's 14
+  pages: 74 s before, 95 s after).
   The TBD table (class `wraps`) has no minimum width and wraps its cells; every
   other table keeps its minimum width and scrolls inside its box (forsgren#38),
   and today's overflow of those is in the baselines as `sideways` rows

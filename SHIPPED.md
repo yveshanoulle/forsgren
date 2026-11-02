@@ -9,6 +9,42 @@ Active work lives in
 
 ---
 
+## 2026-11-02 — the browser gate loads every page once more in delayed pieces, so a mid-parse layout shift is caught on every run ([#611](https://github.com/yveshanoulle/forsgren/issues/611), 1 step)
+
+forsgren issue 611, tools (no release), decision C on #611 (option A built
+here; option B, the structural test, landed with #558). #558 found a table
+painted half-parsed whose columns shifted as later rows arrived; the browser
+gate served each page whole and caught it in 2 of 60 hosted runs. The engine
+`Scripts/browser_gate.mjs` is now `browser_gate v7`: after the five
+full-response cold loads, every page and variant gets one more cold load whose
+HTML the gate's server sends in 4 pieces 150 ms apart (`DELIVERY_PIECES`,
+`DELIVERY_GAP_MS`, asked for by the `x-browser-gate-delivery` header on the
+page's own navigation request only). The page's CLS is the largest over all
+six loads, so the baseline and its judgement are unchanged; a CLS finding
+names the delayed load's own value. Both browser gates run the one engine.
+
+- Red first: the self-test `test_gate_browser v11` cases 54 to 56 (a table
+  page with the first-paint hold green, the same page without it red, the
+  hold pointing at a missing id green) and mutation proofs T (no delayed load)
+  and U (no pause between pieces) failed on the v6 engine: 54b and 55 were
+  not seen, T and U changed nothing.
+- After: 55 is red with CLS 0.0041 from the delayed load in each of 5 runs,
+  54 and 56 green; T and U turn 55 green. Case 44's fixture (a long cell)
+  now carries the hold, as the real pages do: without it the delayed load
+  rightly found a shift there.
+- The real templates: with the hold removed from the built fixture site, 12
+  of 14 pages (all but the legend and the dictionary) were red in each of 5
+  runs, the same values every run (`/issues.html` 0.0192, `/settings.html`
+  0.0554); the v6 engine passed that site. With the hold, the fixture site
+  and the site measure CLS 0.
+- A link whose id the page lacks still holds the paint, to the end of the
+  parse: only removing the link breaks the hold.
+- Cost: about 1.5 s per page and variant (0.45 s of delivery and the load's
+  1 s interval): the fixture site 74 s to 95 s, the site 74 s to 96 s, the
+  self-test about 50 s more. The fixture self-test checks that the shared
+  engine names the delayed load (case 1c). docs/quality-gates.md,
+  docs/ci.md, docs/gate-classification.md rows 122 and 123, CLAUDE.md.
+
 ## 2026-11-02 — temp files honour TMPDIR: a helper and a gate for mktemp without a path ([#612](https://github.com/yveshanoulle/forsgren/issues/612), 1 step)
 
 forsgren issue 612, tools (no release). On macOS a `mktemp` whose template

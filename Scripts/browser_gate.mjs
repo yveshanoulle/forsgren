@@ -1,4 +1,4 @@
-// canon: browser_gate v6
+// canon: browser_gate v7
 // Scripts/browser_gate.mjs (forsgren#205)
 //
 // The browser gate's engine: serves a built site on 127.0.0.1 (loopback only),
@@ -10,6 +10,17 @@
 //
 // Changelog of the canon (the baseline format is the same in every version, so
 // no version needs a migration):
+//   v7 = v6 plus the delayed-delivery load (forsgren#611, decision C on #611):
+//        besides its full-response cold loads, every page gets one more cold
+//        load whose HTML the server sends in DELIVERY_PIECES pieces
+//        DELIVERY_GAP_MS apart, so the browser paints the page before it has
+//        all of it. A slow runner did that only now and then, and a table
+//        painted half-parsed shifted as its later rows arrived (forsgren#558):
+//        the gate caught it in 2 of 60 runs. With the pieces it is caught on
+//        every run, on any page. The page's CLS is the largest over all its
+//        loads, so the baseline and its judgement are unchanged; a finding
+//        names that load's own value. About 0.45 s more per page and variant,
+//        plus that load's observation interval.
 //   v6 = v5 plus the watch from the start (forsgren#386, decision #410): the
 //        launch no longer waits for Chrome's initial page (puppeteer's own
 //        wait is 30 s and ignores a Chrome that died meanwhile), so the watch
@@ -48,9 +59,11 @@
 // declared by the document itself (the server sends none), zero console
 // errors and page errors, zero failed requests (a status >= 400 read from the
 // RESPONSE, plus network failures, plus any request that leaves loopback), and
-// a layout shift (CLS), observed for a fixed interval at a fixed viewport. The
-// CLS is printed unrounded with the viewport, the browser version and the
-// interval. Then sideways scrolling (forsgren#350): at a laptop and a phone
+// a layout shift (CLS), observed for a fixed interval at a fixed viewport, the
+// largest over the full-response cold loads and one delayed-delivery load (v7:
+// the HTML in pieces, so a paint before the page has arrived is seen on every
+// run). The CLS is printed unrounded with the viewport, the browser version,
+// the interval and the delayed-delivery load's own value. Then sideways scrolling (forsgren#350): at a laptop and a phone
 // width (SIDEWAYS_VIEWPORTS), the page must not be wider than the window and no
 // table wider than the box it sits in (its parent, the scroll box when it has
 // one): scrollWidth above clientWidth is red, naming the width and the overflow
@@ -143,6 +156,15 @@ const CLS_INTERVAL_MS = envPositive('FORSGREN_CLS_INTERVAL_MS', 1000);
 // shift another does not: a page's CLS is the largest of this many cold loads.
 const CLS_LOADS = envPositive('FORSGREN_CLS_LOADS', 5);
 const NAV_TIMEOUT_MS = 30000;
+// The delayed-delivery load (v7, forsgren#611): one cold load per page whose
+// HTML comes in this many pieces, this far apart. The engine asks for it with
+// DELIVERY_HEADER on the page's own navigation request; any other request, and
+// any response that is not HTML, is sent whole.
+const DELIVERY_PIECES = 4;
+const DELIVERY_GAP_MS = 150;
+const DELIVERY_HEADER = 'x-browser-gate-delivery';
+const DELIVERY_PIECED = 'pieces';
+const deliveryWords = `${DELIVERY_PIECES} pieces ${DELIVERY_GAP_MS} ms apart`;
 // The baseline's keys and the CLS comparison, one place each: what a finding
 // is matched on, and how two CLS values are compared (exactly).
 const axeKey = (variant, page, rule, selector) => `axe|${variant}|${page}|${rule}|${selector}`;
@@ -354,12 +376,31 @@ function serve(siteDir) {
       return;
     }
     // No charset in the header: the document has to declare its own.
-    response.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream' });
+    const type = TYPES[path.extname(file)] || 'application/octet-stream';
+    response.writeHead(200, { 'Content-Type': type });
+    if (type === 'text/html' && request.headers[DELIVERY_HEADER] === DELIVERY_PIECED) {
+      deliverInPieces(fs.readFileSync(file), response);
+      return;
+    }
     fs.createReadStream(file).pipe(response);
   });
   return new Promise((resolve) => {
     server.listen(0, '127.0.0.1', () => resolve(server));
   });
+}
+
+// The delayed delivery (v7): the body in DELIVERY_PIECES pieces of the same
+// size, DELIVERY_GAP_MS apart, the last one ending the response. A piece may
+// end inside a character or a tag; the browser's parser takes what it has.
+async function deliverInPieces(body, response) {
+  const size = Math.ceil(body.length / DELIVERY_PIECES);
+  for (let piece = 0; piece < DELIVERY_PIECES; piece += 1) {
+    if (piece > 0) await new Promise((resolve) => setTimeout(resolve, DELIVERY_GAP_MS));
+    if (response.destroyed) return;
+    const part = body.subarray(piece * size, (piece + 1) * size);
+    if (part.length > 0) response.write(part);
+  }
+  response.end();
 }
 
 // What scrolls sideways on the page as it is laid out now: the page itself,
@@ -418,6 +459,9 @@ class PageCheck {
     this.exceptedUrls = new Set();
     this.nonGating = 0;
     this.cls = 0;
+    // True while the delayed-delivery load runs (v7): its navigation request
+    // asks the server for the pieces.
+    this.pieced = false;
   }
 
   // Excepted responses, once each: the page is loaded again to measure the CLS.
@@ -487,7 +531,7 @@ class PageCheck {
     page.on('request', (request) => {
       const url = request.url();
       if (url.startsWith(this.origin) || url.startsWith('data:') || url.startsWith('about:')) {
-        request.continue();
+        request.continue(this.delivery(request));
         return;
       }
       this.blocked.add(url);
@@ -499,6 +543,13 @@ class PageCheck {
       }
       request.abort('blockedbyclient');
     });
+  }
+
+  // The overrides of a request to the site: on the delayed-delivery load, the
+  // page's own navigation asks for the pieces; anything else goes unchanged.
+  delivery(request) {
+    if (!this.pieced || !request.isNavigationRequest() || request.frame() !== this.page.mainFrame()) return undefined;
+    return { headers: { ...request.headers(), [DELIVERY_HEADER]: DELIVERY_PIECED } };
   }
 
   async checkDocument() {
@@ -542,14 +593,24 @@ class PageCheck {
     return shifts.reduce((sum, value) => sum + value, 0);
   }
 
+  // One more cold load with the HTML delivered in pieces (v7): its shift.
+  async shiftOfDelayedLoad() {
+    this.pieced = true;
+    await this.page.reload({ waitUntil: 'load', timeout: NAV_TIMEOUT_MS });
+    this.pieced = false;
+    return this.shiftOfThisLoad();
+  }
+
   async checkLayoutShift() {
     let cls = await this.shiftOfThisLoad();
     for (let load = 1; load < CLS_LOADS; load += 1) {
       await this.page.reload({ waitUntil: 'load', timeout: NAV_TIMEOUT_MS });
       cls = Math.max(cls, await this.shiftOfThisLoad());
     }
+    const delayed = await this.shiftOfDelayedLoad();
+    cls = Math.max(cls, delayed);
     this.cls = cls;
-    const conditions = `viewport ${VIEWPORT.width}x${VIEWPORT.height}, interval ${CLS_INTERVAL_MS} ms, largest of ${CLS_LOADS} cold loads`;
+    const conditions = `viewport ${VIEWPORT.width}x${VIEWPORT.height}, interval ${CLS_INTERVAL_MS} ms, largest of ${CLS_LOADS} cold loads and 1 delayed-delivery load (${deliveryWords}: ${delayed})`;
     const row = this.baseline.clsRows.get(clsKey(this.variant, this.pagePath));
     if (!row) {
       if (cls !== 0) this.find(`CLS ${cls} (${conditions}); no baseline row`);
@@ -817,7 +878,7 @@ async function main() {
     `OK: browser gate: ${pages.length} pages x ${variants.size} variants (${[...variants.keys()].join(', ')}), ${checks.length} checks, axe serious+critical 0 new (${sum('baselinedAxe')} axe findings baselined, ${sum('nonGating')} moderate or minor not gated), ` +
     `doctype and charset present, console errors 0, failed requests 0 (${sum('excepted')} excepted), ` +
     `${sum('externalBlocked')} external requests blocked (listed), ` +
-    `CLS worst ${clsWorst} (${sum('baselinedCls')} pages with a baselined CLS), ` +
+    `CLS worst ${clsWorst} (${sum('baselinedCls')} pages with a baselined CLS; each page also loaded once in ${deliveryWords}), ` +
     `no new sideways scroll at ${SIDEWAYS_VIEWPORTS.map(sizeOf).join(' and ')} (${sum('baselinedSideways')} baselined) ` +
     `(viewport ${VIEWPORT.width}x${VIEWPORT.height}, ${version}, interval ${CLS_INTERVAL_MS} ms)`,
   );

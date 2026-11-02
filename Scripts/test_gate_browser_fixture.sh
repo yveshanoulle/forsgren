@@ -6,7 +6,9 @@
 # fixture site served on 127.0.0.1 and run through the gate. The engine's own
 # cases (every check, the baseline, the exceptions, the variants) are
 # Scripts/test_gate_browser.sh's; these are about the data site:
-#   1. a clean data site                              -> green, the data run named
+#   1. a clean data site                              -> green, the data run named,
+#                                                        the delayed-delivery load
+#                                                        of the shared engine named
 #   2. a finding only on a page of the data site      -> red, naming that page
 #   3. the same finding in the data baseline          -> green, a WARN
 #   4. a data baseline row that matches nothing       -> red, stale
@@ -91,6 +93,7 @@ make_site pale '<p id="t" style="color:#cccccc">pale chart legend</p>'
 run_gate clean
 want_green "1: a clean data site" "OK: browser gate: 2 pages x 1 variants (light)"
 want_said "1b: the output names the data run" "the site rendered from fixture data"
+want_said "1c: the same engine loads each page once more in delayed pieces (forsgren#611)" "each page also loaded once in 4 pieces 150 ms apart"
 
 run_gate pale
 want_red "2: a finding only on a page of the data site" "FAIL: light /history.html: axe color-contrast (serious): #t (new, not in the baseline)"

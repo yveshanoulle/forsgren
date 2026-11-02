@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v10
+# canon: test_gate_browser v11
 # Scripts/test_gate_browser.sh (forsgren#205)
 #
 # Self-test for Scripts/gate_browser.sh, the browser gate, run in PRE before the
@@ -106,6 +106,22 @@
 #  51. case 41's table on a page that shows a 15 px page scrollbar -> red, still
 #      210 px (a measurement that reads the box beside the scrollbar says 225)
 #   Q. the scrollbar not hidden while measuring: case 51 says 225.
+# The delayed-delivery load (forsgren#611, decision C on #611, browser_gate v7):
+# besides its full-response loads, every page gets one cold load whose HTML the
+# server sends in 4 pieces 150 ms apart, so the browser paints a page before it
+# has all of it, as a slow runner does now and then (forsgren#558). The fixture
+# is a table whose last rows are wider than its first, so a paint before they
+# arrive is followed by a shift; it is small enough to arrive in one piece when
+# sent whole.
+#  54. the table page with the first-paint hold (link rel=expect, blocking=render,
+#      to an element at the end)                       -> green, CLS 0, the OK
+#                                                         line names the delivery
+#  55. the same page without the hold                  -> red, the CLS named with
+#                                                         the delayed-delivery load
+#  56. the hold pointing at an id the page lacks        -> green (the hold then
+#      lasts to the end of the parse)
+#   T. the delayed-delivery load removed: case 55 turns green;
+#   U. the pieces sent without the pause between them: case 55 turns green.
 # The exits (forsgren#381, browser_gate v5, v6 since forsgren#386): Chrome closed
 # and its profile folder removed on every way out. Cases 52a-52f, 53 and 53c
 # and mutation proofs R and S moved to the process self-test, the browser gate
@@ -452,7 +468,10 @@ make_site pagewide "$(page '<div style="width: 1500px">wide</div>' '<style>body 
 SCROLLBAR_CSS='<style>body { margin: 0; min-height: 2000px; } html:not([style*="scrollbar-gutter"]) body { padding-right: 15px; }</style>'
 make_site scrollbar "$(page "${SCROLL_BOX}<table style=\"width: 600px\"><tr><th scope=\"col\">wide</th></tr></table></div>" "$SCROLLBAR_CSS")"
 LONG_CELL="$(printf 'note %.0s' {1..120})"
-make_site wraps "$(page "${SCROLL_BOX}<table><tr><th scope=\"row\">Acme</th><td>${LONG_CELL}</td></tr></table></div>" '')"
+# The page holds its first paint until its end (forsgren#558), as the real
+# pages do: delivered in pieces (forsgren#611), a long cell painted half-parsed
+# would grow and shift, and this case is about sideways scrolling alone.
+make_site wraps "$(page "${SCROLL_BOX}<table><tr><th scope=\"row\">Acme</th><td>${LONG_CELL}</td></tr></table></div><p id=\"page-end\">end</p>" '<link rel="expect" href="#page-end" blocking="render">')"
 run_gate phonewide
 want_red "41: a table wider than its box at the phone width" "FAIL: light /: scrolls sideways at 390x844: table 1 is 210 px wider than its box"
 if grep -qF -- "at 1280x800" <<< "$OUT"; then
@@ -508,6 +527,27 @@ want_green "50: the CLS is read before the axe run, not after it" "OK:"
 # width less the window's, 210 px, with or without the scrollbar (forsgren#377).
 run_gate scrollbar
 want_red "51: a page scrollbar does not change the measurement" "FAIL: light /: scrolls sideways at 390x844: table 1 is 210 px wider than its box"
+
+# 54-56: the delayed-delivery load (forsgren#611). A table of 30 narrow rows,
+# then 30 rows whose first cell is wide: painted before the wide rows arrive,
+# the second column moves right when they do. The page is about 3 KB, so the
+# first of the 4 pieces ends inside the narrow rows and the wide ones come in
+# the later pieces. HOLD is the first-paint hold of forsgren#558.
+NARROW_ROWS="$(printf '<tr><td>a</td><td>b</td></tr>%.0s' {1..30})"
+WIDE_ROWS="$(printf '<tr><td>a wide first cell of many words</td><td>b</td></tr>%.0s' {1..30})"
+HOLD='<link rel="expect" href="#page-end" blocking="render">'
+TABLE_BODY="<table><tr><th scope=\"col\">first</th><th scope=\"col\">second</th></tr>${NARROW_ROWS}${WIDE_ROWS}</table>"
+make_site held "$(page "${TABLE_BODY}<p id=\"page-end\">end</p>" "$HOLD")"
+make_site unheld "$(page "${TABLE_BODY}<p id=\"page-end\">end</p>" '')"
+make_site heldnoid "$(page "${TABLE_BODY}<p>end</p>" "$HOLD")"
+run_gate held
+want_green "54: a table page that holds its first paint, delivered in pieces" "CLS worst 0 "
+want_said "54b: the OK line names the delayed-delivery load" "each page also loaded once in 4 pieces 150 ms apart"
+run_gate unheld
+want_red "55: the same page without the hold" "FAIL: light /: CLS 0."
+want_said "55b: the finding names the delayed-delivery load" "1 delayed-delivery load (4 pieces 150 ms apart: 0."
+run_gate heldnoid
+want_green "56: a hold whose id the page lacks lasts to the end of the parse" "CLS worst 0 "
 
 # Mutation proofs, run side by side (Scripts/lib_parallel_mutants.sh, forsgren#382).
 # Each proof is a mutant_<letter> function that works on its own copy of the
@@ -739,10 +779,30 @@ mutant_q() {
   fi
 }
 
-for proof in a b c d e f g h i j k kslow l m n o p q; do
+# T: the delayed-delivery load removed -> case 55 turns green: only that load
+# sees the page painted before its wide rows arrive.
+stage t unheld
+mutant_t() {
+  if mutant_engine "s/^    this.pieced = true;/    this.pieced = false;/"; then
+    FORSGREN_CLS_LOADS="$SHORT_CLS_LOADS" FORSGREN_CLS_INTERVAL_MS="$SHORT_CLS_INTERVAL_MS" FORSGREN_NODE_ROOT="$REPO_ROOT" at_fixture "${TMP}/fx_t" node "$MUTANT_ENGINE"
+    want_green "mutation proof T: without the delayed-delivery load case 55 turns green" "CLS worst 0 "
+  fi
+}
+
+# U: the pieces sent without the pause between them -> case 55 turns green: the
+# pause is what lets the browser paint between two pieces.
+stage u unheld
+mutant_u() {
+  if mutant_engine "s/^const DELIVERY_GAP_MS = .*/const DELIVERY_GAP_MS = 0;/"; then
+    FORSGREN_CLS_LOADS="$SHORT_CLS_LOADS" FORSGREN_CLS_INTERVAL_MS="$SHORT_CLS_INTERVAL_MS" FORSGREN_NODE_ROOT="$REPO_ROOT" at_fixture "${TMP}/fx_u" node "$MUTANT_ENGINE"
+    want_green "mutation proof U: pieces without a pause turn case 55 green" "CLS worst 0 "
+  fi
+}
+
+for proof in a b c d e f g h i j k kslow l m n o p q t u; do
   mutant_run "mutant_${proof}"
 done
 mutants_wait
 
 echo "browser gate self-test: ${SECONDS} s in total"
-selftest_end "the browser gate self-test failed" "browser gate: every case holds, seventeen mutations seen"
+selftest_end "the browser gate self-test failed" "browser gate: every case holds, nineteen mutations seen"

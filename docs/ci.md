@@ -365,6 +365,13 @@ step 7, the browser gate (fixture site) self-test (64 s on average, 101 s at
 most), with the same setup and the job name `browser_1`. The first was 256 s of
 the browser job's 558 s of gates, so the browser job took about 10.6 minutes;
 split, `browser_1` is about 5.6 minutes before step 7 and `browser` about 6.5.
+The delayed-delivery load of forsgren#611 (`browser_gate v7`) adds about 1.5 s
+per page and variant to both browser gates (0.45 s of delivery and the load's
+1 s observation interval; locally the fixture site's 14 pages went from 74 s
+to 95 s and the site's from 74 s to 96 s) and about 50 s to the browser gate
+self-test (176 s locally; the same self-test on the engine before v7, red only
+on its new cases, took 122 s), so the `browser` job grows by about 45 s and
+`browser_1` by about 50 s.
 It builds no site: both self-tests are PRE rows and read no built site (the
 fixture self-test builds the fixture site itself, hence go in its tools list). The order file is unchanged. The report
 job's status takes its result too, and the `preview` job `needs:` it.
