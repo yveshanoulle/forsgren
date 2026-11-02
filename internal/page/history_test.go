@@ -154,7 +154,11 @@ func TestHistoryChartIsOnePerProjectAboveItsBlock(t *testing.T) {
 			t.Errorf("%s: want the chart before the first measure row", project)
 		}
 	}
-	wantNone(t, "history.html", got, "<script", "<desc", "javascript", "#")
+	// The head's one fragment is the render-blocking link's #page-end
+	// (forsgren#558); the body, the chart in it, holds none.
+	_, body, _ := strings.Cut(got, "</head>")
+	wantNone(t, "history.html", got, "<script", "<desc", "javascript")
+	wantNone(t, "history.html", body, "#")
 }
 
 // TestHistoryChartDrawsOneLinePerMeasureAndALegendNamesThem (forsgren#212): the

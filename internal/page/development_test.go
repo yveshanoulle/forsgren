@@ -16,7 +16,7 @@ func footerOf(t *testing.T, data Data) string {
 		t.Fatalf("Render: %v", err)
 	}
 	html := out.String()
-	start := strings.Index(html, "<footer>")
+	start := strings.Index(html, "<footer ")
 	end := strings.Index(html, "</footer>")
 	if start < 0 || end < start {
 		t.Fatalf("want a footer, got:\n%s", html)

@@ -41,7 +41,7 @@ func TestEveryPageEndsWithTheFooter(t *testing.T) {
 		for _, page := range PageNames() {
 			t.Run(name+" "+page, func(t *testing.T) {
 				got := rendered(t, page, c.data)
-				if !strings.Contains(got, "  <footer>\n    "+c.want+"\n") {
+				if !strings.Contains(got, "  <footer id=\""+pageEnd+"\">\n    "+c.want+"\n") {
 					t.Errorf("want the footer %q to open the footer, got:\n%s", c.want, got)
 				}
 				wantNoInstallLink(t, got)
