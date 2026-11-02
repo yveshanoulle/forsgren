@@ -113,7 +113,7 @@ new_root() {
   cp "${2:-$GATE}" "${ROOT}/Scripts/gate_htmlhint.sh"
   chmod +x "${ROOT}/Scripts/gate_htmlhint.sh"
   cp "${3:-$CONFIG}" "${ROOT}/.htmlhintrc"
-  cp "${REPO_ROOT}/Scripts/lib_site_settings.sh" "${ROOT}/Scripts/"
+  cp "${REPO_ROOT}/Scripts/lib_site_settings.sh" "${REPO_ROOT}/Scripts/lib_tmp.sh" "${ROOT}/Scripts/"
   # A repository's own site_dir may not exist when this self-test runs (a build
   # output, absent in the pre phase), so the throwaway root states the Site/
   # these cases build instead of copying the repository's settings.

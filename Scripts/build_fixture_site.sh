@@ -70,7 +70,9 @@ mkdir -p "$BIN_DIR"
 # -buildvcs=false: a release build's footer, as Scripts/build_site.sh.
 go build -o "$BIN" -buildvcs=false ./cmd/forsgren || fail "go build ./cmd/forsgren failed"
 
-STAGE="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+STAGE="$(tmp_dir build_fixture_site_stage)"
 SOURCE_DATE_EPOCH="$PINNED_EPOCH" "$BIN" render --out "$STAGE" \
   --config "${FIXTURE}/forsgren.config.yml" --data "${FIXTURE}/data/deployments.csv" > /dev/null \
   || fail "forsgren render failed"

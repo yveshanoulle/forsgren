@@ -70,6 +70,7 @@ browser gate self-test|in|Scripts/lib_gate_browser_selftest.sh
 browser gate self-test|in|Scripts/gate_browser.sh
 browser gate self-test|in|Scripts/browser_gate.mjs
 browser gate self-test|in|Scripts/lib_selftest.sh
+browser gate self-test|in|Scripts/lib_tmp.sh
 browser gate self-test|in|Scripts/lib_site_settings.sh
 browser gate self-test|in|Scripts/site_settings.txt
 browser gate self-test|in|Scripts/browser_gate_baseline.txt
@@ -91,6 +92,7 @@ browser gate process self-test|in|Scripts/test_gate_browser.sh
 browser gate process self-test|in|Scripts/gate_browser.sh
 browser gate process self-test|in|Scripts/browser_gate.mjs
 browser gate process self-test|in|Scripts/lib_selftest.sh
+browser gate process self-test|in|Scripts/lib_tmp.sh
 browser gate process self-test|in|Scripts/lib_site_settings.sh
 browser gate process self-test|in|Scripts/site_settings.txt
 browser gate process self-test|in|package.json
@@ -108,6 +110,7 @@ browser gate|in|Scripts/gate_browser.sh
 browser gate|in|Scripts/test_gate_browser.sh
 browser gate|in|Scripts/lib_gate_browser_selftest.sh
 browser gate|in|Scripts/lib_selftest.sh
+browser gate|in|Scripts/lib_tmp.sh
 browser gate|in|Scripts/build_site.sh
 browser gate|in|Scripts/browser_gate.mjs
 browser gate|in|Scripts/lib_site_settings.sh
@@ -139,6 +142,7 @@ browser gate (fixture site) self-test|in|Scripts/gate_browser_fixture.sh
 browser gate (fixture site) self-test|in|Scripts/build_fixture_site.sh
 browser gate (fixture site) self-test|in|Scripts/browser_gate.mjs
 browser gate (fixture site) self-test|in|Scripts/lib_selftest.sh
+browser gate (fixture site) self-test|in|Scripts/lib_tmp.sh
 browser gate (fixture site) self-test|in|Scripts/lib_site_settings.sh
 browser gate (fixture site) self-test|in|Scripts/site_settings.txt
 browser gate (fixture site) self-test|in|Scripts/browser_gate_exceptions.txt
@@ -165,6 +169,7 @@ browser gate (fixture site)|in|Scripts/gate_browser.sh
 browser gate (fixture site)|in|Scripts/test_gate_browser.sh
 browser gate (fixture site)|in|Scripts/lib_gate_browser_selftest.sh
 browser gate (fixture site)|in|Scripts/lib_selftest.sh
+browser gate (fixture site)|in|Scripts/lib_tmp.sh
 browser gate (fixture site)|in|Scripts/browser_gate_baseline.txt
 browser gate (fixture site)|in|Scripts/build_fixture_site.sh
 browser gate (fixture site)|in|Scripts/browser_gate.mjs
@@ -203,6 +208,7 @@ release workflow|in|.github/workflows/release.yml
 release workflow|in|Scripts/dispatch_preview.sh
 release workflow|in|Scripts/lib_git_sandbox.sh
 release workflow|in|Scripts/lib_selftest.sh
+release workflow|in|Scripts/lib_tmp.sh
 release workflow|in|Scripts/lib_workflow_steps.sh
 release workflow|in|Scripts/release_agent_proofs.sh
 release workflow|in|Scripts/release_metrics.sh
@@ -268,6 +274,7 @@ step summary isolation|in|Scripts/lib_git_sandbox.sh
 step summary isolation|in|Scripts/lib_repo_files.sh
 step summary isolation|in|Scripts/lib_runs_script.sh
 step summary isolation|in|Scripts/lib_selftest.sh
+step summary isolation|in|Scripts/lib_tmp.sh
 step summary isolation|in|Scripts/lib_site_settings.sh
 step summary isolation|in|Scripts/lib_summary_writers.sh
 step summary isolation|in|Scripts/lib_workflow_steps.sh
@@ -334,6 +341,7 @@ metrics workflow|in|Scripts/lib_gate_select.sh
 metrics workflow|in|Scripts/lib_git_sandbox.sh
 metrics workflow|in|Scripts/lib_private_names.sh
 metrics workflow|in|Scripts/lib_selftest.sh
+metrics workflow|in|Scripts/lib_tmp.sh
 metrics workflow|in|Scripts/lib_workflow_steps.sh
 metrics workflow|in|Scripts/node_pin.sh
 metrics workflow|in|Scripts/npm_sync_install.sh
@@ -356,12 +364,14 @@ CI phase runner self-test|in|Scripts/lib_git_sandbox.sh
 CI phase runner self-test|in|Scripts/run_ci_phase.sh
 CI phase runner self-test|in|Scripts/test_run_ci_phase.sh
 CI phase runner self-test|in|Scripts/lib_has.sh
+CI phase runner self-test|in|Scripts/lib_tmp.sh
 
 # --- mutation: checkout pins (forsgren#402) -------------------------------
 # The pin and its mutation test read every workflow of .github/workflows/ (a glob,
 # so the directory is listed) and no other tracked file.
 mutation: checkout pins|in|Scripts/test_workflow_checkout_pins_mutations.sh
 mutation: checkout pins|in|Scripts/test_workflow_checkout_pins.sh
+mutation: checkout pins|in|Scripts/lib_tmp.sh
 mutation: checkout pins|in|.github/workflows/
 
 # --- git sandbox isolation self-test (forsgren#402) -----------------------
@@ -378,6 +388,7 @@ git sandbox isolation self-test|in|Scripts/lib_isolation_local.sh
 git sandbox isolation self-test|in|Scripts/lib_isolation_shard.sh
 git sandbox isolation self-test|in|Scripts/lib_parallel_mutants.sh
 git sandbox isolation self-test|in|Scripts/lib_selftest.sh
+git sandbox isolation self-test|in|Scripts/lib_tmp.sh
 git sandbox isolation self-test|in|Scripts/test_git_sandbox_guard.sh
 git sandbox isolation self-test|in|Scripts/test_git_sandbox_isolation.sh
 

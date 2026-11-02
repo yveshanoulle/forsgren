@@ -50,6 +50,8 @@ cd "$SCRIPT_DIR/.." || exit 1
 
 # shellcheck source=Scripts/lib_repo_files.sh
 source "${SCRIPT_DIR}/lib_repo_files.sh"
+# shellcheck source=Scripts/lib_tmp.sh
+source "${SCRIPT_DIR}/lib_tmp.sh"
 
 ROOT_DIR="${1:-.}"
 cd "$ROOT_DIR" || {
@@ -59,7 +61,7 @@ cd "$ROOT_DIR" || {
 
 # The list is read NUL-separated (-z), so a non-ASCII or otherwise unusual path
 # reaches the arms as it is, unquoted, and a FAIL line prints the real path.
-TMP="$(mktemp -d)"
+TMP="$(tmp_dir check_data_guard)"
 trap 'rm -rf "$TMP"' EXIT
 if ! repo_files . -z > "$TMP/listed" 2> "$TMP/err"; then
   echo "❌ FAIL: git ls-files failed in ${ROOT_DIR}: $(cat "$TMP/err")"

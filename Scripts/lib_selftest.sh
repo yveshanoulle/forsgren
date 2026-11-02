@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: lib_selftest v2
+# canon: lib_selftest v3
 # Scripts/lib_selftest.sh
 #
 # Ported from forsgren (forsgren#207), where it is the harness of the gate
@@ -22,14 +22,28 @@
 #   failed     1 once any case failed
 #   OUT, RC    the output (stdout and stderr) and exit status of the last
 #              `capture`
+#
+# It sources Scripts/lib_tmp.sh from its own folder (tmp_dir, for the temp
+# root), so a copy of it needs that file beside it.
+
+# SELFTEST_TMP_LIB: its absolute path, for selftest_mutant.
+SELFTEST_TMP_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib_tmp.sh"
+# shellcheck source=Scripts/lib_tmp.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib_tmp.sh"
 
 # selftest_begin <what>: a fresh temp root in TMP and the completion guard.
 # A self-test that dies part-way must fail, never report green: on macOS
 # bash 3.2 a set -u abort inside a function can exit 0. <what> names the
 # self-test in the abort line.
+#
+# v3 (forsgren#612, the estate sweep): the temp root is made with
+# Scripts/lib_tmp.sh: a bare mktemp ignores TMPDIR on macOS, so every
+# self-test landed in the system temp folder even when TMPDIR named another
+# one. It is named after <what>, every character outside [A-Za-z0-9_] an
+# underscore.
 selftest_begin() {
   SELFTEST_WHAT="$1"
-  TMP="$(mktemp -d)"
+  TMP="$(tmp_dir "selftest_${SELFTEST_WHAT//[^A-Za-z0-9_]/_}")"
   COMPLETED=0
   failed=0
   # The step summary is the self-test's own, never the ambient one: in CI the
@@ -134,15 +148,36 @@ want_said() {
   fi
 }
 
+# selftest_resolved <path>: <path> with its nearest existing directory
+# resolved (pwd -P) and the not-yet-existing rest appended, so a path under a
+# symlink (on macOS /var is /private/var) compares as where it really lands.
+# v3 (forsgren#612): Scripts/test_lib_tmp.sh compares paths with it.
+selftest_resolved() {
+  local dir="$1" rest=""
+  while [[ ! -d "$dir" ]]; do
+    rest="/$(basename "$dir")${rest}"
+    dir="$(dirname "$dir")"
+  done
+  printf '%s%s\n' "$(cd "$dir" && pwd -P)" "$rest"
+}
+
 # selftest_mutant <source> <mutant> <sed-expression>: writes <mutant>, an
 # executable copy of <source> with <sed-expression> applied, creating its
 # directory. When the expression changed nothing, the proof would be
 # vacuous: that is a failed case, and the return status is 1, so the caller
 # skips the run.
+#
+# v3 (forsgren#612): when <source> sources lib_tmp.sh, the temp helper is
+# copied beside <mutant> (unless one is there), since a script reads it from
+# its own folder or from Scripts/ under its parent, which is the same folder
+# for a mutant in a Scripts/ copy.
 selftest_mutant() {
   mkdir -p "$(dirname "$2")"
   sed "$3" "$1" > "$2"
   chmod +x "$2"
+  if grep -qE '^[[:space:]]*source .*lib_tmp\.sh' "$1" && [[ ! -e "$(dirname "$2")/lib_tmp.sh" ]]; then
+    cp "$SELFTEST_TMP_LIB" "$(dirname "$2")/lib_tmp.sh"
+  fi
   if cmp -s "$1" "$2"; then
     fail "the mutation $3 changed nothing in $1: the proof would be vacuous"
     return 1

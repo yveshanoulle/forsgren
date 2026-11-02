@@ -22,8 +22,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-OUT_FILE="$(mktemp)"
-FIFO_DIR="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+OUT_FILE="$(tmp_file gate_browser_out_file)"
+FIFO_DIR="$(tmp_dir gate_browser_fifo_dir)"
 NODE_PID=""
 # On bash 3.2 an abort (an unbound variable under set -eu) ends a script with
 # an EXIT trap with status 0. COMPLETED, set as the very last statement, is the

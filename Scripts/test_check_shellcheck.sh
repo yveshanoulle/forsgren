@@ -57,9 +57,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "${ROOT}/Scripts/lib_git_sandbox.sh"
 # shellcheck source=Scripts/lib_has.sh
 source "${ROOT}/Scripts/lib_has.sh"
+# shellcheck source=Scripts/lib_tmp.sh
+source "${ROOT}/Scripts/lib_tmp.sh"
 SCRIPT_UNDER_TEST="${ROOT}/Scripts/check_shellcheck.sh"
 
-TMP="$(mktemp -d)"
+TMP="$(tmp_dir test_check_shellcheck)" || exit 1
 trap 'rm -rf "$TMP"' EXIT
 
 failed=0

@@ -16,7 +16,9 @@ cd "$(dirname "$0")/.."
 
 CHECK="./Scripts/check_lint_coverage.sh"
 REAL_CHECK="$(pwd)/Scripts/check_lint_coverage.sh"
-TMP="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+TMP="$(tmp_dir test_check_lint_coverage)" || exit 1
 
 COMPLETED=0
 finish() {
@@ -107,7 +109,7 @@ new_sandbox() { # <check-script>; sets SB
   SB="$(mktemp -d "${TMP}/sb.XXXXXX")"
   mkdir -p "$SB/Scripts" "$SB/node_modules/.bin" "$SB/Site" "$SB/fakebin"
   cp "$1" "$SB/Scripts/check_lint_coverage.sh"
-  cp Scripts/lint_json_count.py Scripts/lib_site_settings.sh "$SB/Scripts/"
+  cp Scripts/lint_json_count.py Scripts/lib_site_settings.sh Scripts/lib_tmp.sh "$SB/Scripts/"
   printf 'site_dir=Site\nhtml_dupl_target=Site\nhtml_dupl_ceiling=1.0\nrequired_pages_manifest=m.json\n' > "$SB/Scripts/site_settings.txt"
   printf '{}\n' > "$SB/.htmlhintrc"
   cp "$site"/* "$SB/Site/"

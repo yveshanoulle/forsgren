@@ -29,7 +29,9 @@ cd "$(cd "$(dirname "$0")" && git rev-parse --show-toplevel)" || exit 1
 CHECK="Scripts/check_script_references.sh"
 CHECK_ABS="$(pwd)/$CHECK"
 
-tmproot="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+tmproot="$(tmp_dir test_check_script_references)" || exit 1
 trap 'rm -rf "$tmproot"' EXIT
 
 fail() { echo "❌ FAIL: $1" >&2; exit 1; }

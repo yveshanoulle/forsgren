@@ -26,8 +26,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-OUT_FILE="$(mktemp)"
-FIFO_DIR="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+OUT_FILE="$(tmp_file gate_browser_fixture_out_file)"
+FIFO_DIR="$(tmp_dir gate_browser_fixture_fifo_dir)"
 NODE_PID=""
 BUILT_SITE=""
 # On bash 3.2 an abort ends a script with an EXIT trap with status 0. COMPLETED,
@@ -82,7 +84,7 @@ if [[ ! -d node_modules/puppeteer-core || ! -d node_modules/axe-core ]]; then
 fi
 
 if [[ -z "$SITE_DIR" ]]; then
-  BUILT_SITE="$(mktemp -d)"
+  BUILT_SITE="$(tmp_dir gate_browser_fixture_built_site)"
   if ! Scripts/build_fixture_site.sh "$BUILT_SITE" > "$OUT_FILE" 2>&1; then
     cat "$OUT_FILE" >&2
     echo "browser gate (fixture site): the fixture site could not be built" >&2

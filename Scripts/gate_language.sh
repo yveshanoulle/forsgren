@@ -88,7 +88,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-WORK="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+WORK="$(tmp_dir gate_language_work)"
 # On bash 3.2 an abort (an unbound variable under set -eu) ends a script with
 # an EXIT trap with status 0. COMPLETED, set as the very last statement, is the
 # only way out with 0: an exit of 0 without it is an abort and becomes exit 1.

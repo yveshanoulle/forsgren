@@ -58,7 +58,9 @@ HOST="${BASH_REMATCH[1]}"
 HTTP_URL="http://${HOST}/"
 HTTPS_URL="https://${HOST}/"
 
-WORK="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source "$(dirname "$0")/lib_tmp.sh"
+WORK="$(tmp_dir live_check_work)"
 trap 'rm -rf "$WORK"; [ "$COMPLETED" -eq 1 ] || { echo "❌ FAIL: live_check.sh aborted before completing (COMPLETED was never set)" >&2; exit 1; }' EXIT
 
 # --disable first: a curlrc must not be able to switch validation off.

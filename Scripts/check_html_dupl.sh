@@ -104,7 +104,9 @@ pinned="$(node -e 'const v = require(process.argv[1]).devDependencies.jscpd; if 
 JSCPD_PIN="jscpd@${pinned}"
 JSCPD="$(pwd)/node_modules/.bin/jscpd"
 
-REPORT_DIR="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+REPORT_DIR="$(tmp_dir check_html_dupl_report_dir)"
 trap 'rm -rf "$REPORT_DIR"' EXIT
 
 run_jscpd() {

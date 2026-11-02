@@ -40,7 +40,9 @@ if [[ ! -d "$GOLDEN_DIR" ]]; then
   exit 2
 fi
 
-STAGE="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+STAGE="$(tmp_dir check_golden_pages_stage)"
 trap 'rm -rf "$STAGE"' EXIT
 
 # gate <label> <script> <site-dir>: runs one gate on one staged page; its

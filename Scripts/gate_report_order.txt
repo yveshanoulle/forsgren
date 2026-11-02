@@ -344,6 +344,18 @@ FBP --no-push self-test|Scripts/test_fbp_no_push.sh|pre|
 # check is what stops it. Repository source, so it runs in pre.
 FBP push-or-rebase self-test|Scripts/test_fbp_push_or_rebase.sh|pre|
 #
+# Temp files honour TMPDIR (forsgren#612, the estate sweep: canon lib_tmp v2,
+# check_bare_mktemp v1, at their canon position right before gate wiring). On
+# macOS a mktemp whose template has no path ignores TMPDIR and writes to the
+# system temp folder, even when TMPDIR points elsewhere. The helper self-test
+# first (Scripts/lib_tmp.sh, which Scripts/lib_selftest.sh makes every temp
+# root with), then the gate's self-test, then the gate: every mktemp in a
+# shell script or workflow has a path in its template, or its file is in
+# Scripts/bare_mktemp_exemptions.txt with a reason. Repository source, so pre.
+temp helper self-test|Scripts/test_lib_tmp.sh|pre|
+bare mktemp self-test|Scripts/test_check_bare_mktemp.sh|pre|
+bare mktemp|Scripts/check_bare_mktemp.sh|pre|
+#
 # Gate wiring, the sfl/CI parity guard (forsgren#1, ladder step 14), at its
 # canon position after the html-duplication rows. Another estate repository's fixture,
 # adapted: konenki names every gate in its own workflow step and checks the

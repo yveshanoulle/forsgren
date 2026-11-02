@@ -213,9 +213,12 @@ want_exit "no thresholds file is red" 1 "no thresholds file"
 
 # mutant <dir> <source> <sed-expression> — a mutated copy of <source> at
 # $TMP/<dir>/<source>; sets MUTANT, or fails the case when the edit changed
-# nothing (a vacuous proof), and the proof is not run.
+# nothing (a vacuous proof), and the proof is not run. The temp helper the
+# scripts source goes beside it (forsgren#612).
 mutant() {
   MUTANT="${TMP}/$1/$2"
+  mkdir -p "${TMP}/$1/Scripts"
+  cp Scripts/lib_tmp.sh "${TMP}/$1/Scripts/lib_tmp.sh"
   selftest_mutant "$2" "$MUTANT" "$3"
 }
 

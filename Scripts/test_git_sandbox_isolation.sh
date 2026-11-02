@@ -90,7 +90,9 @@ source Scripts/lib_isolation_shard.sh
 # shellcheck source=Scripts/lib_isolation_local.sh
 source Scripts/lib_isolation_local.sh
 
-TMP="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+TMP="$(tmp_dir test_git_sandbox_isolation)" || exit 1
 trap 'rm -rf "$TMP"' EXIT
 
 if [[ -z "$SHARD_N" && "${GITHUB_ACTIONS:-}" != "true" ]]; then

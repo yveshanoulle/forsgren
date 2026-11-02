@@ -236,8 +236,10 @@ else
     "jobs starting together"
 fi
 
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
 # --- Self-proof: each wrong shape MUST be rejected, the right one accepted.
-TMP="$(mktemp -d)"
+TMP="$(tmp_dir test_quality_runner_pins)" || exit 1
 trap 'rm -rf "$TMP"; finish' EXIT
 
 # write_workflow <name> <on-block> [runs-on] [job]: a minimal workflow with

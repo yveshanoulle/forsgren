@@ -41,6 +41,8 @@
 # proofs replace start at column 0 or are named there.
 set -uo pipefail
 
+# shellcheck source=Scripts/lib_tmp.sh
+source "$(dirname "$0")/lib_tmp.sh"
 ROOT="${1:-$(cd "$(dirname "$0")" && git rev-parse --show-toplevel)}"
 cd "$ROOT" || exit 2
 
@@ -169,7 +171,7 @@ done
 # One scan produces "file:basename" pairs; awk then answers "is this basename
 # mentioned in any file other than the script itself" without re-reading a
 # thing. A script naming itself in a usage line is not a caller.
-mentions_file="$(mktemp)"
+mentions_file="$(tmp_file check_script_references_mentions_file)"
 trap 'rm -f "$mentions_file"' EXIT
 printf '%s\n' "$callers" \
   | tr '\n' '\0' \

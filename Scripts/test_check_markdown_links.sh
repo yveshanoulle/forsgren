@@ -285,11 +285,12 @@ else
 fi
 
 # Mutation proofs. The mutant sits in its own Scripts/, and gets the real
-# reader beside it unless the mutation replaces the reader.
+# reader beside it unless the mutation replaces the reader, and the temp
+# helper Scripts/lib_tmp.sh the gate sources (forsgren#612).
 mutate() {
   # mutate <name> <sed-expression> <fixture-root> <case> <expected>
   mkdir -p "$TMP/mutant-$1/Scripts"
-  cp Scripts/extract_markdown_links.awk Scripts/markdown_heading_slugs.awk Scripts/lib_repo_files.sh "$TMP/mutant-$1/Scripts/"
+  cp Scripts/extract_markdown_links.awk Scripts/markdown_heading_slugs.awk Scripts/lib_repo_files.sh Scripts/lib_tmp.sh "$TMP/mutant-$1/Scripts/"
   selftest_mutant "$GATE" "$TMP/mutant-$1/Scripts/check_markdown_links.sh" "$2" || return 0
   capture "$TMP/mutant-$1/Scripts/check_markdown_links.sh" "$3"
   want_red "mutation proof: $4" "$5"
@@ -299,7 +300,7 @@ mutate() {
 # line the mutation removes.
 mutate_green() {
   mkdir -p "$TMP/mutant-$1/Scripts"
-  cp Scripts/extract_markdown_links.awk Scripts/markdown_heading_slugs.awk Scripts/lib_repo_files.sh "$TMP/mutant-$1/Scripts/"
+  cp Scripts/extract_markdown_links.awk Scripts/markdown_heading_slugs.awk Scripts/lib_repo_files.sh Scripts/lib_tmp.sh "$TMP/mutant-$1/Scripts/"
   selftest_mutant "$GATE" "$TMP/mutant-$1/Scripts/check_markdown_links.sh" "$2" || return 0
   capture "$TMP/mutant-$1/Scripts/check_markdown_links.sh" "$3"
   want_green_ok "mutation proof: $4"

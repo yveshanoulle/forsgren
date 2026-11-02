@@ -25,7 +25,9 @@ cd "$(dirname "$0")/.."
 
 CHECK="${1:-./Scripts/check_secrets.sh}"
 SELF="${PWD}/Scripts/test_check_secrets.sh"
-TMP="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+TMP="$(tmp_dir test_check_secrets)" || exit 1
 
 COMPLETED=0
 finish() {

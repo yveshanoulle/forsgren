@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# canon: test_no_stray_tracked_files v2
+# canon: test_no_stray_tracked_files v3
 # Scripts/test_no_stray_tracked_files.sh
 #
 # No stray files in what the next commit would carry. The
 # canon version, byte-identical across the estate's repositories. This script
 # is the gate and its own self-test: it proves its matcher on a scratch
-# repository, then judges this repository.
+# repository, then judges this repository. v3 (forsgren#612): the
+# mutant root gets Scripts/lib_tmp.sh beside Scripts/lib_selftest.sh, which
+# sources it from lib_selftest v3 on.
 #
 # Two kinds of file nobody asked for have turned up in this estate, brought in
 # by one careless `git add -A`:
@@ -230,6 +232,7 @@ if [[ -z "${STRAY_MUTANT_RUN:-}" ]]; then
     local root="${TMP}/mutant-${name}"
     mkdir -p "${root}/Scripts"
     cp Scripts/lib_selftest.sh "${root}/Scripts/lib_selftest.sh"
+    cp Scripts/lib_tmp.sh "${root}/Scripts/lib_tmp.sh"
     cp Scripts/lib_git_sandbox.sh "${root}/Scripts/lib_git_sandbox.sh"
     cp Scripts/lib_repo_files.sh "${root}/Scripts/lib_repo_files.sh"
     cp Scripts/test_no_stray_tracked_files.sh "${root}/Scripts/test_no_stray_tracked_files.sh"

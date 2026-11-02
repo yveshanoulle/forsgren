@@ -29,7 +29,9 @@ CHECK="./Scripts/check_html_dupl.sh"
 SITE_CHECK="./Scripts/check_html_dupl_site.sh"
 ZERO_REASON="scanned 0 .html files under"
 
-TMP="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+TMP="$(tmp_dir test_check_html_dupl_site)" || exit 1
 COMPLETED=0
 finish() {
   rm -rf "$TMP"
@@ -78,27 +80,17 @@ run_site() {
   set -e
 }
 
-# run_site_staged <tmpdir> <args...> — run_site with every `mktemp -d` the
-# wrapper (and the gate under it) makes landing in tmpdir, created fresh.
-# TMPDIR alone does not do it: macOS's mktemp -d without a template ignores
-# TMPDIR. So a mktemp first on PATH turns a bare `mktemp -d` into one with a
-# template under tmpdir, and passes every other call to the real mktemp; the
-# wrapper itself runs unchanged.
+# run_site_staged <tmpdir> <args...> — run_site with every temp folder the
+# wrapper (and the gate under it) makes landing in tmpdir, created fresh:
+# both make them with Scripts/lib_tmp.sh, which honours TMPDIR (forsgren#612;
+# before, a mktemp first on PATH steered their bare mktemp -d there).
 REAL_MKTEMP="$(command -v mktemp)"
 run_site_staged() {
-  local stage_tmp="$1" shim="${TMP}/mktemp-shim"
+  local stage_tmp="$1"
   shift
-  mkdir -p "$stage_tmp" "$shim"
-  cat > "${shim}/mktemp" <<'SHIM'
-#!/usr/bin/env bash
-if [[ "$#" -eq 1 && "$1" == "-d" ]]; then
-  exec "$REAL_MKTEMP" -d "${STAGE_TMP}/tmp.XXXXXXXX"
-fi
-exec "$REAL_MKTEMP" "$@"
-SHIM
-  chmod +x "${shim}/mktemp"
+  mkdir -p "$stage_tmp"
   set +e
-  OUT="$(PATH="${shim}:${PATH}" REAL_MKTEMP="$REAL_MKTEMP" STAGE_TMP="$stage_tmp" "$SITE_CHECK" "$@" 2>&1)"
+  OUT="$(TMPDIR="$stage_tmp" "$SITE_CHECK" "$@" 2>&1)"
   RC=$?
   set -e
 }
@@ -136,6 +128,7 @@ run_site_inner_exit() {
   root="${TMP}/root-inner-exit-${code}"
   mkdir -p "${root}/Scripts"
   cp "$SITE_CHECK" "${root}/Scripts/check_html_dupl_site.sh"
+  cp Scripts/lib_tmp.sh "${root}/Scripts/lib_tmp.sh"
   printf '#!/usr/bin/env bash\nexit %s\n' "$code" > "${root}/Scripts/check_html_dupl.sh"
   chmod +x "${root}/Scripts/check_html_dupl_site.sh" "${root}/Scripts/check_html_dupl.sh"
   set +e
@@ -145,14 +138,15 @@ run_site_inner_exit() {
 }
 
 # run_site_no_mktemp <args...> — run_site with a mktemp first on PATH whose
-# bare `mktemp -d` fails, silently, so any word about it is the wrapper's;
-# every other call goes to the real mktemp.
+# `mktemp -d` fails, silently, so any word about it is the wrapper's (its
+# tmp_dir, Scripts/lib_tmp.sh, is the first such call); every other call goes
+# to the real mktemp.
 run_site_no_mktemp() {
   local shim="${TMP}/mktemp-fails"
   mkdir -p "$shim"
   cat > "${shim}/mktemp" <<'SHIM'
 #!/usr/bin/env bash
-if [[ "$#" -eq 1 && "$1" == "-d" ]]; then
+if [[ "$1" == "-d" ]]; then
   exit 1
 fi
 exec "$REAL_MKTEMP" "$@"

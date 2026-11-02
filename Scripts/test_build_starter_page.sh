@@ -82,6 +82,7 @@ if selftest_mutant "$GATE" "${TMP}/mutant/Scripts/build_starter_page.sh" '/CNAME
   # The mutant lives in a copy of the script's directory; it cds to its own
   # parent, so it needs the repository around it.
   cp -R cmd internal go.mod go.sum README.md "${TMP}/mutant/" 2>/dev/null || true
+  cp Scripts/lib_tmp.sh "${TMP}/mutant/Scripts/"
   capture "${TMP}/mutant/Scripts/build_starter_page.sh" "${TMP}/mutant-out"
   if [[ "$RC" -ne 0 || ! -s "${TMP}/mutant-out/index.html" ]]; then
     fail "mutation proof: the mutant did not build the page (exit ${RC}), so its missing CNAME proves nothing. Output: ${OUT}"

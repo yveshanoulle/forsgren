@@ -48,9 +48,11 @@ if [[ -n "${FORSGREN_BUILD_VERSION:-}" ]]; then
 fi
 go build -o "$BIN" -buildvcs=false ${LDFLAGS[@]+"${LDFLAGS[@]}"} ./cmd/forsgren || fail "go build ./cmd/forsgren failed"
 
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
 # Rendered into a fresh staging directory first, so the count is this run's
 # pages and never a stale file already in OUTPUT_DIR.
-STAGE="$(mktemp -d)"
+STAGE="$(tmp_dir build_site_stage)"
 # Issue forsgren#137. On bash 3.2 an abort (an unbound variable under set -eu)
 # ends a script with an EXIT trap with status 0, and $? in the trap is 0 too.
 # COMPLETED, set as the very last statement, is the only way out with 0: an

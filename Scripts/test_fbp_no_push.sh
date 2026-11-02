@@ -101,6 +101,9 @@ sandbox() {
   printf '#!/usr/bin/env bash\n[ -f sfl_red ] && { echo "Errors:"; echo "stub gate failed"; exit 1; }\nexit 0\n' > "${root}/sfl.sh"
   chmod +x "${root}/sfl.sh"
   stub_helpers "$root"
+  # FBP.sh sources it for its sfl logs (forsgren#612): the real one, not a stub.
+  mkdir -p "${root}/Scripts"
+  cp Scripts/lib_tmp.sh "${root}/Scripts/lib_tmp.sh"
   printf '.build/\nsfl_red\n' > "${root}/.gitignore"
   git -C "$root" add -A
   git -C "$root" commit -q -m "initial"

@@ -683,6 +683,31 @@ The POST gates, on the generated site:
   it matches: `producer | has -qE pattern`. A `grep -q` that names a file or
   reads a here-string has no producer and stays. Its self-test is
   `Scripts/test_check_pipe_grep_q.sh`, which also proves `has` on 300 KB.
+- **bare mktemp** (`Scripts/check_bare_mktemp.sh`, canon `check_bare_mktemp
+  v1`, forsgren#612, pre): on macOS a `mktemp` whose template has no path in
+  it (no template, `-d` alone, `-t <prefix>`, `-p <dir>`, or `name.XXXXXX`)
+  ignores TMPDIR and writes to the system temp folder, so a machine that
+  points TMPDIR elsewhere for its builds still got most temp files there.
+  Every shell script and workflow `repo_files` lists (every `*.sh`, every
+  extension-less file with a bash or sh shebang, `.github/workflows/*.yml`)
+  is read; a call in command position whose template does not start with a
+  path is red, naming `file:line`, the reason and the fix. The fix is the
+  helper `Scripts/lib_tmp.sh` (canon `lib_tmp v2`, sourced, never run):
+  `tmp_dir <name>` and `tmp_file <name>` make `${TMPDIR:-/tmp}/<name>.XXXXXX`,
+  a trailing slash on TMPDIR stripped, and refuse an empty name or one with a
+  slash. `Scripts/lib_selftest.sh` makes every self-test's temp root with it,
+  and a test that copies a converted script into a sandbox copies
+  `lib_tmp.sh` beside it. A script that runs where the helper is not checked
+  out (the two DCO scripts of `dco.yml`'s sparse checkout) or a canon block
+  kept verbatim (FBP.sh's push note of `rebase-on-refused-push v1`) puts
+  `"${TMPDIR:-/tmp}/<name>.XXXXXX"` in its template instead, which the gate
+  accepts. A call that has to stay bare is a `<path>|<reason>` line of
+  `Scripts/bare_mktemp_exemptions.txt`, read fail closed (a line without a
+  reason, a path that is no file and an entry that exempts no bare call are
+  red); it is empty. Self-tests: `Scripts/test_lib_tmp.sh` (canon
+  `test_lib_tmp v2`, three mutation proofs; proof A needs macOS) and
+  `Scripts/test_check_bare_mktemp.sh` (canon `test_check_bare_mktemp v2`, six
+  mutation proofs).
 
 - **language gate** (`Scripts/gate_language_pages.sh` running the canon
   `Scripts/gate_language.sh`, self-tests `Scripts/test_gate_language.sh` and

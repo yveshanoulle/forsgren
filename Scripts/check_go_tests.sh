@@ -27,6 +27,8 @@
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
 
 MODULE_DIR="${1:-.}"
 cd "$MODULE_DIR" || {
@@ -43,7 +45,7 @@ if [ -n "$npm_pkgs" ]; then
   exit 1
 fi
 
-LOG="$(mktemp)"
+LOG="$(tmp_file check_go_tests_log)"
 trap 'rm -f "$LOG"' EXIT
 
 PROFILE=".build/go-coverage.out"

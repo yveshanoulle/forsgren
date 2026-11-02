@@ -112,8 +112,10 @@ GATE="$(pwd)/Scripts/check_data_guard.sh"
 source Scripts/lib_selftest.sh
 selftest_begin "data-guard gate self-test"
 
-# The mutants of the gate sit in $TMP and source their helper from beside them.
+# The mutants of the gate sit in $TMP and source their helpers from beside
+# them (the temp helper since forsgren#612).
 cp Scripts/lib_repo_files.sh "$TMP/lib_repo_files.sh"
+cp Scripts/lib_tmp.sh "$TMP/lib_tmp.sh"
 
 # new_repo <name> — a git repository with one ordinary tracked Go file.
 new_repo() {

@@ -6,6 +6,8 @@ cd "$(dirname "$0")/.." || exit 1
 
 # shellcheck source=Scripts/lib_git_sandbox.sh
 source Scripts/lib_git_sandbox.sh
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
 
 # Scripts/test_sfl_pull.sh
 #
@@ -71,7 +73,7 @@ fi
 if [ ! -f "$SRC" ]; then
   fail "${SRC} does not exist yet — the shared pull contract has no implementation to source"
 else
-  TMP="$(mktemp -d)"
+  TMP="$(tmp_dir test_sfl_pull)" || exit 1
   mkdir -p "$TMP/bin"
 
   cat > "$TMP/bin/git" <<'EOF'
@@ -145,7 +147,7 @@ fi
 
 # --- Mutation proof: weakened copies of Scripts/sfl_pull.sh must be red here.
 if [ $# -eq 0 ]; then
-  MUT="$(mktemp -d)"
+  MUT="$(tmp_dir test_sfl_pull_mut)" || exit 1
   # Scripts/sfl_pull.sh sources the shared overlap list from its own
   # directory, so each mutant sits beside a plain copy of it.
   cp Scripts/fbp_push_or_rebase.sh "$MUT/"

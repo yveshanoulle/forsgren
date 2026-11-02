@@ -40,13 +40,15 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "${ROOT}/Scripts/lib_git_sandbox.sh"
 # shellcheck source=Scripts/lib_has.sh
 source "${ROOT}/Scripts/lib_has.sh"
+# shellcheck source=Scripts/lib_tmp.sh
+source "${ROOT}/Scripts/lib_tmp.sh"
 SCRIPT_UNDER_TEST="${ROOT}/Scripts/check_yamllint.sh"
 
 # An inherited GIT_DIR / GIT_WORK_TREE / GIT_INDEX_FILE (a hook, a wrapper)
 # would point the scratch `git init` and `git add` below at THIS repository.
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
 
-TMP="$(mktemp -d)"
+TMP="$(tmp_dir test_check_yamllint)" || exit 1
 trap 'rm -rf "$TMP"' EXIT
 
 failed=0

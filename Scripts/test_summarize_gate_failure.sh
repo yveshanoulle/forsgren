@@ -23,7 +23,9 @@ cd "$(dirname "$0")/.."
 
 SUM="./Scripts/summarize_gate_failure.sh"
 
-TMP="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+TMP="$(tmp_dir test_summarize_gate_failure)" || exit 1
 COMPLETED=0
 cleanup() {
   rm -rf "$TMP"

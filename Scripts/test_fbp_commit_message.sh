@@ -675,25 +675,16 @@ else
   # exits without removing it. Not covered here: a directory the fixture
   # itself registered, which such a trap does lose (see the lib's header).
   #
-  # The driver runs with a mktemp first on PATH that steers a bare mktemp -d
-  # into proof_dir/chain/tmp and hands every other call (FullBuildAndPush's
-  # mktemp -t) to the real one. A sandbox the cleanup misses is therefore
-  # left inside proof_dir, which this fixture's own cleanup removes.
+  # The driver runs with TMPDIR at proof_dir/chain/tmp: the lib makes the
+  # sandbox under TMPDIR with Scripts/lib_tmp.sh (forsgren#612; before, a
+  # mktemp stub first on PATH steered its bare mktemp -d there). A sandbox the
+  # cleanup misses is therefore left inside proof_dir, which this fixture's
+  # own cleanup removes.
   #
   # Wanted: own-trap-ran printed, and the sandbox gone.
   # -------------------------------------------------------------------------
   chain_dir="${proof_dir}/chain"
-  mkdir -p "${chain_dir}/bin" "${chain_dir}/tmp"
-  chain_real_mktemp="$(printf '%q' "$(command -v mktemp)")"
-  chain_template="$(printf '%q' "${chain_dir}/tmp/sandbox.XXXXXX")"
-  cat > "${chain_dir}/bin/mktemp" <<STEERED
-#!/usr/bin/env bash
-if [ "\$#" -eq 1 ] && [ "\$1" = "-d" ]; then
-  exec ${chain_real_mktemp} -d ${chain_template}
-fi
-exec ${chain_real_mktemp} "\$@"
-STEERED
-  chmod +x "${chain_dir}/bin/mktemp"
+  mkdir -p "${chain_dir}/tmp"
 
   cat > "${chain_dir}/driver.sh" <<'DRIVER'
 #!/usr/bin/env bash
@@ -707,7 +698,7 @@ echo "sandbox=${FBP_SANDBOX_DIR}"
 exit 0
 DRIVER
 
-  PATH="${chain_dir}/bin:$PATH" fbp_sandbox_record "$chain_dir" "$chain_dir" \
+  TMPDIR="${chain_dir}/tmp" fbp_sandbox_record "$chain_dir" "$chain_dir" \
     "$BASH" "${chain_dir}/driver.sh" "${ROOT}/Scripts/lib_fbp_sandbox.sh"
   chain_out="$(fbp_sandbox_record_output)"
   chain_sandbox="$(sed -n 's/^sandbox=//p' <<< "$chain_out")"
@@ -724,7 +715,7 @@ DRIVER
         && fail "trap chaining: a fixture that sets its own EXIT trap after sourcing the lib lost the lib's sandbox cleanup — the sandbox ${chain_sandbox} was left behind"
       ;;
     *)
-      fail "trap chaining: the sandbox ${chain_sandbox} is not under ${chain_dir}/tmp — the steered mktemp was bypassed, so this proof cannot judge the cleanup. Output: ${chain_out}"
+      fail "trap chaining: the sandbox ${chain_sandbox} is not under ${chain_dir}/tmp — the lib ignored TMPDIR, so this proof cannot judge the cleanup. Output: ${chain_out}"
       ;;
   esac
 fi

@@ -33,7 +33,9 @@ source Scripts/lib_has.sh
 RENDER="${1:-./Scripts/render_step_table.sh}"
 SELF="${PWD}/Scripts/test_render_step_table.sh"
 
-TMP="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+TMP="$(tmp_dir test_render_step_table)" || exit 1
 COMPLETED=0
 cleanup() {
   rm -rf "$TMP"
@@ -232,7 +234,7 @@ want "a secret-class row without the word FAIL is still a failure" "0 passed, 0 
 # --- Mutation proof: weakened copies of the renderer must be red here, each for
 # its own reason (the failure line the case prints).
 if [[ $# -eq 0 ]]; then
-  MUT="$(mktemp -d)"
+  MUT="$(tmp_dir test_render_step_table_mut)" || exit 1
   mutant_must_fail() { # <label> <sed-expression> <reason fragment>
     local m="$MUT/render_step_table_$RANDOM.sh" mout rc
     sed "$2" "$RENDER" > "$m"

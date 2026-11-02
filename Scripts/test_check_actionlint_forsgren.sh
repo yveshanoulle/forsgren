@@ -30,7 +30,9 @@ cd "$(dirname "$0")/.."
 #      known only by a declaration in that file, never by a lenient rule.
 
 CHECK="./Scripts/check_actionlint.sh"
-TMP="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+TMP="$(tmp_dir test_check_actionlint_forsgren)" || exit 1
 
 COMPLETED=0
 finish() {

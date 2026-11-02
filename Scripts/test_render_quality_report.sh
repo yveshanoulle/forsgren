@@ -44,7 +44,9 @@ cd "$(dirname "$0")/.."
 
 RENDER="./Scripts/render_quality_report.sh"
 
-TMP="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+TMP="$(tmp_dir test_render_quality_report)" || exit 1
 COMPLETED=0
 cleanup() {
   rm -rf "$TMP"

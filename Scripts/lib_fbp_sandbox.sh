@@ -84,6 +84,11 @@ FBP_SANDBOX_PRIVATE_NAMES_GATE="$(dirname "$FBP_SANDBOX_FBP")/Scripts/check_priv
 FBP_SANDBOX_PRIVATE_NAMES_LIB="$(dirname "$FBP_SANDBOX_FBP")/Scripts/lib_private_names.sh"
 FBP_SANDBOX_GO_TOOLCHAIN="$(dirname "$FBP_SANDBOX_FBP")/Scripts/go_toolchain.sh"
 FBP_SANDBOX_GO_MOD="$(dirname "$FBP_SANDBOX_FBP")/go.mod"
+# forsgren#612: FBP.sh makes its sfl logs with Scripts/lib_tmp.sh, so every
+# sandbox gets it beside FBP.sh, and the sandbox folders are made with it too.
+FBP_SANDBOX_TMP_LIB="$(dirname "$FBP_SANDBOX_FBP")/Scripts/lib_tmp.sh"
+# shellcheck source=Scripts/lib_tmp.sh
+source "$(dirname "$FBP_SANDBOX_FBP")/Scripts/lib_tmp.sh"
 
 # Issue source-repo#14 (mutation proof): when non-empty, fbp_sandbox_run copies this
 # file into the sandbox instead of FBP_SANDBOX_FBP. It exists ONLY so the
@@ -261,7 +266,7 @@ FBP_SANDBOX_NEW_DIR=""
 # FBP_SANDBOX_NEW_DIR is a global, not a local, so the if sees mktemp's exit
 # status rather than that of a local declaration.
 fbp_sandbox_new_dir() {
-  if ! FBP_SANDBOX_NEW_DIR="$(mktemp -d)" || [ -z "$FBP_SANDBOX_NEW_DIR" ] || [ ! -d "$FBP_SANDBOX_NEW_DIR" ]; then
+  if ! FBP_SANDBOX_NEW_DIR="$(tmp_dir fbp_sandbox)" || [ -z "$FBP_SANDBOX_NEW_DIR" ] || [ ! -d "$FBP_SANDBOX_NEW_DIR" ]; then
     return 1
   fi
   fbp_sandbox_register_dir "$FBP_SANDBOX_NEW_DIR"
@@ -442,6 +447,7 @@ fbp_sandbox_run() {
     cp "$FBP_SANDBOX_GO_TOOLCHAIN" Scripts/go_toolchain.sh
     cp "$FBP_SANDBOX_PRIVATE_NAMES_GATE" Scripts/check_private_names.sh
     cp "$FBP_SANDBOX_PRIVATE_NAMES_LIB" Scripts/lib_private_names.sh
+    cp "$FBP_SANDBOX_TMP_LIB" Scripts/lib_tmp.sh
     cp "$FBP_SANDBOX_GO_MOD" go.mod
     cp "${FBP_SANDBOX_FBP_OVERRIDE:-$FBP_SANDBOX_FBP}" ./FBP.sh
     mkdir -p bin
@@ -582,6 +588,7 @@ fbp_sandbox_write_aborting_copy() {
   cp "$(dirname "$FBP_SANDBOX_FBP")/Scripts/lib_fbp_sandbox.sh" "${root}/Scripts/lib_fbp_sandbox.sh"
   cp "$FBP_SANDBOX_FBP" "${root}/FBP.sh"
   cp "$FBP_SANDBOX_GO_TOOLCHAIN" "${root}/Scripts/go_toolchain.sh"
+  cp "$FBP_SANDBOX_TMP_LIB" "${root}/Scripts/lib_tmp.sh"
   cp "$FBP_SANDBOX_GO_MOD" "${root}/go.mod"
   awk '/^# Case 2:/ && !done { print "exit 0"; done = 1 } { print }' "$fixture" > "$copy"
   if cmp -s "$fixture" "$copy"; then

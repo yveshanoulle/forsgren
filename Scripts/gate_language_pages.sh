@@ -42,8 +42,10 @@ STARTER="${2:-.build/starter}"
 GOLDEN="${3:-internal/page/testdata/tbd.all.golden.html}"
 DICTIONARY="${4:-internal/dictionary/dictionary.yml}"
 
-PAGES="$(mktemp -d)"
-TERMS="$(mktemp)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+PAGES="$(tmp_dir gate_language_pages_pages)"
+TERMS="$(tmp_file gate_language_pages_terms)"
 # On bash 3.2 an abort (an unbound variable under set -eu) ends a script with
 # an EXIT trap with status 0. COMPLETED, set as the very last statement, is the
 # only way out with 0: an exit of 0 without it is an abort and becomes exit 1.

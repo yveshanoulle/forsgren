@@ -141,10 +141,12 @@ pr_read() {
   grep -qF -- "# ${PR_READ_COMMENT}" <<< "$lines"
 }
 
+# shellcheck source=Scripts/lib_tmp.sh
+source "$(dirname "$0")/lib_tmp.sh"
 if [ "$MODE" = rewrite ]; then
   case "$KIND" in workflow | pins | readme | caller) ;; *) usage ;; esac
-  TMPIN="$(mktemp)"
-  TMPOUT="$(mktemp)"
+  TMPIN="$(tmp_file release_pins_tmpin)"
+  TMPOUT="$(tmp_file release_pins_tmpout)"
   trap 'rm -f "$TMPIN" "$TMPOUT"; [ "$COMPLETED" -eq 1 ] || { echo "❌ FAIL: release_pins.sh aborted before completing (COMPLETED was never set)" >&2; exit 1; }' EXIT
   cat > "$TMPIN"
   rewrite "$KIND" < "$TMPIN" > "$TMPOUT" || red "perl failed"
@@ -169,7 +171,7 @@ if [ "$MODE" = token ]; then
 fi
 command -v jq > /dev/null || red "jq is not installed"
 
-WORK="$(mktemp -d)"
+WORK="$(tmp_dir release_pins_work)"
 ERRFILE="${WORK}/gh.err"
 
 # ghr: gh with the release token; gh's stderr is shown and also kept, so a

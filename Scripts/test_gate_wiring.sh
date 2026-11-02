@@ -108,6 +108,10 @@ source Scripts/lib_runs_script.sh
 # shellcheck source=Scripts/lib_has.sh
 source Scripts/lib_has.sh
 
+# Temp folders and files through Scripts/lib_tmp.sh (forsgren#612).
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+
 # order_names <script-basename>: an order-file row names Scripts/<basename>.
 order_names() {
   grep -v '^#' "$ORDER" | cut -d'|' -f2 | has -qxF "Scripts/$1"
@@ -190,11 +194,12 @@ fi
 # process self-test split from the browser gate self-test (forsgren#386,
 # decision #411 A), and up to 163 for the parallel mutants library self-test
 # (forsgren#382), and up to 164 for the token expiry probe self-test
-# (forsgren#269).
+# (forsgren#269), and up to 167 for the temp helper self-test, the bare mktemp
+# self-test and the bare mktemp gate (forsgren#612).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=164
+MIN_GATES=167
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -205,7 +210,7 @@ if [[ -f "$ORDER" ]]; then
   if [[ "$declared" -lt "$MIN_GATES" ]]; then
     fail "gate count fell to ${declared}, ratchet is ${MIN_GATES} — a gate was removed. Restore it, or raise MIN_GATES only if a gate was legitimately merged into another"
   fi
-  SHRUNK="$(mktemp)"
+  SHRUNK="$(tmp_file test_gate_wiring_shrunk)" || exit 1
   grep -v '^#' "$ORDER" | grep . | tail -n +2 > "$SHRUNK"
   if [[ "$(gate_count_of "$SHRUNK")" -ge "$MIN_GATES" ]]; then
     fail "the ratchet cannot detect a removed gate — it is measuring nothing"
@@ -878,6 +883,25 @@ the Lint gates job would have no way to install a tool"
       done < <(grep -lE '^[^#]*[|][[:space:]]*has ' Scripts/*.sh)
       ;;
 
+    # SOURCED HELPER, not a gate (forsgren#612, the estate sweep): the one way
+    # a script makes a temp folder or file, so the path honours TMPDIR. Its
+    # test is Scripts/test_lib_tmp.sh, an order-file row (it sources the
+    # helper through a variable, which runs_script does not follow), and
+    # Scripts/check_bare_mktemp.sh keeps every other call templated. sfl.sh
+    # must still source it, and so must every script that calls tmp_dir or
+    # tmp_file, directly or through Scripts/lib_selftest.sh or
+    # Scripts/lib_fbp_sandbox.sh (without it the call is a command not found).
+    lib_tmp.sh)
+      runs_script "$SFL" "$base" \
+        || fail "${base} makes every temp path of this repository and ${SFL} never sources it — the helper would then be a file nobody uses"
+      order_names test_lib_tmp.sh \
+        || fail "Scripts/test_lib_tmp.sh is not an order-file row — ${base} would be unproven"
+      while IFS= read -r consumer; do
+        grep -qE '^[[:space:]]*source .*lib_(tmp|selftest|fbp_sandbox)\.sh"?$' "$consumer" \
+          || fail "${consumer} calls tmp_dir or tmp_file and never sources ${base}"
+      done < <(grep -lE '^[^#]*[$][(]tmp_(dir|file) ' FBP.sh sfl.sh Scripts/*.sh | grep -v '^Scripts/lib_tmp\.sh$')
+      ;;
+
     # SOURCED HELPER, not a gate (forsgren#386, decision #411 A): what the two
     # browser gate self-tests share. Both are order-file rows and both must
     # still source it, else the page and site helpers they call would be missing.
@@ -1214,7 +1238,7 @@ SAMPLE
 }
 
 if ! is_mutation_rerun; then
-  MUTATION_TMP="$(mktemp -d)"
+  MUTATION_TMP="$(tmp_dir test_gate_wiring_mutation_tmp)" || exit 1
   trap 'rm -rf "$MUTATION_TMP"; finish' EXIT
   MUTANT_N=0
 
@@ -1399,7 +1423,7 @@ if ! is_mutation_rerun; then
   WF_DIR=".github/workflows"
   problems="$(fix_wiring_problems "$SFL" "$WF_DIR")"
   [[ -z "$problems" ]] || fail "FBP must fix and CI only check: ${problems}"
-  _t="$(mktemp -d)"
+  _t="$(tmp_dir test_gate_wiring)" || exit 1
   grep -v '^export GATE_FIX=1$' "$SFL" > "${_t}/sfl.sh"
   mkdir -p "${_t}/wf"
   cp "$WF_DIR"/*.yml "${_t}/wf/"

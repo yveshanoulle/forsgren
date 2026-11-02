@@ -15,6 +15,8 @@ cd "$(dirname "$0")/.."
 
 # shellcheck source=Scripts/lib_has.sh
 source Scripts/lib_has.sh
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
 
 # sfl derives its SEQUENCE AND ITS COMMANDS from Scripts/gate_report_order.txt
 # — unit 409 step 3.
@@ -133,7 +135,7 @@ done
 tier_stripping_proof() {
   local pin="$1" label="$2" mutation="$3" noun="$4" _tmp _out
   [ "$ORDER" = "Scripts/gate_report_order.txt" ] || return 0
-  _tmp="$(mktemp -d)"
+  _tmp="$(tmp_dir test_sfl_drives_from_order_file)" || exit 1
   sed \
     "s/^${label}|\\(.*\\)|pre|secret-class\$/${label}|\\1|pre|/" \
     "$ORDER" > "${_tmp}/order.txt"

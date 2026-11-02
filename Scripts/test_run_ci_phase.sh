@@ -63,7 +63,9 @@ head -40 "$RUNNER" | has -xF '# canon: run_ci_phase v3' \
   || fail "${RUNNER} has no '# canon: run_ci_phase v3' line in its first 40 lines"
 
 REAL_RUNNER="$(pwd)/${RUNNER}"
-TMP="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+TMP="$(tmp_dir test_run_ci_phase)" || exit 1
 trap 'rm -rf "$TMP"; finish' EXIT
 
 # new_sandbox <runner>: a fresh git repository holding a copy of the runner and
@@ -76,9 +78,10 @@ new_sandbox() {
   mkdir -p "${SB}/Scripts"
   cp "$1" "${SB}/Scripts/run_ci_phase.sh"
   chmod +x "${SB}/Scripts/run_ci_phase.sh"
+  cp Scripts/lib_tmp.sh "${SB}/Scripts/lib_tmp.sh"
   git -C "$SB" init -q
   echo "tracked" > "${SB}/tracked.txt"
-  git -C "$SB" add tracked.txt Scripts/run_ci_phase.sh
+  git -C "$SB" add tracked.txt Scripts/run_ci_phase.sh Scripts/lib_tmp.sh
   git -C "$SB" -c user.name=t -c user.email=t@example.invalid \
     -c commit.gpgsign=false commit -q -m sandbox
   TRACE="${SB}.trace"

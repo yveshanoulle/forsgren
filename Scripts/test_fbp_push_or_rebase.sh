@@ -117,6 +117,9 @@ world() {
   cp "$FBP_SRC" "${root}/${FBP}"
   chmod +x "${root}/${FBP}"
   stub_helpers "$root"
+  # FBP.sh sources it for its sfl logs (forsgren#612): the real one, not a stub.
+  mkdir -p "${root}/Scripts"
+  cp Scripts/lib_tmp.sh "${root}/Scripts/lib_tmp.sh"
   if [[ -f "$2" ]]; then
     cp "$2" "${root}/Scripts/${HELPER}"
     chmod +x "${root}/Scripts/${HELPER}"

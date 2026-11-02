@@ -45,9 +45,11 @@ if [[ ! -d "$SITE_DIR" ]]; then
   exit 2
 fi
 
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
 # Not exec: the scanned-file count has to be read after htmlhint exits. Its
 # output is shown as it runs and kept for that read.
-OUT="$(mktemp)"
+OUT="$(tmp_file gate_htmlhint_out)"
 # On bash 3.2 an abort (an unbound variable under set -eu) ends a script with
 # an EXIT trap with status 0, and $? in the trap is 0 too. COMPLETED, set as
 # the very last statement, is the only way out with 0: an exit of 0 without it

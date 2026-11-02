@@ -32,7 +32,9 @@ PINNED_EPOCH=1791028800
 # released one (forsgren#237); the build says it is that version.
 export FORSGREN_BUILD_VERSION=9.9.9
 
-TEMP_ROOT="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+TEMP_ROOT="$(tmp_dir test_build_site)" || exit 1
 COMPLETED=0
 FAILURES=0
 
@@ -343,6 +345,7 @@ fi
 # (no history to show) turns green, so case 27 was red BECAUSE of the check.
 MUTANT_ROOT="${TEMP_ROOT}/mutant"
 mkdir -p "${MUTANT_ROOT}/Scripts"
+cp Scripts/lib_tmp.sh "${MUTANT_ROOT}/Scripts/"
 sed 's/^if ! history_shows_chart; then/if false; then/' "$FIXTURE_BUILD" > "${MUTANT_ROOT}/Scripts/build_fixture_site.sh"
 chmod +x "${MUTANT_ROOT}/Scripts/build_fixture_site.sh"
 if cmp -s "$FIXTURE_BUILD" "${MUTANT_ROOT}/Scripts/build_fixture_site.sh"; then
@@ -363,6 +366,7 @@ fi
 # green, so case 32 was red BECAUSE of the check.
 MUTANT_TBD="${TEMP_ROOT}/mutant-tbd"
 mkdir -p "${MUTANT_TBD}/Scripts"
+cp Scripts/lib_tmp.sh "${MUTANT_TBD}/Scripts/"
 sed 's/^if ! tbd_shows_interval; then/if false; then/' "$FIXTURE_BUILD" > "${MUTANT_TBD}/Scripts/build_fixture_site.sh"
 chmod +x "${MUTANT_TBD}/Scripts/build_fixture_site.sh"
 if cmp -s "$FIXTURE_BUILD" "${MUTANT_TBD}/Scripts/build_fixture_site.sh"; then
@@ -381,6 +385,7 @@ fi
 # fixture of case 35 (no pulls) turns green without it.
 MUTANT_LEAD="${TEMP_ROOT}/mutant-lead"
 mkdir -p "${MUTANT_LEAD}/Scripts"
+cp Scripts/lib_tmp.sh "${MUTANT_LEAD}/Scripts/"
 sed 's/^if ! tbd_shows_lead_time; then/if false; then/' "$FIXTURE_BUILD" > "${MUTANT_LEAD}/Scripts/build_fixture_site.sh"
 chmod +x "${MUTANT_LEAD}/Scripts/build_fixture_site.sh"
 if cmp -s "$FIXTURE_BUILD" "${MUTANT_LEAD}/Scripts/build_fixture_site.sh"; then

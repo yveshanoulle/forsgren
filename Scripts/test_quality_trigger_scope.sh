@@ -188,7 +188,9 @@ if ! grep -qE '^  pull_request:' "$WF"; then
   fail "${WF} has no pull_request trigger — every gate here would be push-to-main only, so a pull request is checked by nothing and the first run happens after the change has already landed"
 fi
 
-TMP="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+TMP="$(tmp_dir test_quality_trigger_scope)" || exit 1
 trap 'rm -rf "$TMP"; finish' EXIT
 
 if [[ "$NOFILTER" -eq 0 ]]; then
@@ -281,6 +283,7 @@ if [[ -z "${QTS_NESTED:-}" ]]; then
       cp Scripts/lib_site_settings.sh Scripts/site_settings.txt "${root}/Scripts/"
       if [[ -f "$EXTRAS" ]]; then cp "$EXTRAS" "${root}/Scripts/"; else : > "${root}/Scripts/quality_trigger_globs.txt"; fi
     fi
+    cp Scripts/lib_tmp.sh "${root}/Scripts/"
     cp "$2" "${root}/Scripts/test_quality_trigger_scope.sh"
     cp "$3" "${root}/.github/workflows/quality.yml"
     sb_rc=0

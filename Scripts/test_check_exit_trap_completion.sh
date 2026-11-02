@@ -30,7 +30,7 @@ flagged_script() {
   cat <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-TMP="$(mktemp -d)"
+TMP="$(tmp_dir fixture)"
 trap 'rm -rf "$TMP"' EXIT
 echo work
 EOF

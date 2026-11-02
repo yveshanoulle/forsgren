@@ -69,7 +69,7 @@ ORIGIN="${TMP}/origin.git"
 git init -q --bare "$ORIGIN"
 git init -q -b main "$FX"
 mkdir -p "${FX}/Scripts"
-cp "$ISO" Scripts/lib_git_sandbox.sh Scripts/lib_gate_select.sh Scripts/lib_isolation_shard.sh Scripts/lib_isolation_local.sh Scripts/lib_parallel_mutants.sh "${FX}/Scripts/"
+cp "$ISO" Scripts/lib_git_sandbox.sh Scripts/lib_gate_select.sh Scripts/lib_isolation_shard.sh Scripts/lib_isolation_local.sh Scripts/lib_parallel_mutants.sh Scripts/lib_tmp.sh "${FX}/Scripts/"
 printf 'default 5\n' > "${FX}/Scripts/git_sandbox_isolation_weights.txt"
 for t in a b c; do
   printf '#!/usr/bin/env bash\ngit --version > /dev/null\nbash Scripts/helper_%s.sh\n' "$t" > "${FX}/Scripts/test_${t}.sh"

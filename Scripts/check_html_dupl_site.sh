@@ -59,7 +59,9 @@ if [[ "${#pages[@]}" -eq 0 ]]; then
   exec ./Scripts/check_html_dupl.sh "$SITE_DIR" "$SITE_MAX_PCT"
 fi
 
-if ! STAGE="$(mktemp -d)" || [[ -z "$STAGE" ]]; then
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+if ! STAGE="$(tmp_dir check_html_dupl_site_stage)" || [[ -z "$STAGE" ]]; then
   echo "html-dupl: mktemp -d failed, so no page of ${SITE_DIR} can be staged — nothing measured is not clean" >&2
   exit 2
 fi

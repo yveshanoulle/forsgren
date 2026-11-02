@@ -64,7 +64,7 @@ make_root() {
   mkdir -p "${root}/Scripts" "${root}/.build" "${root}/docs" "${root}/site"
   cp "$SFL_UNDER_TEST" "${root}/sfl.sh"
   cp "${REPO}/Scripts/render_step_table.sh" "${REPO}/Scripts/summarize_gate_failure.sh" \
-    "${REPO}/Scripts/lib_gate_select.sh" "${REPO}/Scripts/run_ci_phase.sh" "${root}/Scripts/"
+    "${REPO}/Scripts/lib_gate_select.sh" "${REPO}/Scripts/run_ci_phase.sh" "${REPO}/Scripts/lib_tmp.sh" "${root}/Scripts/"
   printf '#!/usr/bin/env bash\nsfl_pull_or_stop() { return 0; }\n' > "${root}/Scripts/sfl_pull.sh"
   printf '#!/usr/bin/env bash\necho go1.0\n' > "${root}/Scripts/go_toolchain.sh"
   for s in install_tools check_node_pin npm_sync_install; do

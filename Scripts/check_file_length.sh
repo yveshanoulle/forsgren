@@ -45,6 +45,8 @@
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 2
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
 
 ROOT="${1:-.}"
 MAX="${2:-600}"
@@ -76,7 +78,7 @@ for field in $FIELDS; do
   template="${template}{{range .${field}}}{{\$.Dir}}/{{.}}{{\"\\n\"}}{{end}}"
 done
 
-ERR="$(mktemp)"
+ERR="$(tmp_file check_file_length_err)"
 trap 'rm -f "$ERR"' EXIT
 if ! files="$(go list -e -f "$template" ./... 2>"$ERR")"; then
   cat "$ERR" >&2

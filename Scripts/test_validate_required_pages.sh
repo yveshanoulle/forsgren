@@ -25,7 +25,9 @@ cd "$(dirname "$0")/.."
 
 VALIDATOR="${1:-./Scripts/validate_required_pages.sh}"
 SELF="${PWD}/Scripts/test_validate_required_pages.sh"
-TMP="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+TMP="$(tmp_dir test_validate_required_pages)" || exit 1
 # COMPLETED is set by the last statement. On bash 3.2 an abort under set -eu can
 # end with status 0; the trap turns an exit of 0 without COMPLETED into exit 1.
 COMPLETED=0

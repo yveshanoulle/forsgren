@@ -26,7 +26,9 @@ cd "$(dirname "$0")/.."
 
 SCRIPT_UNDER_TEST="${1:-./Scripts/install_tools.sh}"
 SELF="${PWD}/Scripts/test_install_tools.sh"
-TMP="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+TMP="$(tmp_dir test_install_tools)" || exit 1
 
 COMPLETED=0
 cleanup() {

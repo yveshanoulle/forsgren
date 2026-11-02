@@ -93,6 +93,8 @@
 
 set -uo pipefail
 
+# shellcheck source=Scripts/lib_tmp.sh
+source "$(dirname "$0")/lib_tmp.sh"
 ROOT="${RUN_CI_PHASE_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 cd "$ROOT" || exit 1
 
@@ -279,7 +281,7 @@ while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:
     out="❌ ${label} declares ${script}, which is not an executable script"
     rc=1
   else
-    CAPTURE="$(mktemp)"
+    CAPTURE="$(tmp_file run_ci_phase_capture)"
     # shellcheck disable=SC2086 # the group row's arguments are words on purpose
     "./${script}" $args < /dev/null > "$CAPTURE" 2>&1 &
     wait "$!" && rc=0 || rc=$?

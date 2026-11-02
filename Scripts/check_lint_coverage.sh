@@ -32,6 +32,8 @@ set -uo pipefail
 # without this the script only works when the caller already happens to be
 # standing in the right place.
 cd "$(dirname "$0")/.." || exit 1
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
 
 # The canon version, byte-identical across the estate's repositories
 # What differs per repository is DATA: the default site
@@ -116,8 +118,8 @@ fi
 # one stream made this check report a coverage gap that did not exist, and
 # discarding stderr made "stylelint failed" and "stylelint opened nothing"
 # arrive as the same 0. A number whose cause is unknown is worse than none.
-css_out_f="$(mktemp)"
-css_err="$(mktemp)"
+css_out_f="$(tmp_file check_lint_coverage_css_out_f)"
+css_err="$(tmp_file check_lint_coverage_css_err)"
 "$STYLELINT_CMD" "${SITE}/**/*.css" --formatter json >"$css_out_f" 2>"$css_err"
 css_rc=$?
 got_css="$(python3 "$LINT_JSON_COUNT" "$css_out_f" "$css_err" 2>/dev/null)"

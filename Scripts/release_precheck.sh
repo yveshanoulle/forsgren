@@ -68,7 +68,9 @@ fi
 ASKED="$BUMP"
 if [ "$BUMP" = auto ]; then ASKED="the bump the labels require"; fi
 
-PLAN_OUT="$(mktemp)" || { echo "❌ FAIL: cannot create a temporary file" >&2; exit 2; }
+# shellcheck source=Scripts/lib_tmp.sh
+source "${HERE}/lib_tmp.sh"
+PLAN_OUT="$(tmp_file release_precheck_plan_out)" || { echo "❌ FAIL: cannot create a temporary file" >&2; exit 2; }
 
 "${SCRIPTS}/release_plan.sh" "$BUMP" --all > "$PLAN_OUT" 2>&1
 rc=$?

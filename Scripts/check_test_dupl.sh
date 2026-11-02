@@ -33,6 +33,8 @@
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 2
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
 
 MODULE_DIR="${1:-.}"
 THRESHOLD="${2:-80}"
@@ -72,7 +74,7 @@ fi
 # The config file MUST end in .yml — golangci-lint (viper) infers the format
 # from the extension. macOS `mktemp -t ...yml` does NOT preserve the suffix,
 # so mktemp a dir and put a real .yml inside it.
-TMP_DIR="$(mktemp -d)"
+TMP_DIR="$(tmp_dir check_test_dupl_tmp_dir)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 CONFIG="$TMP_DIR/test_dupl.golangci.yml"
 cat >"$CONFIG" <<YAML

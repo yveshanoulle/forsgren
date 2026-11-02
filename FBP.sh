@@ -127,7 +127,10 @@ fi
 # sfl.sh's banner; editing a Scripts/*.sh does not require a bump.
 # Changelog: v12 (forsgren#441) sfl stops at the first red gate and FBP skips the
 # build and POST phase after it, as after a red static block; --all runs everything.
-FBP_VERSION=12
+# v13 (forsgren#612) makes its sfl logs with Scripts/lib_tmp.sh and templates
+# the push note under TMPDIR, as the canon block does; before, all three went
+# to the system temp folder whatever TMPDIR said.
+FBP_VERSION=13
 
 STARTED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 START_EPOCH="$(date +%s)"
@@ -162,8 +165,12 @@ SECRET_BLOCK=false
 
 # PRE and POST use separate logs so the final summary can repeat every quality
 # failure rather than allowing the second sfl phase to overwrite the first.
-PRE_LOG="$(mktemp -t forsgren_sfl_pre)"
-POST_LOG="$(mktemp -t forsgren_sfl_post)"
+# Both honour TMPDIR through Scripts/lib_tmp.sh (forsgren#612): mktemp -t
+# put them in the system temp folder whatever TMPDIR said.
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+PRE_LOG="$(tmp_file forsgren_sfl_pre)"
+POST_LOG="$(tmp_file forsgren_sfl_post)"
 
 print_log_errors() {
   local label="$1"
@@ -684,7 +691,7 @@ else
         # a remote that keeps moving it stops with ❌, the run red.
         # Scripts/fbp_push_or_rebase.sh; Scripts/test_fbp_push_or_rebase.sh.
         # canon-block: rebase-on-refused-push v1 begin (push)
-        PUSH_NOTE_FILE="$(mktemp)"
+        PUSH_NOTE_FILE="$(mktemp "${TMPDIR:-/tmp}/fbp_push_note.XXXXXX")"
         if git push || ./Scripts/fbp_push_or_rebase.sh "$PUSH_NOTE_FILE"; then
           PUSH_NOTE="$(cat "$PUSH_NOTE_FILE")"
         else

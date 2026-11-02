@@ -69,6 +69,8 @@
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 2
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
 
 ROOT="${1:-.}"
 THRESHOLDS="${2:-coverage_thresholds.json}"
@@ -105,7 +107,7 @@ if [ ! -s "$PROFILE" ]; then
   exit 1
 fi
 
-FUNCS="$(mktemp)"
+FUNCS="$(tmp_file check_coverage_funcs)"
 trap 'rm -f "$FUNCS"' EXIT
 if ! go tool cover -func="$PROFILE" > "$FUNCS" 2>&1; then
   cat "$FUNCS" >&2

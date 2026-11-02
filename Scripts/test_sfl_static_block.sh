@@ -69,7 +69,7 @@ make_root() {
   local root="${TMP}/$1"
   mkdir -p "${root}/Scripts" "${root}/.build"
   cp "$SFL_UNDER_TEST" "${root}/sfl.sh"
-  cp "${REPO}/Scripts/render_step_table.sh" "${REPO}/Scripts/summarize_gate_failure.sh" "${root}/Scripts/"
+  cp "${REPO}/Scripts/render_step_table.sh" "${REPO}/Scripts/summarize_gate_failure.sh" "${REPO}/Scripts/lib_tmp.sh" "${root}/Scripts/"
   printf '#!/usr/bin/env bash\nsfl_pull_or_stop() { return 0; }\n' > "${root}/Scripts/sfl_pull.sh"
   printf '#!/usr/bin/env bash\necho go1.0\n' > "${root}/Scripts/go_toolchain.sh"
   local s

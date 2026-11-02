@@ -36,7 +36,9 @@ PYTHON3="${PYTHON3:-python3}"
 ARCH="${INSTALL_TOOLS_ARCH:-$(uname -m)}"
 BIN="${INSTALL_TOOLS_BIN:-${RUNNER_TEMP:-/tmp}/pinned-tools/bin}"
 
-WORK="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+WORK="$(tmp_dir install_tools_linux_work)"
 # The trap is set before any check, so every exit, a refusal included, cleans up.
 # COMPLETED is the last statement of a finished run. The trap turns an abort
 # that would otherwise end with exit 0 (bash 3.2 under set -e) into exit 1.

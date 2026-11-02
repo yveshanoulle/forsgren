@@ -41,7 +41,9 @@ if [[ ! -x "$FIXTURE" ]]; then
   exit 1
 fi
 
-TMP="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+TMP="$(tmp_dir test_workflow_checkout_pins_mutations)" || exit 1
 
 COMPLETED=0
 finish() {

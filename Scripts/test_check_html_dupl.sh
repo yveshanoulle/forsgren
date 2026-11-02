@@ -67,7 +67,9 @@ CHECK="./Scripts/check_html_dupl.sh"
 REPO_ROOT="$(pwd)"
 ZERO_REASON="scanned 0 .html files under"
 
-TMP="$(mktemp -d)"
+# shellcheck source=Scripts/lib_tmp.sh
+source Scripts/lib_tmp.sh
+TMP="$(tmp_dir test_check_html_dupl)" || exit 1
 COMPLETED=0
 finish() {
   rm -rf "$TMP"
@@ -153,7 +155,7 @@ new_root() {
   mkdir -p "${ROOT}/Scripts"
   cp "$2" "${ROOT}/Scripts/check_html_dupl.sh"
   chmod +x "${ROOT}/Scripts/check_html_dupl.sh"
-  cp Scripts/lib_site_settings.sh "${ROOT}/Scripts/"
+  cp Scripts/lib_site_settings.sh Scripts/lib_tmp.sh "${ROOT}/Scripts/"
   cp package.json "${ROOT}/"
   {
     printf 'site_dir=%s\nhtml_dupl_target=%s\nrequired_pages_manifest=m.json\n' "$3" "$3"

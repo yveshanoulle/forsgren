@@ -36,7 +36,10 @@ dco_api_reason() {
 dco_api() {
   local what="$1" dir first
   shift
-  dir="$(mktemp -d)" || return 1
+  # The folder is in the template so TMPDIR is honoured (forsgren#612); not
+  # through Scripts/lib_tmp.sh, since .github/workflows/dco.yml checks out
+  # only the DCO scripts and this lib.
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/dco_api.XXXXXX")" || return 1
   if ! dco_api_try "$dir" "$@"; then
     first="$(dco_api_reason "$dir")"
     sleep "${DCO_RETRY_PAUSE:-5}"

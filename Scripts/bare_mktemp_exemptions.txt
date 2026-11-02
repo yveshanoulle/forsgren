@@ -1,0 +1,7 @@
+# Scripts/bare_mktemp_exemptions.txt
+#
+# Files whose mktemp calls may stay without a path in the template, read by
+# Scripts/check_bare_mktemp.sh. One `<path>|<reason>` per line; the reason
+# says why the call cannot take a template under TMPDIR. Empty is the normal
+# state: every call here is templated or goes through Scripts/lib_tmp.sh.
+# An entry whose file has no bare call is red: remove it.

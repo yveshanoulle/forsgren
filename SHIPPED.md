@@ -9,6 +9,38 @@ Active work lives in
 
 ---
 
+## 2026-11-02 — temp files honour TMPDIR: a helper and a gate for mktemp without a path ([#612](https://github.com/yveshanoulle/forsgren/issues/612), 1 step)
+
+forsgren issue 612, tools (no release). On macOS a `mktemp` whose template
+has no path ignores TMPDIR and writes to the system temp folder, so a machine
+that points TMPDIR elsewhere for its builds still got most temp files there.
+The estate canon is ported: `Scripts/lib_tmp.sh` (`lib_tmp v2`: `tmp_dir
+<name>`, `tmp_file <name>` under `${TMPDIR:-/tmp}`, a trailing slash
+stripped) with `Scripts/test_lib_tmp.sh` (v2), and the pre gate
+`Scripts/check_bare_mktemp.sh` (v1, its file list for the stale-exemption
+check from a here-string under forsgren#428's rule) with
+`Scripts/test_check_bare_mktemp.sh` (v2) and the empty
+`Scripts/bare_mktemp_exemptions.txt`, three order-file rows right before gate
+wiring (MIN_GATES 167).
+
+- Red first: the gate on the tree before the change found 69 calls in 55
+  files (no workflow). After: 0, the gate green over 235 shell scripts and
+  workflows, nothing exempted.
+- 66 calls go through the helper: the scripts, the self-tests, `sfl.sh`
+  (VERSION 11) and `FBP.sh` (FBP_VERSION 13). `Scripts/lib_selftest.sh`
+  (v3) makes every self-test's temp root with it and gains
+  `selftest_resolved`; `Scripts/lib_fbp_sandbox.sh` copies it into its
+  sandboxes and makes its folders with it; `test_no_stray_tracked_files.sh`
+  takes the canon v3 (its mutant root gets `lib_tmp.sh`).
+- 3 calls keep the template inline, `"${TMPDIR:-/tmp}/<name>.XXXXXX"`:
+  `Scripts/lib_dco_api.sh` and `Scripts/dco_push_check.sh`, which run in
+  `dco.yml`'s sparse checkout without the helper, and FBP.sh's push note in
+  the canon block `rebase-on-refused-push v1`, kept verbatim as the sites do.
+- Wiring: the gate inputs list `lib_tmp.sh` for the labels whose closure reads
+  it, gate wiring holds that `sfl.sh` and every caller of `tmp_dir` or
+  `tmp_file` source it, docs/gate-classification.md rows 159a to 159c,
+  docs/quality-gates.md, CONTRIBUTING.md and CLAUDE.md.
+
 ## 2026-11-01 — html duplication gate labels jscpd 5 by its version ([#610](https://github.com/yveshanoulle/forsgren/issues/610), 1 step)
 
 forsgren issue 610, tools (no release). Since the jscpd 5.4.2 bump (#607)

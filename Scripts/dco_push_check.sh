@@ -73,7 +73,10 @@ source Scripts/lib_dco_api.sh
 CHECK="${DCO_CHECK:-./Scripts/check_dco.sh}"
 REPO_LOWER="$(printf '%s' "$REPO" | tr '[:upper:]' '[:lower:]')"
 
-WORK="$(mktemp -d)"
+# The folder is in the template so TMPDIR is honoured (forsgren#612); not
+# through Scripts/lib_tmp.sh, since .github/workflows/dco.yml checks out only
+# the DCO scripts and their lib.
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/dco_push_check.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
 # api <what> <gh api arguments...>: the answer on stdout, from dco_api
