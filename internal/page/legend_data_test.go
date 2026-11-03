@@ -16,7 +16,7 @@ var legendDataText = []string{
 		"and the metrics of that kind count from that date on.",
 	"A dash means nothing of that kind is stored.",
 	"A date marked … is only where the read of a repository's pushes stopped at its page limit: " +
-		"earlier data is not yet read, so it does not mean the repository started on that date. " +
+		"earlier data is not yet read, so it is no sign that the repository started on that date. " +
 		"It marks Pushes, and Commits when the pushed commits give its date, and such a date is red; " +
 		"the … says it without the colour.",
 	"On a service or rule row with paths it marks Commits while collect still reads the files of " +

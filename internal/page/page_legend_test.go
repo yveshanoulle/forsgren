@@ -126,6 +126,6 @@ func TestLegendExplainsAutoUpdateLevels(t *testing.T) {
 		"<li>"+config.LevelPatch+": merges "+config.LevelPatch+" updates only</li>",
 		"<li>"+config.LevelMinor+": merges "+config.LevelMinor+" and "+config.LevelPatch+" updates</li>",
 		"<li>"+config.LevelMajor+": merges "+config.LevelMajor+", "+config.LevelMinor+" and "+config.LevelPatch+
-			" updates. It does not mean a major release is safe: nothing checks a release against this "+
+			" updates. It is no promise that a major release is safe: nothing checks a release against this "+
 			"installation's own data.</li>")
 }

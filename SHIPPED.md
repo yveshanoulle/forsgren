@@ -9,6 +9,20 @@ Active work lives in
 
 ---
 
+## 2026-11-03 — The legend links no word in its everyday sense ([#571](https://github.com/yveshanoulle/forsgren/issues/571), 1 step)
+
+forsgren issue 571, patch. The legend links the first mention of each Dictionary
+entry, by its label, case-sensitive and longest label first. A manual review of
+every generated link found five sentences where the label word is meant in the
+everyday sense and took the section's link: "cut" in "each cut down, never
+rounded up" (now "each rounded down, never up"), and "mean" as a verb in "Red and
+green mean rose and fell" ("say"), "does not mean deployment data is missing" and
+"does not mean the repository started" ("is no sign that"), and "does not mean a
+major release is safe" ("is no promise that"). The entries are unchanged. A test
+names each sentence and is red while its word is linked. The legend is in
+`required-pages.json`, so the browser gate (axe) opens the generated legend with
+its links.
+
 ## 2026-11-03 — FBP.sh and sfl.sh source an optional local hook ([#290](https://github.com/yveshanoulle/forsgren/issues/290), 1 step)
 
 forsgren issue 290, patch (a portability and configuration improvement, no change

@@ -280,7 +280,7 @@ func wantArrows(t *testing.T, what, flat string, set func(day metrics.IssueDay, 
 // trendNote explains the arrows after Open and Open bugs (forsgren#126).
 const trendNote = "An arrow after Open and after Open bugs shows which way the count moved from the end of " +
 	"the period before: red when it rose, green when it fell, and grey when it did not change (blue after " +
-	"Open bugs, where a count of 0 open bugs is green too). Red and green mean rose and fell, not worse and better. " +
+	"Open bugs, where a count of 0 open bugs is green too). Red and green say rose and fell, not worse and better. " +
 	"A day is compared with the day before, a week with the week before, a month with the month before " +
 	"and a year with the year before; " +
 	"the oldest row of each kind is compared with the count just before its period, even when that period " +
