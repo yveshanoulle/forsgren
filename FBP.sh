@@ -130,7 +130,9 @@ fi
 # v13 (forsgren#612) makes its sfl logs with Scripts/lib_tmp.sh and templates
 # the push note under TMPDIR, as the canon block does; before, all three went
 # to the system temp folder whatever TMPDIR said.
-FBP_VERSION=13
+# v14 (forsgren#614) removes those logs on every way out, not only after the
+# summary ran to its end.
+FBP_VERSION=14
 
 STARTED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 START_EPOCH="$(date +%s)"
@@ -169,8 +171,16 @@ SECRET_BLOCK=false
 # put them in the system temp folder whatever TMPDIR said.
 # shellcheck source=Scripts/lib_tmp.sh
 source Scripts/lib_tmp.sh
-PRE_LOG="$(tmp_file forsgren_sfl_pre)"
-POST_LOG="$(tmp_file forsgren_sfl_post)"
+#
+# forsgren#614: both are removed on EVERY way out. They are made right after
+# the EXIT trap is set (below), and the trap calls remove_logs after the
+# summary whatever the summary did.
+PRE_LOG=""
+POST_LOG=""
+remove_logs() {
+  [ -z "$PRE_LOG" ] || rm -f "$PRE_LOG"
+  [ -z "$POST_LOG" ] || rm -f "$POST_LOG"
+}
 
 print_log_errors() {
   local label="$1"
@@ -314,8 +324,8 @@ on_signal() {
   exit "$(( 128 + $(kill -l "$1") ))"
 }
 
-print_summary() {
-  local exit_code=$?
+summary_body() {
+  local exit_code="$1"
   local lost_abort=false
   local finished_at elapsed
   local pre_tail post_tail
@@ -365,8 +375,6 @@ print_summary() {
   print_log_errors "PRE gate failures" "$PRE_LOG"
   print_log_errors "POST gate failures" "$POST_LOG"
 
-  rm -f "$PRE_LOG" "$POST_LOG"
-
   echo
 
   if [ -n "$ABORT_SIGNAL" ]; then
@@ -387,11 +395,27 @@ print_summary() {
   fi
 }
 
+# print_summary: the EXIT trap. The summary runs in a subshell so that an exit
+# or a failing command inside it (set -e) cannot skip the removal of the logs
+# (forsgren#614); the script's own status is kept unless the summary itself
+# failed.
+print_summary() {
+  local run_rc=$?
+  local summary_rc=0
+  ( summary_body "$run_rc" ) || summary_rc=$?
+  remove_logs
+  if [ "$summary_rc" -ne 0 ]; then
+    exit "$summary_rc"
+  fi
+}
+
 COMPLETED=0
 trap print_summary EXIT
 trap 'on_signal TERM' TERM
 trap 'on_signal INT' INT
 trap 'on_signal HUP' HUP
+PRE_LOG="$(tmp_file forsgren_sfl_pre)"
+POST_LOG="$(tmp_file forsgren_sfl_post)"
 
 echo "forsgren FBP.sh v${FBP_VERSION} — Started at ${STARTED_AT}"
 echo

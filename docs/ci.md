@@ -337,7 +337,7 @@ output of every shard. Another long gate shards the same way: its rows get
 the group file lists runs in that job only, every other gate in the main job,
 so a gate is never in two jobs or none, and a group file that names a gate the
 order file does not have is red. `Scripts/run_ci_phase.sh report-dir` (canon
-`run_ci_phase v3`, forsgren#574) prints the per-run folder a job keeps its
+`run_ci_phase v4`, forsgren#574) prints the per-run folder a job keeps its
 report in, `$RUNNER_TEMP/quality_<run id>_<run attempt>_<job>`: the rows
 (`quality_rows.md`), the details (`quality_details/`) and the hand-over
 (`handover/`). A self-hosted runner reuses its temp folder, so a fixed path let

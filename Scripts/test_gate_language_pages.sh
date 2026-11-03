@@ -71,16 +71,37 @@ DICT
 
 TARGET="$WRAPPER"
 DICT="${TMP}/dict.yml"
+# forsgren#614: every wrapper run gets its own TMPDIR (${TMP}/wtmp), so what
+# it leaves behind is found by name there and by nothing else.
+fresh_wtmp() {
+  rm -rf "${TMP}/wtmp"
+  mkdir -p "${TMP}/wtmp"
+}
+wtmp_left() {
+  find "${TMP}/wtmp" -maxdepth 1 -name 'gate_language_pages_*' -print
+}
+# want_no_temp <case>: the last run left no gate_language_pages_* file or folder.
+want_no_temp() {
+  local left
+  left="$(wtmp_left)"
+  if [[ -z "$left" ]]; then
+    echo "  ok: $1: the run left no gate_language_pages_* file behind"
+  else
+    fail "$1: the run left its temporary files behind: ${left}"
+  fi
+}
 # run [VAR=value ...]
 run() {
   rm -f "${TMP}/list" "${TMP}/dir" "${TMP}/terms"
-  capture env GATE_LANGUAGE_PAGES_GATE="${TMP}/stub_gate.sh" STUB_LIST="${TMP}/list" STUB_DIR="${TMP}/dir" \
+  fresh_wtmp
+  capture env TMPDIR="${TMP}/wtmp" GATE_LANGUAGE_PAGES_GATE="${TMP}/stub_gate.sh" STUB_LIST="${TMP}/list" STUB_DIR="${TMP}/dir" \
     STUB_TERMS="${TMP}/terms" "$@" \
     "$TARGET" "${TMP}/site" "${TMP}/starter" "${TMP}/golden.html" "${DICT}"
 }
 
 run
 want_green "2a: a green gate passes through" "stub gate ran on a directory"
+want_no_temp "6a (green gate)"
 WANT_LIST="$(printf './golden/tbd.all.html\n./index.html\n./numbers/index.html\n./starter/index.html')"
 if [[ "$(cat "${TMP}/list")" == "$WANT_LIST" ]]; then
   echo "  ok: 1: the gate gets the site pages, golden/tbd.all.html (forsgren#452) and starter/index.html only"
@@ -102,6 +123,7 @@ fi
 printf '%s\n' '- name: Deployments' > "${TMP}/bad.yml"
 DICT="${TMP}/bad.yml"; run
 want_exit "5b: a dictionary name that is not a quoted string" 2 "dictionary"
+want_no_temp "6d (unreadable dictionary)"
 printf '%s\n' '- name: "A"' '  shown: [A, B]' > "${TMP}/bad.yml"
 run
 want_exit "5c: a shown line that is not a list of quoted strings" 2 "dictionary"
@@ -116,8 +138,10 @@ DICT="${TMP}/dict.yml"
 
 run STUB_RC=1
 want_exit "2b: a red gate (1) passes through" 1 "stub gate ran on a directory"
+want_no_temp "6c (red gate)"
 run STUB_RC=2
 want_exit "2c: a gate that could not run (2) passes through" 2 "stub gate ran on a directory"
+want_no_temp "6b (gate that could not run)"
 
 capture env GATE_LANGUAGE_PAGES_GATE="${TMP}/stub_gate.sh" "$TARGET" \
   "${TMP}/absent" "${TMP}/starter" "${TMP}/golden.html"
@@ -144,8 +168,8 @@ if selftest_mutant "$WRAPPER" "$MUT" '/^  exit ".rc"/s/.*/  COMPLETED=1; exit 0/
 fi
 if selftest_mutant "$WRAPPER" "$MUT" '/^  rm -rf ".PAGES"/s/.*/  :/'; then
   TARGET="$MUT"; run
-  if [[ -e "$(cat "${TMP}/dir")" ]]; then
-    echo "  ok: mutation proof C: the kept temporary directory is found (case 3 would be red)"
+  if [[ -e "$(cat "${TMP}/dir")" ]] && [[ "$(wtmp_left)" == *gate_language_pages_terms.* ]]; then
+    echo "  ok: mutation proof C: the kept temporary directory and terms file are found, the file by name (cases 3 and 6a would be red)"
     rm -rf "$(cat "${TMP}/dir")"
   else
     fail "mutation proof C: the temporary directory is gone even without the rm"

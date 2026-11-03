@@ -27,6 +27,30 @@ exactly those after the case, and is red on one still there, naming it.
   case's own) is red. The decoy is made and removed by the test.
 - docs/gate-classification.md row 122a.
 
+---
+
+## 2026-11-03 — three temp files are removed on every way out ([#614](https://github.com/yveshanoulle/forsgren/issues/614), 3 steps)
+
+forsgren issue 614, tools (no release). Found in #612, once temp files
+landed in TMPDIR where they are visible. Each fix was red first, a test that
+wants the file gone after the run, and has a mutation proof that names the file.
+
+- `forsgren_sfl_pre.*` and `forsgren_sfl_post.*`: FBP.sh v14 removes them in an
+  EXIT trap set before the first is made, and runs its summary in a subshell,
+  so a summary that exits or fails cannot skip the removal.
+  `Scripts/test_fbp_aborted.sh` checks a green run, a red PRE, TERM and a
+  summary that exits early.
+- `run_ci_phase_capture.*`: run_ci_phase v4 unlinks the capture file as soon as
+  it is open (the gate writes through one descriptor, the loop reads through
+  another), so a cancel or a kill leaves nothing.
+  `Scripts/test_run_ci_phase.sh` checks a finished gate, TERM, INT and KILL.
+- `gate_language_pages_terms.*`: the language pages wrapper already removed it
+  on every path; the file was left by the wrapper self-test's own mutant C.
+  `Scripts/test_gate_language_pages.sh` now runs the wrapper in its own TMPDIR,
+  checks four exit paths and proves the check against a wrapper that keeps it.
+
+---
+
 ## 2026-11-02 — the browser gate loads every page once more in delayed pieces, so a mid-parse layout shift is caught on every run ([#611](https://github.com/yveshanoulle/forsgren/issues/611), 1 step)
 
 forsgren issue 611, tools (no release), decision C on #611 (option A built

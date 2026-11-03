@@ -135,5 +135,70 @@ else
   fail "mutation: a HUP trap after ./sfl.sh pre went unseen or for another reason (rc ${mutant_rc}): ${mutant_reason}"
 fi
 
+# forsgren#614: the sfl logs (forsgren_sfl_pre.*, forsgren_sfl_post.*) are gone
+# after the run on EVERY way out: a green run, a red PRE, a signal, and a
+# summary that itself ends the script early. Each run gets its own TMPDIR, so
+# the find sees this run's files alone. leftovers_case <label> <fbp override>
+# <env assignment>... runs the sandbox and requires no such file.
+leak_n=0
+# leftovers_driver: the sandbox run in its own bash, so the lib's own resets
+# (FBP_SANDBOX_FBP_OVERRIDE and the stub's seams are set empty when it is
+# sourced) come first and this run's values after. $1 the FBP.sh to run (empty
+# is the real one), then NAME=value seams.
+leftovers_driver() {
+  local override="$1"
+  shift
+  [ -z "$override" ] || FBP_SANDBOX_FBP_OVERRIDE="$override"
+  local assignment
+  for assignment in "$@"; do
+    eval "$assignment"
+  done
+  fbp_sandbox_run 3 --no-commit "614: logs removed"
+  exit 0
+}
+export -f leftovers_driver
+
+# leftovers_case <label> <FBP.sh override or empty> [NAME=value seam...]: runs
+# the sandbox with its own TMPDIR and requires no forsgren_sfl_* file in it.
+leftovers_case() {
+  local label="$1" override="$2" dir left
+  shift 2
+  leak_n=$((leak_n + 1))
+  dir="${TMP}/leak${leak_n}"
+  mkdir -p "$dir"
+  if ! TMPDIR="$dir"  bash -c 'source "$1"; source "$2"; shift 2; leftovers_driver "$@"' \
+      x "${ROOT}/Scripts/lib_git_sandbox.sh" "${ROOT}/Scripts/lib_fbp_sandbox.sh" \
+      "$override" "$@" >"${dir}.out" 2>&1; then
+    fail "${label}: the sandbox run itself failed. Output: $(cat "${dir}.out")"
+    return 1
+  fi
+  left="$(find "$dir" -maxdepth 1 -name 'forsgren_sfl_*' -print)"
+  if [ -n "$left" ]; then
+    fail "${label}: the run left its log behind: ${left}"
+    return 1
+  fi
+  echo "  ok: ${label}: no forsgren_sfl_* file is left"
+}
+
+exit7="${TMP}/mutants/FBP_summary_exit.sh"
+selftest_mutant "$FBP_SANDBOX_FBP" "$exit7" 's|^  local pre_tail post_tail$|  local pre_tail post_tail; exit 7|'
+leftovers_case "a green run" ""
+leftovers_case "a red PRE" "" FBP_SANDBOX_SFL_PRE_RC=1
+leftovers_case "a run ended by TERM" "" FBP_SANDBOX_SFL_PRE_SIGNAL=TERM
+leftovers_case "a summary that ends the script early" "$exit7"
+
+# Mutation: a FBP.sh that never removes its logs is caught, naming the file.
+nolog="${TMP}/mutants/FBP_keeps_logs.sh"
+# shellcheck disable=SC2016 # sed text, not shell
+if selftest_mutant "$FBP_SANDBOX_FBP" "$nolog" 's|rm -f "\$PRE_LOG"|:|;s|rm -f "\$POST_LOG"|:|'; then
+  (leftovers_case "mutation" "$nolog") >"${TMP}/mut.out" 2>&1 || true
+  if grep -Fq 'the run left its log behind: '"${TMP}/leak"  "${TMP}/mut.out" \
+     && grep -Fq 'forsgren_sfl_pre.' "${TMP}/mut.out"; then
+    echo "  ok: mutation proof: a FBP.sh that never removes its logs is caught, naming the file"
+  else
+    fail "mutation proof: a FBP.sh that never removes its logs went unseen. Output: $(cat "${TMP}/mut.out")"
+  fi
+fi
+
 selftest_end "FBP.sh prints All checks passed, or exits 0, on a run a signal ended" \
   "a run ended by TERM, INT or HUP prints Aborted ❌ with the signal, never All checks passed, and exits 143, 130 or 129"

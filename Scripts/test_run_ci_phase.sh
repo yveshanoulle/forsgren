@@ -59,8 +59,8 @@ fail() { echo "❌ FAIL: $*"; failed=1; }
 [[ -f "$ORDER" ]] || { echo "FAIL: ${ORDER} not found" >&2; exit 1; }
 
 # The runner's canon line must be in its first 40 lines.
-head -40 "$RUNNER" | has -xF '# canon: run_ci_phase v3' \
-  || fail "${RUNNER} has no '# canon: run_ci_phase v3' line in its first 40 lines"
+head -40 "$RUNNER" | has -xF '# canon: run_ci_phase v4' \
+  || fail "${RUNNER} has no '# canon: run_ci_phase v4' line in its first 40 lines"
 
 REAL_RUNNER="$(pwd)/${RUNNER}"
 # shellcheck source=Scripts/lib_tmp.sh
@@ -499,6 +499,64 @@ SLOW
   return 0
 }
 
+# forsgren#614: the gate's capture file (run_ci_phase_capture.*, made with
+# tmp_file in TMPDIR) is gone after the run on every way out: the gate ends,
+# the cancel (TERM, INT) and a kill (KILL, which no trap can answer). Each run
+# gets its own TMPDIR, so the find sees this run's files alone.
+# capture_left <how>: how is ended, TERM, INT or KILL; prints the files left.
+capture_left() {
+  local how="$1" pid i childpid gatepid tmpd
+  tmpd="${SB}.tmp.${how}"
+  mkdir -p "$tmpd"
+  rm -f "${TRACE}.gatepid" "${TRACE}.childpid"
+  if [[ "$how" == ended ]]; then
+    TMPDIR="$tmpd" STUB_TRACE="$TRACE" RUN_CI_PHASE_ROOT="$SB" \
+      bash "${SB}/Scripts/run_ci_phase.sh" pre "${SB}.${how}.rows" "${SB}.${how}.details" > "${SB}.${how}.out" 2>&1 < /dev/null || true
+  else
+    TMPDIR="$tmpd" STUB_TRACE="$TRACE" RUN_CI_PHASE_ROOT="$SB" \
+      bash "${SB}/Scripts/run_ci_phase.sh" pre "${SB}.${how}.rows" "${SB}.${how}.details" > "${SB}.${how}.out" 2>&1 < /dev/null &
+    pid=$!
+    for i in $(seq 1 100); do
+      [[ -s "${TRACE}.childpid" ]] && break
+      sleep 0.1
+    done
+    gatepid="$(cat "${TRACE}.gatepid" 2>/dev/null || true)"
+    childpid="$(cat "${TRACE}.childpid" 2>/dev/null || true)"
+    kill -"$how" "$pid" 2>/dev/null || true
+    for i in $(seq 1 100); do
+      kill -0 "$pid" 2>/dev/null || break
+      sleep 0.1
+    done
+    kill -KILL "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+    sleep 0.3
+    kill -KILL "${gatepid:-0}" "${childpid:-0}" 2>/dev/null || true
+  fi
+  find "$tmpd" -maxdepth 1 -name 'run_ci_phase_capture.*' -print
+}
+
+case_capture_gone() {
+  local how left
+  new_sandbox "$1"
+  order "slow|Scripts/slow.sh|pre|"
+  cat > "${SB}/Scripts/slow.sh" <<'SLOW'
+#!/usr/bin/env bash
+echo $$ > "${STUB_TRACE}.gatepid"
+sleep 60 &
+echo $! > "${STUB_TRACE}.childpid"
+wait
+SLOW
+  chmod +x "${SB}/Scripts/slow.sh"
+  for how in TERM INT KILL; do
+    left="$(capture_left "$how")"
+    [[ -z "$left" ]] || echo "after ${how} the runner left its capture file: ${left}"
+  done
+  printf '#!/usr/bin/env bash\nexit 0\n' > "${SB}/Scripts/slow.sh"
+  left="$(capture_left ended)"
+  [[ -z "$left" ]] || echo "after a finished gate the runner left its capture file: ${left}"
+  return 0
+}
+
 # The workflow names the folder through the runner, never a fixed path: every
 # job and the report job ask `report-dir`, and every gate job's upload names
 # the per-run folder.
@@ -513,7 +571,7 @@ case_workflow_paths() {
   return 0
 }
 
-CASES=(report_dir cancel workflow_paths na_skip phase_filter secret_class dirty_tree empty_phase missing_script non_executable bad_row usage job_groups shards real_order_file)
+CASES=(report_dir cancel capture_gone workflow_paths na_skip phase_filter secret_class dirty_tree empty_phase missing_script non_executable bad_row usage job_groups shards real_order_file)
 
 # --- 1. the real runner passes every case ------------------------------------
 for c in "${CASES[@]}"; do
@@ -586,6 +644,11 @@ mutation_proof "a runner that does not name the shard in the row" \
 mutation_proof "a runner without the cancel trap" \
   $'s/^trap .cancelled 143. TERM$/:/' cancel \
   "survived the cancel"
+
+# A capture file that is never unlinked stays in TMPDIR on a kill (and, the
+# trap having nothing to remove, on a cancel too).
+mutation_proof "a runner that keeps its capture file" \
+  $'s/^    rm -f "\\$capture_path"$/    :/' capture_gone
 
 # A report folder without the job is shared by the jobs of one run.
 mutation_proof "a runner whose report folder ignores the job" \

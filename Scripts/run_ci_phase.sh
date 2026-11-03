@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: run_ci_phase v3
+# canon: run_ci_phase v4
+# v4 (forsgren#614): the capture file is unlinked as soon as it is open, so no way out of the loop, a cancel or a kill included, leaves it behind.
 # v2 (forsgren#426): a group row may carry arguments, so one gate runs as shards in several jobs.
 # v3 (forsgren#574): `report-dir` names a report folder per run, attempt and job, and a cancelled job stops its gates and writes no more rows.
 # Scripts/run_ci_phase.sh <pre|post> <rows-file> <details-dir> [job]
@@ -82,7 +83,7 @@
 #     to its own folder and cannot touch a newer run's. An unset or empty
 #     RUNNER_TEMP, GITHUB_RUN_ID, GITHUB_RUN_ATTEMPT or GITHUB_JOB is exit 64.
 #   - on SIGTERM or SIGINT (the runner's cancel) the loop kills its gate and
-#     everything the gate started, removes its capture file, writes no row and
+#     everything the gate started, writes no row and
 #     exits 143 or 130. Each gate therefore runs in the background and the loop
 #     waits for it: bash runs a trap only between commands, never while it
 #     waits on a foreground command.
@@ -202,13 +203,12 @@ kill_descendants() {
   done
 }
 
-CAPTURE=""
 # cancelled <exit code>: the runner's cancel. Stop the gate and what it
-# started, write nothing more, exit.
+# started, write nothing more, exit. (The gate's capture file is already
+# unlinked, forsgren#614, so there is nothing to remove.)
 cancelled() {
   trap '' TERM INT
   kill_descendants "$$"
-  [ -z "$CAPTURE" ] || rm -f "$CAPTURE"
   echo "::warning::CI ${PHASE} cancelled; its gate was stopped and no more rows were written" >&2
   exit "$1"
 }
@@ -281,13 +281,18 @@ while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:
     out="❌ ${label} declares ${script}, which is not an executable script"
     rc=1
   else
-    CAPTURE="$(tmp_file run_ci_phase_capture)"
+    # forsgren#614: the gate writes through fd 3 and the loop reads through
+    # fd 4 (its own offset) of a file unlinked at once, so the name exists for
+    # an instant and no exit path, SIGKILL included, can leave it in TMPDIR.
+    capture_path="$(tmp_file run_ci_phase_capture)"
+    # shellcheck disable=SC2094 # one file, opened twice on purpose: fd 3 writes, fd 4 reads
+    exec 3>"$capture_path" 4<"$capture_path"
+    rm -f "$capture_path"
     # shellcheck disable=SC2086 # the group row's arguments are words on purpose
-    "./${script}" $args < /dev/null > "$CAPTURE" 2>&1 &
+    "./${script}" $args < /dev/null >&3 2>&1 &
     wait "$!" && rc=0 || rc=$?
-    out="$(cat "$CAPTURE")"
-    rm -f "$CAPTURE"
-    CAPTURE=""
+    out="$(cat <&4)"
+    exec 3>&- 4<&-
 
     if ! tree_after="$(git status --porcelain 2>&1)"; then
       out="${out}"$'\n'"❌ FAIL: git status failed after ${label}: ${tree_after}"
