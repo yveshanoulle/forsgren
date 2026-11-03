@@ -69,3 +69,23 @@ func TestCheckConfigCountsARejectedSwitch(t *testing.T) {
 		}
 	}
 }
+
+// TestRenderPassesTheIntegrationSwitchToThePageData (forsgren#622 step 4): the
+// Integration table is shown without a config and when the key is left out,
+// and hidden exactly when the config writes tbd_integration as false.
+func TestRenderPassesTheIntegrationSwitchToThePageData(t *testing.T) {
+	for keys, want := range map[string]bool{"": false, "\n": false, "tbd_integration: true\n": false,
+		"tbd_integration: false\n": true} {
+		o := renderOptions{}
+		if keys != "" {
+			o.config = writeConfig(t, keys+validConfig)
+		}
+		data, err := pageData(o, time.Unix(0, 0), io.Discard)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if data.HideTbdIntegration != want {
+			t.Errorf("%q: want HideTbdIntegration %v, got %v", keys, want, data.HideTbdIntegration)
+		}
+	}
+}

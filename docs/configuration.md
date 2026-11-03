@@ -286,6 +286,21 @@ projects:
   says so (see [A setting that is not accepted](#a-setting-that-is-not-accepted)),
   naming the key: `invalid tbd_pr_lead_time "yes": use true or false`. The
   starter that `init-config` writes shows the three keys commented out.
+- **`tbd_integration`** is optional (forsgren#622, step 4): whether the TBD
+  page shows its second table, Integration, which tells per project how often
+  its developers get commits onto the main branch. `true`, the default, shows
+  it; `false` leaves out the table with its heading. Plain YAML literals, as
+  the other TBD switches; left out, or without a value, the key is `true`. The
+  figures are still measured, so turning the table on again shows it at once,
+  with no new collection. A value that is neither `true` nor `false` is not
+  accepted: forsgren uses `true` and says so (see
+  [A setting that is not accepted](#a-setting-that-is-not-accepted)), naming
+  the key: `invalid tbd_integration "yes": use true or false`. The starter
+  that `init-config` writes shows the key commented out.
+
+  ```yaml
+  tbd_integration: false
+  ```
 - **`sub_rows`** is optional (forsgren#482, decision #488): whether every
   table shows the rows under each project's total, its label rows (`label`)
   and service rows (`services`, see below). `true`, the default, shows them;
@@ -374,7 +389,7 @@ projects:
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
   in forsgren#84, a table since forsgren#141) tabulates every optional key,
   `view`, `sub_rows`, `auto_update`, `auto_update_level`, `history_days`,
-  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `week_page`, `week_commits`, `data_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`, `same_developer`, `thousands_separator` and `decimal_separator`, twenty-three rows in four columns: **Parameter**;
+  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `week_page`, `week_commits`, `data_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`, `tbd_integration`, `same_developer`, `thousands_separator` and `decimal_separator`, twenty-three rows in four columns: **Parameter**;
   **Current value**, the value in use (`major` for an unset
   `auto_update_level`); **Possible values**, built from the config package's
   own constants and limits so the page cannot drift from what `check-config`
@@ -608,7 +623,7 @@ the boundary lies, and three ways to give forsgren the records.
 
 A setting with a default (`view`, `auto_update`, `auto_update_level`,
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
-`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `week_page`, `week_commits`, `data_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`, `sub_rows`, `same_developer`, `thousands_separator` and `decimal_separator`) whose value forsgren
+`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `week_page`, `week_commits`, `data_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`, `tbd_integration`, `sub_rows`, `same_developer`, `thousands_separator` and `decimal_separator`) whose value forsgren
 does not accept, a list or
 a mapping included, does not stop the run (forsgren#183): forsgren uses that
 key's default instead, and says so in three places. The settings page's row

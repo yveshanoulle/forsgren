@@ -58,7 +58,7 @@
 {{range .}}        <li id="{{.ID}}">({{.Number}}) {{.Text}}: {{range $i, $p := .Projects}}{{if $i}}, {{end}}{{$p.Name}}{{with $p.Count}} {{count .}}{{end}}{{end}}</li>
 {{end}}      </ul>
     </details>
-{{end}}    <h2 id="tbd-integration-heading">Integration</h2>
+{{end}}{{if not .HideTbdIntegration}}    <h2 id="tbd-integration-heading">Integration</h2>
     <div class="table-scroll" role="region" aria-labelledby="tbd-integration-heading" tabindex="0">
       <table class="wraps compact{{if $all}} stacked{{end}}">
         <thead>
@@ -78,6 +78,6 @@
 {{end}}        </tbody>
       </table>
     </div>
-{{else}}    <p>{{.TbdMessage}}</p>
+{{end}}{{else}}    <p>{{.TbdMessage}}</p>
 {{end}}  </main>
 {{template "footer" .}}

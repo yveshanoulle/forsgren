@@ -36,6 +36,7 @@ var possibleValues = map[string]string{
 	"tbd_time_to_main":     booleanValues,
 	"tbd_pr_lead_time":     booleanValues,
 	"tbd_bot_pr_lead_time": booleanValues,
+	"tbd_integration":      booleanValues,
 	"same_developer":       groupsOfLogins,
 	"thousands_separator": list(config.ThousandsNarrowSpace, config.ThousandsComma, config.ThousandsPeriod,
 		config.ThousandsNone),

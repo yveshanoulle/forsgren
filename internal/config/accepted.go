@@ -25,6 +25,7 @@ var acceptedSets = map[string][]string{
 	"tbd_time_to_main":     slices.Sorted(maps.Keys(booleans)),
 	"tbd_pr_lead_time":     slices.Sorted(maps.Keys(booleans)),
 	"tbd_bot_pr_lead_time": slices.Sorted(maps.Keys(booleans)),
+	"tbd_integration":      slices.Sorted(maps.Keys(booleans)),
 	"auto_update_level":    levelValues,
 	"dora_days":            numbersOf(doraWindows),
 	"tbd_figures":          tbdFiguresValues,

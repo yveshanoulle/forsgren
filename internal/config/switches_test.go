@@ -20,6 +20,7 @@ var switchKeys = []switchCase{
 	{"tbd_time_to_main", ErrTbdTimeToMain, func(c Config) bool { return !c.HideTbdTimeToMain }},
 	{"tbd_pr_lead_time", ErrTbdPRLeadTime, func(c Config) bool { return !c.HideTbdPRLeadTime }},
 	{"tbd_bot_pr_lead_time", ErrTbdBotPRLeadTime, func(c Config) bool { return !c.HideTbdBotPRLeadTime }},
+	{"tbd_integration", ErrTbdIntegration, func(c Config) bool { return !c.HideTbdIntegration }},
 	{"sub_rows", ErrSubRows, func(c Config) bool { return !c.HideSubRows }},
 	{"week_page", ErrWeekPage, func(c Config) bool { return !c.HideWeekPage }},
 }
@@ -116,8 +117,8 @@ func TestSwitchesAreListedWhereTheSettingsPageWantsThem(t *testing.T) {
 	if !slices.Equal(keys[:2], []string{"view", "sub_rows"}) {
 		t.Errorf("want sub_rows after view, got %v", keys)
 	}
-	want := []string{"tbd_time_to_main", "tbd_pr_lead_time", "tbd_bot_pr_lead_time"}
-	if !slices.Equal(keys[at+1:at+4], want) {
+	want := []string{"tbd_time_to_main", "tbd_pr_lead_time", "tbd_bot_pr_lead_time", "tbd_integration"}
+	if !slices.Equal(keys[at+1:at+5], want) {
 		t.Errorf("want the tbd_ switches after tbd_figures, got %v", keys)
 	}
 }

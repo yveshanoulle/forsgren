@@ -9,6 +9,35 @@ Active work lives in
 
 ---
 
+## 2026-11-03 — A switch turns the Integration table off ([#622](https://github.com/yveshanoulle/forsgren/issues/622), step 4 of 4)
+
+forsgren issue 622, feature, minor (step 4 of 4, the last). The TBD page shows
+how often each developer integrates: frequency, share integrating daily, trunk
+freshness and longest gap, as a second table, Integration, explained by the
+legend. This step adds the switch `tbd_integration`, like the other TBD
+switches: a `booleanKey`, default `true`, `Config.HideTbdIntegration` true only
+for a written `false`, `ErrTbdIntegration`, listed in `settingKeys` right after
+`tbd_bot_pr_lead_time`, accepted `true` and `false`; a value that is neither is
+not accepted and `true` stays in force. `render` sets `Data.HideTbdIntegration`;
+with `false` the page writes no Integration table and no heading, while the
+measures are still computed. The settings page has the row with its possible
+values, the starter shows the key commented out, the legend's Integration part
+says the switch, and `docs/configuration.md`, `agent-installer.md` and
+`CLAUDE.md` name it.
+
+- Summary of the whole issue: per project and developer, from the stored
+  pushes, the median (and with `tbd_figures: all` the spread) of commits per
+  working day, the share of regular integrators, trunk freshness and the
+  longest gap, shown in a second table that `tbd_integration: false` turns off.
+- Red first: the config tests (the key, its default, a written `false`, a
+  refused value with the default in force, the key order, the settings row), the
+  page tests (no Integration table with the switch, the settings row, the legend
+  sentence) and `TestRenderPassesTheIntegrationSwitchToThePageData`; goldens
+  with `-update`: settings, settings rejected, legend and the new
+  `tbd.no-integration.golden.html`.
+
+---
+
 ## 2026-11-03 — The legend explains the Integration table ([#622](https://github.com/yveshanoulle/forsgren/issues/622), step 3 of 4)
 
 forsgren issue 622, feature, minor (step 3 of 4; the last step follows). The

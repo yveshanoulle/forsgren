@@ -259,6 +259,10 @@ type Config struct {
 	// value, as in a Config not loaded from a file, shows everything
 	// (forsgren#482, decisions #480, #481, #488).
 	HideTbdTimeToMain, HideTbdPRLeadTime, HideTbdBotPRLeadTime, HideSubRows bool
+	// HideTbdIntegration says the TBD page leaves out its Integration table:
+	// true only when the file writes tbd_integration as false (forsgren#622
+	// step 4); the measures are computed all the same.
+	HideTbdIntegration bool
 	// HideWeekPage says the Week page has no menu entry: true only when the
 	// file writes week_page as false; the page is written all the same
 	// (forsgren#531, step 3, decision #533 A).
@@ -340,6 +344,7 @@ var (
 	ErrTbdTimeToMain       = errors.New("invalid tbd_time_to_main")
 	ErrTbdPRLeadTime       = errors.New("invalid tbd_pr_lead_time")
 	ErrTbdBotPRLeadTime    = errors.New("invalid tbd_bot_pr_lead_time")
+	ErrTbdIntegration      = errors.New("invalid tbd_integration")
 	ErrSubRows             = errors.New("invalid sub_rows")
 	ErrWeekPage            = errors.New("invalid week_page")
 	ErrWeekCommits         = errors.New("invalid week_commits")
@@ -421,6 +426,7 @@ type fileConfig struct {
 	TbdTimeToMain    yaml.Node     `yaml:"tbd_time_to_main"`
 	TbdPRLeadTime    yaml.Node     `yaml:"tbd_pr_lead_time"`
 	TbdBotPRLeadTime yaml.Node     `yaml:"tbd_bot_pr_lead_time"`
+	TbdIntegration   yaml.Node     `yaml:"tbd_integration"`
 	SubRows          yaml.Node     `yaml:"sub_rows"`
 	WeekPage         yaml.Node     `yaml:"week_page"`
 	WeekCommits      yaml.Node     `yaml:"week_commits"`
@@ -543,6 +549,7 @@ var settingKeys = []settingKey{
 	{"tbd_time_to_main", "true", func(c Config) string { return strconv.FormatBool(!c.HideTbdTimeToMain) }},
 	{"tbd_pr_lead_time", "true", func(c Config) string { return strconv.FormatBool(!c.HideTbdPRLeadTime) }},
 	{"tbd_bot_pr_lead_time", "true", func(c Config) string { return strconv.FormatBool(!c.HideTbdBotPRLeadTime) }},
+	{"tbd_integration", "true", func(c Config) string { return strconv.FormatBool(!c.HideTbdIntegration) }},
 	{"same_developer", sameDeveloperKey.def, func(c Config) string { return flowGroups(c.SameDeveloper) }},
 	{"thousands_separator", DefaultThousandsSeparator, func(c Config) string { return c.ThousandsSeparator }},
 	{"decimal_separator", DefaultDecimalSeparator, func(c Config) string { return c.DecimalSeparator }},

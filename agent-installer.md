@@ -886,7 +886,8 @@ Then check what the run did:
      90th percentile and the standard deviation). `sub_rows`, `tbd_time_to_main`, `tbd_pr_lead_time` and
      `tbd_bot_pr_lead_time` each show `true (not set)` (every table shows its
      label and service rows, and the TBD table its Time to main, PR Lead Time
-     and Bot PR Lead Time columns). The installer does not ask about these.
+     and Bot PR Lead Time columns), and `tbd_integration` shows `true (not set)`
+     (the TBD page shows its Integration table). The installer does not ask about these.
    - The row `same_developer` shows `[] (not set)` when the person said no to
      question 14, and the lines you wrote, without `(not set)`, when they said
      yes.
@@ -1166,7 +1167,7 @@ For an install that exists, you can change one setting: a top-level key of
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
 `issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`,
 `week_page`, `week_commits`, `data_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`,
-`sub_rows`, `same_developer`, `thousands_separator`, `decimal_separator`), or the update wait
+`tbd_integration`, `sub_rows`, `same_developer`, `thousands_separator`, `decimal_separator`), or the update wait
 (`default-days` in `.github/dependabot.yml`, in days). Changes to the
 projects and repositories are not covered here. Follow these steps alone;
 the install steps above do not apply.

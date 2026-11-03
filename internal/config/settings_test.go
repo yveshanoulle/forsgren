@@ -31,6 +31,7 @@ func TestSettingsListsEveryKeyWithItsDefault(t *testing.T) {
 		{Key: "tbd_time_to_main", Value: "true", Default: "true"},
 		{Key: "tbd_pr_lead_time", Value: "true", Default: "true"},
 		{Key: "tbd_bot_pr_lead_time", Value: "true", Default: "true"},
+		{Key: "tbd_integration", Value: "true", Default: "true"},
 		{Key: "same_developer", Value: "[]", Default: "[]"},
 		{Key: "thousands_separator", Value: "narrow_space", Default: "narrow_space"},
 		{Key: "decimal_separator", Value: "point", Default: "point"},
@@ -44,7 +45,8 @@ func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 		"history_days: 30\nhistory_chunk_days: 10\nworking_hours: 6\ndora_days: 30\nissues_page: false\ndays_page: true\n" +
 		"numbers_scoring_page: true\nhistory_page: false\ntbd_page: true\n" +
 		"week_page: false\nweek_commits: true\ndata_page: unlisted\ntbd_figures: all\n" +
-		"tbd_time_to_main: false\ntbd_pr_lead_time: false\ntbd_bot_pr_lead_time: false\nsub_rows: false\n" +
+		"tbd_time_to_main: false\ntbd_pr_lead_time: false\ntbd_bot_pr_lead_time: false\n" +
+		"tbd_integration: false\nsub_rows: false\n" +
 		"same_developer: [[maintainer, assistant-account]]\nthousands_separator: comma\ndecimal_separator: point\n"
 	wantSettings(t, all, []Setting{
 		{Key: "view", Value: "numbers", Default: "standard", Set: true},
@@ -67,6 +69,7 @@ func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 		{Key: "tbd_time_to_main", Value: "false", Default: "true", Set: true},
 		{Key: "tbd_pr_lead_time", Value: "false", Default: "true", Set: true},
 		{Key: "tbd_bot_pr_lead_time", Value: "false", Default: "true", Set: true},
+		{Key: "tbd_integration", Value: "false", Default: "true", Set: true},
 		{Key: "same_developer", Value: "[[maintainer, assistant-account]]", Default: "[]", Set: true},
 		{Key: "thousands_separator", Value: "comma", Default: "narrow_space", Set: true},
 		{Key: "decimal_separator", Value: "point", Default: "point", Set: true},
@@ -123,6 +126,7 @@ func TestAListOrMappingForASettingIsRejectedNotSyntax(t *testing.T) {
 		{"tbd_time_to_main", "use true or false", "true", ErrTbdTimeToMain},
 		{"tbd_pr_lead_time", "use true or false", "true", ErrTbdPRLeadTime},
 		{"tbd_bot_pr_lead_time", "use true or false", "true", ErrTbdBotPRLeadTime},
+		{"tbd_integration", "use true or false", "true", ErrTbdIntegration},
 		{"sub_rows", "use true or false", "true", ErrSubRows},
 		{"same_developer", sameDeveloperShape, "[]", ErrSameDeveloper},
 		{"thousands_separator", "use narrow_space, comma, period or none", "narrow_space", ErrThousandsSeparator},
@@ -193,6 +197,7 @@ func TestSettingsCarriesEachRejection(t *testing.T) {
 		{Key: "tbd_time_to_main", Value: "true", Default: "true"},
 		{Key: "tbd_pr_lead_time", Value: "true", Default: "true"},
 		{Key: "tbd_bot_pr_lead_time", Value: "true", Default: "true"},
+		{Key: "tbd_integration", Value: "true", Default: "true"},
 		{Key: "same_developer", Value: "[]", Default: "[]"},
 		{Key: "thousands_separator", Value: "narrow_space", Default: "narrow_space"},
 		{Key: "decimal_separator", Value: "point", Default: "point"},
@@ -232,7 +237,8 @@ func TestSettingsShowsARejectedDoraDaysLikeTheOtherKeys(t *testing.T) {
 func TestSettingsExposeTheDefaultOfEveryKey(t *testing.T) {
 	want := []string{
 		"standard", "true", "false", "major", "365", "100", "8", "30",
-		"true", "false", "unlisted", "unlisted", "true", "true", "false", "true", "median", "true", "true", "true", "[]",
+		"true", "false", "unlisted", "unlisted", "true", "true", "false", "true", "median",
+		"true", "true", "true", "true", "[]",
 		"narrow_space", "point",
 	}
 	for _, file := range []string{"", "history_days: 90\nview: numbers\n"} {

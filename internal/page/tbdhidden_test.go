@@ -190,3 +190,36 @@ func TestLegendSaysATurnedOffColumnIsNotShown(t *testing.T) {
 	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()),
 		"A column that the settings turn off is not shown, and neither are the notes of its cells.")
 }
+
+// TestHiddenIntegrationLeavesTheSecondTableOut (forsgren#622 step 4):
+// HideTbdIntegration drops the Integration table, its heading and region, in
+// both figure modes, and the first table stays as it was.
+func TestHiddenIntegrationLeavesTheSecondTableOut(t *testing.T) {
+	for _, all := range []bool{false, true} {
+		shown := rendered(t, "tbd.html", inFigures(tbdData(), all))
+		wantAll(t, "shown", shown, `id="tbd-integration-heading"`, ">Regular integrators<")
+		data := inFigures(tbdData(), all)
+		data.HideTbdIntegration = true
+		got := rendered(t, "tbd.html", data)
+		wantNone(t, "hidden", got, "tbd-integration-heading", "Regular integrators", "Trunk freshness")
+		first, _, _ := strings.Cut(shown, `<h2 id="tbd-integration-heading">`)
+		if !strings.Contains(got, strings.TrimSpace(first)) {
+			t.Errorf("all %v: want the first table unchanged", all)
+		}
+	}
+}
+
+// TestTbdPageWithoutIntegrationGolden: the page with the Integration table
+// turned off.
+func TestTbdPageWithoutIntegrationGolden(t *testing.T) {
+	data := tbdData()
+	data.HideTbdIntegration = true
+	checkPageGolden(t, "tbd.html", "testdata/tbd.no-integration.golden.html", data)
+}
+
+// TestLegendSaysTheSwitchTurnsTheIntegrationTableOff: the Integration part of
+// the legend names the key that turns the table off.
+func TestLegendSaysTheSwitchTurnsTheIntegrationTableOff(t *testing.T) {
+	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()),
+		"The setting tbd_integration: false turns the Integration table off; the figures are still measured.")
+}

@@ -140,6 +140,9 @@ type Data struct {
 	// true when the config turns tbd_time_to_main, tbd_pr_lead_time,
 	// tbd_bot_pr_lead_time or sub_rows off; the zero value shows all (forsgren#482).
 	HideTbdTimeToMain, HideTbdPRLeadTime, HideTbdBotPRLeadTime, HideSubRows bool
+	// HideTbdIntegration is true when the config turns tbd_integration off:
+	// the TBD page writes no Integration table (forsgren#622 step 4).
+	HideTbdIntegration bool
 	// FirstDeployment is when the oldest successful deployment of the listed
 	// repositories was created, zero when there is none; the history page
 	// says when its first half-year appears (forsgren#198).
