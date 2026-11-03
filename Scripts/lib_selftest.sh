@@ -213,6 +213,7 @@ selftest_lib_mutant() {
   MUTANT="$3/Scripts/$(basename "$1")"
   mkdir -p "$3/Scripts"
   cp "$1" "$MUTANT"
+  if [[ ! -e "$3/Scripts/lib_tmp.sh" ]]; then cp "$SELFTEST_TMP_LIB" "$3/Scripts/lib_tmp.sh"; fi
   selftest_mutant "$2" "$3/Scripts/$(basename "$2")" "$4" || return 1
   if [[ -f go.mod ]]; then cp go.mod "$3/"; fi
   if [[ -f go.sum ]]; then cp go.sum "$3/"; fi
