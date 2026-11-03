@@ -128,6 +128,23 @@
   shown: ["Developers", "developers"]
   definition: "The number of distinct people who authored the commits deployed in the window. A person with several email addresses counts once; bots and unknown authors are left out."
   from: "Commits of data/commits.csv, over the window."
+- name: "Commits per working day"
+  kind: number
+  definition: "How many commits each developer got onto main per working day (Monday to Friday, UTC) of the window, as a spread over the developers who made a commit in it. Bots and unknown authors are left out."
+  from: "Pushes and push commits, over the window."
+- name: "Regular integrators"
+  kind: number
+  shown: ["Regular integrators", "Regular share"]
+  definition: "The share of the developers with a commit in the window who made one on at least 4 of every 5 working days of it."
+  from: "Pushes and push commits, over the window."
+- name: "Trunk freshness"
+  kind: number
+  definition: "The working days since each developer's latest commit on main, as a spread over the developers; 0 is a commit today."
+  from: "Pushes and push commits, over the window."
+- name: "Longest gap"
+  kind: number
+  definition: "The longest run of working days between two consecutive commits of a developer on main. The median is taken over the developers with two commits or more; the longest is the longest of any developer."
+  from: "Pushes and push commits, over the window."
 - name: "Failed deployments"
   kind: number
   shown: ["Failed"]

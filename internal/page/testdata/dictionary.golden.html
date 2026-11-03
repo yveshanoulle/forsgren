@@ -124,6 +124,9 @@
       <dt id="commits-per-push">Commits per push</dt>
       <dd>How many commits reach main in each push; a push whose commits could not be counted is left out.</dd>
       <dd>From: Pushes of data/pushes.csv, over the window.</dd>
+      <dt id="commits-per-working-day">Commits per working day</dt>
+      <dd>How many commits each developer got onto main per working day (Monday to Friday, UTC) of the window, as a spread over the developers who made a commit in it. Bots and unknown authors are left out.</dd>
+      <dd>From: Pushes and push commits, over the window.</dd>
       <dt id="completed">Completed</dt>
       <dd>The issues closed in the period with the reason completed.</dd>
       <dd>From: Issue events of data/issues.csv.</dd>
@@ -166,6 +169,9 @@
       <dt id="lead-time-for-changes">Lead time for changes</dt>
       <dd>The median time from a commit to the successful deployment that shipped it, with the number of commits deployed in the window in brackets.</dd>
       <dd>From: Commits of data/commits.csv and their deployments, over the window.</dd>
+      <dt id="longest-gap">Longest gap</dt>
+      <dd>The longest run of working days between two consecutive commits of a developer on main. The median is taken over the developers with two commits or more; the longest is the longest of any developer.</dd>
+      <dd>From: Pushes and push commits, over the window.</dd>
       <dt id="mainline-interval">Mainline Interval</dt>
       <dd>The time between commits reaching the main branch: the commits of the main line pushed to the main branch in the window, each once at its author date, deployed or not. A shorter interval means changes are integrated more often.</dd>
       <dd>From: Pushes of data/pushes.csv and data/push_commits.csv, over the window.</dd>
@@ -205,6 +211,9 @@
       <dt id="pushes">Pushes</dt>
       <dd>The pushes to the main branch. On the Data page, the date of the first push stored.</dd>
       <dd>From: Pushes of data/pushes.csv, over the window; on the Data page, every stored push.</dd>
+      <dt id="regular-integrators">Regular integrators</dt>
+      <dd>The share of the developers with a commit in the window who made one on at least 4 of every 5 working days of it.</dd>
+      <dd>From: Pushes and push commits, over the window.</dd>
       <dt id="time-to-deploy-per-commit">Time to deploy per commit</dt>
       <dd>How old one change is when it is first deployed: from the author date of the commit to the first deployment that contains it.</dd>
       <dd>From: Commits of data/commits.csv and their deployments, over the window.</dd>
@@ -214,6 +223,9 @@
       <dt id="total">Total</dt>
       <dd>It has three meanings. On the Issues and Daily pages, the issues created up to the end of the period, open or closed. On the Week page, the Total column group is the row&#39;s figures over the whole window. Also on the Week page, with two projects or more, the Total row is the first row and adds up the rows of every project; its shares and its Fail rate come from those sums.</dd>
       <dd>From: Issue events of data/issues.csv; deployments and commits for the Week page.</dd>
+      <dt id="trunk-freshness">Trunk freshness</dt>
+      <dd>The working days since each developer&#39;s latest commit on main, as a spread over the developers; 0 is a commit today.</dd>
+      <dd>From: Pushes and push commits, over the window.</dd>
       <dt id="unknown-share">Unknown share</dt>
       <dd>The share of the commits whose author GitHub links to no account, or has the placeholder login invalid-email-address. It overlaps Direct and PR.</dd>
       <dd>From: Push commits (data/push_commits.csv), over the window.</dd>

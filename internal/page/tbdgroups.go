@@ -92,23 +92,37 @@ type spreadHead struct {
 	Subject string
 	// MedianLabel is the aria-label of the header of the median alone.
 	MedianLabel string
+	// Own are the headers of a group whose columns are not the four of a
+	// spread, each with its aria-label; empty for a spread's group.
+	Own []ownColumn
+}
+
+// ownColumn is a column header of a group that is not a spread's four.
+type ownColumn struct {
+	// Text is the header's text, Label its aria-label.
+	Text, Label string
 }
 
 // spreadHeads are the headers of the eight groups, in the table's order: the
 // first six sit before Volume, the last two after it.
 var spreadHeads = [...]spreadHead{
-	{idInterval, "Mainline Interval", "mainline interval", "median mainline interval"},
-	{idMainLead, "Mainline Lead Time", "mainline lead time", "median mainline lead time"},
-	{idTimeToMain, "Time to main per commit", "time to main", "median time to main per commit"},
-	{idPRLeadTime, "PR Lead Time", "PR lead time", "median PR lead time"},
-	{idBotPRLeadTime, "Bot PR Lead Time", "bot PR lead time", "median bot PR lead time"},
-	{idTimeToDeploy, "Time to deploy per commit", "time to deploy", "median time to deploy per commit"},
-	{idPerPush, "Commits per push", "commits per push", "median commits per push"},
-	{idPerDeployment, "Commits per deployment", "commits per deployment", "median commits per deployment"},
+	{idInterval, "Mainline Interval", "mainline interval", "median mainline interval", nil},
+	{idMainLead, "Mainline Lead Time", "mainline lead time", "median mainline lead time", nil},
+	{idTimeToMain, "Time to main per commit", "time to main", "median time to main per commit", nil},
+	{idPRLeadTime, "PR Lead Time", "PR lead time", "median PR lead time", nil},
+	{idBotPRLeadTime, "Bot PR Lead Time", "bot PR lead time", "median bot PR lead time", nil},
+	{idTimeToDeploy, "Time to deploy per commit", "time to deploy", "median time to deploy per commit", nil},
+	{idPerPush, "Commits per push", "commits per push", "median commits per push", nil},
+	{idPerDeployment, "Commits per deployment", "commits per deployment", "median commits per deployment", nil},
 }
 
 // Span is the columns the group's header spans with all the figures.
-func (spreadHead) Span() int { return spreadColspan }
+func (h spreadHead) Span() int {
+	if h.Own != nil {
+		return len(h.Own)
+	}
+	return spreadColspan
+}
 
 // beforeVolume is how many of spreadHeads come before the Volume group.
 const beforeVolume = 6
@@ -276,4 +290,68 @@ func (r TbdRow) DeployedCommitsGroups() []spreadGroup {
 	}
 	deployed := metrics.NotedCell{Value: metrics.GroupDigits(r.DeployedCommits), Notes: r.filesNotes()}
 	return []spreadGroup{{Cells: []metrics.NotedCell{deployed}}}
+}
+
+// The Integration groups (forsgren#622, step 2), after Developers, the last of
+// the table: they follow Developers because they read the same developers of
+// the same pushes, and a group appended there moves no earlier column.
+// integrationColumnsMedian and integrationColumnsAll are the columns they
+// have with the median alone and with all the figures.
+const (
+	integrationColumnsMedian = 4
+	integrationColumnsAll    = 11
+)
+
+// integrationHeads are the headers of the Integration groups: the commits per
+// working day per developer, the share of developers integrating on most
+// working days, the trunk freshness and the longest gap, whose all-figures
+// columns are the median and the longest.
+var integrationHeads = [...]spreadHead{
+	{Title: "Commits per working day", Subject: "commits per working day per developer",
+		MedianLabel: "median commits per working day per developer"},
+	{Title: "Regular integrators", MedianLabel: "share of developers integrating on most working days",
+		Own: []ownColumn{{"regular share", "share of developers integrating on most working days"}}},
+	{Title: "Trunk freshness", Subject: "trunk freshness in working days",
+		MedianLabel: "median trunk freshness in working days"},
+	{Title: "Longest gap", MedianLabel: "median longest gap per developer in working days",
+		Own: []ownColumn{{"median", "the median of longest gap per developer in working days"},
+			{"longest gap", "the longest gap of any developer in working days"}}},
+}
+
+// TbdIntegrationHeads are the headers of the Integration groups.
+func (Data) TbdIntegrationHeads() []spreadHead { return integrationHeads[:] }
+
+// IntegrationSpan is the columns of the Integration groups of the row: those a
+// state spans.
+func (r TbdRow) IntegrationSpan() int {
+	if r.all {
+		return integrationColumnsAll
+	}
+	return integrationColumnsMedian
+}
+
+// IntegrationGroups are the Integration groups of a row: the commits per
+// working day per developer, the share of developers integrating on most
+// working days, the trunk freshness and the longest gap. A service row writes
+// Per repository across them all and a project with its push read refused or
+// not collected the push state, as the push groups do.
+func (r TbdRow) IntegrationGroups() []spreadGroup {
+	state := r.Push.State()
+	if r.PerRepository() {
+		state = r.PerRepositorySentence()
+	}
+	if state != "" {
+		return []spreadGroup{{State: state, Colspan: r.IntegrationSpan()}}
+	}
+	in := r.Integration
+	gap := []metrics.NotedCell{plain(in.Gap.MedianCell())}
+	if r.all {
+		gap = append(gap, plain(in.GapLongestCell()))
+	}
+	return []spreadGroup{
+		plainGroup(r.all, "", in.PerDay),
+		{Cells: []metrics.NotedCell{plain(in.RegularCell())}},
+		plainGroup(r.all, "", in.Freshness),
+		{Cells: gap},
+	}
 }

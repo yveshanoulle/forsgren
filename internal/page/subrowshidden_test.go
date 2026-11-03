@@ -62,7 +62,7 @@ func TestHiddenSubRowsLeaveTheTbdPageWithTheTotals(t *testing.T) {
 		got := rendered(t, "tbd.html", data)
 		wantNone(t, "tbd.html", got, `class="label"`, "API", "IOS", "Website", "Per repository", "Acme Shop: ")
 		wantAll(t, "tbd.html", got, `<th scope="row">Acme Shop</th>`)
-		wantCount(t, got, "<tr", 1+tbdHeaderRows(all))
+		wantCount(t, got, "<tr", 2*(1+tbdHeaderRows(all))) // the TBD table and the Integration table
 	}
 }
 

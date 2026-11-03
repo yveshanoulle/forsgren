@@ -112,7 +112,7 @@ func TestHiddenGroupsLeaveTheirStateCellsOut(t *testing.T) {
 	for _, all := range []bool{false, true} {
 		data := inFigures(tbdData(), all)
 		data.HideTbdTimeToMain = true
-		wantCount(t, rendered(t, "tbd.html", data), pushes, 4)
+		wantCount(t, rendered(t, "tbd.html", data), pushes, 5) // the Integration table writes it once more
 		data = inFigures(notReadable(), all)
 		wantCount(t, rendered(t, "tbd.html", data), pulls, 4)
 		data.HideTbdPRLeadTime = true

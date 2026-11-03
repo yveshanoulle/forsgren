@@ -53,6 +53,10 @@ func websiteRow(total metrics.TbdRow) metrics.TbdRow {
 		P90: 4 * time.Hour, Deviation: 70 * time.Minute}
 	site.Deploy.PerDeployment = metrics.CountSpread{Count: 9, Mean: 1.3, Median: 1, P90: 3, Deviation: 0.7}
 	site.Volume.Count, site.Developers = 9, metrics.Developers{Count: 2, Commits: 12}
+	site.Integration = metrics.Integration{Project: "Website", Active: 7, Regular: 3, WorkingDays: 21,
+		PerDay:    metrics.CountSpread{Count: 7, Mean: 1.7, Median: 1.4, Deviation: 0.9},
+		Freshness: metrics.CountSpread{Count: 7, Mean: 1.2, Median: 1, Deviation: 0.5},
+		Gap:       metrics.CountSpread{Count: 6, Mean: 2.2, Median: 2, Deviation: 1.1}, GapLongest: 12}
 	return site
 }
 

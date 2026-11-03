@@ -218,6 +218,12 @@ How many commits reach main in each push; a push whose commits could not be coun
 
 From: Pushes of data/pushes.csv, over the window.
 
+### Commits per working day
+
+How many commits each developer got onto main per working day (Monday to Friday, UTC) of the window, as a spread over the developers who made a commit in it. Bots and unknown authors are left out.
+
+From: Pushes and push commits, over the window.
+
 ### Completed
 
 The issues closed in the period with the reason completed.
@@ -302,6 +308,12 @@ The median time from a commit to the successful deployment that shipped it, with
 
 From: Commits of data/commits.csv and their deployments, over the window.
 
+### Longest gap
+
+The longest run of working days between two consecutive commits of a developer on main. The median is taken over the developers with two commits or more; the longest is the longest of any developer.
+
+From: Pushes and push commits, over the window.
+
 ### Mainline Interval
 
 The time between commits reaching the main branch: the commits of the main line pushed to the main branch in the window, each once at its author date, deployed or not. A shorter interval means changes are integrated more often.
@@ -380,6 +392,12 @@ The pushes to the main branch. On the Data page, the date of the first push stor
 
 From: Pushes of data/pushes.csv, over the window; on the Data page, every stored push.
 
+### Regular integrators
+
+The share of the developers with a commit in the window who made one on at least 4 of every 5 working days of it.
+
+From: Pushes and push commits, over the window.
+
 ### Time to deploy per commit
 
 How old one change is when it is first deployed: from the author date of the commit to the first deployment that contains it.
@@ -397,6 +415,12 @@ From: Pushes of data/pushes.csv and data/push\_commits.csv, over the window.
 It has three meanings. On the Issues and Daily pages, the issues created up to the end of the period, open or closed. On the Week page, the Total column group is the row's figures over the whole window. Also on the Week page, with two projects or more, the Total row is the first row and adds up the rows of every project; its shares and its Fail rate come from those sums.
 
 From: Issue events of data/issues.csv; deployments and commits for the Week page.
+
+### Trunk freshness
+
+The working days since each developer's latest commit on main, as a spread over the developers; 0 is a commit today.
+
+From: Pushes and push commits, over the window.
 
 ### Unknown share
 

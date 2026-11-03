@@ -267,6 +267,29 @@ table.wraps td {
   padding-inline: 0.25rem;
 }
 
+/* The Integration table of the TBD page (forsgren#622) has up to eleven figure
+   columns beside the project: a smaller type and a narrower padding let it fit
+   a phone's width, which the TBD table above it never does. */
+table.compact {
+  font-size: 0.75rem;
+}
+
+table.compact th,
+table.compact td {
+  padding-inline: 0.0625rem;
+}
+
+/* With all the figures the table has eleven figure columns: the headers of
+   the columns beneath the groups, and of a group with one column, read
+   upwards, so each column is as wide as its figures. */
+table.compact.stacked thead tr + tr th,
+table.compact.stacked thead th[colspan="1"] {
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+  vertical-align: bottom;
+  padding: 0.5rem 0.0625rem;
+}
+
 /* The header of a label row ("– Admin: Lead time for changes", forsgren#454)
    is longer than any other row header and widened the first column of a
    no-wrap table. It may wrap at its spaces; the dash and the label stay one

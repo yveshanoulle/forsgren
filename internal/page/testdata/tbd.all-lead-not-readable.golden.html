@@ -223,6 +223,71 @@
         <li id="tbd-note-7">(7) History still filling: merge and squash branch commits from before this version are missing: Acme Shop</li>
       </ul>
     </details>
+    <h2 id="tbd-integration-heading">Integration</h2>
+    <div class="table-scroll" role="region" aria-labelledby="tbd-integration-heading" tabindex="0">
+      <table class="wraps compact stacked">
+        <thead>
+          <tr>
+            <th scope="col" rowspan="2">Project</th>
+            <th scope="colgroup" colspan="4">Commits per working day</th>
+            <th scope="colgroup" colspan="1">Regular integrators</th>
+            <th scope="colgroup" colspan="4">Trunk freshness</th>
+            <th scope="colgroup" colspan="2">Longest gap</th>
+          </tr>
+          <tr>
+            <th scope="col" aria-label="the mean of commits per working day per developer" class="num">mean</th>
+            <th scope="col" aria-label="the median of commits per working day per developer" class="num">median</th>
+            <th scope="col" aria-label="the p90 of commits per working day per developer" class="num">p90</th>
+            <th scope="col" aria-label="the standard deviation of commits per working day per developer" class="num">SD</th>
+            <th scope="col" aria-label="share of developers integrating on most working days" class="num">regular share</th>
+            <th scope="col" aria-label="the mean of trunk freshness in working days" class="num">mean</th>
+            <th scope="col" aria-label="the median of trunk freshness in working days" class="num">median</th>
+            <th scope="col" aria-label="the p90 of trunk freshness in working days" class="num">p90</th>
+            <th scope="col" aria-label="the standard deviation of trunk freshness in working days" class="num">SD</th>
+            <th scope="col" aria-label="the median of longest gap per developer in working days" class="num">median</th>
+            <th scope="col" aria-label="the longest gap of any developer in working days" class="num">longest gap</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Acme Shop</th>
+            <td class="num">1.3</td>
+            <td class="num">1.1</td>
+            <td class="num">2.4</td>
+            <td class="num">0.6</td>
+            <td class="num">41%</td>
+            <td class="num">2.5</td>
+            <td class="num">2.0</td>
+            <td class="num">6.0</td>
+            <td class="num">1.8</td>
+            <td class="num">3.0</td>
+            <td class="num">9</td>
+          </tr>
+          <tr>
+            <th scope="row">Acme Tools</th>
+            <td class="num">0.9</td>
+            <td class="num">0.8</td>
+            <td class="num">-</td>
+            <td class="num">0.3</td>
+            <td class="num">50%</td>
+            <td class="num">4.0</td>
+            <td class="num">3.5</td>
+            <td class="num">-</td>
+            <td class="num">2.1</td>
+            <td class="num">5.5</td>
+            <td class="num">7</td>
+          </tr>
+          <tr>
+            <th scope="row">Acme Docs</th>
+            <td colspan="11">Push activity not readable</td>
+          </tr>
+          <tr>
+            <th scope="row">Acme Web</th>
+            <td colspan="11">Pushes not collected yet</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </main>
   <footer id="page-end">
     <p><a href="https://forsgren.be/">Forsgren</a> 9.9.9 Metrics from GitHub data. Calculated at 2026-10-03 12:00 UTC <strong>Report Start</strong> 2026-09-03 12:00 <strong>Report End</strong> 2026-10-03 12:00</p>

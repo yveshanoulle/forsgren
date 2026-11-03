@@ -63,7 +63,29 @@ func tbdDataWith(leads []metrics.PRLeadTime) Data {
 	for i, b := range tbdBotLeads() {
 		data.TbdMetrics[i].BotLead = b
 	}
+	for i, in := range tbdIntegrations() {
+		data.TbdMetrics[i].Integration = in
+	}
 	return data
+}
+
+// tbdIntegrations are the Integration measures of tbdData's projects
+// (forsgren#622, step 2), shown in the second table: Acme Shop's twelve
+// developers with every figure, Acme Tools' two without a 90th percentile; the
+// other two have their push state in place of the figures.
+func tbdIntegrations() []metrics.Integration {
+	return []metrics.Integration{
+		{Project: "Acme Shop", Active: 12, Regular: 5, WorkingDays: 21,
+			PerDay:    metrics.CountSpread{Count: 12, Mean: 1.3, Median: 1.1, P90: 2.4, Deviation: 0.6},
+			Freshness: metrics.CountSpread{Count: 12, Mean: 2.5, Median: 2, P90: 6, Deviation: 1.8},
+			Gap:       metrics.CountSpread{Count: 9, Mean: 3.2, Median: 3, Deviation: 1.3}, GapLongest: 9},
+		{Project: "Acme Tools", Active: 2, Regular: 1, WorkingDays: 21,
+			PerDay:    metrics.CountSpread{Count: 2, Mean: 0.9, Median: 0.8, Deviation: 0.3},
+			Freshness: metrics.CountSpread{Count: 2, Mean: 4, Median: 3.5, Deviation: 2.1},
+			Gap:       metrics.CountSpread{Count: 2, Mean: 6, Median: 5.5, Deviation: 0.7}, GapLongest: 7},
+		{Project: "Acme Docs"},
+		{Project: "Acme Web"},
+	}
 }
 
 // tbdBotLeads are the Bot PR Lead Times of tbdData's projects (forsgren#479):

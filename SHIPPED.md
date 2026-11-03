@@ -9,6 +9,38 @@ Active work lives in
 
 ---
 
+## 2026-11-03 — The TBD page shows a second table, Integration ([#622](https://github.com/yveshanoulle/forsgren/issues/622), step 2 of 4)
+
+forsgren issue 622, feature, minor (step 2 of 4; the legend and the full
+dictionary text follow in step 3). Below the TBD table the page has a second
+table under an h2, Integration (decision #623, recommendation C), so the TBD
+table keeps its 17 columns (41 with `all`). It has the TBD table's rows (each
+project's total, then its label and service rows; `sub_rows: false` leaves the
+label rows out) and four groups: Commits per working day (per developer; the
+median alone, or mean, median, p90 and SD with `tbd_figures: all`), Regular
+integrators (the share of the developers with a commit on at least 4 of every 5
+working days, written as the page's shares are), Trunk freshness (working days
+since each developer's last commit, a spread) and Longest gap (the median over
+the developers, and with `all` the longest of any developer): 4 columns after
+the project, 11 with `all`. A project with its push read refused or not
+collected writes that state across them, a service row writes Per repository
+across them, and a project without data spans them in its one sentence. The
+region is labelled by the h2, the table has no caption, the headers carry
+`aria-label`s and the figure cells class `num`. `metrics.Integration` gained
+`RegularCell` and `GapLongestCell`. The table is compact (a smaller type, and
+with `tbd_figures: all` the sub-headers read upwards) so it fits a phone's
+width without a browser baseline row. Four dictionary entries were added so the
+dictionary test stays green (Commits per working day, Regular integrators,
+Trunk freshness, Longest gap; `docs/dictionary.md` regenerated).
+
+- Red first: the page tests for the second table (the h2 and region, both header
+  forms, a row of each project in both figure modes, the push states, Per
+  repository, the no-data sentence and sub_rows: false) failed before the
+  template change, then passed; the `tbd*` goldens were regenerated with
+  `-update` and only gained the second table.
+
+---
+
 ## 2026-11-03 — The integration measures per developer, from the stored pushes ([#622](https://github.com/yveshanoulle/forsgren/issues/622), step 1 of 4)
 
 forsgren issue 622, feature, minor (step 1 of 4, the metrics only: the page

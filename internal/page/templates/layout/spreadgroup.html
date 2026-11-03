@@ -3,10 +3,11 @@
 {{end}}{{end}}{{end}}
 {{define "spreadheadtop"}}
             <th scope="colgroup" colspan="{{.Span}}">{{.Title}}</th>{{end}}
-{{define "spreadheadall"}}
+{{define "spreadheadall"}}{{if .Own}}{{range .Own}}
+            <th scope="col" aria-label="{{.Label}}" class="num">{{.Text}}</th>{{end}}{{else}}
             <th scope="col"{{with .Subject}} aria-label="the mean of {{.}}"{{end}} class="num">mean</th>
             <th scope="col"{{with .Subject}} aria-label="the median of {{.}}"{{end}} class="num">median</th>
             <th scope="col"{{with .Subject}} aria-label="the p90 of {{.}}"{{end}} class="num">p90</th>
-            <th scope="col"{{with .Subject}} aria-label="the standard deviation of {{.}}"{{end}} class="num">SD</th>{{end}}
+            <th scope="col"{{with .Subject}} aria-label="the standard deviation of {{.}}"{{end}} class="num">SD</th>{{end}}{{end}}
 {{define "spreadheadone"}}
             <th scope="col" aria-label="{{.MedianLabel}}" class="num">{{.Title}}</th>{{end}}
