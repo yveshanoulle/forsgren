@@ -130,7 +130,9 @@
   from: "Commits of data/commits.csv, over the window."
 - name: "Commits per working day"
   kind: number
-  definition: "How many commits each developer got onto main per working day (Monday to Friday, UTC) of the window, as a spread over the developers who made a commit in it. Bots and unknown authors are left out."
+  definition: >-
+    How many commits each developer got onto main per working day (Monday to Friday, UTC) of the window,
+    as a spread over the developers who made a commit in it. Bots and unknown authors are left out.
   from: "Pushes and push commits, over the window."
 - name: "Regular integrators"
   kind: number
@@ -143,7 +145,9 @@
   from: "Pushes and push commits, over the window."
 - name: "Longest gap"
   kind: number
-  definition: "The longest run of working days between two consecutive commits of a developer on main. The median is taken over the developers with two commits or more; the longest is the longest of any developer."
+  definition: >-
+    The longest run of working days between two consecutive commits of a developer on main. The median
+    is taken over the developers with two commits or more; the longest is the longest of any developer.
   from: "Pushes and push commits, over the window."
 - name: "Failed deployments"
   kind: number
