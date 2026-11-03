@@ -284,7 +284,7 @@ while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:
     # forsgren#614: the gate writes through fd 3 and the loop reads through
     # fd 4 (its own offset) of a file unlinked at once, so the name exists for
     # an instant and no exit path, SIGKILL included, can leave it in TMPDIR.
-    capture_path="$(tmp_file run_ci_phase_capture)"
+    capture_path="$(tmp_file run_ci_phase_capture)" || { echo "❌ FAIL: run_ci_phase.sh: cannot make a temp file under ${TMPDIR:-/tmp}" >&2; exit 1; }
     # shellcheck disable=SC2094 # one file, opened twice on purpose: fd 3 writes, fd 4 reads
     exec 3>"$capture_path" 4<"$capture_path"
     rm -f "$capture_path"

@@ -72,7 +72,7 @@ fi
 
 # shellcheck source=Scripts/lib_tmp.sh
 source "$REPO/Scripts/lib_tmp.sh"
-TMPDIR_GATE="$(tmp_dir check_markdown_links_tmpdir_gate)"
+TMPDIR_GATE="$(tmp_dir check_markdown_links_tmpdir_gate)" || { echo "❌ FAIL: check_markdown_links.sh: cannot make a temp folder under ${TMPDIR:-/tmp}" >&2; exit 1; }
 COMPLETED=0
 trap 'rm -rf "$TMPDIR_GATE"; if [ "$COMPLETED" -ne 1 ]; then echo "❌ FAIL: check_markdown_links.sh aborted before completing" >&2; exit 1; fi' EXIT
 

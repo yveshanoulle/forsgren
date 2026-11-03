@@ -78,7 +78,7 @@ for field in $FIELDS; do
   template="${template}{{range .${field}}}{{\$.Dir}}/{{.}}{{\"\\n\"}}{{end}}"
 done
 
-ERR="$(tmp_file check_file_length_err)"
+ERR="$(tmp_file check_file_length_err)" || { echo "❌ FAIL: check_file_length.sh: cannot make a temp file under ${TMPDIR:-/tmp}" >&2; exit 1; }
 trap 'rm -f "$ERR"' EXIT
 if ! files="$(go list -e -f "$template" ./... 2>"$ERR")"; then
   cat "$ERR" >&2

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: check_bare_mktemp v1
+# canon: check_bare_mktemp v1 + forsgren#615 (unchecked tmp_dir/tmp_file)
 # Scripts/check_bare_mktemp.sh
 #
 # Every temp path honours TMPDIR (the estate sweep; forsgren#612). On
@@ -35,6 +35,14 @@
 # and read fail closed: missing, a line without a reason, a path that is no
 # file, and an entry that exempts no bare call are each red, named. It is
 # always this repository's list (next to this script), not the fixture's.
+#
+# forsgren#615: a shell script without `set -e` must check the helper's status:
+# `X="$(tmp_dir name)"` alone does not stop it when the folder cannot be made,
+# and it goes on with an empty path (writing to /err, /listed). In such a
+# script a `$(tmp_dir ...)` or `$(tmp_file ...)` assignment with no `||` after
+# it (and not the condition of an `if !`) is red, with <file>:<line> and the
+# fix. A script with `set -e` (a line starting `set -` with an e among its
+# flags) is not judged. Scripts/test_tmp_failure_stops.sh runs the scripts.
 #
 # Testing seam: BARE_MKTEMP_ROOT overrides the repository root, so
 # Scripts/test_check_bare_mktemp.sh can run the gate on synthetic git trees.
@@ -158,6 +166,32 @@ scan() {
   return "$found"
 }
 
+FIX_UNCHECKED="fix: end the assignment with || { echo \"❌ FAIL: <script>: cannot make a temp folder under \${TMPDIR:-/tmp}\" >&2; exit 1; } (or add set -e)"
+UNCHECKED_RE='=\$?"?\$\((tmp_dir|tmp_file)[[:space:]]'
+SET_E_RE='^[[:space:]]*set[[:space:]]+-[A-Za-z]*e'
+
+# scan_unchecked <file>: one ❌ line per unchecked tmp_dir/tmp_file assignment
+# in a shell script without set -e. Status 0 when it found one, 1 when none.
+scan_unchecked() {
+  local f="$1" n=0 line rest found=1
+  case "$f" in *.yml | *.yaml) return 1 ;; esac
+  if grep -qE "$SET_E_RE" "$f"; then
+    return 1
+  fi
+  while IFS= read -r line || [ -n "$line" ]; do
+    n=$((n + 1))
+    rest="${line#"${line%%[![:space:]]*}"}"
+    case "$rest" in '#'* | 'if !'* | '! '*) continue ;; esac
+    if [[ "$rest" =~ $UNCHECKED_RE ]] && [[ "$rest" != *'||'* ]]; then
+      echo "❌ ${f}:${n}: a tmp_dir/tmp_file assignment is not checked, and this script has no set -e: a failure goes on with an empty path"
+      echo "   ${rest}"
+      echo "   ${FIX_UNCHECKED}"
+      found=0
+    fi
+  done < "$f"
+  return "$found"
+}
+
 files=0
 bare_files=0
 while IFS= read -r f; do
@@ -171,6 +205,10 @@ while IFS= read -r f; do
     continue
   fi
   if scan "$f"; then
+    bare_files=$((bare_files + 1))
+    status=1
+  fi
+  if scan_unchecked "$f"; then
     bare_files=$((bare_files + 1))
     status=1
   fi

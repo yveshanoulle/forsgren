@@ -356,6 +356,13 @@ temp helper self-test|Scripts/test_lib_tmp.sh|pre|
 bare mktemp self-test|Scripts/test_check_bare_mktemp.sh|pre|
 bare mktemp|Scripts/check_bare_mktemp.sh|pre|
 #
+# A failed tmp_dir/tmp_file stops the scripts without set -e (forsgren#615): they
+# went on with an empty path and wrote to /err, /listed, /decoy. The self-test
+# runs each with TMPDIR at a path that cannot hold a folder; the bare mktemp
+# gate above is red on an unchecked assignment in such a script. Repository
+# source, so pre.
+tmp failure stops self-test|Scripts/test_tmp_failure_stops.sh|pre|
+#
 # Gate wiring, the sfl/CI parity guard (forsgren#1, ladder step 14), at its
 # canon position after the html-duplication rows. Another estate repository's fixture,
 # adapted: konenki names every gate in its own workflow step and checks the

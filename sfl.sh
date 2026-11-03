@@ -20,7 +20,9 @@ cd "$(dirname "$0")" || exit 1
 # default, every later gate printed skipped and named; --all runs every gate.
 # v11 (forsgren#612) makes its gate log folder with Scripts/lib_tmp.sh under
 # TMPDIR; before, a bare mktemp -d put it in the system temp folder.
-VERSION=11
+# v12 (forsgren#615) stops with a ❌ line when the gate log folder cannot be made;
+# before, the missing check let it go on with an empty path.
+VERSION=12
 
 # forsgren#214: FBP.sh FIXES what the gates can fix (the npm audit heal runs
 # only under GATE_FIX=1); CI never sets it and only checks.
@@ -196,7 +198,7 @@ fi
 # The folder honours TMPDIR through Scripts/lib_tmp.sh (forsgren#612).
 # shellcheck source=Scripts/lib_tmp.sh
 source Scripts/lib_tmp.sh
-GATE_LOG_DIR="$(tmp_dir sfl_gate_logs)"
+GATE_LOG_DIR="$(tmp_dir sfl_gate_logs)" || { echo "❌ FAIL: sfl.sh: cannot make a temp folder under ${TMPDIR:-/tmp}" >&2; exit 1; }
 GATE_N=0
 
 # Unit 405. One row per gate, in execution order, for the end-of-run table.

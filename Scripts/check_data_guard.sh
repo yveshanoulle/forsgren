@@ -61,7 +61,7 @@ cd "$ROOT_DIR" || {
 
 # The list is read NUL-separated (-z), so a non-ASCII or otherwise unusual path
 # reaches the arms as it is, unquoted, and a FAIL line prints the real path.
-TMP="$(tmp_dir check_data_guard)"
+TMP="$(tmp_dir check_data_guard)" || { echo "❌ FAIL: check_data_guard.sh: cannot make a temp folder under ${TMPDIR:-/tmp}" >&2; exit 1; }
 trap 'rm -rf "$TMP"' EXIT
 if ! repo_files . -z > "$TMP/listed" 2> "$TMP/err"; then
   echo "❌ FAIL: git ls-files failed in ${ROOT_DIR}: $(cat "$TMP/err")"

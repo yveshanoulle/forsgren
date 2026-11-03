@@ -60,7 +60,7 @@ HTTPS_URL="https://${HOST}/"
 
 # shellcheck source=Scripts/lib_tmp.sh
 source "$(dirname "$0")/lib_tmp.sh"
-WORK="$(tmp_dir live_check_work)"
+WORK="$(tmp_dir live_check_work)" || { echo "❌ FAIL: live_check.sh: cannot make a temp folder under ${TMPDIR:-/tmp}" >&2; exit 1; }
 trap 'rm -rf "$WORK"; [ "$COMPLETED" -eq 1 ] || { echo "❌ FAIL: live_check.sh aborted before completing (COMPLETED was never set)" >&2; exit 1; }' EXIT
 
 # --disable first: a curlrc must not be able to switch validation off.

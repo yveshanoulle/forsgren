@@ -45,7 +45,7 @@ if [ -n "$npm_pkgs" ]; then
   exit 1
 fi
 
-LOG="$(tmp_file check_go_tests_log)"
+LOG="$(tmp_file check_go_tests_log)" || { echo "❌ FAIL: check_go_tests.sh: cannot make a temp file under ${TMPDIR:-/tmp}" >&2; exit 1; }
 trap 'rm -f "$LOG"' EXIT
 
 PROFILE=".build/go-coverage.out"

@@ -43,7 +43,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib_tmp.sh"
 # underscore.
 selftest_begin() {
   SELFTEST_WHAT="$1"
-  TMP="$(tmp_dir "selftest_${SELFTEST_WHAT//[^A-Za-z0-9_]/_}")"
+  TMP="$(tmp_dir "selftest_${SELFTEST_WHAT//[^A-Za-z0-9_]/_}")" || { echo "❌ FAIL: lib_selftest.sh: cannot make a temp folder under ${TMPDIR:-/tmp}" >&2; exit 1; }
   COMPLETED=0
   failed=0
   # The step summary is the self-test's own, never the ambient one: in CI the

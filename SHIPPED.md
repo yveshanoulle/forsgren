@@ -9,6 +9,27 @@ Active work lives in
 
 ---
 
+## 2026-11-03 — a failed tmp_dir stops the scripts that have no set -e ([#615](https://github.com/yveshanoulle/forsgren/issues/615), 1 step)
+
+forsgren issue 615, tools (no release). Found in #612: 14 scripts have no `set -e`
+and did not check `X="$(tmp_dir name)"`, so when the folder could not be made they
+went on with an empty path and wrote to `/err`, `/listed` or `/decoy`. Each now ends
+the assignment with a `❌ FAIL: <script>: cannot make a temp ...` line naming TMPDIR
+and `exit 1`: check_coverage, check_data_guard, check_file_length, check_go_tests,
+check_golden_pages, check_html_dupl, check_lint_coverage, check_markdown_links,
+check_script_references, check_test_dupl, release_pins, live_check, run_ci_phase and
+sfl.sh (v12); `lib_selftest.sh` got the same check.
+
+- Red first: `Scripts/test_tmp_failure_stops.sh` (new) ran each with TMPDIR at a file;
+  every one went on, 13 of 14 without the ❌ line.
+- The bare mktemp gate is red on an unchecked `tmp_dir`/`tmp_file` assignment in a
+  script without `set -e` (test case 9).
+- Mutation proofs: the check removed from check_data_guard is red in the new
+  self-test; the rule removed from the gate is red (G).
+- docs/gate-classification.md row 159d; docs/quality-gates.md; CLAUDE.md.
+
+---
+
 ## 2026-11-03 — the browser gate process self-test removes the Chrome singleton folders it leaves ([#613](https://github.com/yveshanoulle/forsgren/issues/613), 1 step)
 
 forsgren issue 613, tools (no release). Found in #612: Chrome makes

@@ -107,7 +107,7 @@ if [ ! -s "$PROFILE" ]; then
   exit 1
 fi
 
-FUNCS="$(tmp_file check_coverage_funcs)"
+FUNCS="$(tmp_file check_coverage_funcs)" || { echo "❌ FAIL: check_coverage.sh: cannot make a temp file under ${TMPDIR:-/tmp}" >&2; exit 1; }
 trap 'rm -f "$FUNCS"' EXIT
 if ! go tool cover -func="$PROFILE" > "$FUNCS" 2>&1; then
   cat "$FUNCS" >&2

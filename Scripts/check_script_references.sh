@@ -171,7 +171,7 @@ done
 # One scan produces "file:basename" pairs; awk then answers "is this basename
 # mentioned in any file other than the script itself" without re-reading a
 # thing. A script naming itself in a usage line is not a caller.
-mentions_file="$(tmp_file check_script_references_mentions_file)"
+mentions_file="$(tmp_file check_script_references_mentions_file)" || { echo "❌ FAIL: check_script_references.sh: cannot make a temp file under ${TMPDIR:-/tmp}" >&2; exit 1; }
 trap 'rm -f "$mentions_file"' EXIT
 printf '%s\n' "$callers" \
   | tr '\n' '\0' \

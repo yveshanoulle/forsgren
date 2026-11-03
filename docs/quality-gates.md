@@ -706,8 +706,15 @@ The POST gates, on the generated site:
   reason, a path that is no file and an entry that exempts no bare call are
   red); it is empty. Self-tests: `Scripts/test_lib_tmp.sh` (canon
   `test_lib_tmp v2`, three mutation proofs; proof A needs macOS) and
-  `Scripts/test_check_bare_mktemp.sh` (canon `test_check_bare_mktemp v2`, six
+  `Scripts/test_check_bare_mktemp.sh` (canon `test_check_bare_mktemp v2`, seven
   mutation proofs).
+  forsgren#615: a script without `set -e` does not stop on a failed
+  `X="$(tmp_dir name)"`, so every such assignment ends with
+  `|| { echo "❌ FAIL: <script>: cannot make a temp folder under ${TMPDIR:-/tmp}" >&2; exit 1; }`,
+  and the gate is red on one that does not (mutation proof G).
+  `Scripts/test_tmp_failure_stops.sh` runs each such script with TMPDIR at a
+  path that cannot hold a folder and wants the ❌ line naming it and no write
+  outside the temp folder (a mutation proof removes the check from one script).
 
 - **language gate** (`Scripts/gate_language_pages.sh` running the canon
   `Scripts/gate_language.sh`, self-tests `Scripts/test_gate_language.sh` and

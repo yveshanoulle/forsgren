@@ -284,6 +284,7 @@ grep -qF 'UNREFERENCED SCRIPT: Scripts/talks_to_itself.sh' <<<"$OUT" \
 mutant() {
   MUTANT="$tmproot/$1.sh"
   sed "$2" "$CHECK_ABS" > "$MUTANT"
+  cp Scripts/lib_tmp.sh "$tmproot/lib_tmp.sh"
   if cmp -s "$CHECK_ABS" "$MUTANT"; then
     fail "mutation proof $1: the sed changed nothing in ${CHECK} — its anchor no longer matches, so this proof proves nothing"
   fi

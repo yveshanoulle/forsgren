@@ -106,7 +106,7 @@ JSCPD="$(pwd)/node_modules/.bin/jscpd"
 
 # shellcheck source=Scripts/lib_tmp.sh
 source Scripts/lib_tmp.sh
-REPORT_DIR="$(tmp_dir check_html_dupl_report_dir)"
+REPORT_DIR="$(tmp_dir check_html_dupl_report_dir)" || { echo "❌ FAIL: check_html_dupl.sh: cannot make a temp folder under ${TMPDIR:-/tmp}" >&2; exit 1; }
 trap 'rm -rf "$REPORT_DIR"' EXIT
 
 run_jscpd() {

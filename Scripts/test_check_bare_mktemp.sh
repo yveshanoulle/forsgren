@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_check_bare_mktemp v2
+# canon: test_check_bare_mktemp v2 + forsgren#615 (case 9, mutation G)
 # Scripts/test_check_bare_mktemp.sh
 #
 # Self-test for Scripts/check_bare_mktemp.sh, the gate that keeps every temp
@@ -27,6 +27,8 @@
 #      without a reason, a path that is no file, an entry that exempts no bare
 #      call and a missing list are each red, named
 #   8. this repository, as it is: green
+#   9. forsgren#615: an unchecked tmp_dir/tmp_file assignment in a script
+#      without set -e: red, named; checked, under set -e, or a comment: green
 # Mutation proofs (a weakened COPY of the gate turns a red case green, the
 # reason asserted by running the case the weakening defeats):
 #   A. the exit status swallowed: case 1
@@ -35,6 +37,7 @@
 #   D. workflows left out of the listing: the workflow of case 2
 #   E. only the first call of a line judged: case 3
 #   F. a missing exemption list read as empty: case 7
+#   G. the unchecked-assignment rule dropped: case 9
 #
 # v2 (found in another estate repository): it sources
 # Scripts/lib_git_sandbox.sh, so an exported GIT_DIR cannot send the
@@ -184,8 +187,8 @@ d=\"\$(${MK} -d \"\$TMP/d.XXXXXX\")\"
 e=\"\$(${MK} -d \"\${TMP}/e.XXXXXX\")\"
 f=\"\$(${MK} \"\$1/.f.XXXXXX\" 2>/dev/null)\" || true
 g=\"\$(${MK} -q -d \"\${TMPDIR:-/tmp}/g.XXXXXX\")\"
-h=\"\$(tmp_dir h)\"
-i=\"\$(tmp_file i)\"
+h=\"\$(tmp_dir h)\" || exit 1
+i=\"\$(tmp_file i)\" || exit 1
 echo \"a bare ${MK} call is red\"
 echo \"\$a\$b\$c\$d\$e\$f\$g\$h\$i\"" track
 put "$T_GREEN" ".github/workflows/q.yml" "on: push
@@ -244,6 +247,33 @@ copy="$(gate_copy "${TMP}/copy_missing" "-")"
 run_gate "$T_EX" "$copy"
 want_red "case 7 a missing exemption list: red, named" "bare_mktemp_exemptions.txt is missing"
 
+# 9. forsgren#615: an unchecked tmp_dir/tmp_file assignment in a script without
+# set -e is red, named; checked (||, if !), under set -e, or in a comment: green.
+T_UNCHK="$(new_tree unchecked)"
+put "$T_UNCHK" "Scripts/a.sh" "${SHEBANG}
+echo start
+d=\"\$(tmp_dir d)\"" track
+run_gate "$T_UNCHK"
+want_red "case 9 an unchecked tmp_dir in a script without set -e: red, named" "Scripts/a.sh:3:"
+T_UNCHKF="$(new_tree unchecked_file)"
+put "$T_UNCHKF" "Scripts/a.sh" "${SHEBANG}
+set -uo pipefail
+f=\"\$(tmp_file f)\"" track
+run_gate "$T_UNCHKF"
+want_red "case 9 an unchecked tmp_file in a script with set -uo but no e: red, named" "Scripts/a.sh:3:"
+T_CHK="$(new_tree checked)"
+put "$T_CHK" "Scripts/a.sh" "${SHEBANG}
+# d=\"\$(tmp_dir d)\" in a comment
+d=\"\$(tmp_dir d)\" || exit 1
+if ! e=\"\$(tmp_dir e)\"; then exit 1; fi
+echo \"\$d\$e\"" track
+put "$T_CHK" "Scripts/b.sh" "${SHEBANG}
+set -euo pipefail
+d=\"\$(tmp_dir d)\"
+echo \"\$d\"" track
+run_gate "$T_CHK"
+want_green "case 9 checked assignments, and a script with set -e: green" "OK:"
+
 # 8. this repository.
 capture bash "$GATE_ABS"
 want_green "case 8 this repository has no bare call" "OK:"
@@ -259,6 +289,8 @@ mutant_proof D "s#'.github/workflows/\\*.yml' '.github/workflows/\\*.yaml'##" "$
   "a gate that lists no workflow lets the workflow call through, so the listing is what catches it"
 mutant_proof E 's/^      rest="[$]after"$/      rest=""/' "$T_TWO" \
   "a gate that judges only the first call of a line lets the second through, so case 3 is what catches it"
+mutant_proof G 's/^    if \[\[ "[$]rest" =~ [$]UNCHECKED_RE \]\] .*$/    if false; then/' "$T_UNCHK" \
+  "a gate without the unchecked-assignment rule lets the unchecked tmp_dir through, so the rule is what catches it"
 # F: the missing-list check and the read of the list both neutralised, so a
 # copy with no list runs; on a clean tree it must go green.
 if mutant F 's/^if \[ ! -f "[$]EXEMPTIONS_FILE" \]; then$/if false; then/;s#^done < "[$]EXEMPTIONS_FILE"$#done < /dev/null#'; then

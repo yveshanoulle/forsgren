@@ -74,7 +74,7 @@ fi
 # The config file MUST end in .yml — golangci-lint (viper) infers the format
 # from the extension. macOS `mktemp -t ...yml` does NOT preserve the suffix,
 # so mktemp a dir and put a real .yml inside it.
-TMP_DIR="$(tmp_dir check_test_dupl_tmp_dir)"
+TMP_DIR="$(tmp_dir check_test_dupl_tmp_dir)" || { echo "❌ FAIL: check_test_dupl.sh: cannot make a temp folder under ${TMPDIR:-/tmp}" >&2; exit 1; }
 trap 'rm -rf "$TMP_DIR"' EXIT
 CONFIG="$TMP_DIR/test_dupl.golangci.yml"
 cat >"$CONFIG" <<YAML

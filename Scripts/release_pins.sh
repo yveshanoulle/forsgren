@@ -145,8 +145,8 @@ pr_read() {
 source "$(dirname "$0")/lib_tmp.sh"
 if [ "$MODE" = rewrite ]; then
   case "$KIND" in workflow | pins | readme | caller) ;; *) usage ;; esac
-  TMPIN="$(tmp_file release_pins_tmpin)"
-  TMPOUT="$(tmp_file release_pins_tmpout)"
+  TMPIN="$(tmp_file release_pins_tmpin)" || { echo "❌ FAIL: release_pins.sh: cannot make a temp file under ${TMPDIR:-/tmp}" >&2; exit 1; }
+  TMPOUT="$(tmp_file release_pins_tmpout)" || { rm -f "$TMPIN"; echo "❌ FAIL: release_pins.sh: cannot make a temp file under ${TMPDIR:-/tmp}" >&2; exit 1; }
   trap 'rm -f "$TMPIN" "$TMPOUT"; [ "$COMPLETED" -eq 1 ] || { echo "❌ FAIL: release_pins.sh aborted before completing (COMPLETED was never set)" >&2; exit 1; }' EXIT
   cat > "$TMPIN"
   rewrite "$KIND" < "$TMPIN" > "$TMPOUT" || red "perl failed"
@@ -171,7 +171,7 @@ if [ "$MODE" = token ]; then
 fi
 command -v jq > /dev/null || red "jq is not installed"
 
-WORK="$(tmp_dir release_pins_work)"
+WORK="$(tmp_dir release_pins_work)" || { echo "❌ FAIL: release_pins.sh: cannot make a temp folder under ${TMPDIR:-/tmp}" >&2; exit 1; }
 ERRFILE="${WORK}/gh.err"
 
 # ghr: gh with the release token; gh's stderr is shown and also kept, so a

@@ -195,11 +195,12 @@ fi
 # decision #411 A), and up to 163 for the parallel mutants library self-test
 # (forsgren#382), and up to 164 for the token expiry probe self-test
 # (forsgren#269), and up to 167 for the temp helper self-test, the bare mktemp
-# self-test and the bare mktemp gate (forsgren#612).
+# self-test and the bare mktemp gate (forsgren#612), and up to 168 for the tmp
+# failure stops self-test (forsgren#615).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=167
+MIN_GATES=168
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
