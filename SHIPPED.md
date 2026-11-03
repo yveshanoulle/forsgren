@@ -9,6 +9,27 @@ Active work lives in
 
 ---
 
+## 2026-11-03 — The delayed-delivery case waits for the paint, not the clock ([#620](https://github.com/yveshanoulle/forsgren/issues/620), 1 step)
+
+forsgren issue 620, tools (no release). In one hosted Quality run the browser
+gate self-test passed case 55, the table page without the first-paint hold,
+that it must fail. Cause: the delayed-delivery load of #611 sent its 4 pieces
+150 ms apart and trusted the browser to paint inside one of those gaps. On a
+slow runner the page's main thread was busy longer than the 450 ms the pieces
+take, so every piece arrived before the first paint and there was no early
+paint to shift. The engine `Scripts/browser_gate.mjs` is now `browser_gate v8`:
+after each pause the server waits until the page has painted what it has (two
+animation frames), or answers at once when the page's own first-paint hold is
+still waiting for an element, at most 5 s as a safety end. Real pages with the
+hold are not slowed, and a page without it is caught whatever the runner's speed.
+
+- Red first: the self-test case 57 (the unheld table page plus an 800 ms busy
+  script in its head, a slow runner made certain) exited 0 on the v7 engine in
+  2 of 2 runs, as 55 did on CI.
+- After: 57 is red with the delayed load's value, 54, 55 and 56 unchanged;
+  mutation proof U now removes the pause and the wait, new proof Y removes only
+  the wait and turns 57 green. `test_gate_browser v12`, 20 mutations.
+
 ## 2026-11-03 — The tmp failure self-test holds on a cold Go module cache ([#619](https://github.com/yveshanoulle/forsgren/issues/619), 1 step)
 
 forsgren issue 619, tools. Quality was red on main because the case for

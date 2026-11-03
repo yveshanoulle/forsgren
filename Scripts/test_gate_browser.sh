@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v11
+# canon: test_gate_browser v12
 # Scripts/test_gate_browser.sh (forsgren#205)
 #
 # Self-test for Scripts/gate_browser.sh, the browser gate, run in PRE before the
@@ -121,7 +121,10 @@
 #  56. the hold pointing at an id the page lacks        -> green (the hold then
 #      lasts to the end of the parse)
 #   T. the delayed-delivery load removed: case 55 turns green;
-#   U. the pieces sent without the pause between them: case 55 turns green.
+#   U. the pieces sent without the pause between them: case 55 turns green;
+#   Y. the wait for the paint removed (forsgren#620): case 57 turns green.
+#  57. the same page with a main thread busy past all the pieces (a slow runner)
+#      -> red as 55: the server waits for the paint between pieces (browser_gate v8)
 # The exits (forsgren#381, browser_gate v5, v6 since forsgren#386): Chrome closed
 # and its profile folder removed on every way out. Cases 52a-52f, 53 and 53c
 # and mutation proofs R and S moved to the process self-test, the browser gate
@@ -540,6 +543,10 @@ TABLE_BODY="<table><tr><th scope=\"col\">first</th><th scope=\"col\">second</th>
 make_site held "$(page "${TABLE_BODY}<p id=\"page-end\">end</p>" "$HOLD")"
 make_site unheld "$(page "${TABLE_BODY}<p id=\"page-end\">end</p>" '')"
 make_site heldnoid "$(page "${TABLE_BODY}<p>end</p>" "$HOLD")"
+# A slow runner: the page's main thread is busy (BUSY_JS, 800 ms) longer than all
+# the pieces take to arrive (3 x 150 ms), so the first paint comes after the
+# last piece unless the server waits for the paint (forsgren#620).
+make_site unheldslow "$(page "${TABLE_BODY}<p id=\"page-end\">end</p>" "$BUSY_JS")"
 run_gate held
 want_green "54: a table page that holds its first paint, delivered in pieces" "CLS worst 0 "
 want_said "54b: the OK line names the delayed-delivery load" "each page also loaded once in 4 pieces 150 ms apart"
@@ -548,6 +555,9 @@ want_red "55: the same page without the hold" "FAIL: light /: CLS 0."
 want_said "55b: the finding names the delayed-delivery load" "1 delayed-delivery load (4 pieces 150 ms apart: 0."
 run_gate heldnoid
 want_green "56: a hold whose id the page lacks lasts to the end of the parse" "CLS worst 0 "
+run_gate unheldslow
+want_red "57: the same page on a slow runner, a busy main thread past all the pieces" "FAIL: light /: CLS 0."
+want_said "57b: the finding names the delayed-delivery load" "1 delayed-delivery load (4 pieces 150 ms apart: 0."
 
 # Mutation proofs, run side by side (Scripts/lib_parallel_mutants.sh, forsgren#382).
 # Each proof is a mutant_<letter> function that works on its own copy of the
@@ -789,20 +799,31 @@ mutant_t() {
   fi
 }
 
-# U: the pieces sent without the pause between them -> case 55 turns green: the
-# pause is what lets the browser paint between two pieces.
+# U: the pieces sent without the pause and without the wait for the paint ->
+# case 55 turns green: the pause and that wait are what let the browser paint
+# between two pieces.
 stage u unheld
 mutant_u() {
-  if mutant_engine "s/^const DELIVERY_GAP_MS = .*/const DELIVERY_GAP_MS = 0;/"; then
+  if mutant_engine "s/^const DELIVERY_GAP_MS = .*/const DELIVERY_GAP_MS = 0;/;s/^      await delivery.settle();/      \/\/ kept/"; then
     FORSGREN_CLS_LOADS="$SHORT_CLS_LOADS" FORSGREN_CLS_INTERVAL_MS="$SHORT_CLS_INTERVAL_MS" FORSGREN_NODE_ROOT="$REPO_ROOT" at_fixture "${TMP}/fx_u" node "$MUTANT_ENGINE"
     want_green "mutation proof U: pieces without a pause turn case 55 green" "CLS worst 0 "
   fi
 }
 
-for proof in a b c d e f g h i j k kslow l m n o p q t u; do
+# Y: the wait for the paint removed, the 150 ms kept -> case 57 turns green: only
+# that wait holds the pieces back while a slow page has not painted (forsgren#620).
+stage y unheldslow
+mutant_y() {
+  if mutant_engine "s/^      await delivery.settle();/      \/\/ kept/"; then
+    FORSGREN_CLS_LOADS="$SHORT_CLS_LOADS" FORSGREN_CLS_INTERVAL_MS="$SHORT_CLS_INTERVAL_MS" FORSGREN_NODE_ROOT="$REPO_ROOT" at_fixture "${TMP}/fx_y" node "$MUTANT_ENGINE"
+    want_green "mutation proof Y: without the wait for the paint case 57 turns green" "CLS worst 0 "
+  fi
+}
+
+for proof in a b c d e f g h i j k kslow l m n o p q t u y; do
   mutant_run "mutant_${proof}"
 done
 mutants_wait
 
 echo "browser gate self-test: ${SECONDS} s in total"
-selftest_end "the browser gate self-test failed" "browser gate: every case holds, nineteen mutations seen"
+selftest_end "the browser gate self-test failed" "browser gate: every case holds, twenty mutations seen"

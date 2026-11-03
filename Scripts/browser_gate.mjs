@@ -1,4 +1,4 @@
-// canon: browser_gate v7
+// canon: browser_gate v8
 // Scripts/browser_gate.mjs (forsgren#205)
 //
 // The browser gate's engine: serves a built site on 127.0.0.1 (loopback only),
@@ -10,6 +10,13 @@
 //
 // Changelog of the canon (the baseline format is the same in every version, so
 // no version needs a migration):
+//   v8 = v7 plus the wait for the paint (forsgren#620): after each piece the
+//        server waits its DELIVERY_GAP_MS and then until the page has painted
+//        what it has (two animation frames), or is held by its own first-paint
+//        hold (link rel=expect, blocking=render, to an id not yet parsed), or
+//        DELIVERY_PAINT_CAP_MS passed. On a slow runner the 150 ms alone let all
+//        the pieces arrive before the first paint, and the early paint the
+//        load exists to catch never happened (run 41613349121).
 //   v7 = v6 plus the delayed-delivery load (forsgren#611, decision C on #611):
 //        besides its full-response cold loads, every page gets one more cold
 //        load whose HTML the server sends in DELIVERY_PIECES pieces
@@ -162,6 +169,9 @@ const NAV_TIMEOUT_MS = 30000;
 // any response that is not HTML, is sent whole.
 const DELIVERY_PIECES = 4;
 const DELIVERY_GAP_MS = 150;
+// The longest the server waits for a paint after one piece (v8): a safety end,
+// never the usual one; a held page answers at once.
+const DELIVERY_PAINT_CAP_MS = 5000;
 const DELIVERY_HEADER = 'x-browser-gate-delivery';
 const DELIVERY_PIECED = 'pieces';
 const deliveryWords = `${DELIVERY_PIECES} pieces ${DELIVERY_GAP_MS} ms apart`;
@@ -392,10 +402,17 @@ function serve(siteDir) {
 // The delayed delivery (v7): the body in DELIVERY_PIECES pieces of the same
 // size, DELIVERY_GAP_MS apart, the last one ending the response. A piece may
 // end inside a character or a tag; the browser's parser takes what it has.
+// What the delayed-delivery load of the page in hand does between two pieces
+// (v8): set by that page's check, nothing otherwise. Pages are checked one at a time.
+const delivery = { settle: async () => {} };
+
 async function deliverInPieces(body, response) {
   const size = Math.ceil(body.length / DELIVERY_PIECES);
   for (let piece = 0; piece < DELIVERY_PIECES; piece += 1) {
-    if (piece > 0) await new Promise((resolve) => setTimeout(resolve, DELIVERY_GAP_MS));
+    if (piece > 0) {
+      await new Promise((resolve) => setTimeout(resolve, DELIVERY_GAP_MS));
+      await delivery.settle();
+    }
     if (response.destroyed) return;
     const part = body.subarray(piece * size, (piece + 1) * size);
     if (part.length > 0) response.write(part);
@@ -427,6 +444,19 @@ function measureSideways() {
   html.style.removeProperty('overflow-y');
   html.style.removeProperty('scrollbar-gutter');
   return found;
+}
+
+// Run in the page of the delayed load (v8): 'previous' while the document is
+// still the one of the load before, 'held' when its first-paint hold waits for
+// an element that is not parsed yet, 'painted' after two animation frames.
+function paintState(previousOrigin) {
+  if (performance.timeOrigin === previousOrigin) return 'previous';
+  const hold = document.querySelector('link[rel="expect"][blocking~="render"]');
+  if (hold) {
+    const id = decodeURIComponent((hold.getAttribute('href') || '').replace(/^#/, ''));
+    if (!document.getElementById(id)) return 'held';
+  }
+  return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve('painted'))));
 }
 
 const OBSERVE_SHIFTS = `
@@ -593,12 +623,39 @@ class PageCheck {
     return shifts.reduce((sum, value) => sum + value, 0);
   }
 
-  // One more cold load with the HTML delivered in pieces (v7): its shift.
+  // One more cold load with the HTML delivered in pieces (v7): its shift. The
+  // server waits between pieces until this page has painted (v8).
   async shiftOfDelayedLoad() {
     this.pieced = true;
-    await this.page.reload({ waitUntil: 'load', timeout: NAV_TIMEOUT_MS });
-    this.pieced = false;
+    const before = await this.page.evaluate(() => performance.timeOrigin);
+    delivery.settle = () => this.waitForPaint(before);
+    try {
+      await this.page.reload({ waitUntil: 'load', timeout: NAV_TIMEOUT_MS });
+    } finally {
+      delivery.settle = async () => {};
+      this.pieced = false;
+    }
     return this.shiftOfThisLoad();
+  }
+
+  // Until the document of the delayed load has painted what it has: two
+  // animation frames, or at once when its first-paint hold is still waiting for
+  // an element (no paint is due), or after DELIVERY_PAINT_CAP_MS. The document
+  // of the load before it is told apart by its time origin.
+  async waitForPaint(previousOrigin) {
+    const deadline = Date.now() + DELIVERY_PAINT_CAP_MS;
+    while (Date.now() < deadline) {
+      try {
+        const state = await Promise.race([
+          this.page.evaluate(paintState, previousOrigin),
+          new Promise((resolve) => setTimeout(resolve, deadline - Date.now(), 'cap')),
+        ]);
+        if (state !== 'previous') return;
+      } catch {
+        // The document was being replaced; ask again.
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
   }
 
   async checkLayoutShift() {
