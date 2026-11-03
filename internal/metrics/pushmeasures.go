@@ -82,6 +82,9 @@ type pushedCommit struct {
 	pull    bool
 	unknown bool
 	bot     bool
+	// author is the commit's login; only Integration reads it, and it never
+	// leaves the metrics package.
+	author string
 }
 
 // PushMeasuresOf returns the push measures of each project, in the order of
@@ -201,7 +204,7 @@ func (c pushedCommit) merged(seen bool, project int, pc history.PushCommit, tip 
 	return pushedCommit{mainArrival: mainArrival{project: project, at: at, authored: pc.AuthoredAt},
 		pull:    c.pull || tip.merge || pulled,
 		unknown: pc.Author == "" || strings.EqualFold(pc.Author, placeholderLogin),
-		bot:     strings.HasSuffix(pc.Author, botSuffix)}
+		bot:     strings.HasSuffix(pc.Author, botSuffix), author: pc.Author}
 }
 
 // add counts the commit c in m.

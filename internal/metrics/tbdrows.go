@@ -38,8 +38,11 @@ type TbdRow struct {
 	Developers Developers
 	Push       PushMeasures
 	MainLead   MainlineLeadTime
-	Deploy     DeployMeasures
-	Volume     DeploymentVolume
+	// Integration is the per-developer integration of the row (forsgren#622,
+	// step 1), per repository like Push, empty for a service row.
+	Integration Integration
+	Deploy      DeployMeasures
+	Volume      DeploymentVolume
 	// IntervalAbsent says the Mainline Interval is not the row's, and
 	// PushAbsent that the push and pull request measures are not (Lead, Push
 	// and MainLead): a service row.
@@ -98,6 +101,7 @@ func (s tbdSource) row(level Level, p config.Project, project string) TbdRow {
 	row.BotLead = BotPRLeadTimes(only, s.data, s.now)[0]
 	row.Push = PushMeasuresOf(only, s.data, s.now)[0]
 	row.MainLead = MainlineLeadTimesOf(only, s.data, s.now)[0]
+	row.Integration = IntegrationOf(only, s.data, s.now, s.groups)[0]
 	return row
 }
 

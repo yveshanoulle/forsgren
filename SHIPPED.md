@@ -9,6 +9,25 @@ Active work lives in
 
 ---
 
+## 2026-11-03 — The integration measures per developer, from the stored pushes ([#622](https://github.com/yveshanoulle/forsgren/issues/622), step 1 of 4)
+
+forsgren issue 622, feature, minor (step 1 of 4, the metrics only: the page
+shows nothing of it yet). `metrics.IntegrationOf` (`internal/metrics/integration.go`)
+reads, per project and per developer, the distinct first-parent commits of the
+pushes of the DORA window, each at its earliest push, with working days as UTC
+Monday to Friday, bots and the placeholder login left out and `same_developer`
+groups counted once: the commits per working day, the developers with a commit
+on at least 4 of every 5 working days (counted, with the active developers),
+the working days since each developer's last commit and each developer's
+longest gap between two commits (median and longest). The result holds counts
+and durations in working days, never a login; the medians follow the spread
+rules. It is on `TbdRow.Integration` of a total and a repository label row.
+
+- Red first: `go test ./internal/metrics -run Integration` failed to compile
+  (undefined `IntegrationOf`), then passed with the table of weekends skipped,
+  a bot, a group, one commit, the window edges, 19 or 18 of 23 working days,
+  the median over developers and the no-login assertion.
+
 ## 2026-11-03 — The delayed-delivery case waits for the paint, not the clock ([#620](https://github.com/yveshanoulle/forsgren/issues/620), 1 step)
 
 forsgren issue 620, tools (no release). In one hosted Quality run the browser
