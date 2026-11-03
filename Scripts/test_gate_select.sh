@@ -77,6 +77,7 @@ tree_row() {
 }
 INST_GO="$(tree_row install/)zz_made_up"
 PGE_GO="$(tree_row internal/)zz_made_up"
+CMD_GO="$(tree_row cmd/)forsgren/zz_made_up"
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
@@ -365,6 +366,9 @@ reset
 # gate and the four gates that read no Go tree; a changed script of a gate still runs it.
 ALL_SIX=("browser gate self-test" "browser gate" "browser gate (fixture site) self-test" "browser gate (fixture site)" "release workflow" "step summary isolation")
 SLOW_SIX=("step summary isolation" "metrics workflow" "CI phase runner self-test" "mutation: checkout pins" "git sandbox isolation self-test" "gate wiring")
+# The metrics workflow pin builds and runs the real forsgren (forsgren#590): a Go tree
+# change selects it, so the Go-only skips below leave it out.
+SLOW_NOGO=("step summary isolation" "CI phase runner self-test" "mutation: checkout pins" "git sandbox isolation self-test" "gate wiring")
 # skips <case> <what changed> <count> <label>...: each label skips, naming the count.
 skips() {
   local c="$1" what="$2" n="$3" label
@@ -382,7 +386,7 @@ mkdir -p "${FX}/internal"
 echo 'package x' > "${FX}/internal/x.go"
 echo '{}' >> "${FX}/${FLOORS_FILE}"
 echo '{}' >> "${FX}/${SCORES_FILE}"
-skips 42 "a Go-only step (internal/x.go, ${FLOORS_FILE}, ${SCORES_FILE})" 3 "${SLOW_SIX[@]}" "release workflow" "browser gate self-test"
+skips 42 "a Go-only step (internal/x.go, ${FLOORS_FILE}, ${SCORES_FILE})" 3 "${SLOW_NOGO[@]}" "release workflow" "browser gate self-test"
 # The fixture self-test builds the fixture site from the Go tree (its case 7), so it runs too.
 for label in "browser gate" "browser gate (fixture site)" "browser gate (fixture site) self-test"; do
   sel_real "$label"
@@ -419,6 +423,30 @@ own_script 60 "gate wiring" sfl.sh
 own_script 61 "gate wiring" FBP.sh
 # The wiring test globs Scripts/*.sh: a script added in no closure still selects it.
 own_script 62 "gate wiring" Scripts/zz_new_gate.sh
+# 63 (forsgren#590): the metrics workflow pin builds and runs the real forsgren, so a
+# change under cmd/forsgren/, internal/, install/ or go.mod/go.sum selects it; a
+# _test.go does not.
+for f in "${CMD_GO}.go" "${PGE_GO}.go" "${INST_GO}.go" go.mod go.sum; do
+  mkdir -p "${FX}/$(dirname "$f")"
+  echo '# edit' >> "${FX}/${f}"
+  sel_real "metrics workflow"
+  want_exit "63a: only ${f} changed, metrics workflow" 0 "run: ${f} is an input of metrics workflow"
+  reset
+done
+mkdir -p "${FX}/cmd/forsgren"
+echo '# edit' >> "${FX}/${CMD_GO}_test.go"
+sel_real "metrics workflow"
+want_exit "63b: only ${CMD_GO}_test.go changed, metrics workflow" 0 "skip: none of the 1 changed files is an input of metrics workflow"
+reset
+# 63c (mutation, forsgren#590): with the metrics workflow's cmd/ row dropped the list
+# skips a change under cmd/forsgren/, so case 63a is a proof, not a pass.
+sed '/^metrics workflow|in|cmd[/]$/d' "$REAL_INPUTS" > "${TMP}/no_cmd_row.txt"
+if cmp -s "$REAL_INPUTS" "${TMP}/no_cmd_row.txt"; then fail "mutation 63c changed nothing"; fi
+mkdir -p "${FX}/$(dirname "${CMD_GO}")"
+echo '# edit' >> "${FX}/${CMD_GO}.go"
+sel_real "metrics workflow" "${TMP}/no_cmd_row.txt"
+want_exit "63c: mutation, the cmd/ row dropped, ${CMD_GO}.go alone is skipped" 0 "skip: none of the 1 changed files is an input of metrics workflow"
+reset
 # The floors are not read by the step summary isolation test: its row is gone.
 echo '{}' >> "${FX}/${FLOORS_FILE}"
 skips 54 "only ${FLOORS_FILE} changed" 1 "step summary isolation"
@@ -433,7 +461,7 @@ for label in "browser gate" "browser gate (fixture site)" "browser gate (fixture
   sel_real "$label"
   want_exit "55a: only ${INST_GO}.go changed, ${label}" 0 "run: ${INST_GO}.go is an input of ${label}"
 done
-skips 55b "only ${INST_GO}.go changed" 1 "browser gate self-test" "release workflow" "${SLOW_SIX[@]}"
+skips 55b "only ${INST_GO}.go changed" 1 "browser gate self-test" "release workflow" "${SLOW_NOGO[@]}"
 reset
 mkdir -p "${FX}/install"
 echo 'package install' > "${FX}/${INST_GO}_test.go"

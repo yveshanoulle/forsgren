@@ -353,6 +353,16 @@ metrics workflow|in|Scripts/sync_private_names_secrets.sh
 metrics workflow|in|Scripts/test_metrics_workflow.sh
 metrics workflow|in|sfl.sh
 metrics workflow|in|Scripts/lib_has.sh
+# forsgren#590: the pin builds and runs the real forsgren (collect, check-config,
+# token-probe), so the Go tree it builds is an input, tests and testdata excepted.
+metrics workflow|in|cmd/
+metrics workflow|in|internal/
+metrics workflow|in|install/
+metrics workflow|in|go.mod
+metrics workflow|in|go.sum
+metrics workflow|out|*_test.go
+metrics workflow|out|cmd/**/testdata/
+metrics workflow|out|internal/**/testdata/
 
 # --- CI phase runner self-test (forsgren#402) -----------------------------
 # Scripts/test_run_ci_phase.sh runs Scripts/run_ci_phase.sh in a sandbox over the

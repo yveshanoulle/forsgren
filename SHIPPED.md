@@ -9,6 +9,23 @@ Active work lives in
 
 ---
 
+## 2026-11-03 — the metrics workflow pin lists the Go tree it builds ([#590](https://github.com/yveshanoulle/forsgren/issues/590), 1 step)
+
+forsgren issue 590, tools (no release). `Scripts/test_metrics_workflow.sh` builds and
+runs the real forsgren (collect, check-config, token-probe), but its rows in
+`Scripts/gate_inputs.txt` named no Go source, so a commit that touched only
+`cmd/forsgren/` skipped the pin locally. The rows now list `cmd/`, `internal/`,
+`install/`, `go.mod` and `go.sum`, and exclude `*_test.go` and `testdata/` as the
+browser gates do.
+
+- Red first: case 63 of `Scripts/test_gate_select.sh` (a change under cmd, internal,
+  install, go.mod or go.sum alone selects the pin; a `_test.go` does not) failed on
+  the old rows, five cases skipping.
+- Cases 42 and 55b no longer expect the pin to skip on a Go-only step.
+- Mutation proof 63c: with the `cmd/` row dropped the same change is skipped.
+
+---
+
 ## 2026-11-03 — a failed tmp_dir stops the scripts that have no set -e ([#615](https://github.com/yveshanoulle/forsgren/issues/615), 1 step)
 
 forsgren issue 615, tools (no release). Found in #612: 14 scripts have no `set -e`
