@@ -470,6 +470,8 @@ var legendTbdGroups = []struct{ id, title, sentence string }{
 		"Shares of commits shows how the commits"},
 	{"tbd-developers", "Developers (How many developers contribute?)",
 		"Developers is the number of distinct people"},
+	{"tbd-integration", "Integration (How often does each developer integrate?)",
+		"The second table, Integration, has the same rows as the first"},
 	{"tbd-what-to-look-for", "What should I look for?", "No single number proves"},
 	{"tbd-missing-data", "What if data is missing or incomplete?", "Some figures are estimates"},
 	{"tbd-names", "Where do the names come from?", "Mainline Interval and Mainline Lead Time are the two metrics"},

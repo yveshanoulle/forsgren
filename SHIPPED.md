@@ -9,6 +9,27 @@ Active work lives in
 
 ---
 
+## 2026-11-03 — The legend explains the Integration table ([#622](https://github.com/yveshanoulle/forsgren/issues/622), step 3 of 4)
+
+forsgren issue 622, feature, minor (step 3 of 4; the last step follows). The
+legend's TBD section has a new part, "Integration (How often does each
+developer integrate?)" (`tbd-integration`), after Developers. It says what the
+four groups count (commits per working day, regular integrators with commits on
+at least 4 of every 5 working days, trunk freshness and the longest gap), that
+working days are Monday to Friday in UTC over the DORA window with both ends
+included, that bots are left out and `same_developer` groups count as one, that
+only a developer with a commit on main in the window counts, that the figures
+are spreads and no login is ever shown, and that the measures shown, the push
+states, Per repository and the no-data sentence follow the first table. The
+section's intro now mentions the second table. The dictionary entries did not
+change.
+
+- Red first: `legend_integration_test.go` (the key sentences) and the new group
+  in `legendTbdGroups` failed before the legend change, then passed;
+  `legend.golden.html` was regenerated with `-update`.
+
+---
+
 ## 2026-11-03 — The TBD page shows a second table, Integration ([#622](https://github.com/yveshanoulle/forsgren/issues/622), step 2 of 4)
 
 forsgren issue 622, feature, minor (step 2 of 4; the legend and the full

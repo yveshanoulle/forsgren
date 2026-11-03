@@ -78,7 +78,7 @@
     <p>A dash means no data: nothing was deployed yet in that period, or the collection has not read the history back that far yet. To read further back, raise history_days, up to 1825 (5 years); the page fills in over the next daily runs. The lead time of older periods can be a dash, because the commits of older deployments may not be stored. The change fail rate of an old period can count a failure issue that lost its label long ago, because the catch-up of withdrawn failure issues covers only the dora_days window.</p>
     <p>The History page is unlisted by default (history_page: unlisted): it is generated and can be opened at history.html, but it has no menu entry and search engines are asked to skip it. Set history_page: true to put it in the menu, or history_page: false to not generate it.</p>
     <h2>{{.TbdTitle}}</h2>
-    <p>Trunk-based development means integrating small changes into the main branch often, rather than keeping changes on separate branches for a long time. These measures show how often changes are integrated, how long they take and how large they are. The TBD page is one table with a row for each project, and under it a row for each label or service. All figures cover the last {{.Window}} days, the DORA window.</p>
+    <p>Trunk-based development means integrating small changes into the main branch often, rather than keeping changes on separate branches for a long time. These measures show how often changes are integrated, how long they take and how large they are. The TBD page is one table with a row for each project, and under it a row for each label or service. Below it a second table, Integration, has the same rows. All figures cover the last {{.Window}} days, the DORA window.</p>
     <h3 id="tbd-general">How do I read the numbers?</h3>
     <p>By default, the table shows the median of each measure, the middle value. Forsgren can show the mean, the median, p90 and the standard deviation of each measure instead; the settings page names the key. The mean is the average. p90 is the value that nine tenths of the values are no larger than. SD is the standard deviation: how far the values lie from their mean, as the sample standard deviation, which divides the sum of the squared differences from the mean by one less than the number of values. It needs two values, as the median does. When all four figures are shown, the columns of time to main, time to deploy, commits per push and commits per deployment carry their measure for a screen reader, such as the mean of time to main or the standard deviation of time to main.</p>
     <p>A column that the settings turn off is not shown, and neither are the notes of its cells.</p>
@@ -155,6 +155,17 @@
     <p>Developers is the number of distinct people who authored the commits deployed in the last {{.Window}} days, including the commits a merge brought in from a branch. A person who commits from several email addresses counts once. Several GitHub accounts can be configured to count as one person.</p>
     <p>Bots and commits whose author GitHub links to no account are left out. A project with no deployed commit shows a dash. The page shows the number only, never who the developers are.</p>
     <p>Read this number next to the others: a larger team may naturally integrate more commits.</p>
+    <h3 id="tbd-integration">Integration (How often does each developer integrate?)</h3>
+    <p>The second table, Integration, has the same rows as the first. It shows how often the developers of a project get commits onto the main branch, in four groups of columns.</p>
+    <ul>
+      <li>Commits per working day: how many commits a developer puts on main per working day, as a spread over the developers.</li>
+      <li>Regular integrators: the share of the developers who made a commit on main on at least 4 of every 5 working days.</li>
+      <li>Trunk freshness: the working days since each developer's last commit on main, as a spread over the developers. 0 is a commit today.</li>
+      <li>Longest gap: each developer's longest gap, in working days, between two commits on main, as a spread over the developers.</li>
+    </ul>
+    <p>Working days are Monday to Friday, in UTC, over the last {{.Window}} days, the DORA window, both ends included.</p>
+    <p>Bots are left out. Accounts set up as the same developer count as one. Only a developer with a commit on main in the window counts, so nobody is counted as a zero. The figures are spreads over the developers, and no login is ever shown.</p>
+    <p>The measures shown follow the rules of How do I read the numbers?, as in the first table. Push activity not readable and Pushes not collected yet stand across the four groups, a service row says Per repository, and a project without data shows its one sentence, as in the first table.</p>
     <h3 id="tbd-what-to-look-for">What should I look for?</h3>
     <ul>
       <li>Short Mainline Interval and short PR Lead Time: changes are integrated often and quickly.</li>
