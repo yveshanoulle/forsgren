@@ -11,7 +11,8 @@
 #                                  lines still written, exit 1, a ❌ naming it
 #   4. a token is never in the arguments, stdin carries it, never in output
 #   5. usage
-#   6. the workflow: schedule and workflow_dispatch only, contents: read, the
+#   6. the workflow: workflow_dispatch only, no schedule (the estate dispatcher
+#      starts it, forsgren#616), contents: read, the
 #      two secrets in env, never FORSGREN_TOKEN, the artifact uploaded when the probe failed
 # Mutation proofs: an error line that exits 0; a missing header taken as an
 # error; a token on the command line.
@@ -122,7 +123,8 @@ if [[ ! -f "$WORKFLOW" ]]; then
   fail "${WORKFLOW} does not exist: nothing probes the tokens on a schedule"
 else
   events="$(awk '/^on:/{i=1;next} i&&/^[^[:space:]#]/{i=0} i&&/^  [a-z_]+:/{s=$1;sub(/:/,"",s);print s}' "$WORKFLOW" | LC_ALL=C sort | tr '\n' ' ')"
-  if [[ "$events" == "schedule workflow_dispatch " ]]; then echo "  ok: schedule and workflow_dispatch only"; else fail "workflow triggers: ${events}"; fi
+  if [[ "$events" == "workflow_dispatch " ]]; then echo "  ok: workflow_dispatch only"; else fail "workflow triggers: ${events}"; fi
+  if code "$WORKFLOW" | has -qE '^[[:space:]]*(schedule:|- cron:)'; then fail "the workflow carries a schedule or a cron entry"; else echo "  ok: no schedule"; fi
   if awk '/^permissions:/{getline; if ($0=="  contents: read") ok=1} END{exit !ok}' "$WORKFLOW" && ! code "$WORKFLOW" | has -qE ': write|write-all'; then echo "  ok: contents: read only"; else fail "workflow permissions are not contents: read alone"; fi
   for s in FORSGREN_RELEASE_TOKEN PREVIEW_DISPATCH_TOKEN; do
     if code "$WORKFLOW" | has -qF "${s}: ${D}{{ secrets.${s} }}"; then echo "  ok: ${s} comes from the secret of that name"; else fail "the workflow does not pass ${s} from secrets.${s}"; fi
@@ -157,5 +159,13 @@ if mutant argv "s/-D - -o/-H \"Authorization: Bearer ${D}token\" -D - -o/"; then
   if grep -qE 'rel-token' "${TMP}/curl.log"; then echo "  ok: mutation proof: a token in the arguments is caught"; else fail "mutation proof: the mutant still keeps the token out of the arguments"; fi
 fi
 unset SCRIPT
+# Trigger mutants of the workflow: a schedule put back, the dispatch removed.
+trigger_events() { awk '/^on:/{i=1;next} i&&/^[^[:space:]#]/{i=0} i&&/^  [a-z_]+:/{s=$1;sub(/:/,"",s);print s}' "$1" | LC_ALL=C sort | tr '\n' ' '; }
+sed 's/^  workflow_dispatch:/  schedule:\
+    - cron: "17 6 * * 1"\
+  workflow_dispatch:/' "$WORKFLOW" > "${TMP}/wf-sched.yml"
+if [[ "$(trigger_events "${TMP}/wf-sched.yml")" != "workflow_dispatch " ]]; then echo "  ok: mutation proof: a schedule put back is caught"; else fail "mutation proof: a schedule put back is not caught"; fi
+sed 's/^  workflow_dispatch:/  release:/' "$WORKFLOW" > "${TMP}/wf-nodisp.yml"
+if [[ "$(trigger_events "${TMP}/wf-nodisp.yml")" != "workflow_dispatch " ]]; then echo "  ok: mutation proof: the dispatch removed is caught"; else fail "mutation proof: the dispatch removed is not caught"; fi
 
 selftest_end "the token expiry probe does not hold" "token expiry probe: dated, never, and every error kind land on the right line, the token stays out of arguments and output"

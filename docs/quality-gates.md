@@ -251,7 +251,7 @@ Seven more PRE gates check the Go code:
   fails: offline, refused, a timeout, an HTTP error) the check is skipped,
   as in another estate repository: one `⚠️ SKIP: govulncheck did not run` line naming the
   database, a `::warning::` in GitHub Actions, exit 0, and never the `OK`
-  line of a pass. With `FORSGREN_VULN_DB_REQUIRED=1` (the scheduled run,
+  line of a pass. With `FORSGREN_VULN_DB_REQUIRED=1` (the dispatched daily run,
   forsgren#87) an unreachable database is red instead, never a skip.
   `FORSGREN_VULN_DB` points it at another database. Its
   self-test (`Scripts/test_check_govulncheck.sh`) runs offline against a

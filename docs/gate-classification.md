@@ -242,7 +242,7 @@ ruling; a missing file is exit 2.
   `.github/workflows/dco.yml`, `Scripts/check_commit_messages.sh`, with its
   self-test in the order file.
 - **Scheduled vulnerability scan**: `.github/workflows/vulncheck.yml` runs the
-  Go vulnerabilities gate daily, shown in the order file by
+  Go vulnerabilities gate daily (dispatched by the estate dispatcher), shown in the order file by
   `test_vulncheck_workflow.sh`.
 - **Preview deploy start**: the `preview` job of `.github/workflows/quality.yml`
   starts the preview repository's deploy after a push to main, only when every

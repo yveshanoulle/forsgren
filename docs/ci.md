@@ -819,11 +819,10 @@ Nine PRE gates keep the CI honest:
   a mutant.
 - **vulncheck workflow** (`Scripts/test_vulncheck_workflow.sh`, forsgren's
   own, forsgren#87): `vulncheck.yml` runs `Scripts/check_govulncheck.sh`, the
-  script of the Go vulnerabilities gate, once a day (one cron entry at an
-  off-peak minute) and by hand, so a vulnerability published on a day nobody
+  script of the Go vulnerabilities gate, once a day (started by the estate dispatcher on the build host at 05:20 Brussels time, forsgren#616) and by hand, so a vulnerability published on a day nobody
   pushes still turns a run red; Quality runs only on a push or a pull request.
-  It triggers on `schedule` and `workflow_dispatch` and on nothing else,
-  never a push or a pull request; it has `contents: read`, one job on
+  It triggers on `workflow_dispatch` and on nothing else,
+  never a schedule, a push or a pull request; it has `contents: read`, one job on
   `ubuntu-latest`, `actions/checkout` (no persisted credentials) and
   `actions/setup-go` pinned at the very commits `metrics.yml` pins, and takes
   `GOTOOLCHAIN` from `Scripts/go_toolchain.sh`; govulncheck is the version
@@ -835,8 +834,7 @@ Nine PRE gates keep the CI honest:
   Actions; no issue is opened. The real file must hold every pin and each
   pin is proved by a mutant that breaks it.
 - **token expiry probe** (`Scripts/test_probe_token_expiry.sh`, forsgren's
-  own, forsgren#269): `token_expiry_probe.yml` runs weekly (Mondays, one cron
-  entry at an off-peak minute) and by hand, with `contents: read` only.
+  own, forsgren#269): `token_expiry_probe.yml` runs weekly (started by the estate dispatcher on Mondays at 05:45 Brussels time, forsgren#616) and by hand, with `contents: read` only.
   `Scripts/probe_token_expiry.sh` makes one `GET /user` call per token with
   the Actions secrets `FORSGREN_RELEASE_TOKEN` and
   `PREVIEW_DISPATCH_TOKEN` (the two the repository holds; `FORSGREN_TOKEN` lives in the installations, whose daily `metrics.yml` run uploads its own artifact of the same name and shape, forsgren#276; the token goes to curl on stdin, never in an argument or

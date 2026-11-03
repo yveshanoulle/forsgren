@@ -47,6 +47,9 @@ canon version stays v3 and the copies stay byte-identical.
 
 ---
 
+## 2026-11-03 — vulncheck and the token expiry probe are started by dispatch at a fixed time instead of by schedule ([#616](https://github.com/yveshanoulle/forsgren/issues/616), 1 step)
+`vulncheck.yml` and `token_expiry_probe.yml` keep `workflow_dispatch` and lose `schedule:`: GitHub started scheduled runs 5½ to 10 hours late, so the estate dispatcher on the build host starts them (daily 05:20, Mondays 05:45, Brussels time). Neither workflow reads `github.event_name`, so nothing else changed. Their pin tests are red on a `schedule:` or a missing dispatch, with mutation proofs for both.
+
 ## 2026-11-03 — the browser gate process self-test removes the Chrome singleton folders it leaves ([#613](https://github.com/yveshanoulle/forsgren/issues/613), 1 step)
 
 forsgren issue 613, tools (no release). Found in #612: Chrome makes

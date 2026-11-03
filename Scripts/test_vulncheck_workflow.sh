@@ -7,9 +7,10 @@
 # Scripts/test_starter_page_workflow.sh: the real file must hold every pin,
 # and each pin is proved by a mutant of the real file that breaks it and must
 # be named. The pins:
-#   1. it triggers on schedule and workflow_dispatch, and on nothing else;
-#      no push or pull-request event appears anywhere in it
-#   2. one cron entry, daily, at an off-peak minute (not :00 or :30)
+#   1. it triggers on workflow_dispatch and on nothing else (the estate
+#      dispatcher starts it daily, forsgren#616); no push or pull-request
+#      event appears anywhere in it
+#   2. no schedule: and no cron entry (GitHub starts scheduled runs hours late)
 #   3. permissions: contents: read, and no write anywhere
 #   4. one job, on ubuntu-latest (GitHub-hosted)
 #   5. only checkout and setup-go, each pinned by a full commit and the very
@@ -58,16 +59,15 @@ pin_of() {
 
 # trigger_findings <file> — pins 1 and 2.
 trigger_findings() {
-  local events crons
+  local events
   events="$(on_events "$1" | LC_ALL=C sort | tr '\n' ' ')"
-  [[ "$events" == "schedule workflow_dispatch " ]] || echo "triggers: want schedule and workflow_dispatch, got: ${events:-none}"
+  [[ "$events" == "workflow_dispatch " ]] || echo "triggers: want workflow_dispatch alone, got: ${events:-none}"
   if code "$1" | has -qE 'pull_request|push:'; then
     echo "push or pull_request: such an event appears in the workflow"
   fi
-  crons="$(code "$1" | grep -E '^[[:space:]]+- cron:')"
-  [[ "$(grep -c . <<< "$crons")" == 1 ]] || echo "cron: want exactly one entry, got: ${crons:-none}"
-  grep -qE '^[[:space:]]+- cron: "([1-9]|[1-5][0-9]) [0-9]+ \* \* \*"$' <<< "$crons" \
-    && ! grep -qE '"30 ' <<< "$crons" || echo "cron: want one daily entry at an off-peak minute (not :00 or :30), got: ${crons:-none}"
+  if code "$1" | has -qE '^[[:space:]]*(schedule:|- cron:)'; then
+    echo "schedule: the workflow carries a schedule or a cron entry"
+  fi
 }
 
 # permission_findings <file> — pins 3 and 4.
@@ -159,11 +159,10 @@ mutant() {
 
 mutant "a push trigger" 's/^  workflow_dispatch:/  push:/' "push or pull_request:"
 mutant "a pull_request trigger" 's/^  workflow_dispatch:/  pull_request:/' "push or pull_request:"
-mutant "no schedule" 's/^  schedule:/  release:/' "triggers: want schedule"
-mutant "a second cron" 's/^    - cron: \(.*\)$/    - cron: \1\
-    - cron: "5 6 * * *"/' "cron: want exactly one"
-mutant "a cron on the hour" 's/- cron: "[0-9]* /- cron: "0 /' "cron: want one daily entry at an off-peak"
-mutant "a weekly cron" 's/\* \* \*"$/* * 1"/' "cron: want one daily entry"
+mutant "a schedule put back" 's/^  workflow_dispatch:/  schedule:\
+    - cron: "37 5 * * *"\
+  workflow_dispatch:/' "schedule: the workflow carries"
+mutant "the dispatch removed" 's/^  workflow_dispatch:/  release:/' "triggers: want workflow_dispatch alone"
 mutant "a write token at the top" 's/^  contents: read/  contents: write/' "permissions: the top level"
 mutant "a write permission" 's/^    runs-on: ubuntu-latest/    permissions:\
       issues: write\
