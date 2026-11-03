@@ -47,7 +47,7 @@
 # Every other rule still applies to a term, and a word not in the file is still
 # flagged. No --terms, or an empty file, is no terms: the sites pass none. A
 # named file that is missing is exit 2, never a waiver. A site's terms are a
-# list its own wrapper makes (forsgren: Scripts/gate_language_pages.sh, from its
+# list its own wrapper makes (forsgren: its pages wrapper, from its
 # dictionary), so this gate stays generic. The OK line counts a term allowance
 # with the allowlisted ones.
 #

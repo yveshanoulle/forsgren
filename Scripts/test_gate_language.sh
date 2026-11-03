@@ -429,5 +429,33 @@ if selftest_mutant "$GATE" "$MUT" 's/or rule in TERM_RULES)/or True)/'; then
   want_green "mutation proof K: every rule allowed for a term turns case 23d green" "OK:"
 fi
 
+# 24 (#617). The canon header names no script path outside the gate's closure:
+# the gate, its self-test, the baselines report and the libraries it sources.
+# An installation copies the gate byte-identical, so a path that exists only in
+# one repository (a site wrapper) goes red there. Prose names such a wrapper.
+header_foreign_scripts() {
+  local f="$1" bad=0 p sourced
+  sourced="$(grep -E '^[[:space:]]*source ' "$f" | grep -o 'Scripts/[A-Za-z_]*\.sh')"
+  while IFS= read -r p; do
+    case "$p" in
+      Scripts/gate_language.sh | Scripts/test_gate_language.sh | Scripts/report_baselines*) continue ;; # globbed: a whole name would make the summary isolation gate list this test
+    esac
+    grep -qxF "$p" <<< "$sourced" && continue
+    echo "foreign script path in the header: ${p}"
+    bad=1
+  done < <(awk '/^#/ {print; next} {exit}' "$f" | grep -o 'Scripts/[A-Za-z_]*\.sh' | sort -u)
+  return "$bad"
+}
+capture header_foreign_scripts "$GATE"
+want_green "case 24: the canon header names no script path outside the gate's closure"
+
+# L: the site wrapper path put back in the header -> red, naming it.
+WRAPPER="Scripts/gate_language"
+WRAPPER="${WRAPPER}_pages.sh" # built in two parts: the path is not named whole here
+if selftest_mutant "$GATE" "$MUT" "s|(forsgren: its pages wrapper, from its|(forsgren: ${WRAPPER}, from its|"; then
+  capture header_foreign_scripts "$MUT"
+  want_red "mutation proof L: the wrapper path back in the header turns case 24 red" "$WRAPPER"
+fi
+
 rm -f "$MUT"
-selftest_end "the language gate self-test failed" "language gate: every case holds, eleven mutations seen"
+selftest_end "the language gate self-test failed" "language gate: every case holds, twelve mutations seen"

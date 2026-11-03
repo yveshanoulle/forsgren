@@ -30,6 +30,23 @@ sfl.sh (v12); `lib_selftest.sh` got the same check.
 
 ---
 
+## 2026-11-03 — the language gate header names no installation-specific script ([#617](https://github.com/yveshanoulle/forsgren/issues/617), 1 step)
+
+forsgren issue 617, tools (no release). Line 50 of `Scripts/gate_language.sh`
+(canon v3) named `Scripts/gate_language_pages.sh`, a script that exists only in
+this repository, so an installation that copies the gate byte-identical and
+checks script references went red on the comment. The line now says "its pages
+wrapper" in prose: the same line count, every other byte unchanged, so the
+canon version stays v3 and the copies stay byte-identical.
+
+- Red first: case 24 of `Scripts/test_gate_language.sh` pins that the header
+  comments name no `Scripts/*.sh` path outside the gate, its self-test,
+  `report_baselines.sh` and the libraries the gate sources; it was red on the
+  old line, naming the path.
+- Mutation proof L: the path put back in the header turns case 24 red.
+
+---
+
 ## 2026-11-03 — the browser gate process self-test removes the Chrome singleton folders it leaves ([#613](https://github.com/yveshanoulle/forsgren/issues/613), 1 step)
 
 forsgren issue 613, tools (no release). Found in #612: Chrome makes
