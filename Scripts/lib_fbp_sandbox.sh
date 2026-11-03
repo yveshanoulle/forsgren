@@ -162,6 +162,16 @@ FBP_SANDBOX_SFL_PRE_SIGNAL=""
 # handed --all on to sfl pre and post.
 FBP_SANDBOX_SFL_LOG_ARGS=""
 
+# forsgren#290: two more seams, for Scripts/test_fbp_local_hook.sh, set and
+# reset the same way.
+#   FBP_SANDBOX_LOCAL_HOOK: when non-empty, this text is written to
+#     .fbp-local.sh in the sandbox, the optional local hook FBP.sh sources.
+#   FBP_SANDBOX_SFL_LOG_TMPDIR: when non-empty, the stub sfl.sh first prints
+#     `stub sfl TMPDIR=<value>` (`unset` when not set), so a fixture sees the
+#     TMPDIR a gate gets.
+FBP_SANDBOX_LOCAL_HOOK=""
+FBP_SANDBOX_SFL_LOG_TMPDIR=""
+
 # forsgren#266: one more seam, for the gate-selection case of
 # Scripts/test_sfl_gate_skip.sh, set and reset the same way.
 #   FBP_SANDBOX_SFL_SKIPS: when non-empty, the stub sfl.sh, run as sfl.sh pre,
@@ -329,6 +339,10 @@ fbp_sandbox_write_sfl() {
     if [ -n "$FBP_SANDBOX_SFL_LOG_ARGS" ]; then
       printf 'echo "stub sfl args: $*"\n'
     fi
+    if [ -n "$FBP_SANDBOX_SFL_LOG_TMPDIR" ]; then
+      # shellcheck disable=SC2016 # the stub expands it, not this printf
+      printf 'echo "stub sfl TMPDIR=${TMPDIR:-unset}"\n'
+    fi
     fbp_sandbox_sfl_counts_line pre "$FBP_SANDBOX_SFL_COUNTS_PRE"
     fbp_sandbox_sfl_counts_line post "$FBP_SANDBOX_SFL_COUNTS_POST"
     fbp_sandbox_sfl_static_stop_line
@@ -435,6 +449,9 @@ fbp_sandbox_run() {
     git config user.email t@t.t
     git config user.name t
     fbp_sandbox_write_sfl
+    if [ -n "$FBP_SANDBOX_LOCAL_HOOK" ]; then
+      printf '%s\n' "$FBP_SANDBOX_LOCAL_HOOK" > .fbp-local.sh
+    fi
     mkdir -p Scripts
     if [ -n "$FBP_SANDBOX_ORDER_FILE" ]; then
       cp "$FBP_SANDBOX_ORDER_FILE" Scripts/gate_report_order.txt

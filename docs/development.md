@@ -86,6 +86,18 @@ before it is ever published.
 
 **Before handing back** (forsgren#439): Writers run their tests red first, and FBP (fail fast, forsgren#441) is the check.
 
+**A local hook** (forsgren#290): a file named `.fbp-local.sh` in the repository
+root is optional and never committed (the repository's ignore file lists it).
+`FBP.sh` and `./sfl.sh` source it, in their own shell and not as a child
+process, before the first gate, so what it exports reaches every gate and
+subprocess. Use it for settings that belong to one machine, for example an
+exported `TMPDIR` pointing at a larger disk. Without the file nothing changes
+and nothing is printed. A hook whose last command fails (non-zero status) stops
+the run at once with a `❌` line naming `.fbp-local.sh`; no gate, build, commit
+or push runs. `FBP.sh` runs `./sfl.sh`, which sources the file again, so a hook
+must be safe to run twice. CI does not use it. `Scripts/test_fbp_local_hook.sh`
+holds this.
+
 **`./sfl.sh pre|post`** runs one phase of the gates. Before PRE it refuses a
 half-merged repo (exit 3, before any pull or gate): unmerged files (`git diff
 --name-only --diff-filter=U`) or a leftover `autostash` stash entry, each named

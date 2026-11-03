@@ -79,6 +79,7 @@ run report shows how many checks each of them ran.
 - bare mktemp self-test (`Scripts/test_check_bare_mktemp.sh`, pre)
 - bare mktemp (`Scripts/check_bare_mktemp.sh`, pre)
 - tmp failure stops self-test (`Scripts/test_tmp_failure_stops.sh`, pre)
+- local hook self-test (`Scripts/test_fbp_local_hook.sh`, pre)
 - gate wiring (`Scripts/test_gate_wiring.sh`, pre)
 - CI phase runner self-test (`Scripts/test_run_ci_phase.sh`, pre)
 - go mod tidy self-test (`Scripts/test_check_go_mod_tidy.sh`, pre)

@@ -9,6 +9,30 @@ Active work lives in
 
 ---
 
+## 2026-11-03 — FBP.sh and sfl.sh source an optional local hook ([#290](https://github.com/yveshanoulle/forsgren/issues/290), 1 step)
+
+forsgren issue 290, patch (a portability and configuration improvement, no change
+to the DORA metrics). `FBP.sh` (v15) and `sfl.sh` (v13) source `.fbp-local.sh` from
+the repository root before the first gate, in their own shell, so what it exports
+(`TMPDIR` included) reaches every gate and subprocess. The file is optional and
+listed in `.gitignore`, so it is never committed; what belongs to one machine lives
+in it and nothing of that is in this repository. Without it nothing changes and
+nothing is printed. A hook whose last command fails stops the run at once with a
+`❌` line naming `.fbp-local.sh`: no gate, build, commit or push runs. CI needs no
+hook. `docs/development.md` has one section.
+
+- Red first: `Scripts/test_fbp_local_hook.sh` (new, `docs/gate-classification.md`
+  row 159e) failed on the unmodified scripts: the hook's `TMPDIR` was not seen by a
+  gate, a failing hook let the run go on and commit, and the file was staged.
+- Cases for both scripts: no hook, a hook that exports `TMPDIR`, a failing hook;
+  and `git add -A` leaves the file untracked. Mutation proofs: the hook run as a
+  child process, and a hook failure ignored, in each script; an ignore file without
+  the line.
+- `Scripts/lib_fbp_sandbox.sh` got two seams, `FBP_SANDBOX_LOCAL_HOOK` and
+  `FBP_SANDBOX_SFL_LOG_TMPDIR`.
+
+---
+
 ## 2026-11-03 — the metrics workflow pin lists the Go tree it builds ([#590](https://github.com/yveshanoulle/forsgren/issues/590), 1 step)
 
 forsgren issue 590, tools (no release). `Scripts/test_metrics_workflow.sh` builds and

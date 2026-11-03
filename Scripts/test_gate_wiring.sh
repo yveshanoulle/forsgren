@@ -196,11 +196,12 @@ fi
 # (forsgren#382), and up to 164 for the token expiry probe self-test
 # (forsgren#269), and up to 167 for the temp helper self-test, the bare mktemp
 # self-test and the bare mktemp gate (forsgren#612), and up to 168 for the tmp
-# failure stops self-test (forsgren#615).
+# failure stops self-test (forsgren#615), and up to 169 for the local hook
+# self-test (forsgren#290).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=168
+MIN_GATES=169
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true

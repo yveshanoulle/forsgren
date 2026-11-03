@@ -22,7 +22,9 @@ cd "$(dirname "$0")" || exit 1
 # TMPDIR; before, a bare mktemp -d put it in the system temp folder.
 # v12 (forsgren#615) stops with a ❌ line when the gate log folder cannot be made;
 # before, the missing check let it go on with an empty path.
-VERSION=12
+# v13 (forsgren#290) sources an optional git-ignored .fbp-local.sh before the
+# first gate; a failing hook stops the run with a ❌ line.
+VERSION=13
 
 # forsgren#214: FBP.sh FIXES what the gates can fix (the npm audit heal runs
 # only under GATE_FIX=1); CI never sets it and only checks.
@@ -55,6 +57,22 @@ fi
 echo "sfl.sh v${VERSION} — ${PHASE} — Started at $(date '+%Y-%m-%d %H:%M:%S')"
 if [ "$RUN_ALL" -eq 1 ]; then
   echo "--all: every gate of the phase runs, no early stop."
+fi
+
+# Local hook (forsgren#290): an optional, git-ignored .fbp-local.sh in the
+# repository root is SOURCED here, in this shell and not as a child process,
+# before the pull and the first gate, so what it exports (TMPDIR included)
+# reaches every gate. No file: nothing happens and nothing is printed. A hook
+# that fails (its last command's status is not 0) stops the run at once. FBP.sh
+# sources the same file, so a hook must be safe to run twice. CI needs none.
+if [ -f ./.fbp-local.sh ]; then
+  hook_rc=0
+  # shellcheck source=/dev/null
+  source ./.fbp-local.sh || hook_rc=$?
+  if [ "$hook_rc" -ne 0 ]; then
+    echo "❌ .fbp-local.sh failed (exit ${hook_rc}): no gate ran." >&2
+    exit 1
+  fi
 fi
 
 # forsgren runs sfl in two phases around the build. Synchronise only before

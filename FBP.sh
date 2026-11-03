@@ -120,6 +120,26 @@ if [ -n "$COMMIT_MSG" ]; then
   fi
 fi
 
+# Local hook (forsgren#290): an optional, git-ignored .fbp-local.sh in the
+# repository root is SOURCED here, in this shell and not as a child process, so
+# what it exports (TMPDIR included) reaches every gate and subprocess below.
+# No file: nothing happens and nothing is printed. A hook that fails (its last
+# command's status is not 0) stops the run at once: no gate, build, commit or
+# push. CI never runs FBP.sh and needs no hook.
+if [ -f ./.fbp-local.sh ]; then
+  # errexit is off while the hook runs: a failing command inside it must not
+  # end this script silently (bash exits at it even in a `source ... ||` list).
+  set +e
+  # shellcheck source=/dev/null
+  source ./.fbp-local.sh
+  hook_rc=$?
+  set -e
+  if [ "$hook_rc" -ne 0 ]; then
+    echo "❌ .fbp-local.sh failed (exit ${hook_rc}): no gate, build, commit or push ran." >&2
+    exit 1
+  fi
+fi
+
 # Bump FBP_VERSION on every meaningful change to THIS file. The banner
 # below is how you confirm which script you actually ran - it names the
 # repo because two FBP runs back to back were otherwise
@@ -132,7 +152,9 @@ fi
 # to the system temp folder whatever TMPDIR said.
 # v14 (forsgren#614) removes those logs on every way out, not only after the
 # summary ran to its end.
-FBP_VERSION=14
+# v15 (forsgren#290) sources an optional git-ignored .fbp-local.sh before the
+# first gate; a failing hook stops the run with a ❌ line.
+FBP_VERSION=15
 
 STARTED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 START_EPOCH="$(date +%s)"
