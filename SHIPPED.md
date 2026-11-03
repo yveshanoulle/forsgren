@@ -9,6 +9,20 @@ Active work lives in
 
 ---
 
+## 2026-11-03 — The tmp failure self-test holds on a cold Go module cache ([#619](https://github.com/yveshanoulle/forsgren/issues/619), 1 step)
+
+forsgren issue 619, tools. Quality was red on main because the case for
+`Scripts/check_test_dupl.sh` in `Scripts/test_tmp_failure_stops.sh` failed on a
+runner with a cold Go module cache: `go tool -n golangci-lint` downloads the
+tool, that needs the TMPDIR the case makes unwritable, and the gate stopped on
+the tool lookup, with the wrong message, before its `tmp_dir` check. A warm
+cache hid it. The gate now makes its temp folder first, so a failed `tmp_dir`
+is what stops it. The self-test has a second case for it with empty
+`GOMODCACHE`, `GOPATH` and `GOCACHE`, red when the gate asks go for the tool
+first (it downloads nothing now, so it costs no time). The other three Go-tool
+gates make no temp folder, and the other scripts of the self-test run no
+network call or download before theirs.
+
 ## 2026-11-03 — The legend links no word in its everyday sense ([#571](https://github.com/yveshanoulle/forsgren/issues/571), 1 step)
 
 forsgren issue 571, patch. The legend links the first mention of each Dictionary

@@ -39,6 +39,15 @@ source Scripts/lib_tmp.sh
 MODULE_DIR="${1:-.}"
 THRESHOLD="${2:-80}"
 
+# The temp folder comes FIRST (forsgren#619): on a cold module cache `go tool -n`
+# downloads the tool, and that needs a writable TMPDIR, so a TMPDIR that cannot
+# hold a folder must stop the gate here, with this gate's ❌ line, not in the
+# tool lookup. The config file below MUST end in .yml — golangci-lint (viper)
+# infers the format from the extension. macOS `mktemp -t ...yml` does NOT
+# preserve the suffix, so mktemp a dir and put a real .yml inside it.
+TMP_DIR="$(tmp_dir check_test_dupl_tmp_dir)" || { echo "❌ FAIL: check_test_dupl.sh: cannot make a temp folder under ${TMPDIR:-/tmp}" >&2; exit 1; }
+trap 'rm -rf "$TMP_DIR"' EXIT
+
 # The tool path comes from stdout alone (Scripts/lib_go_tool.sh, forsgren#216):
 # on a fresh runner go prints its "go: downloading ..." lines on stderr
 # (forsgren#210), which stay on stderr, in the log, and never reach BIN. `go
@@ -71,11 +80,6 @@ if [ "$tests" -eq 0 ]; then
   exit 1
 fi
 
-# The config file MUST end in .yml — golangci-lint (viper) infers the format
-# from the extension. macOS `mktemp -t ...yml` does NOT preserve the suffix,
-# so mktemp a dir and put a real .yml inside it.
-TMP_DIR="$(tmp_dir check_test_dupl_tmp_dir)" || { echo "❌ FAIL: check_test_dupl.sh: cannot make a temp folder under ${TMPDIR:-/tmp}" >&2; exit 1; }
-trap 'rm -rf "$TMP_DIR"' EXIT
 CONFIG="$TMP_DIR/test_dupl.golangci.yml"
 cat >"$CONFIG" <<YAML
 version: "2"

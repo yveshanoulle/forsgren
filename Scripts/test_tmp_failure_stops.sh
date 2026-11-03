@@ -69,6 +69,17 @@ tmp_case check_html_dupl.sh bash "Scripts/check_html_dupl.sh"
 tmp_case check_file_length.sh bash "Scripts/check_file_length.sh" "$MODULE"
 tmp_case check_coverage.sh bash "Scripts/check_coverage.sh" "$MODULE"
 tmp_case check_test_dupl.sh bash "Scripts/check_test_dupl.sh" "$MODULE"
+# Cold cache (forsgren#619): a warm module cache hid that the tool lookup ran
+# before the tmp_dir check; with empty caches that lookup downloads the tool
+# and fails on the unwritable TMPDIR. The gate must stop at tmp_dir first, so
+# nothing is downloaded or built (and no minutes are spent either).
+COLD="${TMP}/cold"
+mkdir -p "$COLD"
+tmp_case check_test_dupl.sh env GOMODCACHE="${COLD}/mod" GOPATH="${COLD}/path" GOCACHE="${COLD}/cache" \
+  bash "Scripts/check_test_dupl.sh" "$MODULE"
+if grep -qF -- "go: downloading" <<< "$OUT"; then
+  fail "check_test_dupl.sh: with a cold module cache it asked go for the tool before its tmp_dir check. Output: ${OUT}"
+fi
 tmp_case check_markdown_links.sh bash "Scripts/check_markdown_links.sh"
 tmp_case check_golden_pages.sh bash "Scripts/check_golden_pages.sh"
 tmp_case check_script_references.sh bash "Scripts/check_script_references.sh"
