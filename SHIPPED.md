@@ -9,6 +9,24 @@ Active work lives in
 
 ---
 
+## 2026-11-03 — the browser gate process self-test removes the Chrome singleton folders it leaves ([#613](https://github.com/yveshanoulle/forsgren/issues/613), 1 step)
+
+forsgren issue 613, tools (no release). Found in #612: Chrome makes
+`com.google.Chrome.XXXXXX` folders (SingletonCookie, SingletonSocket) in the
+system temp folder, whatever TMPDIR says, and a Chrome the test kills leaves
+them (no mktemp call, so the bare-mktemp gate cannot see them). The self-test
+`Scripts/test_gate_browser_process.sh` is now `test_gate_browser_process v2`:
+each case reads the folders of ITS Chrome from the SingletonSocket link of its
+profile while the run is up (never a glob over the temp folder), removes
+exactly those after the case, and is red on one still there, naming it.
+
+- Red first: with the cleanup off, cases 53 and 53c (the killed Chrome) were
+  red, naming the folder; the cases ended by a signal left none.
+- Mutation proofs: V (no cleanup) is red with the folders named; W (a cleanup
+  that also removes a decoy folder of "another Chrome", made beside the
+  case's own) is red. The decoy is made and removed by the test.
+- docs/gate-classification.md row 122a.
+
 ## 2026-11-02 — the browser gate loads every page once more in delayed pieces, so a mid-parse layout shift is caught on every run ([#611](https://github.com/yveshanoulle/forsgren/issues/611), 1 step)
 
 forsgren issue 611, tools (no release), decision C on #611 (option A built

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser_process v1
+# canon: test_gate_browser_process v2
 # Scripts/test_gate_browser_process.sh (forsgren#386, decision #411 A)
 #
 # The second self-test of the browser gate (Scripts/gate_browser.sh): the exits,
@@ -27,7 +27,17 @@
 #      a gate not up in 60 s, or ended before the signal, is red with that
 #      reason (forsgren#383). The gate gets up to 60 s to end, and Chrome up to
 #      60 s to be gone: observable conditions, never a fixed window (forsgren#384).
+#  54. The singleton folders of Chrome (forsgren#613): Chrome makes
+#      com.google.Chrome.XXXXXX (SingletonCookie, SingletonSocket) in the system
+#      temp folder, whatever TMPDIR says, and a killed Chrome leaves them. Every
+#      case above finds the folders of ITS Chrome through the SingletonSocket
+#      link of its profile (read while the run is up), removes exactly those
+#      after the end, and is red on one still there (the folders are named). A
+#      decoy folder of "another Chrome", made beside them, must still be there.
 # Mutation proofs (each fixture is red BECAUSE of the line mutated):
+#   V. no cleanup of the singleton folders: a killed Chrome (cases 53, 53c) leaves
+#      them (named); a Chrome ended by a signal removes its own;
+#   W. a cleanup too wide also removes the decoy of another Chrome: red;
 #   R. no signal handler in the engine: case 52e leaves the profile folder;
 #   S. the wrapper not forwarding the signal: case 52a leaves Chrome alive.
 # There is no mutation proof for case 53c (forsgren#443). Proof U, the old engine
@@ -116,15 +126,49 @@ real_chrome() {
   done
 }
 
+# own_chrome_dirs <dir>: the singleton folders of the Chrome whose profile is in
+# <dir> (forsgren#613): the folder of the target of the profile's SingletonSocket
+# link. Found through that profile, which belongs to the process the case
+# launched, never by a glob over the system temp folder.
+own_chrome_dirs() {
+  local link
+  while IFS= read -r link; do
+    if [[ -n "$link" ]]; then dirname "$(readlink "$link")"; fi
+  done < <(find "$1" -maxdepth 2 -path '*/browser-gate-*/SingletonSocket' -type l 2> /dev/null)
+}
+
+# chrome_cleanup <mode>: removes the singleton folders recorded in SIG_OWN.
+# own: those folders and nothing else; none and wide are the mutants V and W.
+chrome_cleanup() {
+  local dir
+  case "$1" in
+    own)
+      while IFS= read -r dir; do
+        if [[ -n "$dir" ]]; then rm -rf "$dir"; fi
+      done <<< "$SIG_OWN"
+      ;;
+    wide)
+      # a cleanup that is too wide: also takes the decoy (a real one would take
+      # every folder of the same name pattern; the proof never touches those)
+      while IFS= read -r dir; do
+        if [[ -n "$dir" ]]; then rm -rf "$dir"; fi
+      done <<< "$SIG_OWN"
+      rm -rf "$SIG_FOREIGN"
+      ;;
+  esac
+}
+
 # signal_case <label> <target: self|node> <signal|error|launch> <command...>:
 # runs the command on the slow fixture with its own TMPDIR, waits until it is
 # up (engine_up; for launch: launch_up) for up to 60 s, sends the signal to the
 # command (self) or to the node process under it (node), or kills the Chrome
 # (error, launch), then waits for the end. Sets SIG_RC, SIG_CHROME (alive, polled
 # up to 60 s), SIG_PROFILE (folders left), SIG_UP, SIG_EARLY (the gate had ended
-# before the signal), SIG_ENDED, SIG_WAITED (the bound, SIG_WAIT_S or 60 s) and SIG_OUT.
+# before the signal), SIG_OWN (the singleton folders of its Chrome, forsgren#613),
+# SIG_LEFT (those still there after the cleanup SIG_CLEANUP: own, none, wide),
+# SIG_FOREIGN_GONE (the decoy of another Chrome was removed), SIG_ENDED, SIG_WAITED (the bound, SIG_WAIT_S or 60 s) and SIG_OUT.
 signal_case() {
-  local label="$1" target="$2" sig="$3" tmpd pid target_pid up=engine_up
+  local label="$1" target="$2" sig="$3" dir first tmpd pid target_pid up=engine_up
   shift 3
   if [[ "$sig" == "launch" ]]; then up=launch_up; fi
   tmpd="${TMP}/sig_${label}"
@@ -140,6 +184,16 @@ signal_case() {
     fi
     sleep 0.2
   done
+  SIG_OWN=""
+  SIG_FOREIGN=""
+  if [[ "$SIG_UP" -eq 1 ]]; then
+    SIG_OWN="$(own_chrome_dirs "$tmpd")"
+    if [[ -n "$SIG_OWN" ]]; then
+      first="$(head -1 <<< "$SIG_OWN")"
+      SIG_FOREIGN="${first%.*}.foreign$$"
+      mkdir -p "$SIG_FOREIGN"
+    fi
+  fi
   SIG_EARLY=0
   if [[ "$SIG_UP" -eq 1 ]] && ! kill -0 "$pid" 2> /dev/null; then SIG_EARLY=1; fi
   target_pid="$pid"
@@ -177,6 +231,16 @@ signal_case() {
   # Whatever a failed case left behind is ours (found by its folder): clean up.
   pkill -9 -f -- "--user-data-dir=${tmpd}/browser-gate-" || true
   rm -rf "$tmpd"
+  chrome_cleanup "${SIG_CLEANUP:-own}"
+  SIG_LEFT=""
+  while IFS= read -r dir; do
+    if [[ -n "$dir" && -e "$dir" ]]; then SIG_LEFT+="${dir} "; fi
+  done <<< "$SIG_OWN"
+  SIG_FOREIGN_GONE=0
+  if [[ -n "$SIG_FOREIGN" ]]; then
+    if [[ ! -e "$SIG_FOREIGN" ]]; then SIG_FOREIGN_GONE=1; fi
+    rm -rf "$SIG_FOREIGN"
+  fi
 }
 
 # closed_verdict: "" when the last signal_case ended with status $1 and left no
@@ -194,6 +258,12 @@ closed_verdict() {
     echo "${SIG_CHROME} Chrome processes of the gate are still alive"
   elif [[ "$SIG_PROFILE" -ne 0 ]]; then
     echo "the profile folder is still there"
+  elif [[ -z "$SIG_OWN" ]]; then
+    echo "no singleton folder of the case's Chrome was found (the SingletonSocket link of its profile)"
+  elif [[ "$SIG_FOREIGN_GONE" -ne 0 ]]; then
+    echo "the folder of another Chrome was removed with the singleton folders"
+  elif [[ -n "$SIG_LEFT" ]]; then
+    echo "singleton folders of the case's Chrome are still there: ${SIG_LEFT}"
   fi
 }
 
@@ -258,6 +328,19 @@ fi
 # Mutation proofs: the engine copy is run directly, with the real node_modules.
 MUT="${TMP}/mutants"
 
+# V: no cleanup of the singleton folders -> the case names the folders it left
+# (this test then removes them itself).
+SIG_CLEANUP=none signal_case mutant_v self error "$GATE"
+want_left "mutation proof V: without the cleanup a killed Chrome leaves its singleton folders" 2 \
+  "singleton folders of the case's Chrome are still there"
+for left in $SIG_LEFT; do rm -rf "$left"; done
+
+# W: a cleanup too wide -> the decoy of another
+# Chrome goes with them.
+SIG_CLEANUP=wide signal_case mutant_w self TERM "$GATE"
+want_left "mutation proof W: a cleanup too wide also removes the folder of another Chrome" 143 \
+  "the folder of another Chrome was removed"
+
 # R: no signal handler in the engine (the event name is one no signal sends) ->
 # a SIGTERM kills the engine; Chrome ends with its pipe, the profile stays.
 if selftest_mutant "$ENGINE" "${MUT}/r.mjs" "s/process.on(name, /process.on(name + 'x', /"; then
@@ -279,4 +362,4 @@ fi
 
 echo "browser gate process self-test: ${SECONDS} s in total"
 selftest_end "the browser gate process self-test failed" \
-  "browser gate: every exit closes Chrome and removes the profile, two mutations seen"
+  "browser gate: every exit closes Chrome, removes the profile and the singleton folders of its Chrome, four mutations seen"
