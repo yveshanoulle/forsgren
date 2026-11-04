@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# canon: test_sfl_drives_from_order_file v2
 # Scripts/test_sfl_drives_from_order_file.sh
 #
 # Ported from another estate repository 2026-10-01 (forsgren#1). forsgren's change:

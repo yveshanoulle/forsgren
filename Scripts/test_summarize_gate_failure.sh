@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# canon: test_summarize_gate_failure v3
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

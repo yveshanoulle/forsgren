@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# canon: test_gate_wiring v4
 # Scripts/test_gate_wiring.sh
 
 set -euo pipefail

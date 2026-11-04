@@ -9,6 +9,16 @@ Active work lives in
 
 ---
 
+## 2026-11-04 — Canon lines for three shared self-tests ([#624](https://github.com/yveshanoulle/forsgren/issues/624))
+
+forsgren issue 624, tools, no release. `Scripts/test_gate_wiring.sh`,
+`Scripts/test_summarize_gate_failure.sh` and
+`Scripts/test_sfl_drives_from_order_file.sh` now carry a canon line on line 2
+(`test_gate_wiring v4`, `test_summarize_gate_failure v3`,
+`test_sfl_drives_from_order_file v2`), so the cross-repository gate-parity check
+can compare them with the copies in the repositories that share them. Only the
+header line changed; no behaviour changed.
+
 ## 2026-11-03 — A switch turns the Integration table off ([#622](https://github.com/yveshanoulle/forsgren/issues/622), step 4 of 4)
 
 forsgren issue 622, feature, minor (step 4 of 4, the last). The TBD page shows
