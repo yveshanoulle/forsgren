@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_check_yamllint v4
+# canon: test_check_yamllint v5
 # Scripts/test_check_yamllint.sh
 #
 # Fixture test for Scripts/check_yamllint.sh, in the shape of

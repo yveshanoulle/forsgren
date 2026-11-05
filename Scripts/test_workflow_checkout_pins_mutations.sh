@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_workflow_checkout_pins_mutations v1
+# canon: test_workflow_checkout_pins_mutations v2
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

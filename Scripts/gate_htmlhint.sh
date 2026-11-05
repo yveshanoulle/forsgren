@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: gate_htmlhint v1
+# canon: gate_htmlhint v2
 # Scripts/gate_htmlhint.sh
 
 set -euo pipefail

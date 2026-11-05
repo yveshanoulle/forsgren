@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: check_html_dupl v7
+# canon: check_html_dupl v8
 # Scripts/check_html_dupl.sh
 
 set -uo pipefail

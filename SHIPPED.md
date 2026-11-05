@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-11-05 — Thirteen shared scripts: one version per content (#625)
+
+forsgren#625 (1/1): thirteen shared scripts no longer share a canon version with different content. Two (test_no_stray_tracked_files v3, test_check_markdown_links v2) take the sites' copy byte-identical (wording only). Eleven keep this repository's content under a new version (test_check_script_references v3, check_shellcheck v3, check_workflow_triggers v2, test_workflow_checkout_pins_mutations v2, test_check_yamllint v5, test_check_shellcheck v5, gate_htmlhint v2, check_html_dupl v8, check_markdown_links v2, check_script_references v2, check_lint_coverage v2); docs/gate-classification.md rows follow; the sites take them later (sites-follow list). Tooling only, no release.
+
+---
+
 ## 2026-11-04 — Canon lines for three shared self-tests ([#624](https://github.com/yveshanoulle/forsgren/issues/624))
 
 forsgren issue 624, tools, no release. `Scripts/test_gate_wiring.sh`,

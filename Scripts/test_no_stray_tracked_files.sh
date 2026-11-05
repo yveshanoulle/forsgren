@@ -5,7 +5,7 @@
 # No stray files in what the next commit would carry. The
 # canon version, byte-identical across the estate's repositories. This script
 # is the gate and its own self-test: it proves its matcher on a scratch
-# repository, then judges this repository. v3 (forsgren#612): the
+# repository, then judges this repository. v3 (pilot issue 30): the
 # mutant root gets Scripts/lib_tmp.sh beside Scripts/lib_selftest.sh, which
 # sources it from lib_selftest v3 on.
 #

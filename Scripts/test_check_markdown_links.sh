@@ -285,8 +285,7 @@ else
 fi
 
 # Mutation proofs. The mutant sits in its own Scripts/, and gets the real
-# reader beside it unless the mutation replaces the reader, and the temp
-# helper Scripts/lib_tmp.sh the gate sources (forsgren#612).
+# reader beside it unless the mutation replaces the reader.
 mutate() {
   # mutate <name> <sed-expression> <fixture-root> <case> <expected>
   mkdir -p "$TMP/mutant-$1/Scripts"

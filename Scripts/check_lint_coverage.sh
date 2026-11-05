@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: check_lint_coverage v1
+# canon: check_lint_coverage v2
 set -uo pipefail
 
 # check_lint_coverage.sh — did the linters actually OPEN every file that ships?

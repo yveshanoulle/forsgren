@@ -63,7 +63,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 26 | npm install sync self-test | `test_npm_sync_install.sh` | pre | required, `test_npm_sync_install v1` |
 | 27 | site-settings self-test | `test_lib_site_settings.sh` | pre | required, `test_lib_site_settings v2` |
 | 28 | HTMLHint self-test | `test_gate_htmlhint.sh` | pre | required, `test_gate_htmlhint v1` |
-| 29 | HTMLHint | `gate_htmlhint.sh` | post | required, `gate_htmlhint v1` |
+| 29 | HTMLHint | `gate_htmlhint.sh` | post | required, `gate_htmlhint v2` |
 | 30 | Stylelint self-test | `test_gate_stylelint.sh` | pre | required, `test_gate_stylelint v1` |
 | 31 | Stylelint | `gate_stylelint.sh` | post | required, `gate_stylelint v1` |
 | 32 | Stylelint source-fix self-test | `test_fix_source_css.sh` | pre | required |
@@ -79,10 +79,10 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 42 | required-pages self-test | `test_validate_required_pages.sh` | pre | required, `test_validate_required_pages v1` |
 | 43 | required-pages manifest | `validate_required_pages.sh` | post | required, `validate_required_pages v1` |
 | 44 | publish-release shape | n/a | n/a | n/a: forsgren has no publish-release script: a release is a git tag made by the maintainer |
-| 45 | mutation: checkout pins | `test_workflow_checkout_pins_mutations.sh` | pre | required, `test_workflow_checkout_pins_mutations v1` |
+| 45 | mutation: checkout pins | `test_workflow_checkout_pins_mutations.sh` | pre | required, `test_workflow_checkout_pins_mutations v2` |
 | 46 | checkout pins | `test_workflow_checkout_pins.sh` | pre | required, `test_workflow_checkout_pins v1` |
 | 47 | html-duplication self-test | `test_check_html_dupl.sh` | pre | required, `test_check_html_dupl v10` |
-| 48 | html duplication | `check_html_dupl.sh` | pre | required, `check_html_dupl v7` |
+| 48 | html duplication | `check_html_dupl.sh` | pre | required, `check_html_dupl v8` |
 | 49 | html duplication, generated page self-test | `test_check_html_dupl_site.sh` | pre | required |
 | 50 | html duplication, generated page | `check_html_dupl_site.sh` | post | required |
 | 51 | golden-pages self-test | `test_check_golden_pages.sh` | pre | required |
@@ -112,14 +112,14 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 69 | Go dead code self-test | `test_check_deadcode.sh` | pre | required |
 | 70 | Go dead code | `check_deadcode.sh` | pre | required |
 | 71 | lint-coverage self-test | `test_check_lint_coverage.sh` | pre | required, `test_check_lint_coverage v1` |
-| 72 | lint coverage | `check_lint_coverage.sh` | post | required, `check_lint_coverage v1` |
+| 72 | lint coverage | `check_lint_coverage.sh` | post | required, `check_lint_coverage v2` |
 | 73 | npm-audit self-test | `test_npm_audit_check.sh` | pre | required, `test_npm_audit_check v2`; documented exception: one dated advisory (see below) |
 | 74 | npm audit | `npm_audit_check.sh` | pre | required, `npm_audit_check v3`; documented exception: one dated advisory (see below) |
 | 75 | manifest-covers-site self-test | `test_required_pages_covers_site_selftest.sh` | pre | required, `test_required_pages_covers_site_selftest v1` |
 | 76 | manifest covers site | `test_required_pages_covers_site.sh` | post | required, `test_required_pages_covers_site v1` |
 | 77 | quality trigger scope | `test_quality_trigger_scope.sh` | pre | required, `test_quality_trigger_scope v3` |
 | 78 | quality runner pins | `test_quality_runner_pins.sh` | pre | required; forsgren's own (not canon): `test_quality_trigger_scope.sh` is the sites' shared `test_quality_trigger_scope v3`, byte-identical; this one pins push and `pull_request` on `main` with no `paths` or `paths-ignore` filter, no `pull_request_target`, `workflow_dispatch`, and each job on its image (`ubuntu-latest` for the Linux jobs, `macos-latest` for the others) with at most 5 macOS jobs starting together, mutation proofs on synthetic workflows (forsgren#240, forsgren#447) |
-| 79 | stray tracked files | `test_no_stray_tracked_files.sh` | pre | required, `test_no_stray_tracked_files v1` |
+| 79 | stray tracked files | `test_no_stray_tracked_files.sh` | pre | required, `test_no_stray_tracked_files v3` |
 | 80 | quality-report render | `test_render_quality_report.sh` | pre | required, `test_render_quality_report v3`; the renderer is `render_quality_report v3` |
 | 81 | quality-run summary | `test_render_quality_summary.sh` | pre | required |
 | 82 | gate-failure summary | `test_summarize_gate_failure.sh` | pre | required |
@@ -140,10 +140,10 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 97 | exit-trap completion behaviour | `test_exit_trap_completion_behaviour.sh` | pre | required, `test_exit_trap_completion_behaviour v1` |
 | 97a | pipe into grep -q self-test | `test_check_pipe_grep_q.sh` | pre | required; forsgren's own (forsgren#428, not canon): 16 fixture trees (every shape of a producer piped into a quiet grep red, `has`, a file operand, a here-string, `\|\|`, a comment, no quiet flag green), 4 mutation proofs, and `has` of `lib_has.sh` finding a pattern after 300 KB of output where the plain pipe loses it |
 | 97b | pipe into grep -q | `check_pipe_grep_q.sh` | pre | required; forsgren's own (forsgren#428, found by #425): red when a script at the root or in `Scripts/` pipes a producer into `grep -q` (any flag cluster with q, `--quiet`); under pipefail grep leaving at its first match can kill the producer with SIGPIPE and a present pattern reads as missing. The cure is `has` from `Scripts/lib_has.sh` |
-| 98 | markdown-links self-test | `test_check_markdown_links.sh` | pre | required, `test_check_markdown_links v1` |
-| 99 | markdown links | `check_markdown_links.sh` | pre | required, `check_markdown_links v1` |
-| 100 | script references self-test | `test_check_script_references.sh` | pre | required, `test_check_script_references v1` |
-| 101 | script references | `check_script_references.sh` | pre | required, `check_script_references v1` |
+| 98 | markdown-links self-test | `test_check_markdown_links.sh` | pre | required, `test_check_markdown_links v2` |
+| 99 | markdown links | `check_markdown_links.sh` | pre | required, `check_markdown_links v2` |
+| 100 | script references self-test | `test_check_script_references.sh` | pre | required, `test_check_script_references v3` |
+| 101 | script references | `check_script_references.sh` | pre | required, `check_script_references v2` |
 | 102 | Node pin self-test | `test_node_pin.sh` | pre | required, `test_node_pin v1` |
 | 103 | Node pin gate self-test | `test_check_node_pin.sh` | pre | required, `test_check_node_pin v1` |
 | 104 | Node pin | `check_node_pin.sh` | pre | required, `check_node_pin v1` |
@@ -157,7 +157,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 111 | npm lockfile sync self-test | `test_check_npm_lock_sync.sh` | pre | required, `test_check_npm_lock_sync v1` |
 | 112 | npm lockfile sync | `check_npm_lock_sync.sh` | pre | required, `check_npm_lock_sync v1` |
 | 113 | workflow-triggers self-test | `test_check_workflow_triggers.sh` | pre | required, `test_check_workflow_triggers v1` |
-| 114 | workflow triggers | `check_workflow_triggers.sh` | pre | required, `check_workflow_triggers v1` |
+| 114 | workflow triggers | `check_workflow_triggers.sh` | pre | required, `check_workflow_triggers v2` |
 | 115 | DCO sign-off self-test | `test_check_dco.sh` | pre | required |
 | 116 | metrics workflow | `test_metrics_workflow.sh` | pre | required |
 | 117 | auto-update workflow | `test_auto_update_workflow.sh` | pre | required |

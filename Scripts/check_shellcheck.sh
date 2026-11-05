@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: check_shellcheck v2
+# canon: check_shellcheck v3
 # Shellcheck — every shell script git tracks or will commit (tracked, or
 # untracked and not ignored: Scripts/lib_repo_files.sh), DERIVED rather than
 # named, so a new script is covered the moment it is added instead of when

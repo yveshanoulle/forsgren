@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: check_script_references v1
+# canon: check_script_references v2
 # Scripts/check_script_references.sh [repo-root]
 #
 # The script-references gate, byte-identical across the

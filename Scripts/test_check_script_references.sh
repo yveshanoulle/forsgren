@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_check_script_references v2
+# canon: test_check_script_references v3
 # Scripts/test_check_script_references.sh
 #
 # Fixture test for Scripts/check_script_references.sh,

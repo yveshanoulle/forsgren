@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: check_markdown_links v1
+# canon: check_markdown_links v2
 # Scripts/check_markdown_links.sh
 #
 # The markdown-links gate, byte-identical across the estate's

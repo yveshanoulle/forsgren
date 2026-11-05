@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_check_shellcheck v4
+# canon: test_check_shellcheck v5
 # Scripts/test_check_shellcheck.sh
 #
 # Fixture test for Scripts/check_shellcheck.sh — the guard that keeps every
