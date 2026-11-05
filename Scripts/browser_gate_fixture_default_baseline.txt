@@ -1,0 +1,10 @@
+# Browser baseline: the TBD page in default mode, fixture data (forsgren#626)
+# The browser gate's baseline for the TBD page rendered with the default tbd_figures
+# (Scripts/testdata/fixture_site_default: the fixture site's config without
+# tbd_figures: all). Same closed format, same rules and same engine as
+# Scripts/browser_gate_fixture_baseline.txt (a reason on every row, every row starts
+# with its variant, shrink-only): the default TBD table must not grow horizontally.
+# Add no row to clear a red; only a ruling adds a row. These two rows are the width
+# the default page has today, recorded when the default variant was added.
+sideways|light|/tbd.html|1280x800|table 1|60|the default TBD table (tbd_figures not set) scrolls inside its box today; shrink-only, it must not grow (forsgren#626)
+sideways|light|/tbd.html|390x844|table 1|950|the default TBD table (tbd_figures not set) scrolls inside its box today; shrink-only, it must not grow (forsgren#626)

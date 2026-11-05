@@ -1,0 +1,23 @@
+version: 1
+history_days: 730
+days_page: true
+projects:
+  - name: Acme Shop
+    repositories:
+      - name: acme/api
+        services:
+          deploy-web: {label: Web, paths: [web/]}
+          deploy-admin: Admin
+      - name: acme/ios-app
+        deployments:
+          workflow=testflight.yml: App
+          environment=beta: {label: Beta, paths: [beta/]}
+  - name: Acme Tools
+    repositories:
+      - name: acme/cli
+        label: CLI
+        deployment: release
+  - name: Acme Old
+    repositories:
+      - name: acme/archive
+        deployment: release

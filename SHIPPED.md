@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-11-05 — The TBD page's default layout is gated too (#626, step 2 of 3)
+
+forsgren#626 (2/3): the TBD page in default mode is gated too: a second fixture site, the fixture config without tbd_figures: all (same data), is opened by the browser gate with its own manifest and its own shrink-only baseline (60 px at 1280x800, 950 px at 390x844, the width the default table has today), so the default TBD table can no longer grow sideways unseen; a self-test proves green on the baseline, red one pixel under it at both widths, and red for the all layout. Tooling only, no change to the page.
+
+The default variant's baseline holds today's widths as the ceiling (decision #628, option A built meanwhile).
+
 ## 2026-11-05 — A browser-gate self-test for the TBD page's two tables (#626, step 1 of 3)
 
 - `Scripts/test_gate_browser_tbd_tables.sh` (forsgren only, no canon line) runs the browser gate as it is on a fixture page shaped like the TBD page: table 1 (the TBD table) and table 2 (the Integration table), each in its own scroll box. Table 2 wider than its box is red at 1280x800 and at 390x844, named `table 2`, while a fitting table 1 is never blamed; the reverse (table 1 wide, table 2 fits) names table 1 only. `browser_gate.mjs` and `test_gate_browser.sh` are unchanged.

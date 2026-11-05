@@ -877,6 +877,13 @@ browser gate (fixture site)|Scripts/gate_browser_fixture.sh|post|
 # own at both widths (forsgren#626, forsgren only, not canon). Needs no built site.
 browser gate (TBD tables) self-test|Scripts/test_gate_browser_tbd_tables.sh|pre|
 #
+# The default-mode variant of the TBD page (forsgren#626 step 2, forsgren only, not
+# canon): the fixture site sets tbd_figures: all, so the default layout is gated on
+# its own, with the fixture config without that key, its own manifest and its own
+# shrink-only baseline. The self-test builds its sites; the gate builds its own.
+browser gate (default TBD fixture) self-test|Scripts/test_gate_browser_fixture_default.sh|pre|
+browser gate (default TBD fixture)|Scripts/gate_browser_fixture_default.sh|post|
+#
 # The list of what the four browser rows read (forsgren#262, step 1 of 3, not canon:
 # forsgren only). Scripts/gate_inputs.txt names each gate's inputs, the script ones
 # by closure, with *_test.go and testdata/ excluded for the Go trees (decision
