@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: lib_has v1
+# canon: lib_has v2
 # Scripts/lib_has.sh
 #
 # The one way a script asks "does this stream hold this pattern", whatever
@@ -18,8 +18,8 @@
 # call moves from the old form by changing `grep` to `has`. The exit status is
 # grep's: 0 a line matched, 1 none did, 2 an error.
 #
-# Scripts/check_pipe_grep_q.sh refuses the plain form in Scripts/, and its
-# self-test Scripts/test_check_pipe_grep_q.sh proves has finds a pattern
+# A repository may refuse the plain pipe form with its own gate; this
+# repository does, and that gate's self-test proves has finds a pattern
 # after more output than a pipe holds. It reads stdin only, so a call that
 # names a file stays a plain `grep -q pattern file`, which has no producer.
 #
