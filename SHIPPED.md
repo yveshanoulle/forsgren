@@ -9,6 +9,11 @@ Active work lives in
 
 ---
 
+## 2026-11-05 — A browser-gate self-test for the TBD page's two tables (#626, step 1 of 3)
+
+- `Scripts/test_gate_browser_tbd_tables.sh` (forsgren only, no canon line) runs the browser gate as it is on a fixture page shaped like the TBD page: table 1 (the TBD table) and table 2 (the Integration table), each in its own scroll box. Table 2 wider than its box is red at 1280x800 and at 390x844, named `table 2`, while a fitting table 1 is never blamed; the reverse (table 1 wide, table 2 fits) names table 1 only. `browser_gate.mjs` and `test_gate_browser.sh` are unchanged.
+  - Mutation proofs: the sideways check removed turns the table 2 case green; every table numbered 1 means table 2 is never named. Wired as a pre row, `docs/gate-classification.md` 125a, `CONTRIBUTING.md`; `MIN_GATES` 170 to 171.
+
 ## forsgren#627 — Build script name: FBP.sh everywhere, FullBuildAndPush.sh only forwards during the move
 
 Tooling only, no release. Added the shared `FullBuildAndPush.sh` forwarder (`exec FBP.sh "$@"`) and its self-test `Scripts/test_fullbuildandpush_forwarder.sh`, byte-identical to the other repositories' copies, as the order-file row "FBP forwarder self-test". Every other mention of the old name now says `FBP.sh` (comments, messages, gate labels, docs); the two self-tests that looked for "FullBuildAndPush.sh or FBP.sh" now look for `FBP.sh` only. Shared scripts whose text then matched the other repositories' copy took that copy's canon version; the others got a version no repository uses yet. The gate-count ratchet is 170 and the temp-helper wiring check accepts a dot-sourced `lib_tmp.sh`.

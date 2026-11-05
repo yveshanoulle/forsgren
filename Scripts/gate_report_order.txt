@@ -873,6 +873,10 @@ browser gate|Scripts/gate_browser.sh|post|
 browser gate (fixture site) self-test|Scripts/test_gate_browser_fixture.sh|pre|
 browser gate (fixture site)|Scripts/gate_browser_fixture.sh|post|
 #
+# The TBD page has two tables and an overflow of table 2 (Integration) is red on its
+# own at both widths (forsgren#626, forsgren only, not canon). Needs no built site.
+browser gate (TBD tables) self-test|Scripts/test_gate_browser_tbd_tables.sh|pre|
+#
 # The list of what the four browser rows read (forsgren#262, step 1 of 3, not canon:
 # forsgren only). Scripts/gate_inputs.txt names each gate's inputs, the script ones
 # by closure, with *_test.go and testdata/ excluded for the Go trees (decision
