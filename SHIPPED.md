@@ -12,7 +12,8 @@ Active work lives in
 ## 2026-11-05 — One shared browser gate again: forsgren's and the sites' lines merged (#629, step 1 of 2)
 
 - The browser gate's two lines are one again (estate issue 629, step 1): `browser_gate` v15, `test_gate_browser` v21 and `gate_browser` v4 hold both feature sets. From forsgren: the watch from the start, the delayed-delivery load and the wait for the paint (v6 to v8), with cases 54 to 57 and proofs T, U and Y. From the sites: Chrome's process group ended and a killed Chrome ending the run within seconds under load, the gate removing its own macOS code-sign clone folder, and the test seams `FORSGREN_GATE_BROWSER_HOOK`, `FORSGREN_GATE_CLONE_PARENT` and `FORSGREN_GATE_PS_LISTING` (v9 to v14), with the exit cases 52g to 54c and the sites' proofs R and S, T and U (renamed X and Z, since T and U were taken). A file a repository lacks (`lib_gate_browser_selftest.sh`, `lib_parallel_mutants.sh`) is replaced inside the self-test, with a `skipped` line, so a site can take the bytes unchanged.
-- From the sites' last change (site issue 63): every kept code-sign clone folder is named on stderr with its reason, and the gate waits up to 3 s for a helper of its own Chrome before removing the folder (cases 54a to 54c).
+- From the sites' last change (site issue 63): every kept code-sign clone folder is named on stderr with its reason, and the gate waits up to 3 s for a helper of its own Chrome before removing the folder (cases 54a to 54c). The first FBP was red: the four proofs taken from the sites (R, S, X, Z) called `selftest_mutant` outside a mutant function; they are now mutant functions, run one at a time after the parallel group because they share machine-wide Chrome and clone state (`test_gate_browser` v22).
+
 
 ## 2026-11-05 — The TBD page's default layout is gated too (#626, step 2 of 3)
 

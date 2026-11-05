@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v21
+# canon: test_gate_browser v22
+# v22 writes the proofs R, S, X and Z as mutant functions started with mutant_run (forsgren#629 step 1), each one alone and collected before the next, because they drive signal cases that share the machine's Chrome and clone folders; without the library they still run one after the other
 # v21 folds in the sites' v20 (site issue 63): case 54a, a helper of the gate's Chrome still ending at removal time is waited for and the clone folder removed; case 54b, a clone folder replaced after the launch, and 54c, a new clone folder that is not the identified one, are kept and the reason said (browser_gate v14); the seam cases take a signal, an exit and extra lines of the fake Chrome
 # v19 merges the two lines of the canon (estate issue 629): forsgren's v12 (the cases and proofs of browser_gate v6 to v8: the watch from the start, the delayed-delivery load, the paint wait; the side-by-side proofs; the shared helpers) and the sites' v13 to v18 (the cases 52a to 53i of the exits and the proofs R, S, T, U with the seams of browser_gate v9 to v12); the sites' proofs T and U are X and Z here, because T and U are the delayed-delivery proofs; the helper libraries are used when the repository has them, else defined here
 # v18 fixes (site issue 61, second part): the real-Chrome cases no longer fail when another Chrome starts on the machine meanwhile (the gate then rightly keeps the clone folders): they require a kept folder to be said on stderr; the removal and the keep are proved on a folder and a process listing of the test (cases 53h, 53i; engine seams of browser_gate v12), and mutation proof T goes through case 53h; case 53g is also judged as a closed run
@@ -1393,49 +1394,69 @@ for proof in a b c d e f g h i j k kslow l m n o p q t u y; do
 done
 mutants_wait
 
-# The proofs of the exits (run one after the other, after the side-by-side ones: they
-# signal and kill processes). MUT is theirs; the side-by-side ones keep $TMP/mutants.
-MUT="${TMP}/proc_mutants"
+# The proofs of the exits (R, S, X, Z) drive real signal cases (signal_case): they signal and
+# kill processes, share the machine's clone folders and Chrome listing (a case counts the
+# clone folders and Chromes that appear while it runs) and the globals SIG_* and SEAM_*, and
+# Z shares the marks file. They are written as mutant functions like the others, but each is
+# started alone and collected (mutants_wait) before the next starts, so no two run together
+# and no case sees another's Chrome or clone folder. Without the library, mutant_run runs
+# each one after the other all the same.
+
 # R: no signal handler in the engine (the event name is one no signal sends) ->
 # a SIGTERM kills the engine; Chrome ends with its pipe, the profile stays.
-if selftest_mutant "$ENGINE" "${MUT}/r.mjs" "s/process.on(name, /process.on(name + 'x', /"; then
-  signal_case mutant_r self TERM env FORSGREN_NODE_ROOT="$REPO_ROOT" node "${MUT}/r.mjs"
-  want_left "mutation proof R: without the handler case 52e leaves the profile" 143 "the profile folder is still there"
-fi
+mutant_r() {
+  if mutant_engine "s/process.on(name, /process.on(name + 'x', /"; then
+    signal_case mutant_r self TERM env FORSGREN_NODE_ROOT="$REPO_ROOT" node "$MUTANT_ENGINE"
+    want_left "mutation proof R: without the handler case 52e leaves the profile" 143 "the profile folder is still there"
+  fi
+}
 
 # S: the wrapper does not forward the signal -> it ends, node and Chrome stay.
-WMUT="${TMP}/wmut"
-mkdir -p "${WMUT}/Scripts"
-cp Scripts/browser_gate.mjs Scripts/lib_site_settings.sh Scripts/lib_tmp.sh "${WMUT}/Scripts/"
-ln -s "${REPO_ROOT}/node_modules" "${WMUT}/node_modules"
-if selftest_mutant Scripts/gate_browser.sh "${WMUT}/Scripts/gate_browser.sh" 's/if \[\[ -n "[$]NODE_PID" \]\]; then/if false; then/'; then
-  signal_case mutant_s self TERM "${WMUT}/Scripts/gate_browser.sh"
-  want_left "mutation proof S: without forwarding case 52a leaves Chrome alive" 143 "Chrome processes of the gate are still alive"
-fi
-# X (site proof T, renamed: T is the delayed-delivery load here): the identified clone folder is never removed -> case 53h leaves it.
-if selftest_mutant "$ENGINE" "${MUT}/x.mjs" "s/await attempt(clone.folder, 'Chrome code-sign clone folder');//"; then
-  # Through the seamed case 53h (site issue 61), so that other Chromes on the
-  # machine cannot hide the missing removal.
-  SEAM_CMD=(env FORSGREN_NODE_ROOT="$REPO_ROOT" node "${MUT}/x.mjs")
-  clone_seam_case mutt ""
-  SEAM_CMD=("$GATE")
-  if [[ -d "$SEAM_FOLDER" && -z "$(seam_verdict)" ]]; then
-    echo "  ok: mutation proof X: without the removal case 53h leaves the clone folder"
-  else
-    fail "mutation proof X: without the removal case 53h should leave the clone folder (verdict: '$(seam_verdict)'). Output: ${SIG_OUT}"
+mutant_s() {
+  local wmut="${MUTANT_DIR}/wmut"
+  mkdir -p "${wmut}/Scripts"
+  cp Scripts/browser_gate.mjs Scripts/lib_site_settings.sh Scripts/lib_tmp.sh "${wmut}/Scripts/"
+  ln -s "${REPO_ROOT}/node_modules" "${wmut}/node_modules"
+  if selftest_mutant Scripts/gate_browser.sh "${wmut}/Scripts/gate_browser.sh" 's/if \[\[ -n "[$]NODE_PID" \]\]; then/if false; then/'; then
+    signal_case mutant_s self TERM "${wmut}/Scripts/gate_browser.sh"
+    want_left "mutation proof S: without forwarding case 52a leaves Chrome alive" 143 "Chrome processes of the gate are still alive"
   fi
-fi
+}
+
+# X (site proof T, renamed: T is the delayed-delivery load here): the identified clone folder is never removed -> case 53h leaves it.
+mutant_x() {
+  if mutant_engine "s/await attempt(clone.folder, 'Chrome code-sign clone folder');//"; then
+    # Through the seamed case 53h (site issue 61), so that other Chromes on the
+    # machine cannot hide the missing removal.
+    SEAM_CMD=(env FORSGREN_NODE_ROOT="$REPO_ROOT" node "$MUTANT_ENGINE")
+    clone_seam_case mutt ""
+    SEAM_CMD=("$GATE")
+    if [[ -d "$SEAM_FOLDER" && -z "$(seam_verdict)" ]]; then
+      echo "  ok: mutation proof X: without the removal case 53h leaves the clone folder"
+    else
+      fail "mutation proof X: without the removal case 53h should leave the clone folder (verdict: '$(seam_verdict)'). Output: ${SIG_OUT}"
+    fi
+  fi
+}
+
 # Z (site proof U, renamed: U is the pieces without a pause here; site issue 61): the engine never calls the seam -> case 53e's slowdown is
 # not installed, which its marker check must see (before v18 this passed unseen).
-if selftest_mutant "$ENGINE" "${MUT}/z.mjs" "s/if (process.env.FORSGREN_GATE_BROWSER_HOOK) require/if (false) require/"; then
-  : > "$LOAD_MARKS"
-  signal_case mutant_z self error env FORSGREN_NODE_ROOT="$REPO_ROOT" NODE_OPTIONS="--require=${LOAD_SEAM}" FORSGREN_GATE_BROWSER_HOOK="$LOAD_SEAM" node "${MUT}/z.mjs"
-  if grep -qx hooked "$LOAD_MARKS"; then
-    fail "mutation proof Z: with the seam call removed the slowdown was still installed, so case 53e cannot see a dead seam"
-  else
-    echo "  ok: mutation proof Z: without the seam call 'hooked' is never marked, and case 53e would be red"
+mutant_z() {
+  if mutant_engine "s/if (process.env.FORSGREN_GATE_BROWSER_HOOK) require/if (false) require/"; then
+    : > "$LOAD_MARKS"
+    signal_case mutant_z self error env FORSGREN_NODE_ROOT="$REPO_ROOT" NODE_OPTIONS="--require=${LOAD_SEAM}" FORSGREN_GATE_BROWSER_HOOK="$LOAD_SEAM" node "$MUTANT_ENGINE"
+    if grep -qx hooked "$LOAD_MARKS"; then
+      fail "mutation proof Z: with the seam call removed the slowdown was still installed, so case 53e cannot see a dead seam"
+    else
+      echo "  ok: mutation proof Z: without the seam call 'hooked' is never marked, and case 53e would be red"
+    fi
   fi
-fi
+}
+
+for proof in r s x z; do
+  mutant_run "mutant_${proof}"
+  mutants_wait
+done
 
 echo "browser gate self-test: ${SECONDS} s in total"
 selftest_end "the browser gate self-test failed" "browser gate: every case holds, twenty-four mutations seen"
