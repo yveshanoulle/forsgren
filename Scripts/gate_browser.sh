@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: gate_browser v3
+# canon: gate_browser v4
+# v4 merges the two lines of the canon (estate issue 629): v3 (the exit-trap idiom of forsgren#381, temp names through lib_tmp.sh) and the sites' v2 (the same idiom as the local fix of site issue 34, with plain mktemp); the wrapper is v3 as it was
 # Scripts/gate_browser.sh (forsgren#205)
 #
 # The browser gate (POST): serves the built site on 127.0.0.1 and opens every

@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v12
+# canon: test_gate_browser v21
+# v21 folds in the sites' v20 (site issue 63): case 54a, a helper of the gate's Chrome still ending at removal time is waited for and the clone folder removed; case 54b, a clone folder replaced after the launch, and 54c, a new clone folder that is not the identified one, are kept and the reason said (browser_gate v14); the seam cases take a signal, an exit and extra lines of the fake Chrome
+# v19 merges the two lines of the canon (estate issue 629): forsgren's v12 (the cases and proofs of browser_gate v6 to v8: the watch from the start, the delayed-delivery load, the paint wait; the side-by-side proofs; the shared helpers) and the sites' v13 to v18 (the cases 52a to 53i of the exits and the proofs R, S, T, U with the seams of browser_gate v9 to v12); the sites' proofs T and U are X and Z here, because T and U are the delayed-delivery proofs; the helper libraries are used when the repository has them, else defined here
+# v18 fixes (site issue 61, second part): the real-Chrome cases no longer fail when another Chrome starts on the machine meanwhile (the gate then rightly keeps the clone folders): they require a kept folder to be said on stderr; the removal and the keep are proved on a folder and a process listing of the test (cases 53h, 53i; engine seams of browser_gate v12), and mutation proof T goes through case 53h; case 53g is also judged as a closed run
+# v18 fixes (site issue 61):case 53e's slowdowns never took effect (puppeteer.launch on a module namespace cannot be assigned, the engine removes folders with fs.promises.rm, not rmSync); the engine now calls a seam module (browser_gate v12), the file-system slowdown patches fs.promises.rm, the case fails unless each slowdown was marked as seen, and mutation proof U shows a dead seam turns it red
+# v17 fixes (estate issue 617): the clone cleanup of signal_case (remove_new_clones) no longer ends the self-test silently when the new folder is already gone (grep -v finding nothing under pipefail aborted the run before proofs R, S and T); cases 52h and 52i pin it on a fake folder, and a folder that cannot be removed still fails
+# v16 adds (estate issue 617): every signal_case also proves the code-sign clone folder Chrome makes on macOS (about 1.4 GB, left by a killed Chrome) is removed after its Chrome is gone; case 53g, a clone folder of another Chrome that appears during the launch and is held open by a process of the test is left untouched, and the gate keeps its own folder too, saying so on stderr
+# v15 adds (site issue 60): case 53e, a loaded machine (slow reaping, a close() that never answers, a slow file system) slows only the gate; a killed Chrome still ends the run at once
+# v13 adds (site issue 59): cases 52g and 53d, a Chrome helper that outlives the browser and writes into the profile
 # Scripts/test_gate_browser.sh (forsgren#205)
 #
 # Self-test for Scripts/gate_browser.sh, the browser gate, run in PRE before the
@@ -125,15 +133,39 @@
 #   Y. the wait for the paint removed (forsgren#620): case 57 turns green.
 #  57. the same page with a main thread busy past all the pieces (a slow runner)
 #      -> red as 55: the server waits for the paint between pieces (browser_gate v8)
-# The exits (forsgren#381, browser_gate v5, v6 since forsgren#386): Chrome closed
-# and its profile folder removed on every way out. Cases 52a-52f, 53 and 53c
-# and mutation proofs R and S moved to the process self-test, the browser gate
-# process self-test row (forsgren#386, decision #411 A), the second self-test
-# of the same job, so a
-# race in a process case no longer hides the cases above. The shared helpers
-# are Scripts/lib_gate_browser_selftest.sh. Each ok and FAIL line ends with the
-# seconds since the line before it, the case's own duration, so the CI log shows
-# what is slow (forsgren#386).
+# The exits (forsgren#381, site issue 34): Chrome closed and its profile folder
+# removed on every way out:
+#  52. SIGTERM, SIGINT, SIGHUP to the wrapper, SIGTERM to node (under the wrapper
+#      and alone) -> exit 143, 130, 129; no Chrome, no profile folder; SIGKILL
+#      to node -> Chrome ends with its pipe
+#  53. Chrome killed mid-run (an error) -> exit 2; no Chrome, no profile folder
+#  52g, 53d (site issue 59). The same with a Chrome helper that outlives the
+#      browser and keeps writing into the profile folder: no profile left
+#  52h, 52i (estate issue 617). The cleanup of the clone folders on a folder of
+#      the test: survives a vanished folder, removes only the new one, fails on
+#      one that cannot be removed
+#  53g (estate issue 617). Nothing ties a code-sign clone folder to its Chrome,
+#      so a second folder appearing during the launch (another Chrome's) makes
+#      the gate keep both and say so; the other folder is untouched (macOS only;
+#      elsewhere there is no such folder). Every other case here asserts that
+#      the gate's own folder is gone, or kept with the reason said.
+#  53h, 53i (site issue 61). Who owns a clone folder, decided on a folder and a
+#      process listing of the test (FORSGREN_GATE_CLONE_PARENT and
+#      FORSGREN_GATE_PS_LISTING of browser_gate v12)
+#  53e (site issue 60). A loaded machine slows only the gate (browser_gate v12's
+#      FORSGREN_GATE_BROWSER_HOOK); a killed Chrome still ends the run at once
+#   R. no signal handler in the engine: case 52e leaves the profile folder;
+#   S. the wrapper not forwarding the signal: case 52a leaves Chrome alive;
+#   X. (the sites' proof T) the clone folder never removed: case 53h leaves it;
+#   Z. (the sites' proof U) the engine never calls the seam: case 53e's marker
+#      is missing.
+# These cases and R, S, X, Z run here, one after the other. The browser gate
+# process self-test (Scripts/test_gate_browser_process.sh, only where the
+# repository has it: the cases 52a-52f, 53 and 53c on forty looks and the
+# singleton folders of forsgren#613) runs the exits again in its own job, so a
+# race in a process case does not hide the checks above. Each ok and FAIL line
+# ends with the seconds since the line before it when
+# Scripts/lib_gate_browser_selftest.sh is there (forsgren#386).
 
 set -euo pipefail
 
@@ -145,11 +177,104 @@ ENGINE="${REPO_ROOT}/Scripts/browser_gate.mjs"
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
-# shellcheck source=Scripts/lib_gate_browser_selftest.sh
-source Scripts/lib_gate_browser_selftest.sh
-# shellcheck source=Scripts/lib_parallel_mutants.sh
-source Scripts/lib_parallel_mutants.sh
+# The helpers shared with the browser gate process self-test, and the side-by-side
+# mutants, are in their own files in forsgren; a repository without a file gets
+# the same behaviour here, and a line says so.
+if [[ -f Scripts/lib_gate_browser_selftest.sh ]]; then
+  # shellcheck source=Scripts/lib_gate_browser_selftest.sh
+  source Scripts/lib_gate_browser_selftest.sh
+  GATE_BROWSER_LIB=1
+else
+  GATE_BROWSER_LIB=0
+fi
+if [[ -f Scripts/lib_parallel_mutants.sh ]]; then
+  # shellcheck source=Scripts/lib_parallel_mutants.sh
+  source Scripts/lib_parallel_mutants.sh
+  PARALLEL_LIB=1
+else
+  PARALLEL_LIB=0
+  # Without the library the proofs run one after the other, each in a subshell
+  # as the library runs it (a MUTANT_DIR of its own, its status read back).
+  MUTANT_ROOT=""
+  MUTANT_N=0
+  mutants_init() {
+    MUTANT_ROOT="$1/mutants"
+    rm -rf "$MUTANT_ROOT"
+    mkdir -p "$MUTANT_ROOT"
+    MUTANT_N=0
+  }
+  mutant_run() {
+    local status
+    MUTANT_N=$((MUTANT_N + 1))
+    export MUTANT_DIR="${MUTANT_ROOT}/m${MUTANT_N}"
+    mkdir -p "$MUTANT_DIR"
+    set +e
+    (
+      failed=0
+      "$@"
+      exit "$failed"
+    )
+    status=$?
+    set -e
+    if [[ "$status" -ne 0 ]]; then
+      failed=1
+    fi
+  }
+  mutants_wait() { :; }
+fi
 selftest_begin "browser gate self-test"
+
+if [[ "$GATE_BROWSER_LIB" -eq 0 ]]; then
+  echo "  skipped: Scripts/lib_gate_browser_selftest.sh not in this repository (its helpers are defined in this file)"
+  LAP=$SECONDS
+  browser_selftest_require() {
+    local need
+    for need in "$@"; do
+      if [[ ! -e "$need" ]]; then
+        selftest_abort "browser gate self-test: ${need} is missing"
+      fi
+    done
+  }
+  # page <body-extra> <head-extra> [doctype] [charset]: a clean page, one part changed.
+  page() {
+    local body="$1" head="$2" doctype="${3-<!doctype html>}" charset="${4-<meta charset=\"utf-8\">}"
+    cat << HTML
+${doctype}
+<html lang="en">
+<head>
+${charset}
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fixture</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/styles.css">
+${head}
+</head>
+<body>
+<main>
+<h1>Fixture</h1>
+<p>Plain text.</p>
+${body}
+</main>
+</body>
+</html>
+HTML
+  }
+  # make_site <name> <index.html content>: a site with that page, a stylesheet,
+  # a manifest of "/" and an empty exceptions file, under $TMP/<name>.
+  make_site() {
+    local dir="${TMP}/$1"
+    mkdir -p "$dir/site"
+    printf '%s\n' "$2" > "$dir/site/index.html"
+    printf 'body { color: #111; background: #fff; }\n' > "$dir/site/styles.css"
+    printf '{"requiredPages": ["/"]}\n' > "$dir/manifest.json"
+    : > "$dir/exceptions.txt"
+    : > "$dir/baseline.txt"
+    printf 'light|scheme:light\n' > "$dir/variants.txt"
+  }
+fi
+if [[ "$PARALLEL_LIB" -eq 0 ]]; then
+  echo "  skipped: Scripts/lib_parallel_mutants.sh not in this repository (the mutation proofs run one after the other)"
+fi
 
 browser_selftest_require "$GATE" "$ENGINE" \
   "${REPO_ROOT}/node_modules/puppeteer-core" "${REPO_ROOT}/node_modules/axe-core"
@@ -559,6 +684,449 @@ run_gate unheldslow
 want_red "57: the same page on a slow runner, a busy main thread past all the pieces" "FAIL: light /: CLS 0."
 want_said "57b: the finding names the delayed-delivery load" "1 delayed-delivery load (4 pieces 150 ms apart: 0."
 
+# The exits (see the header): the signal and kill cases of the sites' line.
+# 52-53: the browser is closed and its profile removed on every way out
+# (pilot issue 34): a signal to the wrapper or to node, and an error.
+# A slow fixture (ten looks) keeps the gate busy; the signal comes once Chrome
+# is up. Every Chrome here is found by its own case's profile folder.
+make_site slow "$(page '' '')"
+: > "${TMP}/slow/variants.txt"
+for n in 1 2 3 4 5 6 7 8 9 10; do printf 'look%s|scheme:light\n' "$n" >> "${TMP}/slow/variants.txt"; done
+
+# signal_case <label> <target: self|node> <signal|error> <command...>: runs the
+# command on the slow fixture with its own TMPDIR, waits for Chrome, sends the
+# signal to the command (self) or to the node process under it (node), or kills
+# the Chrome (error), then waits for the end. Sets SIG_UP (1 when its Chrome
+# was found by its profile path before the signal), SIG_RC, SIG_CHROME
+# (alive), SIG_PROFILE (folders left), SIG_ENDED and SIG_OUT, and on macOS
+# the code-sign clone folders (a killed Chrome leaves its own): SIG_CLONE_MADE
+# (new folders seen once the Chrome is up), SIG_CLONE_LEFT (new folders still
+# there at the end) and SIG_CLONE_CONCURRENT (Chrome processes of anyone else
+# that started meanwhile; their folders cannot be told from ours). The case
+# removes the folders left when nobody else's Chrome started meanwhile.
+CLONE_PARENT=""
+if [[ "$(uname)" == "Darwin" ]]; then
+  CLONE_PARENT="$(dirname "$(getconf DARWIN_USER_TEMP_DIR)")/X/com.google.Chrome.code_sign_clone"
+fi
+clone_names() {
+  # A glob, so a folder that vanishes while listing cannot fail the listing.
+  local d
+  if [[ -n "$CLONE_PARENT" ]]; then
+    for d in "$CLONE_PARENT"/code_sign_clone.*; do
+      if [[ -e "$d" ]]; then basename "$d"; fi
+    done
+  fi
+}
+# Main processes of Chromes (any a clone folder could come from) that are not this
+# case's (profile folder $1).
+other_chromes() {
+  { ps -A -o pid=,command= || true; } | { grep -E '[.]app/Contents/MacOS/(Google Chrome|Chromium|Chrome)' || true; } | { grep -v -F -e ' --type=' -e "$1" || true; } | awk '{print $1}' | sort
+}
+
+# remove_new_clones <before-file>: removes the clone folders that are not in the
+# before-file, the case's own (a folder of the other test case, '.foreign', stays).
+remove_new_clones() {
+  local new name
+  new="$(clone_names | comm -13 "$1" -)"
+  while IFS= read -r name; do
+    if [[ -z "$name" || "$name" == *.foreign* ]]; then continue; fi
+    rm -rf "${CLONE_PARENT:?}/${name}" || { echo "cannot remove the clone folder ${CLONE_PARENT}/${name}" >&2; return 1; }
+  done <<< "$new"
+}
+
+signal_case() {
+  local label="$1" target="$2" sig="$3" tmpd pid target_pid
+  shift 3
+  tmpd="${TMP}/sig_${label}"
+  mkdir -p "$tmpd"
+  clone_names > "${tmpd}.clones_before"
+  other_chromes "$tmpd" > "${tmpd}.others_before"
+  TMPDIR="$tmpd" perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' "$@" "${TMP}/slow/site" "${TMP}/slow/manifest.json" "${TMP}/slow/exceptions.txt" "${TMP}/slow/baseline.txt" "${TMP}/slow/variants.txt" > "${tmpd}.out" 2>&1 &
+  pid=$!
+  SIG_UP=0
+  for _ in $(seq 1 150); do
+    # Up means a page is open: its renderer exists, the launch is over.
+    # Either order of the two flags: Chrome 156 puts --type=renderer before
+    # --user-data-dir (pilot issue 30), so the one-order pattern never
+    # matched and every case sent its signal only after this 30 s wait.
+    if pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-.*--type=renderer|--type=renderer.*--user-data-dir=${tmpd}/browser-gate-" > /dev/null; then SIG_UP=1; break; fi
+    sleep 0.2
+  done
+  SIG_CLONE_MADE="$({ clone_names | comm -13 "${tmpd}.clones_before" - || true; } | wc -l | tr -d ' ')"
+  target_pid="$pid"
+  if [[ "$target" == "node" ]]; then
+    target_pid="$(pgrep -f -- "node .*mjs ${TMP}/slow/site" | head -1)" || target_pid="$pid"
+  fi
+  if [[ "$sig" == "error" ]]; then
+    pkill -9 -f -- "--user-data-dir=${tmpd}/browser-gate-" || true
+  else
+    kill -s "$sig" "$target_pid" || true
+  fi
+  SIG_ENDED=1
+  for _ in $(seq 1 100); do
+    if ! kill -0 "$pid" 2> /dev/null; then break; fi
+    sleep 0.2
+  done
+  if kill -0 "$pid" 2> /dev/null; then
+    SIG_ENDED=0
+    kill -9 "$pid" || true
+  fi
+  wait "$pid" 2>/dev/null && SIG_RC=0 || SIG_RC=$?
+  for _ in $(seq 1 50); do
+    if ! pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-" > /dev/null; then break; fi
+    sleep 0.2
+  done
+  SIG_CHROME="$({ pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-" || true; } | wc -l | tr -d ' ')"
+  SIG_PROFILE="$(find "$tmpd" -maxdepth 1 -name 'browser-gate-*' | wc -l | tr -d ' ')"
+  SIG_OUT="$(cat "${tmpd}.out")"
+  SIG_CLONE_LEFT="$({ clone_names | comm -13 "${tmpd}.clones_before" - || true; } | wc -l | tr -d ' ')"
+  SIG_CLONE_CONCURRENT="$({ other_chromes "$tmpd" | comm -13 "${tmpd}.others_before" - || true; } | wc -l | tr -d ' ')"
+  # Whatever a failed case left behind is ours (found by its folder): clean up.
+  pkill -9 -f -- "--user-data-dir=${tmpd}/browser-gate-" || true
+  pkill -9 -f -- "${tmpd}/browser-gate-" || true
+  if [[ "$SIG_CLONE_LEFT" -ne 0 && "$SIG_CLONE_CONCURRENT" -eq 0 ]]; then
+    remove_new_clones "${tmpd}.clones_before"
+  fi
+  rm -rf "$tmpd" "${tmpd}.clones_before" "${tmpd}.others_before"
+}
+
+# closed_verdict: "" when the last signal_case ended with status $1 and left no
+# Chrome and no profile folder, else the reason.
+#
+# Its Chrome counts are only proof when the lookup by profile path found that
+# Chrome once (pilot issue 30): a path the lookup cannot match (a //
+# that Chrome's own --user-data-dir writes with one slash) sees no Chrome
+# ever, so "no Chrome left" passed and the signal came only after the
+# 30 s wait.
+closed_verdict() {
+  if [[ "$SIG_UP" -ne 1 ]]; then
+    echo "its Chrome was never found by the profile path ${TMP}/sig_<label>/browser-gate-*, so no Chrome count of the case proves anything"
+  elif [[ "$SIG_ENDED" -ne 1 ]]; then
+    echo "the gate was still running 20 s after the signal"
+  elif [[ "$SIG_RC" != "$1" ]]; then
+    echo "expected exit $1, got ${SIG_RC}"
+  elif [[ "$SIG_CHROME" -ne 0 ]]; then
+    echo "${SIG_CHROME} Chrome processes of the gate are still alive"
+  elif [[ "$SIG_PROFILE" -ne 0 ]]; then
+    echo "the profile folder is still there"
+  elif [[ -n "$CLONE_PARENT" && "$SIG_CLONE_MADE" -eq 0 ]]; then
+    echo "no code-sign clone folder appeared for its Chrome, so its removal is not proved"
+  elif [[ -n "$CLONE_PARENT" && "$SIG_CLONE_LEFT" -ne 0 && "$SIG_OUT" != *"left for the nightly cleanup"* ]]; then
+    # Site issue 61: what a real Chrome case can own. Another Chrome on the
+    # machine may have made the folder, so a kept folder is fine when the gate
+    # said so; one left without a word is not. That the gate removes its own
+    # clone folder is proved by cases 53h and 53i on a folder of the test.
+    echo "the code-sign clone folder of its Chrome is left without a word"
+  fi
+}
+
+# want_closed <case> <rc>: the last signal_case is closed_verdict-clean.
+want_closed() {
+  local why
+  why="$(closed_verdict "$2")"
+  if [[ -n "$why" ]]; then
+    fail "$1: ${why}. Output: ${SIG_OUT}"
+  else
+    echo "  ok: $1"
+  fi
+}
+
+# want_left <case> <rc> <reason>: the last signal_case is NOT clean, for that
+# reason (the mutation proofs: red BECAUSE of the line mutated).
+want_left() {
+  local why
+  why="$(closed_verdict "$2")"
+  if [[ "$why" == *"$3"* ]]; then
+    echo "  ok: $1"
+  else
+    fail "$1: wanted the reason '$3', got '${why}'. Output: ${SIG_OUT}"
+  fi
+}
+
+# 52h: the cleanup of the clone folders (estate issue 617) on a fake parent
+# folder. It must not end non-zero when the new folder is already gone (Chrome
+# removed it meanwhile; under set -e a non-zero here ended the whole self-test
+# silently before proofs R, S and X), must remove only the folders the case made,
+# and must fail when a folder cannot be removed.
+REAL_CLONE_PARENT="$CLONE_PARENT"
+CLONE_PARENT="${TMP}/fake_clones"
+mkdir -p "$CLONE_PARENT/code_sign_clone.old"
+printf 'code_sign_clone.old\n' > "${TMP}/fake_before"
+rc_gone=0
+( remove_new_clones "${TMP}/fake_before" ) || rc_gone=$?
+mkdir -p "$CLONE_PARENT/code_sign_clone.new" "$CLONE_PARENT/code_sign_clone.foreign"
+rc_new=0
+( remove_new_clones "${TMP}/fake_before" ) || rc_new=$?
+if [[ "$rc_gone" -ne 0 ]]; then
+  fail "52h: the cleanup ended with ${rc_gone} when the new clone folder was already gone"
+elif [[ "$rc_new" -ne 0 || -e "$CLONE_PARENT/code_sign_clone.new" || ! -d "$CLONE_PARENT/code_sign_clone.old" || ! -d "$CLONE_PARENT/code_sign_clone.foreign" ]]; then
+  fail "52h: the cleanup (exit ${rc_new}) did not remove exactly the new clone folder"
+else
+  echo "  ok: 52h: the clone cleanup survives a vanished folder and removes only the new one"
+fi
+mkdir -p "$CLONE_PARENT/code_sign_clone.stuck"
+chmod a-w "$CLONE_PARENT"
+rc_stuck=0
+( remove_new_clones "${TMP}/fake_before" ) 2> /dev/null || rc_stuck=$?
+chmod u+w "$CLONE_PARENT"
+if [[ "$rc_stuck" -eq 0 ]]; then
+  fail "52i: a clone folder that cannot be removed did not fail the cleanup"
+else
+  echo "  ok: 52i: a clone folder that cannot be removed fails the cleanup"
+fi
+CLONE_PARENT="$REAL_CLONE_PARENT"
+
+signal_case term_wrapper self TERM "$GATE"
+want_closed "52a: SIGTERM to the wrapper closes Chrome, removes the profile, exits 143" 143
+signal_case term_node node TERM "$GATE"
+want_closed "52b: SIGTERM to node under the wrapper: the same, exit 143" 143
+signal_case int_wrapper self INT "$GATE"
+want_closed "52c: SIGINT to the wrapper: exit 130" 130
+signal_case hup_wrapper self HUP "$GATE"
+want_closed "52d: SIGHUP to the wrapper: exit 129" 129
+signal_case term_engine self TERM node "$ENGINE"
+want_closed "52e: SIGTERM to the engine run by itself: exit 143" 143
+signal_case kill_node node KILL "$GATE"
+if [[ "$SIG_UP" -ne 1 ]]; then
+  fail "52f: its Chrome was never found by the profile path, so the count proves nothing"
+elif [[ "$SIG_CHROME" -eq 0 ]]; then
+  echo "  ok: 52f: SIGKILL to node cannot be handled, but Chrome ends with its pipe"
+else
+  fail "52f: ${SIG_CHROME} Chrome processes outlived a killed node"
+fi
+signal_case chrome_killed self error "$GATE"
+want_closed "53: Chrome killed mid-run is an error (exit 2) and leaves no Chrome and no profile" 2
+
+# 52g, 53d (site issue 59): Chrome's helper processes outlive the browser
+# and still write into the profile folder, as they do on a loaded machine. No
+# load is made: a thin wrapper around the real Chrome starts a helper in
+# Chrome's own process group (it execs the real Chrome after) that re-creates a
+# folder in the profile every 0.1 s until it is killed. Closing the browser does
+# not end it; only ending Chrome's process group does. The case is red unless
+# the gate ends the group, removes the folder when nothing writes any more, and
+# (53d) sees Chrome gone although the helper still holds the pipe.
+REAL_CHROME=""
+for candidate in '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' /usr/bin/google-chrome /usr/bin/google-chrome-stable /usr/bin/chromium /usr/bin/chromium-browser; do
+  if [[ -x "$candidate" ]]; then REAL_CHROME="$candidate"; break; fi
+done
+SLOW_CHROME="${TMP}/chrome_with_helper.sh"
+cat > "$SLOW_CHROME" << EOF
+#!/usr/bin/env bash
+bash -c 'while :; do mkdir -p "\$0/late"; sleep 0.1; done' "\$HOME" &
+exec "${REAL_CHROME}" "\$@"
+EOF
+chmod +x "$SLOW_CHROME"
+signal_case helper_term self TERM env FORSGREN_CHROME="$SLOW_CHROME" "$GATE"
+want_closed "52g: SIGTERM with a Chrome helper that outlives the browser and writes into the profile: no profile left, exit 143" 143
+signal_case helper_killed self error env FORSGREN_CHROME="$SLOW_CHROME" "$GATE"
+want_closed "53d: Chrome killed mid-run while a helper holds the pipe and writes into the profile: exit 2, no profile left" 2
+
+# 53g (estate issue 617): another Chrome's clone folder appears during the
+# launch (the thin wrapper below makes it, as another Chrome starting at the same
+# time would, and a process of the test holds a file in it open). The gate cannot
+# tell which of the two new folders is its own, so it keeps both and says so;
+# the other one is untouched. macOS only.
+if [[ -n "$CLONE_PARENT" ]]; then
+  FOREIGN="${CLONE_PARENT}/code_sign_clone.foreign$$"
+  FOREIGN_CHROME="${TMP}/chrome_with_foreign_clone.sh"
+  cat > "$FOREIGN_CHROME" << EOF
+#!/usr/bin/env bash
+mkdir -p "${FOREIGN}/Google Chrome.app.bundle"
+echo held > "${FOREIGN}/Google Chrome.app.bundle/held"
+perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' sleep 300 < "${FOREIGN}/Google Chrome.app.bundle/held" 3<&- 4<&- > /dev/null 2>&1 &
+echo \$! > "${TMP}/foreign_holder.pid"
+exec "${REAL_CHROME}" "\$@"
+EOF
+  chmod +x "$FOREIGN_CHROME"
+  signal_case foreign_clone self error env FORSGREN_CHROME="$FOREIGN_CHROME" "$GATE"
+  FOREIGN_HOLDER="$(cat "${TMP}/foreign_holder.pid" 2> /dev/null || echo 0)"
+  if [[ "$SIG_UP" -ne 1 ]]; then
+    fail "53g: its Chrome never came up, so the case proves nothing. Output: ${SIG_OUT}"
+  elif [[ ! -f "${FOREIGN}/Google Chrome.app.bundle/held" ]]; then
+    fail "53g: the clone folder of another Chrome was removed. Output: ${SIG_OUT}"
+  elif [[ "$SIG_CLONE_LEFT" -lt 2 ]]; then
+    fail "53g: the gate removed a clone folder it could not tell from another Chrome's (left: ${SIG_CLONE_LEFT}). Output: ${SIG_OUT}"
+  elif [[ "$SIG_OUT" != *"left for the nightly cleanup"* ]]; then
+    fail "53g: the gate kept the folders without saying so. Output: ${SIG_OUT}"
+  else
+    echo "  ok: 53g: with a second clone folder during the launch, both are kept, said on stderr, the other one untouched"
+  fi
+  # Site issue 61: the same run, judged as every real-Chrome case is. A clone
+  # folder kept because another Chrome may own it is not a failure when the gate
+  # says so; v17 called it "still there" and flaked whenever a second Chrome
+  # started on the machine during a case.
+  want_closed "53g: the same run, judged as a closed run: no Chrome, no profile, the folders kept with the stated reason" 2
+  if [[ "$FOREIGN_HOLDER" -gt 0 ]]; then kill "$FOREIGN_HOLDER" || true; fi
+  rm -rf "$FOREIGN"
+fi
+
+# 53h, 53i (site issue 61): who owns a clone folder, decided on a folder and a
+# process listing of the test (FORSGREN_GATE_CLONE_PARENT, FORSGREN_GATE_PS_LISTING),
+# so that no other Chrome on the machine can change the verdict. The fake Chrome
+# makes the folder in the test's parent as the launch starts, then runs the real
+# one (which makes its own folder where the gate does not look).
+# clone_seam_case <name> <listing text, may be empty>: sets SEAM_PARENT,
+# SEAM_FOLDER; the last signal_case is the killed-Chrome run of the gate (or of
+# the engine in $SEAM_CMD).
+SEAM_CMD=("$GATE")
+SEAM_ENV=()
+SEAM_EXTRA=""
+SEAM_SIG=error
+SEAM_RC=2
+clone_seam_case() {
+  SEAM_PARENT="${TMP}/seam_${1}"
+  SEAM_FOLDER="${SEAM_PARENT}/code_sign_clone.own${1}"
+  local chrome="${TMP}/chrome_seam_${1}.sh" listing="${TMP}/seam_${1}.ps"
+  mkdir -p "$SEAM_PARENT"
+  printf '%s' "$2" > "$listing"
+  cat > "$chrome" << EOF
+#!/usr/bin/env bash
+mkdir -p "${SEAM_FOLDER}/Google Chrome.app.bundle"
+${SEAM_EXTRA}
+exec "${REAL_CHROME}" "\$@"
+EOF
+  chmod +x "$chrome"
+  signal_case "seam_${1}" self "$SEAM_SIG" env FORSGREN_CHROME="$chrome" FORSGREN_GATE_CLONE_PARENT="$SEAM_PARENT" FORSGREN_GATE_PS_LISTING="$listing" ${SEAM_ENV[@]+"${SEAM_ENV[@]}"} "${SEAM_CMD[@]}"
+}
+# seam_verdict: "" when the last clone_seam_case ended 2 with no Chrome and no profile.
+seam_verdict() {
+  if [[ "$SIG_UP" -ne 1 ]]; then echo "its Chrome never came up"
+  elif [[ "$SIG_RC" != "$SEAM_RC" || "$SIG_ENDED" -ne 1 ]]; then echo "expected exit ${SEAM_RC}, got ${SIG_RC}"
+  elif [[ "$SIG_CHROME" -ne 0 || "$SIG_PROFILE" -ne 0 ]]; then echo "Chrome or its profile is left"
+  fi
+}
+clone_seam_case own ""
+why="$(seam_verdict)"
+if [[ -n "$why" ]]; then
+  fail "53h: ${why}. Output: ${SIG_OUT}"
+elif [[ -e "$SEAM_FOLDER" ]]; then
+  fail "53h: the clone folder made for its own Chrome (nobody else started) was not removed. Output: ${SIG_OUT}"
+else
+  echo "  ok: 53h: the one new clone folder, no other Chrome starting, is removed after its Chrome is gone"
+fi
+clone_seam_case foreign "99999 00:01 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+"
+why="$(seam_verdict)"
+if [[ -n "$why" ]]; then
+  fail "53i: ${why}. Output: ${SIG_OUT}"
+elif [[ ! -d "$SEAM_FOLDER" ]]; then
+  fail "53i: the clone folder was removed although another Chrome started during the launch. Output: ${SIG_OUT}"
+elif [[ "$SIG_OUT" != *"another Chrome started during the launch"* ]]; then
+  fail "53i: the folder was kept without the reason on stderr. Output: ${SIG_OUT}"
+else
+  echo "  ok: 53i: with another Chrome starting during the launch the folder is kept and the reason said"
+fi
+
+# 54a, 54b (site issue 63): a kept clone folder is never silent, and a helper of
+# the gate's own Chrome that is still ending at removal time is waited for.
+# 54a: a helper in a session of its own (the group kill misses it) carries the
+# profile path in its command line and lives 2 s after Chrome is gone, as a
+# slow-to-end helper does on a loaded machine. The folder must be removed all the
+# same (browser_gate v12 kept it).
+cat > "${TMP}/seam_extra.txt" << 'EXTRA'
+for a in "$@"; do case "$a" in --user-data-dir=*) UD="$a";; esac; done
+perl -MPOSIX -e "POSIX::setsid(); exec @ARGV" bash -c "while kill -0 \$1 2> /dev/null; do sleep 0.1; done; sleep 2" "$UD" $$ < /dev/null > /dev/null 2>&1 3<&- 4<&- &
+EXTRA
+SEAM_EXTRA="$(cat "${TMP}/seam_extra.txt")"
+SEAM_SIG=TERM
+SEAM_RC=143
+clone_seam_case helper ""
+SEAM_EXTRA=""
+why="$(seam_verdict)"
+SEAM_SIG=error
+SEAM_RC=2
+if [[ -n "$why" ]]; then
+  fail "54a: ${why}. Output: ${SIG_OUT}"
+elif [[ -e "$SEAM_FOLDER" ]]; then
+  fail "54a: the clone folder was kept because a helper of its Chrome was still ending, instead of waiting for it. Output: ${SIG_OUT}"
+else
+  echo "  ok: 54a: a helper still ending at removal time is waited for, then the clone folder is removed"
+fi
+# 54b: the folder identified for the Chrome is replaced by another one (new
+# inode) after the launch; the gate does not remove it and must say why.
+HOOK_SWAP="${TMP}/hook_swap.cjs"
+cat > "$HOOK_SWAP" << 'SEAM'
+const fs = require('node:fs');
+module.exports = () => {
+  const folder = process.env.FORSGREN_TEST_SWAP_FOLDER;
+  setTimeout(() => {
+    if (process.env.FORSGREN_TEST_ADD_ONLY) { fs.mkdirSync(`${folder}late/Google Chrome.app.bundle`, { recursive: true }); return; }
+    fs.rmSync(folder, { recursive: true, force: true });
+    fs.mkdirSync(`${folder}/Google Chrome.app.bundle`, { recursive: true });
+  }, 800).unref();
+};
+SEAM
+SEAM_ENV=(FORSGREN_GATE_BROWSER_HOOK="$HOOK_SWAP" FORSGREN_TEST_SWAP_FOLDER="${TMP}/seam_swap/code_sign_clone.ownswap")
+clone_seam_case swap ""
+SEAM_ENV=()
+why="$(seam_verdict)"
+if [[ -n "$why" ]]; then
+  fail "54b: ${why}. Output: ${SIG_OUT}"
+elif [[ ! -d "$SEAM_FOLDER" ]]; then
+  fail "54b: the folder that replaced the identified one was removed. Output: ${SIG_OUT}"
+elif [[ "$SIG_OUT" != *"left for the nightly cleanup (estate issue 617)"* || "$SIG_OUT" != *"replaced"* ]]; then
+  fail "54b: the gate kept a clone folder without saying why. Output: ${SIG_OUT}"
+else
+  echo "  ok: 54b: a clone folder replaced after the launch is kept and the reason said"
+fi
+# 54c: another new clone folder appears after the launch (the folder identified
+# was this Chrome's; this is some other Chrome's, or the case of the identified
+# one being another's): it stays and the gate says so.
+SEAM_ENV=(FORSGREN_GATE_BROWSER_HOOK="$HOOK_SWAP" FORSGREN_TEST_ADD_ONLY=1 FORSGREN_TEST_SWAP_FOLDER="${TMP}/seam_late/code_sign_clone.ownlate")
+clone_seam_case late ""
+SEAM_ENV=()
+why="$(seam_verdict)"
+if [[ -n "$why" ]]; then
+  fail "54c: ${why}. Output: ${SIG_OUT}"
+elif [[ -e "$SEAM_FOLDER" || ! -d "${SEAM_FOLDER}late" ]]; then
+  fail "54c: the folder of its Chrome was kept, or the late one removed. Output: ${SIG_OUT}"
+elif [[ "$SIG_OUT" != *"left for the nightly cleanup (estate issue 617)"* || "$SIG_OUT" != *"remain"* ]]; then
+  fail "54c: a clone folder was left without saying so. Output: ${SIG_OUT}"
+else
+  echo "  ok: 54c: a new clone folder that is not the identified one is kept and said"
+fi
+
+# 53e (site issue 60): the night run of a loaded machine took more than 20 s
+# to end after Chrome was killed. No load is made: a preload slows only the gate's
+# own calls, as load does: close() never answers, the killed group still shows
+# for kill(-pgid, 0) for 8 s (slow reaping), and the file system needs 14 s for
+# the profile. The run must end at once all the same: a dead Chrome is not
+# closed, zombies do not count as a running group, the removal does not block.
+LOAD_SEAM="${TMP}/load_seam.cjs"
+LOAD_MARKS="${TMP}/load_seam.marks"
+: > "$LOAD_MARKS"
+cat > "$LOAD_SEAM" << SEAM
+const fs = require('node:fs');
+const mark = (name) => fs.appendFileSync('${LOAD_MARKS}', name + '\\n');
+const kill = process.kill.bind(process);
+const killed = new Map();
+process.kill = (pid, sig) => {
+  if (pid < 0 && sig === 'SIGKILL') killed.set(pid, Date.now());
+  if (pid < 0 && sig === 0 && killed.has(pid) && Date.now() - killed.get(pid) < 8000) { mark('reaping'); return true; }
+  return kill(pid, sig);
+};
+// The engine removes folders with fs.promises.rm (not rmSync): the removal is
+// done, its answer comes 14 s late.
+const rm = fs.promises.rm;
+fs.promises.rm = async (...a) => { mark('files'); await rm(...a); await new Promise((resolve) => setTimeout(resolve, 14000)); };
+// The engine calls this with its browser (FORSGREN_GATE_BROWSER_HOOK): a
+// module namespace of puppeteer-core cannot be assigned to, so the launch is
+// not patched from here.
+module.exports = (browser) => { browser.close = () => { mark('close'); return new Promise(() => {}); }; mark('hooked'); };
+SEAM
+signal_case loaded_killed self error env NODE_OPTIONS="--require=${LOAD_SEAM}" FORSGREN_GATE_BROWSER_HOOK="$LOAD_SEAM" "$GATE"
+want_closed "53e: Chrome killed mid-run on a loaded machine (slow reaping, close() never answers, slow file system): exit 2, no profile left, at once" 2
+# The case proves nothing unless each slowdown happened (site issue 61: the
+# launch patch was silently ignored for a long time). A killed Chrome is never
+# closed (v10), so the close() that never answers is proven by being installed.
+for seam_mark in hooked reaping files; do
+  if ! grep -qx "$seam_mark" "$LOAD_MARKS"; then
+    fail "53e: the slowdown '${seam_mark}' was never observed, so the case proves nothing about a loaded machine. Seen: $(tr '\n' ' ' < "$LOAD_MARKS")"
+  else
+    echo "  ok: 53e: the slowdown '${seam_mark}' was observed"
+  fi
+done
+
 # Mutation proofs, run side by side (Scripts/lib_parallel_mutants.sh, forsgren#382).
 # Each proof is a mutant_<letter> function that works on its own copy of the
 # fixture (staged here, at the point of the run where the case left it) and on
@@ -825,5 +1393,49 @@ for proof in a b c d e f g h i j k kslow l m n o p q t u y; do
 done
 mutants_wait
 
+# The proofs of the exits (run one after the other, after the side-by-side ones: they
+# signal and kill processes). MUT is theirs; the side-by-side ones keep $TMP/mutants.
+MUT="${TMP}/proc_mutants"
+# R: no signal handler in the engine (the event name is one no signal sends) ->
+# a SIGTERM kills the engine; Chrome ends with its pipe, the profile stays.
+if selftest_mutant "$ENGINE" "${MUT}/r.mjs" "s/process.on(name, /process.on(name + 'x', /"; then
+  signal_case mutant_r self TERM env FORSGREN_NODE_ROOT="$REPO_ROOT" node "${MUT}/r.mjs"
+  want_left "mutation proof R: without the handler case 52e leaves the profile" 143 "the profile folder is still there"
+fi
+
+# S: the wrapper does not forward the signal -> it ends, node and Chrome stay.
+WMUT="${TMP}/wmut"
+mkdir -p "${WMUT}/Scripts"
+cp Scripts/browser_gate.mjs Scripts/lib_site_settings.sh Scripts/lib_tmp.sh "${WMUT}/Scripts/"
+ln -s "${REPO_ROOT}/node_modules" "${WMUT}/node_modules"
+if selftest_mutant Scripts/gate_browser.sh "${WMUT}/Scripts/gate_browser.sh" 's/if \[\[ -n "[$]NODE_PID" \]\]; then/if false; then/'; then
+  signal_case mutant_s self TERM "${WMUT}/Scripts/gate_browser.sh"
+  want_left "mutation proof S: without forwarding case 52a leaves Chrome alive" 143 "Chrome processes of the gate are still alive"
+fi
+# X (site proof T, renamed: T is the delayed-delivery load here): the identified clone folder is never removed -> case 53h leaves it.
+if selftest_mutant "$ENGINE" "${MUT}/x.mjs" "s/await attempt(clone.folder, 'Chrome code-sign clone folder');//"; then
+  # Through the seamed case 53h (site issue 61), so that other Chromes on the
+  # machine cannot hide the missing removal.
+  SEAM_CMD=(env FORSGREN_NODE_ROOT="$REPO_ROOT" node "${MUT}/x.mjs")
+  clone_seam_case mutt ""
+  SEAM_CMD=("$GATE")
+  if [[ -d "$SEAM_FOLDER" && -z "$(seam_verdict)" ]]; then
+    echo "  ok: mutation proof X: without the removal case 53h leaves the clone folder"
+  else
+    fail "mutation proof X: without the removal case 53h should leave the clone folder (verdict: '$(seam_verdict)'). Output: ${SIG_OUT}"
+  fi
+fi
+# Z (site proof U, renamed: U is the pieces without a pause here; site issue 61): the engine never calls the seam -> case 53e's slowdown is
+# not installed, which its marker check must see (before v18 this passed unseen).
+if selftest_mutant "$ENGINE" "${MUT}/z.mjs" "s/if (process.env.FORSGREN_GATE_BROWSER_HOOK) require/if (false) require/"; then
+  : > "$LOAD_MARKS"
+  signal_case mutant_z self error env FORSGREN_NODE_ROOT="$REPO_ROOT" NODE_OPTIONS="--require=${LOAD_SEAM}" FORSGREN_GATE_BROWSER_HOOK="$LOAD_SEAM" node "${MUT}/z.mjs"
+  if grep -qx hooked "$LOAD_MARKS"; then
+    fail "mutation proof Z: with the seam call removed the slowdown was still installed, so case 53e cannot see a dead seam"
+  else
+    echo "  ok: mutation proof Z: without the seam call 'hooked' is never marked, and case 53e would be red"
+  fi
+fi
+
 echo "browser gate self-test: ${SECONDS} s in total"
-selftest_end "the browser gate self-test failed" "browser gate: every case holds, twenty mutations seen"
+selftest_end "the browser gate self-test failed" "browser gate: every case holds, twenty-four mutations seen"

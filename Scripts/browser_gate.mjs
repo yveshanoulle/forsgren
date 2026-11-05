@@ -1,4 +1,10 @@
-// canon: browser_gate v8
+// canon: browser_gate v15
+// v15 folds in the sites' v14 (site issue 63): a code-sign clone folder that is kept is always named on stderr with its reason (one that was replaced after the launch was kept without a word); where a helper of the gate's own Chrome still runs at removal time the gate waits for it (bounded like a folder removal, 3 s) and then removes the folder
+// v13 merges the two lines of the canon (estate issue 629): the forsgren line v6 to v8 (watch from the start, delayed-delivery load, paint wait) and the sites line v9 to v12 (below). Both sets are in full; the findings, the baseline format and the exit statuses are unchanged.
+// v12 adds (site issue 61): test seams, all off unless their variable is set: FORSGREN_GATE_BROWSER_HOOK names a module the engine calls with its browser right after the launch (the self-test slows only the gate this way, as the module namespace of puppeteer-core cannot be assigned to); FORSGREN_GATE_CLONE_PARENT is a folder used in place of the code-sign clone parent, and FORSGREN_GATE_PS_LISTING a file used in place of the ps listing of other Chromes, so that the ownership cases do not depend on what else runs on the machine
+// v11 adds (estate issue 617): the code-sign clone folder Chrome makes on macOS (about 1.4 GB, removed only by a normal exit) is identified at launch (one new folder, no other Chrome starting meanwhile) and removed after that Chrome is gone, on every way out; when ownership is not certain it is left and stderr says so
+// v10 adds (site issue 60): a dead Chrome is never closed (a disconnected one counts as dead), the group wait ignores zombies, the profile is removed with a bounded async wait: the whole release is bounded below 15 s whatever the load
+// v9 adds (site issue 59): Chrome's process group is ended after close(), the profile removed with retries, a dead Chrome ends the run at once
 // Scripts/browser_gate.mjs (forsgren#205)
 //
 // The browser gate's engine: serves a built site on 127.0.0.1 (loopback only),
@@ -132,6 +138,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import { execFile, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
@@ -727,94 +734,13 @@ function attributeScript(attr) {
   })();`;
 }
 
-// What main() has open, so that every way out closes it: the end, an error
-// (release() in main's finally) and a signal (below). Whoever made the profile
-// directory removes it.
-const live = { browser: null, launching: null, server: null, profile: null };
-const CLOSE_TIMEOUT_MS = 5000;
-let releasing = null;
-
-// Chrome's helper processes (GPU, network, renderers) belong to the process
-// group of the browser, which puppeteer starts as its own group leader. The
-// browser closing does not mean they are gone: one that is still running writes
-// into the profile folder again after it was removed (forsgren#383). So the
-// whole group is killed, and the folder is removed only once the group is empty.
-const GROUP_GONE_TIMEOUT_MS = 10000;
-
-function groupAlive(pgid) {
-  try {
-    process.kill(-pgid, 0);
-    return true;
-  } catch (error) {
-    return error.code === 'EPERM';
-  }
-}
-
-async function endChromeGroup(pgid) {
-  try { process.kill(-pgid, 'SIGKILL'); } catch { /* the group is already gone */ }
-  const deadline = Date.now() + GROUP_GONE_TIMEOUT_MS;
-  while (groupAlive(pgid)) {
-    if (Date.now() > deadline) throw new Error(`Chrome processes of group ${pgid} still run ${GROUP_GONE_TIMEOUT_MS / 1000} s after SIGKILL`);
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-}
-
-// A signal during the launch finds no browser yet, although Chrome runs: wait
-// for the launch (bounded), so that this browser is closed too.
-async function launched() {
-  if (!live.launching) return null;
-  let timer;
-  const late = new Promise((resolve) => { timer = setTimeout(() => resolve(null), GROUP_GONE_TIMEOUT_MS * 3); });
-  const browser = await Promise.race([live.launching.catch(() => null), late]);
-  clearTimeout(timer);
-  return browser;
-}
-
-function release() {
-  releasing ||= (async () => {
-    const { server, profile } = live;
-    const browser = live.browser || await launched();
-    if (browser) {
-      const child = browser.process();
-      // A browser process that has ended has nothing to close: with a helper
-      // still on the pipe, close() would wait its whole 5 s (forsgren#384).
-      const ended = child && (child.exitCode !== null || child.signalCode !== null);
-      if (!ended) {
-        let timer;
-        const closed = browser.close().catch(() => {});
-        const late = new Promise((resolve) => { timer = setTimeout(resolve, CLOSE_TIMEOUT_MS); });
-        await Promise.race([closed, late]);
-        clearTimeout(timer);
-      }
-      if (child && child.pid) await endChromeGroup(child.pid);
-    }
-    if (server) server.close();
-    // No Chrome process of the group is left (endChromeGroup), so nothing writes
-    // into the profile any more; the retries cover only a slow file system
-    // (forsgren#383).
-    if (profile) fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
-  })();
-  return releasing;
-}
-
-// A signal ends the run like an error would: close, remove, exit 128 + number.
-for (const [name, code] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]]) {
-  process.on(name, () => {
-    release().then(() => process.exit(code), (error) => {
-      console.error(`browser gate: cleanup after ${name} failed: ${error.message}`);
-      process.exit(2);
-    });
-  });
-}
-
 // Rejects when Chrome is gone: its process ended, or puppeteer lost the
 // connection. The pipe alone is not enough: a helper of the group that still
 // holds it keeps it open after the browser process died, and a pending page
-// operation then waits for its timeout instead of failing (forsgren#384).
+// operation then waits for its timeout instead of failing (site issue 59).
 function chromeGone(browser) {
   const gone = new Promise((resolve, reject) => {
     const child = browser.process();
-    // Already ended before the watch was attached: its 'exit' was missed.
     if (child && (child.exitCode !== null || child.signalCode !== null)) {
       reject(new Error(`Chrome ended during the run (exit ${child.exitCode}, signal ${child.signalCode})`));
       return;
@@ -863,6 +789,230 @@ async function checkPage(browser, origin, variant, pagePath, exceptions, baselin
   return check;
 }
 
+// What main() has open, so that every way out closes it: the end, an error
+// (release() in main's finally) and a signal (below). Whoever made the profile
+// directory removes it.
+const live = { browser: null, launching: null, server: null, profile: null, cloning: null, cloneBaseline: null };
+const CLOSE_TIMEOUT_MS = 3000;
+let releasing = null;
+
+// Chrome's helper processes (GPU, network, renderers) belong to the process
+// group of the browser, which puppeteer starts as its own group leader. The
+// browser closing does not mean they are gone: one still running writes into
+// the profile folder again after it was removed (site issue 59). So the
+// whole group is killed, and the folder is removed only once the group is empty.
+const GROUP_GONE_TIMEOUT_MS = 6000;
+
+// A killed process is a zombie until its parent (or init, for a helper) has
+// reaped it, and kill(-pgid, 0) still succeeds for it. On a loaded machine that
+// takes seconds (site issue 60), so a group of zombies counts as gone.
+function groupAlive(pgid) {
+  try {
+    process.kill(-pgid, 0);
+  } catch (error) {
+    return error.code === 'EPERM';
+  }
+  const listing = spawnSync('ps', ['-A', '-o', 'pgid=,stat='], { encoding: 'utf8' });
+  if (listing.status !== 0) return true;
+  return listing.stdout.split('\n').some((line) => {
+    const [group, state] = line.trim().split(/\s+/);
+    return Number(group) === pgid && !(state ?? '').startsWith('Z');
+  });
+}
+
+async function endChromeGroup(pgid) {
+  try { process.kill(-pgid, 'SIGKILL'); } catch { /* the group is already gone */ }
+  const deadline = Date.now() + GROUP_GONE_TIMEOUT_MS;
+  while (groupAlive(pgid)) {
+    if (Date.now() > deadline) throw new Error(`Chrome processes of group ${pgid} still run ${GROUP_GONE_TIMEOUT_MS / 1000} s after SIGKILL`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
+// A folder is removed without blocking the event loop (rmSync retries sleep up
+// to 11 s inside the call); bounded by REMOVE_TIMEOUT_MS, and the reason is
+// named when it runs out. A failed removal rejects: it is never a warning.
+const REMOVE_TIMEOUT_MS = 3000;
+async function removeFolder(folder, what) {
+  let timer;
+  const late = new Promise((resolve) => { timer = setTimeout(() => resolve('late'), REMOVE_TIMEOUT_MS); });
+  const removed = fs.promises.rm(folder, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }).then(() => 'removed');
+  removed.catch(() => {});
+  const result = await Promise.race([removed, late]);
+  clearTimeout(timer);
+  if (result === 'late') throw new Error(`${what} ${folder} not removed within ${REMOVE_TIMEOUT_MS / 1000} s`);
+}
+
+// On macOS Chrome makes a clone of its app in a folder of about 1.4 GB
+// (<per-user dir>/X/com.google.Chrome.code_sign_clone/code_sign_clone.<random>)
+// and removes it only on a normal exit; a killed Chrome leaves it (estate issue
+// 617). Nothing ties the folder to a process: the files in it are hard links
+// of the app's own, so the open files of a process (lsof) name every clone, and
+// the location does not follow TMPDIR. Other gates and the user's own Chrome
+// run on the same machine and make folders there too, so a before/after listing
+// alone could take another Chrome's folder. The folder is therefore this
+// Chrome's only when all of these hold, and else it is left (stderr says so,
+// the nightly cleanup takes it):
+//   - exactly one folder is new since just before the launch, born after it;
+//   - no other Chrome main process started from CLONE_WINDOW_MS before the
+//     launch until now (any Chrome that starts makes a folder of its own);
+//   - at removal the folder is still the same one (same inode) and no process
+//     of this Chrome's profile runs any more.
+const CLONE_WINDOW_MS = 5000;
+const CHROME_MAIN = /\.app\/Contents\/MacOS\/(Google Chrome|Chromium|Chrome)/;
+const CLONE_NAME = /^code_sign_clone\.[A-Za-z0-9]+$/;
+function cloneParent() {
+  // Test seams (site issue 61), unset in every real run: a folder of the test's
+  // own in place of the user's one, and a file in place of the ps listing, so
+  // that another Chrome on the machine cannot change what a case proves.
+  if (process.env.FORSGREN_GATE_CLONE_PARENT) return process.env.FORSGREN_GATE_CLONE_PARENT;
+  if (process.platform !== 'darwin') return null;
+  const run = spawnSync('getconf', ['DARWIN_USER_TEMP_DIR'], { encoding: 'utf8' });
+  if (run.status !== 0 || !run.stdout.trim()) return null;
+  return path.join(path.dirname(run.stdout.trim().replace(/\/+$/, '')), 'X', 'com.google.Chrome.code_sign_clone');
+}
+function cloneNames(parent) {
+  try { return fs.readdirSync(parent).filter((name) => CLONE_NAME.test(name)); } catch { return []; }
+}
+// Called just before the launch; null off macOS (no such folder, nothing to do).
+function cloneBaseline() {
+  const parent = cloneParent();
+  return parent ? { parent, names: new Set(cloneNames(parent)), launchedAt: Date.now() } : null;
+}
+// ps etime is [[dd-]hh:]mm:ss.
+function elapsedMs(etime) {
+  const [days, clock] = etime.includes('-') ? etime.split('-') : ['0', etime];
+  const parts = clock.split(':').map(Number);
+  while (parts.length < 3) parts.unshift(0);
+  return (((Number(days) * 24 + parts[0]) * 60 + parts[1]) * 60 + parts[2]) * 1000;
+}
+// The main processes of any Chrome (its .app executable without --type=) other
+// than pid that started since sinceMs; null when ps cannot say.
+function otherChromeStarts(sinceMs, pid) {
+  const listing = process.env.FORSGREN_GATE_PS_LISTING
+    ? { status: 0, stdout: fs.readFileSync(process.env.FORSGREN_GATE_PS_LISTING, 'utf8') }
+    : spawnSync('ps', ['-A', '-o', 'pid=,etime=,command='], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  if (listing.status !== 0) return null;
+  const now = Date.now();
+  return listing.stdout.split('\n').filter((line) => {
+    const match = /^\s*(\d+)\s+(\S+)\s+(.*)$/.exec(line);
+    if (!match || Number(match[1]) === pid) return false;
+    if (!CHROME_MAIN.test(match[3]) || match[3].includes(' --type=')) return false;
+    return now - elapsedMs(match[2]) >= sinceMs;
+  });
+}
+// { folder, inode } for this Chrome's folder, or { reason } for why it is left.
+function identifyClone(baseline, pid) {
+  const fresh = cloneNames(baseline.parent).filter((name) => !baseline.names.has(name));
+  if (fresh.length !== 1) return { reason: `${fresh.length} new clone folders appeared during the launch (a Chrome of another process makes one too)` };
+  const folder = path.join(baseline.parent, fresh[0]);
+  const stat = fs.statSync(folder, { throwIfNoEntry: false });
+  if (!stat || stat.birthtimeMs < baseline.launchedAt - 1000) return { reason: `${folder} was made before the launch` };
+  const others = otherChromeStarts(baseline.launchedAt - CLONE_WINDOW_MS, pid);
+  if (others === null) return { reason: 'ps could not list the Chrome processes' };
+  if (others.length > 0) return { reason: 'another Chrome started during the launch, so the new clone folder may be its own' };
+  return { folder, inode: stat.ino };
+}
+// True while a process still runs with this profile folder (a launch that failed
+// has no browser object to ask).
+function chromeOfProfileRuns(profile) {
+  if (!profile) return false;
+  const listing = spawnSync('ps', ['-A', '-o', 'command='], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  return listing.status !== 0 || listing.stdout.includes(`--user-data-dir=${profile}`);
+}
+// A helper of the gate's own Chrome may still be ending when the group is gone
+// (a loaded machine): wait for it, bounded as the removal of a folder is.
+async function profileChromeEnded(profile) {
+  const deadline = Date.now() + REMOVE_TIMEOUT_MS;
+  while (chromeOfProfileRuns(profile)) {
+    if (Date.now() > deadline) return false;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return true;
+}
+// Identified once, right after the launch (or at release when a signal came
+// first), before this Chrome is ended.
+function cloneOf(browser) {
+  if (!live.cloneBaseline) return { reason: null };
+  live.cloning ||= identifyClone(live.cloneBaseline, browser?.process()?.pid);
+  return live.cloning;
+}
+
+// A signal during the launch finds no browser yet, although Chrome runs: wait
+// for the launch (bounded), so that this browser is closed too.
+async function launched() {
+  if (!live.launching) return null;
+  let timer;
+  const late = new Promise((resolve) => { timer = setTimeout(() => resolve(null), 30000); });
+  const browser = await Promise.race([live.launching.catch(() => null), late]);
+  clearTimeout(timer);
+  return browser;
+}
+
+function release() {
+  releasing ||= (async () => {
+    const { server, profile } = live;
+    const browser = live.browser || await launched();
+    const clone = cloneOf(browser);
+    if (browser) {
+      const child = browser.process();
+      // A browser that has ended, or whose connection is gone (puppeteer reports
+      // that before the process 'exit'), has nothing to close: close() on it
+      // only waits for its timeout, longer on a loaded machine.
+      const ended = !browser.connected || (child && (child.exitCode !== null || child.signalCode !== null));
+      if (!ended) {
+        let timer;
+        const closed = browser.close().catch(() => {});
+        const late = new Promise((resolve) => { timer = setTimeout(resolve, CLOSE_TIMEOUT_MS); });
+        await Promise.race([closed, late]);
+        clearTimeout(timer);
+      }
+      if (child && child.pid) await endChromeGroup(child.pid);
+    }
+    if (server) server.close();
+    // No Chrome process of the group is left, so nothing writes into the profile
+    // any more; the retries cover only a slow file system.
+    const failures = [];
+    const attempt = async (folder, what) => { try { await removeFolder(folder, what); } catch (error) { failures.push(error.message); } };
+    if (profile) await attempt(profile, 'profile folder');
+    // Only the folder identified for this Chrome, and only now that it is gone.
+    // Every folder that is kept is named with its reason (site issue 63).
+    let said = false;
+    const left = (reason) => { said = true; console.error(`browser gate: the code-sign clone folder of this Chrome is left for the nightly cleanup (estate issue 617): ${reason}`); };
+    if (clone.folder) {
+      const now = fs.statSync(clone.folder, { throwIfNoEntry: false });
+      if (!now) { /* Chrome removed it itself: nothing is kept */ } else if (now.ino !== clone.inode) {
+        left(`${clone.folder} was replaced by another folder after the launch`);
+      } else if (await profileChromeEnded(profile)) {
+        await attempt(clone.folder, 'Chrome code-sign clone folder');
+      } else {
+        left(`a process with ${profile} still runs ${REMOVE_TIMEOUT_MS / 1000} s after Chrome was ended; ${clone.folder} kept`);
+      }
+    } else if (clone.reason) {
+      left(clone.reason);
+    }
+    // A new folder that is still there and is not the one removed is kept too:
+    // the folder identified at the launch may have been another Chrome's, with
+    // this one's made later.
+    if (live.cloneBaseline && !said) {
+      const remaining = cloneNames(live.cloneBaseline.parent).filter((name) => !live.cloneBaseline.names.has(name));
+      if (remaining.length > 0) left(`${remaining.length} new clone folder(s) remain in ${live.cloneBaseline.parent} (${remaining.join(', ')}), not the one identified at the launch`);
+    }
+    if (failures.length > 0) throw new Error(failures.join('; '));
+  })();
+  return releasing;
+}
+
+// A signal ends the run like an error would: close, remove, exit 128 + number.
+for (const [name, code] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]]) {
+  process.on(name, () => {
+    release().then(() => process.exit(code), (error) => {
+      console.error(`browser gate: cleanup after ${name} failed: ${error.message}`);
+      process.exit(2);
+    });
+  });
+}
+
 async function main() {
   const [siteDir, manifestFile, exceptionsFile, baselineFile, variantsFile] = process.argv.slice(2);
   if (!siteDir || !manifestFile || !exceptionsFile || !baselineFile || !variantsFile) die('usage: browser_gate.mjs <site-dir> <manifest.json> <exceptions.txt> <baseline.txt> <variants.txt>');
@@ -880,13 +1030,14 @@ async function main() {
   let version;
   try {
     live.profile = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-gate-'));
+    live.cloneBaseline = cloneBaseline();
     live.launching = puppeteer.launch({
       executablePath,
       headless: true,
       userDataDir: live.profile,
       args: CHROME_ARGS,
       env: { PATH: '/usr/bin:/bin', HOME: live.profile, TMPDIR: live.profile, LANG: 'C' },
-      // The signals are handled above, once, with the profile; the pipe makes
+      // The signals are handled below, once, with the profile; the pipe makes
       // Chrome end by itself when this process dies without a chance to close it.
       handleSIGINT: false,
       handleSIGTERM: false,
@@ -898,6 +1049,10 @@ async function main() {
       waitForInitialPage: false,
     });
     live.browser = await live.launching;
+    // Test seam (site issue 61): the self-test slows only the gate through a
+    // module it names here. Unset, as in every real run, nothing happens.
+    if (process.env.FORSGREN_GATE_BROWSER_HOOK) require(process.env.FORSGREN_GATE_BROWSER_HOOK)(live.browser);
+    await cloneOf(live.browser);
     const gone = chromeGone(live.browser);
     version = await unlessGone(live.browser.version(), gone);
     for (const variant of variants.values()) {
