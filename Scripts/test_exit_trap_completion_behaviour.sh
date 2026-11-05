@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_exit_trap_completion_behaviour v2
+# canon: test_exit_trap_completion_behaviour v6
 # Scripts/test_exit_trap_completion_behaviour.sh
 #
 # The BEHAVIOUR behind Scripts/check_exit_trap_completion.sh.
@@ -29,20 +29,35 @@ selftest_begin "exit-trap completion behaviour self-test"
 # shellcheck source=Scripts/lib_exit_trap_probe.sh
 source Scripts/lib_exit_trap_probe.sh
 
+# The Stream Deck push (pilot issue 28): Scripts/builds_tmpdir.sh pushes
+# the build volume's status to Companion, so every run here talks to the fake
+# of Scripts/lib_fake_companion.sh (a stub curl first on PATH), never the real one.
+# A repository without that script skips this part and says so.
+if [[ -f "Scripts/lib_fake_companion.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "Scripts/lib_fake_companion.sh"
+  fake_companion "${TMP}/fake-companion"
+else
+  echo "  skipped: Scripts/lib_fake_companion.sh not in this repository"
+fi
+# The run under test also makes <volume>/tmp/<repository folder> and a probe file
+# in it: a folder of this self-test's own, never the real build volume
+# (pilot issue 31). Skipped, and said so, where Scripts/builds_tmpdir.sh is absent.
+if [[ -f "Scripts/builds_tmpdir.sh" ]]; then
+  export BUILDS_REPO_FOLDER="fixture-repo"
+  export BUILDS_VOLUME="${TMP}/builds-volume"
+  mkdir -p "$BUILDS_VOLUME"
+else
+  echo "  skipped: Scripts/builds_tmpdir.sh not in this repository"
+fi
+
 setup_nothing() { :; }
 
-# FullBuildAndPush.sh / FBP.sh: the repository's push wrapper, the one of the two
-# that exists. Run with --no-commit in a sandbox that is not a git repository,
+# FBP.sh: the repository's push wrapper. Run with --no-commit in a sandbox that is not a git repository,
 # with a say stub, so nothing is committed, pushed or spoken; the abort comes
 # before its first step. Its summary must also say 'Aborted ❌'.
-FBP=""
-for candidate in FullBuildAndPush.sh FBP.sh; do
-  if [[ -f "$candidate" ]]; then
-    [[ -z "$FBP" ]] || selftest_abort "both ${FBP} and ${candidate} exist — the script under test is ambiguous"
-    FBP="$candidate"
-  fi
-done
-[[ -n "$FBP" ]] || selftest_abort "neither FullBuildAndPush.sh nor FBP.sh exists — there is no push wrapper to probe"
+FBP="FBP.sh"
+[[ -f "$FBP" ]] || selftest_abort "FBP.sh does not exist — there is no push wrapper to probe"
 PROBE_EXPECT_OUT="Aborted ❌"
 probe_case push_wrapper "$FBP" "$ROOT" setup_nothing --no-commit probe
 

@@ -96,7 +96,7 @@ source "$(dirname "$FBP_SANDBOX_FBP")/Scripts/lib_tmp.sh"
 # its case 7 against a mutated copy of FBP.sh; that proof sets
 # it as a prefix assignment on one call, so bash restores it when the call
 # returns. It is reset here, at source time, so a value exported in the
-# calling shell can never swap the FullBuildAndPush that every other case
+# calling shell can never swap the FBP.sh that every other case
 # drives.
 FBP_SANDBOX_FBP_OVERRIDE=""
 
@@ -116,7 +116,7 @@ FBP_SANDBOX_FBP_OVERRIDE=""
 #     or an exact byte sequence (\n writes one newline and nothing else).
 #   FBP_SANDBOX_SINK_MODE: a chmod mode the stub Scripts/build_site.sh sets
 #     on its page-count sink after writing it (000: the sink is there and
-#     not empty, but FullBuildAndPush cannot read it). It needs a sink to
+#     not empty, but FBP.sh cannot read it). It needs a sink to
 #     act on: with no sink written, the stub chmod fails, says so and the
 #     stub still exits 0. Run as root, 000 does not stop the read.
 FBP_SANDBOX_SFL_COUNTS_PRE=""
@@ -129,7 +129,7 @@ FBP_SANDBOX_SINK_MODE=""
 #   FBP_SANDBOX_SFL_PRE_RC: when non-empty, the stub sfl.sh, run as
 #     sfl.sh pre, prints FBP_SANDBOX_SFL_PRE_OUTPUT and exits with this
 #     status instead of 0 (2 is sfl's secret-class red), so a fixture can
-#     drive FullBuildAndPush through a PRE red with sfl's own Errors: block.
+#     drive FBP.sh through a PRE red with sfl's own Errors: block.
 #   FBP_SANDBOX_SFL_PRE_OUTPUT: the text that stub prints, byte for byte.
 # With FBP_SANDBOX_SFL_PRE_RC empty the stub is the same bytes as before.
 FBP_SANDBOX_SFL_PRE_RC=""
@@ -236,14 +236,14 @@ FBP_SANDBOX_REASON=""
 # the EXIT trap, and rm -rf of a sandbox that is already gone does nothing.
 # Because INT and TERM are trapped here, bash runs their trap only once the
 # foreground command (the sandbox subshell) has returned. A TERM sent to the
-# fixture alone therefore removes the sandbox after FullBuildAndPush ends. A
+# fixture alone therefore removes the sandbox after FBP.sh ends. A
 # Ctrl-C goes to the whole foreground process group: the fixture, the
-# sandbox subshell, FullBuildAndPush and whichever stub is running. The stubs
+# sandbox subshell, FBP.sh and whichever stub is running. The stubs
 # set no traps, so the stub dies with the rest and nothing is left to write
 # into the sandbox once the trap removes it (issue source-repo#20 item 4, shown on
 # macOS /bin/bash 3.2.57 with a stand-in that sleeps before writing: no
 # stub survived and nothing was written). In the same stand-in, a SIGINT
-# sent to FullBuildAndPush alone did not stop it at once: it waited for the
+# sent to FBP.sh alone did not stop it at once: it waited for the
 # running stub, so that stub had finished before the sandbox was removed. A
 # SIGKILL runs no trap and leaves the sandbox behind.
 # The array is expanded with the ${arr[@]+...} form because macOS bash 3.2
@@ -294,12 +294,12 @@ trap 'fbp_sandbox_cleanup; exit 143' TERM
 # quoted by printf %q, so a multi-line <sink-content> such as $'3\n4' lands
 # as two lines, byte for byte.
 # Issue source-repo#14: the stub reads SITE_PAGE_COUNT_FILE with :? rather than
-# defaulting it, so a FullBuildAndPush that stops passing its own path
+# defaulting it, so a FBP.sh that stops passing its own path
 # fails the build step instead of the stub quietly writing the default path
-# FullBuildAndPush happens to read. The only directory it creates is
+# FBP.sh happens to read. The only directory it creates is
 # .build, so a SITE_PAGE_COUNT_FILE handed to it must lie in .build, in a
 # directory the sandbox already has (its root, Scripts, bin) or in one that
-# exists outside it. FullBuildAndPush's own path and the case 7 mutation
+# exists outside it. FBP.sh's own path and the case 7 mutation
 # proof's decoy in Scripts/test_fbp_build_pagecount.sh lie in
 # .build; case 7's own decoy lies in a directory that fixture creates, so
 # it can check afterwards that nothing wrote it (issue source-repo#18), and falls back
@@ -410,23 +410,23 @@ fbp_sandbox_sfl_counts_line() {
   fi
 }
 
-# fbp_sandbox_run <sink-content> [FullBuildAndPush args...] — builds a fresh
+# fbp_sandbox_run <sink-content> [FBP.sh args...] — builds a fresh
 # sandbox (see the header) with fbp_sandbox_write_build_site <sink-content>,
 # registers it for cleanup, and runs FBP.sh there with the
-# remaining arguments. The FullBuildAndPush it copies is FBP_SANDBOX_FBP, or
+# remaining arguments. The FBP.sh it copies is FBP_SANDBOX_FBP, or
 # FBP_SANDBOX_FBP_OVERRIDE when that is set (the mutation proof only).
 # Issue source-repo#20 (item 2): it then reads the run's stdout+stderr and exit status
 # into FBP_SANDBOX_OUT and FBP_SANDBOX_RC (-1 when the run never recorded
 # one) and deletes the sandbox, so no sandbox outlives the call, whatever
 # EXIT trap the sourcing fixture set. It returns 0 whenever it had a
-# sandbox, whatever FullBuildAndPush's own status: that is fbp_sandbox_rc.
+# sandbox, whatever FBP.sh's own status: that is fbp_sandbox_rc.
 # Issue source-repo#20: when mktemp -d fails, or hands back no directory, it prints
 # "could not create the FBP sandbox" to stderr, keeps the same line in
 # FBP_SANDBOX_REASON and returns 1 BEFORE the subshell, registering nothing
 # and leaving FBP_SANDBOX_DIR empty. Without that stop, cd "" leaves the
 # subshell where the fixture was called from, which under sfl is the repo
 # root: the stubs would overwrite its sfl.sh and Scripts/build_site.sh and
-# FullBuildAndPush would run there.
+# FBP.sh would run there.
 fbp_sandbox_run() {
   local sink="$1"
   shift
@@ -438,7 +438,7 @@ fbp_sandbox_run() {
   FBP_SANDBOX_COMMIT_AUTHOR=""
   FBP_SANDBOX_COMMIT_MSG=""
   if ! fbp_sandbox_new_dir; then
-    FBP_SANDBOX_REASON="could not create the FBP sandbox: mktemp -d gave no directory ('${FBP_SANDBOX_NEW_DIR}'), so FullBuildAndPush was not run"
+    FBP_SANDBOX_REASON="could not create the FBP sandbox: mktemp -d gave no directory ('${FBP_SANDBOX_NEW_DIR}'), so FBP.sh was not run"
     echo "$FBP_SANDBOX_REASON" >&2
     return 1
   fi

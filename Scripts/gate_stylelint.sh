@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: gate_stylelint v1
+# canon: gate_stylelint v2
 # Scripts/gate_stylelint.sh
 
 set -euo pipefail
@@ -19,7 +19,7 @@ cd "$(dirname "$0")/.."
 #   3. A glob that matches nothing is red (stylelint's NoFilesFoundError, exit 1,
 #      "No files matching the pattern"); the gate does not soften it.
 #   4. CHECK-ONLY by default. Only GATE_FIX=1 adds --fix. sfl.sh exports it, so
-#      FullBuildAndPush fixes what stylelint can fix; CI never sets it, so CI
+#      FBP fixes what stylelint can fix; CI never sets it, so CI
 #      reports what the commit CONTAINS and never changes a file.
 #
 # Self-test: Scripts/test_gate_stylelint.sh.

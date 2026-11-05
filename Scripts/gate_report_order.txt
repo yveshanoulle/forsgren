@@ -602,10 +602,10 @@ step table|Scripts/test_render_step_table.sh|pre|
 #
 # FBP.sh's own summary and its build-site page count (another estate repository issues
 # #6 and #8): repository-source presentation, like the report scripts above.
-FullBuildAndPush commit-message block|Scripts/test_fbp_commit_message.sh|pre|
-FullBuildAndPush build-site page count|Scripts/test_fbp_build_pagecount.sh|pre|
-FullBuildAndPush aborted run|Scripts/test_fbp_aborted.sh|pre|
-FullBuildAndPush abort exit|Scripts/test_fbp_abort_exit.sh|pre|
+FBP commit-message block|Scripts/test_fbp_commit_message.sh|pre|
+FBP build-site page count|Scripts/test_fbp_build_pagecount.sh|pre|
+FBP aborted run|Scripts/test_fbp_aborted.sh|pre|
+FBP abort exit|Scripts/test_fbp_abort_exit.sh|pre|
 #
 # THE PRIVACY POSTURE (forsgren#1, ladder step 10), at its canon position
 # after the step table, behind the FBP fixtures as in another estate repository. The
@@ -966,6 +966,9 @@ static block self-test|Scripts/test_sfl_static_block.sh|pre|
 # message of every commit dco.yml's second job lists. Offline, so its
 # self-test runs in pre; the check itself runs in that job only.
 commit messages self-test|Scripts/test_check_commit_messages.sh|pre|
+#
+# The temporary forwarder of the old build script name (estate issue 610).
+FBP forwarder self-test|Scripts/test_fullbuildandpush_forwarder.sh|pre|
 #
 # The privacy pages belong to a site that needs privacy pages: another estate repository
 # serves a privacy policy, and its check_privacy_pages.sh pins that

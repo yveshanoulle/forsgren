@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: render_step_table v1
+# canon: render_step_table v2
 set -uo pipefail
 
 # Renders sfl's end-of-run step table. It is byte-identical across the site
@@ -15,7 +15,7 @@ set -uo pipefail
 
 ROWS="${1:?usage: render_step_table.sh <rows-file> [elapsed-seconds] [counts-file]}"
 ELAPSED="${2:-0}"
-# FullBuildAndPush's one-line summary used to read `sfl ✅ (11s)`: a glyph and a
+# FBP's one-line summary used to read `sfl ✅ (11s)`: a glyph and a
 # duration, so a run with four gates skipped looked exactly like one where all
 # thirty passed. The counts are written HERE because this script already
 # derives them from the rows; two places counting the same gates is how they
@@ -77,7 +77,7 @@ done < "$ROWS"
 printf '%*s\n' "$((COL + 18))" '' | tr ' ' '─'
 
 # ONE SENTENCE, ONE PRODUCER. The footer used to say `30 passed (19s)` while the
-# sink said `30/30`, and FullBuildAndPush printed the sink beside its OWN timing
+# sink said `30/30`, and FBP printed the sink beside its OWN timing
 # of the same step: three numbers for one run on one screen. Skipped and failed
 # are counted even when 0.
 #

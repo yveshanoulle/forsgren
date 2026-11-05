@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: check_guardrail_packages v1
+# canon: check_guardrail_packages v2
 set -euo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
@@ -33,7 +33,7 @@ failed=0
 
 # TRACKED, or on its way there. The strict form — `git ls-files` alone — cannot
 # pass on the commit that INTRODUCES these files: sfl runs before
-# FullBuildAndPush commits, so the very run that adds them would fail. That is
+# FBP commits, so the very run that adds them would fail. That is
 # not a hypothetical; it is how this gate first ran.
 #
 # So the question asked is the one that actually matters: will this file be in

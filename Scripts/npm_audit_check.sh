@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: npm_audit_check v3
+# canon: npm_audit_check v4
 # v3 (forsgren#434, ruling on #420): red from moderate severity up; a low one is listed, green.
 # npm_audit_check.sh — npm-audit gate with one-shot self-heal (GATE_FIX=1 only)
 # and ruled, weekly exceptions.
@@ -207,11 +207,11 @@ if [[ "$rc" -ne 1 ]]; then
 fi
 
 # CHECK-ONLY unless GATE_FIX=1: sfl.sh exports it so
-# FullBuildAndPush heals; CI never sets it and never changes a file.
+# FBP heals; CI never sets it and never changes a file.
 if [[ "${GATE_FIX:-}" != "1" ]]; then
   printf '%s\n' "$first"
   echo "npm-audit: moderate-or-higher advisory found"
-  echo "❌ npm-audit: nothing was changed: npm audit fix runs only under GATE_FIX=1 (FullBuildAndPush); run it there and commit package-lock.json"
+  echo "❌ npm-audit: nothing was changed: npm audit fix runs only under GATE_FIX=1 (FBP); run it there and commit package-lock.json"
   exit 1
 fi
 

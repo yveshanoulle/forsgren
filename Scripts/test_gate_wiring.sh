@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_gate_wiring v4
+# canon: test_gate_wiring v9
 # Scripts/test_gate_wiring.sh
 
 set -euo pipefail
@@ -198,11 +198,11 @@ fi
 # (forsgren#269), and up to 167 for the temp helper self-test, the bare mktemp
 # self-test and the bare mktemp gate (forsgren#612), and up to 168 for the tmp
 # failure stops self-test (forsgren#615), and up to 169 for the local hook
-# self-test (forsgren#290).
+# self-test (forsgren#290), and up to 170 for the FBP forwarder self-test (forsgren#627).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=169
+MIN_GATES=170
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -900,7 +900,7 @@ the Lint gates job would have no way to install a tool"
       order_names test_lib_tmp.sh \
         || fail "Scripts/test_lib_tmp.sh is not an order-file row — ${base} would be unproven"
       while IFS= read -r consumer; do
-        grep -qE '^[[:space:]]*source .*lib_(tmp|selftest|fbp_sandbox)\.sh"?$' "$consumer" \
+        grep -qE '^[[:space:]]*(source|[.]) .*lib_(tmp|selftest|fbp_sandbox)\.sh"?$' "$consumer" \
           || fail "${consumer} calls tmp_dir or tmp_file and never sources ${base}"
       done < <(grep -lE '^[^#]*[$][(]tmp_(dir|file) ' FBP.sh sfl.sh Scripts/*.sh | grep -v '^Scripts/lib_tmp\.sh$')
       ;;
@@ -1025,7 +1025,7 @@ mutation_proof() {
 # extension says what the sample is (.yml a workflow, .sh a shell script),
 # as it does for the real runners. Items are those of issue #18; "guard"
 # samples are the real call shapes of quality.yml, sfl.sh,
-# FullBuildAndPush.sh and the fixtures that source a helper, plus one call
+# FBP.sh and the fixtures that source a helper, plus one call
 # through bash (no runner has that shape today; it pins the wrapper rule),
 # so that a stricter matcher cannot start rejecting them.
 MATCHER_N=0

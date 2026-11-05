@@ -111,10 +111,10 @@ run report shows how many checks each of them ran.
 - gate-failure summary (`Scripts/test_summarize_gate_failure.sh`, pre)
 - sfl drives from the order file (`Scripts/test_sfl_drives_from_order_file.sh`, pre)
 - step table (`Scripts/test_render_step_table.sh`, pre)
-- FullBuildAndPush commit-message block (`Scripts/test_fbp_commit_message.sh`, pre)
-- FullBuildAndPush build-site page count (`Scripts/test_fbp_build_pagecount.sh`, pre)
-- FullBuildAndPush aborted run (`Scripts/test_fbp_aborted.sh`, pre)
-- FullBuildAndPush abort exit (`Scripts/test_fbp_abort_exit.sh`, pre)
+- FBP commit-message block (`Scripts/test_fbp_commit_message.sh`, pre)
+- FBP build-site page count (`Scripts/test_fbp_build_pagecount.sh`, pre)
+- FBP aborted run (`Scripts/test_fbp_aborted.sh`, pre)
+- FBP abort exit (`Scripts/test_fbp_abort_exit.sh`, pre)
 - privacy-posture self-test (`Scripts/test_check_privacy_posture.sh`, pre)
 - privacy posture (`Scripts/check_privacy_posture.sh`, post)
 - repository-links self-test (`Scripts/test_check_repo_links.sh`, pre)
@@ -186,6 +186,7 @@ run report shows how many checks each of them ran.
 - git sandbox guard self-test (`Scripts/test_git_sandbox_guard.sh`, pre)
 - static block self-test (`Scripts/test_sfl_static_block.sh`, pre)
 - commit messages self-test (`Scripts/test_check_commit_messages.sh`, pre)
+- FBP forwarder self-test (`Scripts/test_fullbuildandpush_forwarder.sh`, pre)
 <!-- gate-list:end -->
 
 ## Adding a number or a term to the pages

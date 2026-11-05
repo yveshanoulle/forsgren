@@ -57,7 +57,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 22 | sfl pull contract | `test_sfl_pull.sh` | pre | required, `test_sfl_pull v3` (the mutants sit beside a copy of `fbp_push_or_rebase.sh`, which `sfl_pull v2` sources) |
 | 160 | sfl pull rebase self-test | `test_sfl_pull_rebase.sh` | pre | required; ported from the estate canon (`test_sfl_pull_rebase v1`) on `lib_selftest.sh`: `sfl_pull.sh` (`sfl_pull v2`) in a temp bare remote and two clones: an unrelated incoming commit rebased with the staged change still staged, the unstaged one kept and no stash left; an incoming commit on the staged file or on the local commit's file stopped with exit 3, the file named, the local side untouched; 2 mutation proofs, each asserting the reason (forsgren#283, step 2 of 2); a half-merged repo (unmerged files, a leftover autostash entry, both) refused with exit 3 before any pull, a clean tree with an ordinary stash still pulled, 2 more mutation proofs (forsgren#603, an estate fix) |
 | 23 | npm manifest policy self-test | `test_check_guardrail_packages.sh` | pre | required, `test_check_guardrail_packages v1` |
-| 24 | npm manifest policy | `check_guardrail_packages.sh` | pre | required, `check_guardrail_packages v1` |
+| 24 | npm manifest policy | `check_guardrail_packages.sh` | pre | required, `check_guardrail_packages v2` |
 | 25 | tool install self-test | `test_install_tools.sh` | pre | required, `test_install_tools v1` |
 | 161 | Linux tool install self-test | `test_install_tools_linux.sh` | pre | required; forsgren's own (forsgren#427, not canon): `install_tools_linux.sh`, the Linux installer the Lint gates job calls on ubuntu-latest, with the download and Python stubbed: four pinned tools installed and run at their pinned version, a wrong sha256 refused with nothing installed, another version, a tool with no pin, an empty list, another CPU and an unhashed requirements file red, the real pin list checked, 2 mutations |
 | 26 | npm install sync self-test | `test_npm_sync_install.sh` | pre | required, `test_npm_sync_install v1` |
@@ -65,7 +65,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 28 | HTMLHint self-test | `test_gate_htmlhint.sh` | pre | required, `test_gate_htmlhint v1` |
 | 29 | HTMLHint | `gate_htmlhint.sh` | post | required, `gate_htmlhint v2` |
 | 30 | Stylelint self-test | `test_gate_stylelint.sh` | pre | required, `test_gate_stylelint v1` |
-| 31 | Stylelint | `gate_stylelint.sh` | post | required, `gate_stylelint v1` |
+| 31 | Stylelint | `gate_stylelint.sh` | post | required, `gate_stylelint v2` |
 | 32 | Stylelint source-fix self-test | `test_fix_source_css.sh` | pre | required |
 | 33 | starter page build | `build_starter_page.sh` | post | required |
 | 34 | starter page HTMLHint | `gate_htmlhint_starter.sh` | post | required |
@@ -87,7 +87,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 50 | html duplication, generated page | `check_html_dupl_site.sh` | post | required |
 | 51 | golden-pages self-test | `test_check_golden_pages.sh` | pre | required |
 | 52 | golden pages | `check_golden_pages.sh` | pre | required |
-| 53 | FBP --no-push self-test | `test_fbp_no_push.sh` | pre | required, `test_fbp_no_push v2` |
+| 53 | FBP --no-push self-test | `test_fbp_no_push.sh` | pre | required, `test_fbp_no_push v5` |
 | 159 | FBP push-or-rebase self-test | `test_fbp_push_or_rebase.sh` | pre | required; ported from the estate canon (`test_fbp_push_or_rebase v2`), forsgren's form: a copy of the real `FBP.sh` with `fbp_push_or_rebase.sh` (`fbp_push_or_rebase v3`) in a throwaway repository whose bare origin moves during the run: unrelated incoming file rebased, signed off and pushed with the ⚠️ row, same file stopped with the local commit untouched, nothing incoming, another refusal, moved again, moved every time (3 pushes); 1 mutation proof (forsgren#283, step 1 of 2) |
 | 159a | temp helper self-test | `test_lib_tmp.sh` | pre | required, `test_lib_tmp v2`; ported from the estate canon (forsgren#612): `tmp_dir` and `tmp_file` of `lib_tmp.sh` (`lib_tmp v2`) make `<name>.XXXXXX` directly in TMPDIR, one slash after a TMPDIR that ends in one, and refuse an empty name or a slash (exit 2); 3 mutation proofs (the TMPDIR prefix dropped lands in the macOS per-user folder, the slash refusal dropped escapes TMPDIR, the trailing slash kept doubles it). Proof A needs macOS, so the row stays in the main job |
 | 159b | bare mktemp self-test | `test_check_bare_mktemp.sh` | pre | required, `test_check_bare_mktemp v2`; ported from the estate canon (forsgren#612): synthetic repositories for every bare form (no template, `-d`, `-t`, `-p`, a template without a path), a workflow, an extension-less script, an untracked file, two calls on one line, the templated forms and the helper green, an ignored file green, an empty tree red, the exemption list fail closed, and this repository green; 6 mutation proofs |
@@ -113,8 +113,8 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 70 | Go dead code | `check_deadcode.sh` | pre | required |
 | 71 | lint-coverage self-test | `test_check_lint_coverage.sh` | pre | required, `test_check_lint_coverage v1` |
 | 72 | lint coverage | `check_lint_coverage.sh` | post | required, `check_lint_coverage v2` |
-| 73 | npm-audit self-test | `test_npm_audit_check.sh` | pre | required, `test_npm_audit_check v2`; documented exception: one dated advisory (see below) |
-| 74 | npm audit | `npm_audit_check.sh` | pre | required, `npm_audit_check v3`; documented exception: one dated advisory (see below) |
+| 73 | npm-audit self-test | `test_npm_audit_check.sh` | pre | required, `test_npm_audit_check v3`; documented exception: one dated advisory (see below) |
+| 74 | npm audit | `npm_audit_check.sh` | pre | required, `npm_audit_check v4`; documented exception: one dated advisory (see below) |
 | 75 | manifest-covers-site self-test | `test_required_pages_covers_site_selftest.sh` | pre | required, `test_required_pages_covers_site_selftest v1` |
 | 76 | manifest covers site | `test_required_pages_covers_site.sh` | post | required, `test_required_pages_covers_site v1` |
 | 77 | quality trigger scope | `test_quality_trigger_scope.sh` | pre | required, `test_quality_trigger_scope v3` |
@@ -124,11 +124,11 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 81 | quality-run summary | `test_render_quality_summary.sh` | pre | required |
 | 82 | gate-failure summary | `test_summarize_gate_failure.sh` | pre | required |
 | 83 | sfl drives from the order file | `test_sfl_drives_from_order_file.sh` | pre | required |
-| 84 | step table | `test_render_step_table.sh` | pre | required, `test_render_step_table v1` |
-| 85 | FullBuildAndPush commit-message block | `test_fbp_commit_message.sh` | pre | required |
-| 86 | FullBuildAndPush build-site page count | `test_fbp_build_pagecount.sh` | pre | required |
-| 87 | FullBuildAndPush aborted run | `test_fbp_aborted.sh` | pre | required |
-| 88 | FullBuildAndPush abort exit | `test_fbp_abort_exit.sh` | pre | required |
+| 84 | step table | `test_render_step_table.sh` | pre | required, `test_render_step_table v5` |
+| 85 | FBP commit-message block | `test_fbp_commit_message.sh` | pre | required |
+| 86 | FBP build-site page count | `test_fbp_build_pagecount.sh` | pre | required |
+| 87 | FBP aborted run | `test_fbp_aborted.sh` | pre | required |
+| 88 | FBP abort exit | `test_fbp_abort_exit.sh` | pre | required |
 | 89 | privacy-posture self-test | `test_check_privacy_posture.sh` | pre | required, `test_check_privacy_posture v1` |
 | 90 | privacy posture | `check_privacy_posture.sh` | post | required, `check_privacy_posture v1` |
 | 91 | repository-links self-test | `test_check_repo_links.sh` | pre | required |
@@ -137,7 +137,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 94 | community files | `check_community_files.sh` | pre | required |
 | 95 | exit-trap completion self-test | `test_check_exit_trap_completion.sh` | pre | required, `test_check_exit_trap_completion v1` |
 | 96 | exit-trap completion | `check_exit_trap_completion.sh` | pre | required, `check_exit_trap_completion v1` |
-| 97 | exit-trap completion behaviour | `test_exit_trap_completion_behaviour.sh` | pre | required, `test_exit_trap_completion_behaviour v1` |
+| 97 | exit-trap completion behaviour | `test_exit_trap_completion_behaviour.sh` | pre | required, `test_exit_trap_completion_behaviour v6` |
 | 97a | pipe into grep -q self-test | `test_check_pipe_grep_q.sh` | pre | required; forsgren's own (forsgren#428, not canon): 16 fixture trees (every shape of a producer piped into a quiet grep red, `has`, a file operand, a here-string, `\|\|`, a comment, no quiet flag green), 4 mutation proofs, and `has` of `lib_has.sh` finding a pattern after 300 KB of output where the plain pipe loses it |
 | 97b | pipe into grep -q | `check_pipe_grep_q.sh` | pre | required; forsgren's own (forsgren#428, found by #425): red when a script at the root or in `Scripts/` pipes a producer into `grep -q` (any flag cluster with q, `--quiet`); under pipefail grep leaving at its first match can kill the producer with SIGPIPE and a present pattern reads as missing. The cure is `has` from `Scripts/lib_has.sh` |
 | 98 | markdown-links self-test | `test_check_markdown_links.sh` | pre | required, `test_check_markdown_links v2` |
@@ -200,6 +200,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 146 | git sandbox guard self-test | `test_git_sandbox_guard.sh` | pre | required; every git-using `test_*.sh` sources `lib_git_sandbox.sh`, 1 mutation (forsgren#228) |
 | 148 | static block self-test | `test_sfl_static_block.sh` | pre | required; a fake gate set in a throwaway root, the real `sfl.sh`, `run_ci_phase.sh` and a sandboxed `FBP.sh`: a red gate in the static block (`#! static-block-start` / `#! static-block-end` in the order file) is followed by the rest of the block, then every later gate is skipped and named, the summary says `stopped after the static block`, FBP skips the build and the POST gates, named, and CI still runs every row; 2 mutations (the boundary ignored, skipped gates not named) (forsgren#231) |
 | 149 | commit messages self-test | `test_check_commit_messages.sh` | pre | required; forsgren's own (forsgren#213): `check_commit_messages.sh` runs the private-names matcher (`check_private_names.sh --message -`) on the message of every commit a pull request or a push brings, in the second job of `dco.yml`; a throwaway repository with made-up names; 2 mutations (only the last commit judged, a before the checkout lacks skipped) |
+| 159f | FBP forwarder self-test | `test_fullbuildandpush_forwarder.sh` | pre | required, no canon line, estate issue 610: the temporary forwarder of the old script name passes every argument and the exit code to `FBP.sh` unchanged, on a fake `FBP.sh` |
 | 150 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
 | 151 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
 

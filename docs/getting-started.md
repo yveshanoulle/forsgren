@@ -41,7 +41,7 @@ The Go tests gate runs the same tests.
 2. Make it pass.
 3. Run `./FBP.sh "<message>"`.
 
-FBP means FullBuildAndPush. In order, it does this:
+FBP.sh is the full build and push script. In order, it does this:
 
 1. It formats the Go files with `gofmt -w`.
 2. It runs the PRE gates (`./sfl.sh pre`).

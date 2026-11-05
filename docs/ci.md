@@ -191,7 +191,7 @@ The main job is 105 s of setup (its full tool install alone 82 s, 45 to 97)
 and 355 s of gates (PRE 338, POST 17). Its slowest gates, median seconds from
 the log's group times: Go test duplication 67, parallel mutants library
 self-test 15, private names 12, language gate self-test 11, Go coverage
-self-test 10, FullBuildAndPush aborted run 9, private-names self-test 8,
+self-test 10, FBP aborted run 9, private-names self-test 8,
 language gate 8, data guard self-test 8, build-site self-test 8; the other 98
 gates take under 8 s each. The candidates named when the issue was filed
 already left the main job: the metrics and release workflow pins and the

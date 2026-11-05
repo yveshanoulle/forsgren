@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_render_step_table v3
+# canon: test_render_step_table v5
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -125,7 +125,7 @@ else
 fi
 want "and an over-long name is printed in full" "mutation: staging-alpha pins and their checkout-pin siblings" "$out3"
 
-# Case 5: the counts must also reach FullBuildAndPush's one-line summary. That
+# Case 5: the counts must also reach FBP's one-line summary. That
 # line used to read `sfl ✅ (11s)` and say how long, never how much: a run where
 # four gates were skipped looked identical to one where all thirty passed.
 #
@@ -171,10 +171,10 @@ else
   fail "a skipped gate is not named: the counts say '${got2}', expected '1 passed, 0 warnings, 0 failed, 1 skipped (1s)' — a total that counts a skip as a pass reads as complete"
 fi
 
-# And the sentence is the renderer's, not FullBuildAndPush's. FBP must print
+# And the sentence is the renderer's, not FBP's. FBP must print
 # what it is handed and add no second duration beside it: two elapsed times on
 # one row read as a disagreement rather than as one thing measured twice.
-FBP="$(pwd)/FullBuildAndPush.sh"
+FBP="$(pwd)/FBP.sh"
 if [ -f "$FBP" ]; then
   # Read the ROW's format string and ask whether it still carries a duration.
   # A pattern that required the duration to appear AFTER the label matched
@@ -189,9 +189,9 @@ if [ -f "$FBP" ]; then
   for label in "${row_labels[@]}"; do
     row_fmt="$(grep -E "printf .*\"${label}\"" "$FBP" || true)"
     if [ -z "$row_fmt" ]; then
-      fail "no ${label} row found in FullBuildAndPush — this pin is measuring nothing"
+      fail "no ${label} row found in FBP — this pin is measuring nothing"
     elif grep -qF '(%ss)' <<< "$row_fmt"; then
-      fail "FullBuildAndPush still formats its own duration onto the ${label} row — the sentence already ends in one, and two elapsed times on one row read as a disagreement: ${row_fmt}"
+      fail "FBP still formats its own duration onto the ${label} row — the sentence already ends in one, and two elapsed times on one row read as a disagreement: ${row_fmt}"
     else
       echo "  ok: FBP ${label} row prints the sentence and no duration of its own"
     fi
@@ -234,7 +234,7 @@ want "a secret-class row without the word FAIL is still a failure" "0 passed, 0 
 # --- Mutation proof: weakened copies of the renderer must be red here, each for
 # its own reason (the failure line the case prints).
 if [[ $# -eq 0 ]]; then
-  MUT="$(tmp_dir test_render_step_table_mut)" || exit 1
+  MUT="$(tmp_dir test_render_step_table_mutants)" || exit 1
   mutant_must_fail() { # <label> <sed-expression> <reason fragment>
     local m="$MUT/render_step_table_$RANDOM.sh" mout rc
     sed "$2" "$RENDER" > "$m"

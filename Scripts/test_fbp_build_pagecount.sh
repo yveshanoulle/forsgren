@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 # Scripts/test_fbp_build_pagecount.sh
 #
-# Issue source-repo#8, ruled fail fast (Yves, 2026-09-30): FullBuildAndPush's summary
+# Issue source-repo#8, ruled fail fast (Yves, 2026-09-30): FBP.sh's summary
 # must show how many pages build_site.sh generated, and a missing,
 # non-numeric or zero count must FAIL the build step with a named reason —
 # never fall back to the plain row.
 #
 # Drives the REAL FBP.sh inside a throwaway git sandbox with a
 # STUB Scripts/build_site.sh that controls what lands in the page-count
-# sink FullBuildAndPush names (.build/site-page-count.log), the same technique
+# sink FBP.sh names (.build/site-page-count.log), the same technique
 # Scripts/test_fbp_commit_message.sh uses for issue source-repo#6 — this
 # pins the CONTRACT between build_site.sh and FBP.sh, not the
 # real builder's own count (Scripts/test_build_site.sh pins that
 # separately). The sandbox and its stub are Scripts/lib_fbp_sandbox.sh
 # (issue source-repo#14), shared with the commit-message fixture. The stub writes its
 # sink to SITE_PAGE_COUNT_FILE and has no default for it, so
-# FullBuildAndPush passing its own path to build_site.sh (issue source-repo#11) is
+# FBP.sh passing its own path to build_site.sh (issue source-repo#11) is
 # pinned here: case 7 exports a decoy path and still expects a green run.
 #
 # Issue source-repo#20 (items 1 and 3, step 3): the self-proofs at the end check this
@@ -62,7 +62,7 @@ assert_run_passed() {
   local label="$1"
   local why="$2"
   if [ "$RC" -ne 0 ]; then
-    fail "${label}: FullBuildAndPush exited ${RC}, want 0 — ${why}"
+    fail "${label}: FBP.sh exited ${RC}, want 0 — ${why}"
   fi
 }
 
@@ -72,7 +72,7 @@ assert_run_failed() {
   local label="$1"
   local why="$2"
   if [ "$RC" -eq 0 ]; then
-    fail "${label}: FullBuildAndPush exited 0 — ${why}"
+    fail "${label}: FBP.sh exited 0 — ${why}"
   fi
 }
 
@@ -143,7 +143,7 @@ assert_row_one_line() {
 # <value> the way the build-site row shows a bad page count (issue source-repo#12):
 # through printf %q, so a newline or other control character prints escaped.
 # It also fails when that row holds a raw control character. Meant for a
-# <value> holding a control character: FullBuildAndPush prints any other
+# <value> holding a control character: FBP.sh prints any other
 # gate-count value as written, which this check would reject whenever %q
 # changes it (a space, for one).
 assert_row_shows_quoted() {
@@ -191,7 +191,7 @@ gate_counts_case() {
 # Runs the real FBP.sh --no-commit in a fresh sandbox
 # (Scripts/lib_fbp_sandbox.sh) whose stub Scripts/build_site.sh exits 0 and
 # writes <sink-content> plus one trailing newline to the SITE_PAGE_COUNT_FILE
-# FullBuildAndPush hands it; an empty <sink-content> writes no sink at all.
+# FBP.sh hands it; an empty <sink-content> writes no sink at all.
 # The stub line is printf '%s\n' with the value quoted by printf %q, so a
 # multi-line <sink-content> such as $'3\n4' lands as two lines, byte for
 # byte.
@@ -291,13 +291,13 @@ fi
 # ---------------------------------------------------------------------------
 # Case 7: issue source-repo#14 (finding 1 from the #11–#13 review) — a
 # SITE_PAGE_COUNT_FILE exported in the calling shell must not move the
-# count. FullBuildAndPush passes its own path to build_site.sh
+# count. FBP.sh passes its own path to build_site.sh
 # (SITE_PAGE_COUNT_FILE="$PAGE_COUNT_FILE" ./Scripts/build_site.sh), so the
-# stub still writes where FullBuildAndPush reads, and the run stays green.
+# stub still writes where FBP.sh reads, and the run stays green.
 #
 # PIN, not a red: this held when it was written. What proves it can fail:
 # delete the SITE_PAGE_COUNT_FILE="$PAGE_COUNT_FILE" prefix on that line in
-# FBP.sh, and the stub writes the decoy instead. FullBuildAndPush
+# FBP.sh, and the stub writes the decoy instead. FBP.sh
 # finds no count at its own path: the run fails with "page count missing"
 # and this case fails on both checks below. (Cases 1, 3 to 6 and 8 to 12
 # fail with it, because the stub has no default path and exits non-zero on
@@ -306,7 +306,7 @@ fi
 # requires the named reason, so the pin is seen failing on every run.
 #
 # Issue source-repo#18 (#14 note b): the decoy must also stay UNWRITTEN. A
-# FullBuildAndPush that followed the exported path for writing AND reading
+# FBP.sh that followed the exported path for writing AND reading
 # (PAGE_COUNT_FILE="${SITE_PAGE_COUNT_FILE:-...}") would show 3 pages and
 # pass both checks above, so the decoy lies outside the sandbox, in a
 # directory this fixture owns and still has after the sandbox is removed,
@@ -332,17 +332,17 @@ unset SITE_PAGE_COUNT_FILE
 
 if [ "$case7_ran" -eq 1 ]; then
   assert_shown "exported decoy path" "3 pages generated" \
-    "a SITE_PAGE_COUNT_FILE exported in the calling shell moved the count away from where FullBuildAndPush reads it"
+    "a SITE_PAGE_COUNT_FILE exported in the calling shell moved the count away from where FBP.sh reads it"
   assert_run_passed "exported decoy path" \
     "it must pass its own SITE_PAGE_COUNT_FILE to build_site.sh, whatever the calling shell exported"
   if [ -n "$case7_decoy" ] && [ -e "$case7_decoy" ]; then
-    fail "exported decoy path: build_site.sh wrote the exported decoy ${case7_decoy} — FullBuildAndPush must hand it its own path, not follow the calling shell's path for writing and reading alike"
+    fail "exported decoy path: build_site.sh wrote the exported decoy ${case7_decoy} — FBP.sh must hand it its own path, not follow the calling shell's path for writing and reading alike"
   fi
 fi
 
 # ---------------------------------------------------------------------------
 # Mutation proof for case 7 (issue source-repo#14): case 7 was written against a
-# FullBuildAndPush it already passed, so on its own it was never seen red.
+# FBP.sh it already passed, so on its own it was never seen red.
 # This re-runs case 7's setup (exported decoy, sink 3) against a copy of
 # FBP.sh with the SITE_PAGE_COUNT_FILE="$PAGE_COUNT_FILE"
 # prefix removed, and requires that run to fail with the named "page count
@@ -431,7 +431,7 @@ fi
 # empty but cannot be read (the stub chmods it to 000 through the
 # FBP_SANDBOX_SINK_MODE seam) fails the build step with the named
 # "page count unreadable" reason in the build-site row. Before issue source-repo#17
-# the read ran under set -e and killed FullBuildAndPush part-way: the
+# the read ran under set -e and killed FBP.sh part-way: the
 # build-site row stayed at its skipped default (build site ⏭️), the run
 # ended Aborted and POST never ran. Only the reason is asserted, not the
 # path printed after it. Run as root, chmod 000 does not stop the read and
@@ -571,8 +571,8 @@ COMPLETED=1
 
 if [ "$failed" -ne 0 ]; then
   echo ""
-  echo "FAIL: FullBuildAndPush does not fail fast on a missing/malformed/zero build-site page count"
+  echo "FAIL: FBP.sh does not fail fast on a missing/malformed/zero build-site page count"
   exit 1
 fi
 
-echo "OK: FullBuildAndPush shows the page count and fails fast when it is missing, non-numeric or zero"
+echo "OK: FBP.sh shows the page count and fails fast when it is missing, non-numeric or zero"

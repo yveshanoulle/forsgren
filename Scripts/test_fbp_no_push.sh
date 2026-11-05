@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# canon: test_fbp_no_push v3
+# canon: test_fbp_no_push v5
 # Scripts/test_fbp_no_push.sh
 #
-# Self-test for the --no-push flag of the repository's FullBuildAndPush script.
+# Self-test for the --no-push flag of the repository's FBP script.
 # The canon version, byte-identical across the
-# estate's repositories: it finds the script as the one of FullBuildAndPush.sh
-# and FBP.sh that exists (neither, or both, aborts).
+# estate's repositories: it finds the script as FBP.sh
+# (a missing FBP.sh aborts).
 #
 # Every case runs a COPY of the real script in a throwaway git repository with
 # a bare origin, a stub sfl.sh whose verdict the case sets, a stub `say`, a
@@ -43,21 +43,41 @@ source Scripts/lib_git_sandbox.sh
 source Scripts/lib_selftest.sh
 selftest_begin "FBP --no-push self-test"
 
-FBP=""
-for candidate in FullBuildAndPush.sh FBP.sh; do
-  if [[ -f "$candidate" ]]; then
-    [[ -z "$FBP" ]] || selftest_abort "both ${FBP} and ${candidate} exist — the script under test is ambiguous"
-    FBP="$candidate"
-  fi
-done
-[[ -n "$FBP" ]] || selftest_abort "neither FullBuildAndPush.sh nor FBP.sh exists — there is no script to validate"
+FBP="FBP.sh"
+[[ -f "$FBP" ]] || selftest_abort "FBP.sh does not exist — there is no script to validate"
 FBP_SRC="$(pwd)/${FBP}"
 FRIEND_SRC="$(pwd)/Scripts/fbp_agent_friend.sh"
+
+# The temp folder (site issue 41, estate issue 386): the wrapper takes
+# TMPDIR from Scripts/builds_tmpdir.sh before anything else and stops on an
+# empty answer, so a sandbox gets the real script, aimed at a fake build volume
+# under this self-test's temp root, never at the real one.
+# A repository without that script (the file is site-only) skips this part and
+# says so.
+BUILDS_TMPDIR_SRC="$(pwd)/Scripts/builds_tmpdir.sh"
+if [[ -f "$BUILDS_TMPDIR_SRC" ]]; then
+  export BUILDS_VOLUME="${TMP}/builds-volume"
+  mkdir -p "$BUILDS_VOLUME"
+else
+  echo "  skipped: Scripts/builds_tmpdir.sh not in this repository"
+fi
 
 # A stub `say` so the done cue is silent, first on PATH for every case.
 mkdir -p "${TMP}/bin"
 printf '#!/bin/sh\nexit 0\n' > "${TMP}/bin/say"
 chmod +x "${TMP}/bin/say"
+
+# The Stream Deck push (site issue 41): Scripts/builds_tmpdir.sh pushes
+# the build volume's status to Companion, so every run here talks to the fake
+# of Scripts/lib_fake_companion.sh (a stub curl first on PATH), never the real one.
+# Skipped, and said so, where Scripts/lib_fake_companion.sh does not exist.
+if [[ -f "Scripts/lib_fake_companion.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "Scripts/lib_fake_companion.sh"
+  fake_companion "${TMP}/fake-companion"
+else
+  echo "  skipped: Scripts/lib_fake_companion.sh not in this repository"
+fi
 
 # Commits and pushes in the sandbox use only what is set here.
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
@@ -101,8 +121,10 @@ sandbox() {
   printf '#!/usr/bin/env bash\n[ -f sfl_red ] && { echo "Errors:"; echo "stub gate failed"; exit 1; }\nexit 0\n' > "${root}/sfl.sh"
   chmod +x "${root}/sfl.sh"
   stub_helpers "$root"
-  # FBP.sh sources it for its sfl logs (forsgren#612): the real one, not a stub.
   mkdir -p "${root}/Scripts"
+  if [[ -f "$BUILDS_TMPDIR_SRC" ]]; then
+    cp "$BUILDS_TMPDIR_SRC" "${root}/Scripts/builds_tmpdir.sh"
+  fi
   cp Scripts/lib_tmp.sh "${root}/Scripts/lib_tmp.sh"
   printf '.build/\nsfl_red\n' > "${root}/.gitignore"
   git -C "$root" add -A

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FBP.sh (FullBuildAndPush) as the subagent loop's own identity (ruled
+# FBP.sh as the subagent loop's own identity (ruled
 # 2026-09-07 in another estate repository, ported to another estate repository 2026-09-19 and to
 # another estate repository 2026-09-30, ported here 2026-10-01 (forsgren#1) so Lenka
 # can run forsgren's own FBP.sh under the loop's identity too).

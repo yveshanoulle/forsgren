@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# FBP = FullBuildAndPush: runs sfl, commits, and pushes when everything is green.
+# FBP.sh: runs sfl, commits, and pushes when everything is green.
 #
-# Ported from another estate repository's FullBuildAndPush.sh 2026-10-01 (forsgren#1,
+# Ported from another estate repository's FBP.sh 2026-10-01 (forsgren#1,
 # ladder step 1); named FBP.sh by Yves's ruling on forsgren#1. Issue numbers
 # below are another estate repository's unless they say forsgren.
 #
@@ -372,7 +372,7 @@ summary_body() {
   echo "================================"
   echo "  forsgren Summary"
   echo "================================"
-  # Issue #6, ported from another estate repository's FullBuildAndPush.sh (~136-142, unit
+  # Issue #6, ported from another estate repository's FBP.sh (~136-142, unit
   # 428): the message this run was given, first. A summary scrolled back to
   # later must say which commit it belongs to, and on a TDD ladder every run
   # prints an identical-looking block of statuses without it.

@@ -58,7 +58,7 @@ cd "$(dirname "$0")/.."
 CANON_GLOBS=(
   "Scripts/**"                        # every gate, its test, the order file, the data files
   "sfl.sh"                            # the local gate the CI loop mirrors
-  "FullBuildAndPush.sh"               # read by the --no-push self-test
+  "FBP.sh"               # read by the --no-push self-test
   ".github/workflows/**"              # every workflow the fixtures pin
   ".github/zizmor.yml"                # zizmor's configuration: the gate reads it, no workflow glob covers it
   "package.json"                      # what npm ci installs

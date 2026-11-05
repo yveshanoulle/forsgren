@@ -31,7 +31,7 @@ it. A file git ignores is left alone, since it will never be committed.
 
 ## Working on forsgren
 
-**`./FBP.sh "<message>"`** (FBP = FullBuildAndPush) is the one command for a
+**`./FBP.sh "<message>"`** is the one command for a
 change: 
 
 `gofmt -w` over the Go files, `./sfl.sh pre`, `Scripts/build_site.sh`,
@@ -363,7 +363,7 @@ broken runner cannot report green:
   private-names gate each carry `secret-class`; each of those three pins
   is seen rejecting the order file with its tier stripped, by its own
   FAIL line and not for another reason.
-- **FullBuildAndPush commit-message block** and **FullBuildAndPush
+- **FBP commit-message block** and **FBP
   build-site page count** (`Scripts/test_fbp_commit_message.sh`,
   `Scripts/test_fbp_build_pagecount.sh`): the real `FBP.sh`, run in a
   throwaway repository with stub gates, prints its message, reaches PRE,

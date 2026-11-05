@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Scripts/test_fbp_commit_message.sh
 #
-# Issue source-repo#6: FullBuildAndPush's summary must show the commit message it was
+# Issue source-repo#6: FBP.sh's summary must show the commit message it was
 # given — ported from another estate repository's guarded `Commit:` block (its
 # FBP.sh ~136-142, unit 428): a summary scrolled back to later
 # must say which commit it belongs to, and on a TDD ladder every run prints
@@ -77,7 +77,7 @@ trap finish EXIT
 # run_fbp <extra args...> — runs the real FBP.sh with <extra
 # args...> in a fresh sandbox (Scripts/lib_fbp_sandbox.sh) and leaves the
 # captured stdout+stderr in $OUT. The stub build_site.sh writes a valid
-# page-count sink (3): since issue source-repo#8, FullBuildAndPush fails the build step
+# page-count sink (3): since issue source-repo#8, FBP.sh fails the build step
 # when Scripts/build_site.sh leaves no count, and this file checks the
 # summary of an otherwise green run, not a red one.
 # Issue source-repo#20 (item 1): when there is no sandbox it fails this fixture once,
@@ -231,7 +231,7 @@ fi
 # it. If the cd fails nothing is called, so a broken setup can never make
 # the lib run in this repo; the missing exit status then fails the case.
 # With the lib as it was before issue source-repo#20, the subshell does run
-# FullBuildAndPush --no-commit, inside the fake repo.
+# FBP.sh --no-commit, inside the fake repo.
 # ---------------------------------------------------------------------------
 if ! fbp_sandbox_new_dir; then
   fail "sandbox not created: mktemp -d gave no directory for the fake repo, so case 3 never ran"
@@ -280,7 +280,7 @@ fi
 # Case 4: forsgren#1 step 12.2d — the blocked-commit message names the
 # secret-class row that failed. Three rows are secret-class (the secret scan,
 # by Yves's ruling of 2026-10-02 the data guard, and since forsgren#52 the
-# private names gate), and FullBuildAndPush refuses to commit on any of them. Its message used to assume the secret scan
+# private names gate), and FBP.sh refuses to commit on any of them. Its message used to assume the secret scan
 # ("Fix the gitleaks finding above, rotate the value..."), which is wrong
 # advice for a data-guard finding: there is no gitleaks finding and no value
 # to rotate.
@@ -303,7 +303,7 @@ blocked_message() {
   awk '/NOT committing/ { on = 1 } on { print } on && /run FBP\.sh again/ { exit }' <<< "$OUT"
 }
 
-# run_secret_red <label> <fail-line> — runs FullBuildAndPush --no-commit
+# run_secret_red <label> <fail-line> — runs FBP.sh --no-commit
 # with a PRE that fails secret-class (exit 2) on the row <label>, printing
 # the Errors: block sfl prints, and leaves the message in $BLOCKED. Returns
 # 1 when the run had no sandbox (run_fbp has failed the fixture already).
@@ -314,7 +314,7 @@ run_secret_red() {
     run_fbp --no-commit "12.2d: a secret-class red" || return 1
   BLOCKED="$(blocked_message)"
   if [ -z "$BLOCKED" ]; then
-    fail "secret-class red on '$1': FullBuildAndPush printed no blocked-commit message (no 'NOT committing' line), so nothing here was checked. Output: ${OUT}"
+    fail "secret-class red on '$1': FBP.sh printed no blocked-commit message (no 'NOT committing' line), so nothing here was checked. Output: ${OUT}"
     return 1
   fi
 }
@@ -727,8 +727,8 @@ echo "run_fbp calls: ${RUN_FBP_CALLS}"
 
 if [ "$failed" -ne 0 ]; then
   echo ""
-  echo "FAIL: FullBuildAndPush does not show its commit message in the summary, does not name the secret-class row that blocked the commit, does not sign off its commits, or Scripts/lib_fbp_sandbox.sh carries on without a sandbox (see the FAIL lines above)"
+  echo "FAIL: FBP.sh does not show its commit message in the summary, does not name the secret-class row that blocked the commit, does not sign off its commits, or Scripts/lib_fbp_sandbox.sh carries on without a sandbox (see the FAIL lines above)"
   exit 1
 fi
 
-echo "OK: FullBuildAndPush summary shows the guarded Commit: block, its blocked-commit message names the secret-class row that failed, its green and RED commits carry a DCO sign-off from the identity that ran it and pass the DCO check, and Scripts/lib_fbp_sandbox.sh stops when it cannot create a sandbox"
+echo "OK: FBP.sh summary shows the guarded Commit: block, its blocked-commit message names the secret-class row that failed, its green and RED commits carry a DCO sign-off from the identity that ran it and pass the DCO check, and Scripts/lib_fbp_sandbox.sh stops when it cannot create a sandbox"

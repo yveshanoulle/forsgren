@@ -6,7 +6,7 @@ set -uo pipefail
 # (forsgren#243) the marker match takes only lines that START with the cross, after
 # any indentation (same fix as in the source repository), not the cross anywhere.
 #
-# Prints WHY a gate failed, for sfl's end-of-run block and FullBuildAndPush's
+# Prints WHY a gate failed, for sfl's end-of-run block and FBP.sh's
 # summary — unit 404, ported from coachretreat-website (its unit 402).
 #
 # Before this, both ended with gate NAMES only. `run_gate`'s own comment

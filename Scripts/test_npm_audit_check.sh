@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_npm_audit_check v2
+# canon: test_npm_audit_check v3
 # v2 (forsgren#434): moderate and above is red, a low advisory is listed and green.
 # test_npm_audit_check.sh — fixture test for npm_audit_check.sh.
 #
@@ -54,7 +54,7 @@
 #                                                 and `npm audit fix` never ran
 #  3b. an advisory, a default run              -> red, no heal either
 #  19. MUTATION PROOF: a copy that always heals is not check-only.
-#  The heal runs ONLY under GATE_FIX=1 (FullBuildAndPush
+#  The heal runs ONLY under GATE_FIX=1 (FBP
 #  exports it, CI never sets it). Every case runs with GATE_FIX unset unless it
 #  says otherwise: sfl.sh exports GATE_FIX=1 to the self-tests it runs, and a
 #  case that inherited it would test the wrong mode.
@@ -159,7 +159,7 @@ run_check() {
   capture env -u GATE_FIX PATH="${fakebin}:${PATH}" bash "${1:-$CHECK}" "$pkgdir"
 }
 
-# run_check_fix [script]: the same under GATE_FIX=1 (FullBuildAndPush).
+# run_check_fix [script]: the same under GATE_FIX=1 (FBP).
 run_check_fix() {
   capture env GATE_FIX=1 PATH="${fakebin}:${PATH}" bash "${1:-$CHECK}" "$pkgdir"
 }
