@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v24
+# canon: test_gate_browser v25
+# v25 fixes (forsgren#629, CI red, 53e): case 53e kills Chrome only after its load seam has installed the slowdowns and marked the end of the launch (SIG_WAIT_READY, FORSGREN_TEST_READY_MARK); v24 still killed it once a renderer showed, which on a fast hosted runner came inside the launch, so the seam never ran and 'hooked' and 'reaping' were never observed
 # v24 fixes (forsgren#629, CI red): the cases that kill Chrome after the launch (53d, 54b, 54c) wait for a mark their seam makes once the engine's launch is over and, for 54b and 54c, once the clone folder is swapped or added (FORSGREN_TEST_READY_MARK, SIG_WAIT_READY); v23 killed as soon as a renderer showed, which on a fast hosted runner came inside the launch or before the 800 ms timer of the swap; a missing mark says the case proves nothing
 # v23 adds (estate issue 629, step 2): cases 55a, 55b and 55c, a gate that ends non-zero always says why: the findings after 1 MiB of output arrive whole, an uncaught error in the engine is a named FAIL line (exit 2), an engine killed by a signal is named by the wrapper
 # v22 writes the proofs R, S, X and Z as mutant functions started with mutant_run (forsgren#629 step 1), each one alone and collected before the next, because they drive signal cases that share the machine's Chrome and clone folders; without the library they still run one after the other
@@ -156,7 +157,8 @@
 #      process listing of the test (FORSGREN_GATE_CLONE_PARENT and
 #      FORSGREN_GATE_PS_LISTING of browser_gate v12)
 #  53e (site issue 60). A loaded machine slows only the gate (browser_gate v12's
-#      FORSGREN_GATE_BROWSER_HOOK); a killed Chrome still ends the run at once
+#      FORSGREN_GATE_BROWSER_HOOK); a killed Chrome still ends the run at once;
+#      the kill waits for the seam's mark of the end of the launch (v25)
 #   R. no signal handler in the engine: case 52e leaves the profile folder;
 #   S. the wrapper not forwarding the signal: case 52a leaves Chrome alive;
 #   X. (the sites' proof T) the clone folder never removed: case 53h leaves it;
@@ -1171,10 +1173,22 @@ const rm = fs.promises.rm;
 fs.promises.rm = async (...a) => { mark('files'); await rm(...a); await new Promise((resolve) => setTimeout(resolve, 14000)); };
 // The engine calls this with its browser (FORSGREN_GATE_BROWSER_HOOK): a
 // module namespace of puppeteer-core cannot be assigned to, so the launch is
-// not patched from here.
-module.exports = (browser) => { browser.close = () => { mark('close'); return new Promise(() => {}); }; mark('hooked'); };
+// not patched from here. Once the close() that never answers is in place it
+// marks the end of the launch (FORSGREN_TEST_READY_MARK), which the kill waits
+// for: the case is "mid-run", so a kill inside the launch proves nothing.
+module.exports = (browser) => {
+  browser.close = () => { mark('close'); return new Promise(() => {}); };
+  mark('hooked');
+  fs.writeFileSync(process.env.FORSGREN_TEST_READY_MARK, 'hooked\n');
+};
 SEAM
+# v24 killed once a renderer showed: on the hosted runner that came inside the
+# launch (run 42156971812), so the launch failed, the engine never called the
+# seam ('hooked' missing), had no browser whose group it could kill ('reaping'
+# missing) and removed only the profile and the clone folder ('files files').
+SIG_WAIT_READY=1
 signal_case loaded_killed self error env NODE_OPTIONS="--require=${LOAD_SEAM}" FORSGREN_GATE_BROWSER_HOOK="$LOAD_SEAM" "$GATE"
+SIG_WAIT_READY=0
 want_closed "53e: Chrome killed mid-run on a loaded machine (slow reaping, close() never answers, slow file system): exit 2, no profile left, at once" 2
 # The case proves nothing unless each slowdown happened (site issue 61: the
 # launch patch was silently ignored for a long time). A killed Chrome is never
