@@ -9,6 +9,11 @@ Active work lives in
 
 ---
 
+## 2026-11-06 — The isolation scope self-test is red without a weights file (#633)
+
+- `Scripts/test_git_sandbox_isolation_scope.sh` (`test_git_sandbox_isolation_scope` v4): case 25 is red when `Scripts/git_sandbox_isolation_weights.txt` is missing or lists none of the git-using self-tests, and names the file. Before, a site that took the isolation shard files without the weights file saw case 25 pass with "0 and 0": it compared two empty sums. Case 25 is now a function over a weights file; mutation proofs O (the file missing) and P (a file with only the default row) require it red for that reason, not only red. Sites take the new version.
+- Red first: both proofs failed on v3, case 25 green with "0 and 0" (missing) and "95 and 90" (defaults only).
+
 ## 2026-11-06 — The browser gate self-test runs its plain cases side by side (#632)
 
 - `Scripts/test_gate_browser.sh` (`test_gate_browser` v26) runs its plain cases through `Scripts/lib_parallel_mutants.sh`, as its mutation proofs already did. Each case is a `case_<id>` function on its own copy of its fixtures in its own folder, writes the files it needs and is judged for its own reason. It runs in two batches: first the cases, then 19 to 21 (which need the shift case 8 measures), 55a to 55c and the mutation proofs. Only the cases of the named list `SERIAL_CASES` run one after the other, between the batches: the signal, kill and timing cases 52a to 54c and 53e, the clone cleanup 52h and 52i, and the proofs R, S, X and Z (R is the one forsgren#630 touches). The log shows the seconds of each batch. The step went from 964 s to 367 s on the same machine: 180 s for the first batch, 26 s serial, 137 s for the second batch and 22 s for R, S, X and Z. Mutation proof C now starts from the 404 fixture as it was made. Before, it got the exceptions row without a reason that case 12 had left, so the gate ended at exit 2 before loading the page.

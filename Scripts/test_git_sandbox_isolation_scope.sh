@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_git_sandbox_isolation_scope v3
+# canon: test_git_sandbox_isolation_scope v4
+# v4 (forsgren#633): case 25 is red when the weights file is missing or lists none of the self-tests (before, it passed on "0 and 0"); mutations O (file missing) and P (no self-test listed).
 # v3 (forsgren#446): cases 25 to 28 over the real list, case 29 over a fixture where only the weights balance (weights balance the shards within 10 seconds, each self-test once, a new one in one shard, no stale weight row), mutations K (retargeted), M and N.
 # v2 (forsgren#426): cases 20 to 24 and mutations K and L for the --shard argument.
 # Scripts/test_git_sandbox_isolation_scope.sh (forsgren#251, decision 249)
@@ -45,6 +46,8 @@
 # shards together run each self-test once, a new one lands in one shard, a bad
 # shard is exit 64); K. the modulo ignored: shard 2/2 runs everything;
 # L. the N <= M check removed: shard 3/2 is accepted.
+# Weights (forsgren#633): case 25 over a missing weights file (O) or one that
+# lists none of the self-tests (P) is red, naming the file, not "0 and 0" green.
 
 set -euo pipefail
 
@@ -332,13 +335,35 @@ shard_weight() {
   done < <(shard_assign "$1" "$2" "$WEIGHTS" <<< "$3")
   echo "$sum"
 }
-w1="$(shard_weight 1 2 "$REAL_SORTED")"
-w2="$(shard_weight 2 2 "$REAL_SORTED")"
-gap=$((w1 > w2 ? w1 - w2 : w2 - w1))
-if [[ "$gap" -le 10 ]]; then
-  echo "  ok: 25: the two shards weigh ${w1} and ${w2}, within 10 of each other"
+# case_25 <weights-file>: case 25 over that file (WEIGHTS, read by weight_of and
+# shard_weight, is shadowed for the call). Prints the verdict line, exit 0 green.
+# A missing file, or one that lists none of the self-tests, is red: the sums would
+# be "0 and 0" or defaults alone and compare nothing (forsgren#633).
+case_25() {
+  local WEIGHTS="$1" w1 w2 gap listed
+  if [[ ! -f "$WEIGHTS" ]]; then
+    echo "25: the weights file ${WEIGHTS} is missing, so the two shard sums would compare nothing"
+    return 1
+  fi
+  listed="$(awk 'NR == FNR { row[$1] = 1; next } ($0 in row) { n++ } END { print n + 0 }' "$WEIGHTS" - <<< "$REAL_SORTED")"
+  if [[ "$listed" -eq 0 ]]; then
+    echo "25: the weights file ${WEIGHTS} lists none of the ${#REAL[@]} git-using self-tests, so the two shard sums would compare nothing"
+    return 1
+  fi
+  w1="$(shard_weight 1 2 "$REAL_SORTED")"
+  w2="$(shard_weight 2 2 "$REAL_SORTED")"
+  gap=$((w1 > w2 ? w1 - w2 : w2 - w1))
+  if [[ "$gap" -le 10 ]]; then
+    echo "25: the two shards weigh ${w1} and ${w2}, within 10 of each other"
+  else
+    echo "25: the two shards weigh ${w1} and ${w2} seconds, ${gap} apart, wanted at most 10"
+    return 1
+  fi
+}
+if verdict="$(case_25 "$WEIGHTS")"; then
+  echo "  ok: ${verdict}"
 else
-  fail "25: the two shards weigh ${w1} and ${w2} seconds, ${gap} apart, wanted at most 10"
+  fail "$verdict"
 fi
 
 # 29 (forsgren#446): the same on a small fixture where the weights alone decide. Four
@@ -683,4 +708,19 @@ for spec in "M|s/wt\\[c\\] = (\\\$1 in w) ? w\\[\\\$1\\] : def/wt[c] = def/|the 
   fi
 done
 
-selftest_end "the git sandbox isolation scope self-test failed" "git sandbox isolation scope: every case holds, fourteen mutations seen"
+# O and P (forsgren#633): case 25 over a weights file that is missing (O) or lists
+# none of the self-tests (P) must be red for that reason, never green on "0 and 0".
+printf 'default 5\n' > "${TMP}/weights_none.txt"
+for spec in "O|${TMP}/weights_missing.txt|is missing|missing" \
+  "P|${TMP}/weights_none.txt|lists none of the|listing no self-test"; do
+  IFS='|' read -r tag file reason what <<< "$spec"
+  if verdict="$(case_25 "$file")"; then
+    fail "mutation proof ${tag}: with the weights file ${what}, case 25 stayed green: ${verdict}"
+  elif [[ "$verdict" == *"weights file"*"${reason}"* ]]; then
+    echo "  ok: mutation proof ${tag}: with the weights file ${what}, case 25 is red: ${verdict}"
+  else
+    fail "mutation proof ${tag}: case 25 was red, but not because the weights file ${reason}: ${verdict}"
+  fi
+done
+
+selftest_end "the git sandbox isolation scope self-test failed" "git sandbox isolation scope: every case holds, sixteen mutations seen"
