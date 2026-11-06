@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_lib_parallel_mutants v2
+# canon: test_lib_parallel_mutants v3
+# v3 adds (forsgren#629, CI red): case (l), a failing mutant in a second batch under set -e fails the harness with its own status, in a folder of its own
 # Scripts/test_lib_parallel_mutants.sh
 #
 # Self-test for Scripts/lib_parallel_mutants.sh: mutants run side by side in folders
@@ -25,6 +26,8 @@
 #   (h) Scripts/test_gate_browser.sh sources the library and runs its mutation proofs
 #       through it (mutants_init, mutant_run, mutants_wait), and keeps no
 #       selftest_mutant proof outside a mutant function
+#   (l) a failing mutant in a later batch (after a mutants_wait), under set -e, fails
+#       the harness with its own status and runs in a folder of its own
 #   (k) Scripts/test_quality_jobs.sh runs its mutation proofs through the library, and
 #       Scripts/test_step_summary_isolation.sh its self-test runs (forsgren#569), each
 #       started with mutant_run and collected with mutants_wait, none run in a loop of
@@ -222,6 +225,42 @@ check "(j) the library does not call jobs" "0" "$(jobs_calls "$LIB")"
 cp "$LIB" "${TMP}/lib_jobs.sh"
 echo '_mutants_running() { jobs -r | wc -l; }' >> "${TMP}/lib_jobs.sh"
 check "(j) mutation proof: a library with jobs -r is seen" "1" "$(jobs_calls "${TMP}/lib_jobs.sh")"
+
+# (l) a second batch after a mutants_wait, under set -e as the browser gate self-test
+# runs (its proofs R, S, X and Z are four batches of one). v2 wrote no status file for a
+# mutant that set failed=1 (set -e ended the subshell before the write), and the batch
+# restarted at m1, so the status read was the passing one of the first batch: a FAIL line
+# above an OK line. The failing mutant must fail the harness with its own status, and
+# the second batch must start in folders of its own, not in the first batch's.
+BATCH_PROG="${TMP}/batch_prog.sh"
+cat > "$BATCH_PROG" <<'PROG'
+set -euo pipefail
+. "$1"
+failed=0
+MUTANT_JOBS=2
+mutants_init "$2"
+pass_l() { echo "pass ${MUTANT_DIR##*/}"; : > "${MUTANT_DIR}/left_by_the_first_batch"; }
+fail_l() {
+  if [ -e "${MUTANT_DIR}/left_by_the_first_batch" ]; then echo "folder shared with the first batch"; fi
+  echo "mutant of the second batch says no"
+  failed=1
+}
+mutant_run pass_l
+mutant_run pass_l
+mutants_wait
+mutant_run fail_l
+mutants_wait
+echo "failed=${failed}"
+PROG
+batch_run() { bash "$BATCH_PROG" "$1" "${TMP}/l" 2>&1 || true; }
+OUT_L="$(batch_run "$LIB")"
+check_has "(l) the failing mutant of a second batch speaks" "$OUT_L" "mutant of the second batch says no"
+check_has "(l) it fails the harness" "$OUT_L" "failed=1"
+check_has "(l) with its own status, 1, numbered on after the first batch (mutant 3)" "$OUT_L" "mutant 3 ended with status 1"
+if [[ "$OUT_L" == *"folder shared with the first batch"* ]]; then fail "(l) the second batch ran in a folder of the first batch"; else echo "  ok: (l) the second batch has folders of its own"; fi
+# The same harness without set -e: the status is written either way.
+OUT_L2="$(sed '1d' "$BATCH_PROG" > "${TMP}/batch_prog_plain.sh" && bash "${TMP}/batch_prog_plain.sh" "$LIB" "${TMP}/l2" 2>&1 || true)"
+check_has "(l) without set -e too: status 1, failed=1" "$OUT_L2" "mutant 3 ended with status 1"
 
 # (h) the browser gate self-test runs its mutation proofs through the library.
 # file_has <case> <file> <text>: the file holds <text> (a fixed string); a miss names the

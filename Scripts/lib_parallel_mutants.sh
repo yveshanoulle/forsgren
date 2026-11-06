@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: lib_parallel_mutants v2
+# canon: lib_parallel_mutants v3
+# v3 fixes (forsgren#629, CI red): a mutant that set failed=1 under the caller's set -e left no status file, so a later batch, restarting at m1, read the passing status of the first batch and a failed proof printed its FAIL line above an OK line; the status is now written whatever the end, and a later batch numbers on from the last mutant instead of restarting at m1
 # lib_parallel_mutants.sh — sourced, never run on its own.
 #
 # The mutation harnesses (self-tests that rerun a heavy fixture once per mutant) run
@@ -43,6 +44,7 @@
 
 MUTANT_ROOT=""
 MUTANT_N=0
+MUTANT_BASE=0
 MUTANT_PIDS=()
 
 # The default number of mutants at once: half the CPUs, at least 2, at most 4, so a
@@ -63,6 +65,7 @@ mutants_init() {
   rm -rf "$MUTANT_ROOT"
   mkdir -p "$MUTANT_ROOT"
   MUTANT_N=0
+  MUTANT_BASE=0
   MUTANT_PIDS=()
   MUTANT_JOBS="${MUTANT_JOBS:-$(_mutant_default_jobs)}"
 }
@@ -77,7 +80,8 @@ _mutants_running() {
 # mutant_run <function> [args...]: starts the function in a subshell, in its own
 # folder ($MUTANT_DIR), waiting first when MUTANT_JOBS mutants are already running.
 mutant_run() {
-  local n dir
+  local n dir errexit=0
+  case "$-" in *e*) errexit=1 ;; esac
   while [ "$(_mutants_running)" -ge "$MUTANT_JOBS" ]; do
     sleep 0.1
   done
@@ -88,8 +92,14 @@ mutant_run() {
   # Set in the parent, just before the fork, so the subshell inherits it (and the
   # parent never sees a variable assigned in a subshell).
   export MUTANT_DIR="$dir"
+  # The status is written whatever the mutant's end: under the caller's set -e a
+  # failing inner subshell would end this one before the write (v2), and the
+  # status read was then "missing" or a stale one. The mutant itself keeps the
+  # caller's set -e, so an abort inside it still ends it.
   (
+    set +e
     (
+      if [ "$errexit" -eq 1 ]; then set -e; fi
       failed=0
       "$@"
       exit "$failed"
@@ -103,7 +113,7 @@ mutant_run() {
 # mutants_wait: waits for every mutant started, prints their output in start order and
 # sets failed=1 when any of them failed.
 mutants_wait() {
-  local i=0 pid rc
+  local i="$MUTANT_BASE" pid rc
   if [ "${#MUTANT_PIDS[@]}" -gt 0 ]; then
     for pid in "${MUTANT_PIDS[@]}"; do
       i=$((i + 1))
@@ -116,6 +126,8 @@ mutants_wait() {
       fi
     done
   fi
-  MUTANT_N=0
+  # The next batch numbers on (v3): v2 restarted at m1, where the status file of the
+  # first batch's m1 was still there to be read, and its folder to be shared.
+  MUTANT_BASE="$MUTANT_N"
   MUTANT_PIDS=()
 }

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v23
+# canon: test_gate_browser v24
+# v24 fixes (forsgren#629, CI red): the cases that kill Chrome after the launch (53d, 54b, 54c) wait for a mark their seam makes once the engine's launch is over and, for 54b and 54c, once the clone folder is swapped or added (FORSGREN_TEST_READY_MARK, SIG_WAIT_READY); v23 killed as soon as a renderer showed, which on a fast hosted runner came inside the launch or before the 800 ms timer of the swap; a missing mark says the case proves nothing
 # v23 adds (estate issue 629, step 2): cases 55a, 55b and 55c, a gate that ends non-zero always says why: the findings after 1 MiB of output arrive whole, an uncaught error in the engine is a named FAIL line (exit 2), an engine killed by a signal is named by the wrapper
 # v22 writes the proofs R, S, X and Z as mutant functions started with mutant_run (forsgren#629 step 1), each one alone and collected before the next, because they drive signal cases that share the machine's Chrome and clone folders; without the library they still run one after the other
 # v21 folds in the sites' v20 (site issue 63): case 54a, a helper of the gate's Chrome still ending at removal time is waited for and the clone folder removed; case 54b, a clone folder replaced after the launch, and 54c, a new clone folder that is not the identified one, are kept and the reason said (browser_gate v14); the seam cases take a signal, an exit and extra lines of the fake Chrome
@@ -706,6 +707,17 @@ for n in 1 2 3 4 5 6 7 8 9 10; do printf 'look%s|scheme:light\n' "$n" >> "${TMP}
 # there at the end) and SIG_CLONE_CONCURRENT (Chrome processes of anyone else
 # that started meanwhile; their folders cannot be told from ours). The case
 # removes the folders left when nobody else's Chrome started meanwhile.
+#
+# A renderer of the profile shows that Chrome is up, not that the engine's
+# launch is over: Chrome opens its first tab while puppeteer.launch is still
+# connecting, and on a fast runner the kill landed inside the launch
+# (Target.setDiscoverTargets: Target closed; run 42138308615). A case whose
+# meaning is "after the launch" sets SIG_WAIT_READY=1 and runs a seam module
+# (FORSGREN_GATE_BROWSER_HOOK, called by the engine right after the launch)
+# that creates the file named by FORSGREN_TEST_READY_MARK once it has done what
+# the case needs; the signal then waits for that file, never for a time, and
+# SIG_READY is 0 when it never came (the case proves nothing, and says so).
+SIG_WAIT_READY=0
 CLONE_PARENT=""
 if [[ "$(uname)" == "Darwin" ]]; then
   CLONE_PARENT="$(dirname "$(getconf DARWIN_USER_TEMP_DIR)")/X/com.google.Chrome.code_sign_clone"
@@ -743,7 +755,8 @@ signal_case() {
   mkdir -p "$tmpd"
   clone_names > "${tmpd}.clones_before"
   other_chromes "$tmpd" > "${tmpd}.others_before"
-  TMPDIR="$tmpd" perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' "$@" "${TMP}/slow/site" "${TMP}/slow/manifest.json" "${TMP}/slow/exceptions.txt" "${TMP}/slow/baseline.txt" "${TMP}/slow/variants.txt" > "${tmpd}.out" 2>&1 &
+  rm -f "${tmpd}.ready"
+  TMPDIR="$tmpd" FORSGREN_TEST_READY_MARK="${tmpd}.ready" perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' "$@" "${TMP}/slow/site" "${TMP}/slow/manifest.json" "${TMP}/slow/exceptions.txt" "${TMP}/slow/baseline.txt" "${TMP}/slow/variants.txt" > "${tmpd}.out" 2>&1 &
   pid=$!
   SIG_UP=0
   for _ in $(seq 1 150); do
@@ -754,6 +767,15 @@ signal_case() {
     if pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-.*--type=renderer|--type=renderer.*--user-data-dir=${tmpd}/browser-gate-" > /dev/null; then SIG_UP=1; break; fi
     sleep 0.2
   done
+  SIG_READY=1
+  if [[ "$SIG_WAIT_READY" -eq 1 ]]; then
+    SIG_READY=0
+    for _ in $(seq 1 150); do
+      if [[ -e "${tmpd}.ready" ]]; then SIG_READY=1; break; fi
+      if ! kill -0 "$pid" 2> /dev/null; then break; fi
+      sleep 0.1
+    done
+  fi
   SIG_CLONE_MADE="$({ clone_names | comm -13 "${tmpd}.clones_before" - || true; } | wc -l | tr -d ' ')"
   target_pid="$pid"
   if [[ "$target" == "node" ]]; then
@@ -789,7 +811,15 @@ signal_case() {
   if [[ "$SIG_CLONE_LEFT" -ne 0 && "$SIG_CLONE_CONCURRENT" -eq 0 ]]; then
     remove_new_clones "${tmpd}.clones_before"
   fi
-  rm -rf "$tmpd" "${tmpd}.clones_before" "${tmpd}.others_before"
+  rm -rf "$tmpd" "${tmpd}.clones_before" "${tmpd}.others_before" "${tmpd}.ready"
+}
+
+# ready_why: the reason the last signal_case proves nothing because its seam
+# never marked the end of the launch, else "".
+ready_why() {
+  if [[ "$SIG_READY" -ne 1 ]]; then
+    echo "the engine never reached the end of its launch (its seam made no ready mark within 15 s), so the signal would have come during the launch and the case proves nothing"
+  fi
 }
 
 # closed_verdict: "" when the last signal_case ended with status $1 and left no
@@ -803,6 +833,8 @@ signal_case() {
 closed_verdict() {
   if [[ "$SIG_UP" -ne 1 ]]; then
     echo "its Chrome was never found by the profile path ${TMP}/sig_<label>/browser-gate-*, so no Chrome count of the case proves anything"
+  elif [[ "$SIG_READY" -ne 1 ]]; then
+    ready_why
   elif [[ "$SIG_ENDED" -ne 1 ]]; then
     echo "the gate was still running 20 s after the signal"
   elif [[ "$SIG_RC" != "$1" ]]; then
@@ -920,7 +952,18 @@ EOF
 chmod +x "$SLOW_CHROME"
 signal_case helper_term self TERM env FORSGREN_CHROME="$SLOW_CHROME" "$GATE"
 want_closed "52g: SIGTERM with a Chrome helper that outlives the browser and writes into the profile: no profile left, exit 143" 143
-signal_case helper_killed self error env FORSGREN_CHROME="$SLOW_CHROME" "$GATE"
+# 53d kills Chrome after the launch (the case is "mid-run"): the seam marks the
+# end of the launch and the kill waits for it. On the hosted runner the kill
+# came inside the launch, where the helper's copy of the pipe kept puppeteer
+# waiting, and the gate still ran 20 s later (run 42089907412).
+LAUNCHED_SEAM="${TMP}/launched_seam.cjs"
+cat > "$LAUNCHED_SEAM" << 'SEAM'
+const fs = require('node:fs');
+module.exports = () => { fs.writeFileSync(process.env.FORSGREN_TEST_READY_MARK, 'launched\n'); };
+SEAM
+SIG_WAIT_READY=1
+signal_case helper_killed self error env FORSGREN_CHROME="$SLOW_CHROME" FORSGREN_GATE_BROWSER_HOOK="$LAUNCHED_SEAM" "$GATE"
+SIG_WAIT_READY=0
 want_closed "53d: Chrome killed mid-run while a helper holds the pipe and writes into the profile: exit 2, no profile left" 2
 
 # 53g (estate issue 617): another Chrome's clone folder appears during the
@@ -993,6 +1036,7 @@ EOF
 # seam_verdict: "" when the last clone_seam_case ended 2 with no Chrome and no profile.
 seam_verdict() {
   if [[ "$SIG_UP" -ne 1 ]]; then echo "its Chrome never came up"
+  elif [[ "$SIG_READY" -ne 1 ]]; then ready_why
   elif [[ "$SIG_RC" != "$SEAM_RC" || "$SIG_ENDED" -ne 1 ]]; then echo "expected exit ${SEAM_RC}, got ${SIG_RC}"
   elif [[ "$SIG_CHROME" -ne 0 || "$SIG_PROFILE" -ne 0 ]]; then echo "Chrome or its profile is left"
   fi
@@ -1046,20 +1090,32 @@ else
 fi
 # 54b: the folder identified for the Chrome is replaced by another one (new
 # inode) after the launch; the gate does not remove it and must say why.
+# The swap runs on the next turn of the engine's event loop after the hook, so
+# after the identification, which the engine does synchronously right after the
+# hook returns, and it marks itself done (FORSGREN_TEST_READY_MARK); the kill
+# waits for the mark. v23 swapped on an 800 ms timer and killed once a renderer
+# showed: on the hosted runner the kill came first (or inside the launch, with
+# no hook called at all), so the folder was never replaced (run 42138308615).
 HOOK_SWAP="${TMP}/hook_swap.cjs"
 cat > "$HOOK_SWAP" << 'SEAM'
 const fs = require('node:fs');
 module.exports = () => {
   const folder = process.env.FORSGREN_TEST_SWAP_FOLDER;
-  setTimeout(() => {
-    if (process.env.FORSGREN_TEST_ADD_ONLY) { fs.mkdirSync(`${folder}late/Google Chrome.app.bundle`, { recursive: true }); return; }
-    fs.rmSync(folder, { recursive: true, force: true });
-    fs.mkdirSync(`${folder}/Google Chrome.app.bundle`, { recursive: true });
-  }, 800).unref();
+  setImmediate(() => {
+    if (process.env.FORSGREN_TEST_ADD_ONLY) {
+      fs.mkdirSync(`${folder}late/Google Chrome.app.bundle`, { recursive: true });
+    } else {
+      fs.rmSync(folder, { recursive: true, force: true });
+      fs.mkdirSync(`${folder}/Google Chrome.app.bundle`, { recursive: true });
+    }
+    fs.writeFileSync(process.env.FORSGREN_TEST_READY_MARK, 'swapped\n');
+  });
 };
 SEAM
 SEAM_ENV=(FORSGREN_GATE_BROWSER_HOOK="$HOOK_SWAP" FORSGREN_TEST_SWAP_FOLDER="${TMP}/seam_swap/code_sign_clone.ownswap")
+SIG_WAIT_READY=1
 clone_seam_case swap ""
+SIG_WAIT_READY=0
 SEAM_ENV=()
 why="$(seam_verdict)"
 if [[ -n "$why" ]]; then
@@ -1075,7 +1131,9 @@ fi
 # was this Chrome's; this is some other Chrome's, or the case of the identified
 # one being another's): it stays and the gate says so.
 SEAM_ENV=(FORSGREN_GATE_BROWSER_HOOK="$HOOK_SWAP" FORSGREN_TEST_ADD_ONLY=1 FORSGREN_TEST_SWAP_FOLDER="${TMP}/seam_late/code_sign_clone.ownlate")
+SIG_WAIT_READY=1
 clone_seam_case late ""
+SIG_WAIT_READY=0
 SEAM_ENV=()
 why="$(seam_verdict)"
 if [[ -n "$why" ]]; then
