@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v25
+# canon: test_gate_browser v26
+# v26 runs the plain cases side by side (forsgren#632): each is a case_<id> function started through Scripts/lib_parallel_mutants.sh, on its own copy of its fixtures in its own folder, writing the files its case needs and judged for its own reason; two batches (the cases, then 19 to 21, 55a to 55c and the mutation proofs), and between them only the cases of the named list SERIAL_CASES (the signal, kill and timing cases and their proofs R, S, X, Z) one after the other; the log shows the seconds of each batch
 # v25 fixes (forsgren#629, CI red, 53e): case 53e kills Chrome only after its load seam has installed the slowdowns and marked the end of the launch (SIG_WAIT_READY, FORSGREN_TEST_READY_MARK); v24 still killed it once a renderer showed, which on a fast hosted runner came inside the launch, so the seam never ran and 'hooked' and 'reaping' were never observed
 # v24 fixes (forsgren#629, CI red): the cases that kill Chrome after the launch (53d, 54b, 54c) wait for a mark their seam makes once the engine's launch is over and, for 54b and 54c, once the clone folder is swapped or added (FORSGREN_TEST_READY_MARK, SIG_WAIT_READY); v23 killed as soon as a renderer showed, which on a fast hosted runner came inside the launch or before the 800 ms timer of the swap; a missing mark says the case proves nothing
 # v23 adds (estate issue 629, step 2): cases 55a, 55b and 55c, a gate that ends non-zero always says why: the findings after 1 MiB of output arrive whole, an uncaught error in the engine is a named FAIL line (exit 2), an engine killed by a signal is named by the wrapper
@@ -164,7 +165,8 @@
 #   X. (the sites' proof T) the clone folder never removed: case 53h leaves it;
 #   Z. (the sites' proof U) the engine never calls the seam: case 53e's marker
 #      is missing.
-# These cases and R, S, X, Z run here, one after the other. The browser gate
+# These cases and R, S, X, Z run one after the other (SERIAL_CASES, v26); every
+# other case and proof runs side by side, see "The plain cases" below. The browser gate
 # process self-test (Scripts/test_gate_browser_process.sh, only where the
 # repository has it: the cases 52a-52f, 53 and 53c on forty looks and the
 # singleton folders of forsgren#613) runs the exits again in its own job, so a
@@ -278,7 +280,7 @@ HTML
   }
 fi
 if [[ "$PARALLEL_LIB" -eq 0 ]]; then
-  echo "  skipped: Scripts/lib_parallel_mutants.sh not in this repository (the mutation proofs run one after the other)"
+  echo "  skipped: Scripts/lib_parallel_mutants.sh not in this repository (the plain cases and the mutation proofs run one after the other)"
 fi
 
 browser_selftest_require "$GATE" "$ENGINE" \
@@ -370,222 +372,404 @@ make_site external "$(page '<img src="http://example.invalid/x.png" alt="away">'
 make_site nopage "$(page '' '')"
 printf '{"requiredPages": ["/", "/nope.html"]}\n' > "${TMP}/nopage/manifest.json"
 
-run_gate_real clean
-want_green "1: a clean page" "OK: browser gate: 1 pages x 1 variants (light)"
-CLEAN_OUT="$OUT"
+# The plain cases run side by side (forsgren#632), through the runner of the
+# mutation proofs (Scripts/lib_parallel_mutants.sh): each is a case_<id> function,
+# started by plain_case (mutant_run), that works on its own copy of the fixtures
+# it names (own_fixtures: under its own $MUTANT_DIR, which TMP then points at for
+# the rest of the case, a subshell), writes the files its case needs into that
+# copy, and is judged for its own reason. The fixtures under $FIXTURES are made
+# once, at the top level, and no case changes them. Up to v25 the cases ran one
+# after the other on shared fixtures, each leaving its files for the next (about
+# 876 s on a site). Only the cases of SERIAL_CASES (see there) run one after the
+# other, on a quiet machine, between the two side-by-side batches.
+FIXTURES="$TMP"
+PLAIN_STARTED=" "
+# CLS_M_FILE: where case 8 writes the shift its fixture measures, for 19 to 21.
+CLS_M_FILE="${FIXTURES}/cls_m"
 
-run_gate serious
-want_red "2: an axe serious violation" "axe color-contrast (serious)"
-run_gate critical
-want_red "3: an axe critical violation" "axe button-name (critical)"
-run_gate nodoctype
-want_red "4: no doctype" "doctype missing"
-run_gate nocharset
-want_red "5: no charset" "charset not declared"
-run_gate console
-want_red "6: a console error" "console error: fixture boom"
-run_gate notfound
-want_red "7: a 404 image" "request /missing.png -> 404"
-run_gate_real shift
-want_red "8: a layout shift" "CLS 0."
-want_said "8a: with the default 5 cold loads" "largest of 5 cold loads"
-want_said "8b: a layout shift without a row says so" "no baseline row"
-run_gate external
-want_red "9: a request leaving loopback" "leaves loopback"
-run_gate nopage
-want_red "10: a manifest page answering 404" "FAIL: light /nope.html: request /nope.html -> 404"
+# own_fixtures <fixture>...: this case's own copy of each fixture, and TMP pointing
+# at the folder that holds them, so run_gate and the rest of the case read the copy.
+own_fixtures() {
+  local name
+  for name in "$@"; do
+    cp -R "${FIXTURES}/${name}" "${MUTANT_DIR}/${name}"
+  done
+  TMP="$MUTANT_DIR"
+  LAP=$SECONDS
+}
+
+# plain_case <id>...: starts case_<id> for each id through the runner.
+plain_case() {
+  local id
+  for id in "$@"; do
+    PLAIN_STARTED="${PLAIN_STARTED}${id} "
+    mutant_run "case_${id}"
+  done
+}
+
+# 1 and 15: a clean page, and what its OK line records.
+case_1() {
+  local need
+  own_fixtures clean
+  run_gate_real clean
+  want_green "1: a clean page" "OK: browser gate: 1 pages x 1 variants (light)"
+  for need in "CLS worst 0 " "viewport 1280x800" "variants (light)" "Chrome/" "interval 1000 ms" "no new sideways scroll at 1280x800 and 390x844 (0 baselined)"; do
+    if ! grep -qF -- "$need" <<< "$OUT"; then
+      fail "15: the OK line does not record '${need}'. Output: ${OUT}"
+      return 0
+    fi
+  done
+  echo "  ok: 15: the OK line records the CLS, viewport, browser version, interval and the sideways-scroll widths"
+}
+case_2() {
+  own_fixtures serious
+  run_gate serious
+  want_red "2: an axe serious violation" "axe color-contrast (serious)"
+}
+case_3() {
+  own_fixtures critical
+  run_gate critical
+  want_red "3: an axe critical violation" "axe button-name (critical)"
+}
+case_4() {
+  own_fixtures nodoctype
+  run_gate nodoctype
+  want_red "4: no doctype" "doctype missing"
+}
+case_5() {
+  own_fixtures nocharset
+  run_gate nocharset
+  want_red "5: no charset" "charset not declared"
+}
+case_6() {
+  own_fixtures console
+  run_gate console
+  want_red "6: a console error" "console error: fixture boom"
+}
+case_7() {
+  own_fixtures notfound
+  run_gate notfound
+  want_red "7: a 404 image" "request /missing.png -> 404"
+}
+# 8 also hands the shift it measures (M) to 19 to 21, which run in the second batch.
+case_8() {
+  own_fixtures shift
+  run_gate_real shift
+  want_red "8: a layout shift" "CLS 0."
+  want_said "8a: with the default 5 cold loads" "largest of 5 cold loads"
+  want_said "8b: a layout shift without a row says so" "no baseline row"
+  sed -n 's/.*FAIL: light \/: CLS \([0-9.e-]*\) .*/\1/p' <<< "$OUT" | head -1 > "$CLS_M_FILE"
+}
+case_9() {
+  own_fixtures external
+  run_gate external
+  want_red "9: a request leaving loopback" "leaves loopback"
+}
+case_10() {
+  own_fixtures nopage
+  run_gate nopage
+  want_red "10: a manifest page answering 404" "FAIL: light /nope.html: request /nope.html -> 404"
+}
 
 # 11: the exception turns the 404 image green (its console error goes too).
-printf '/missing.png|fixture: deliberately absent\n' > "${TMP}/notfound/exceptions.txt"
-run_gate notfound
-want_green "11: an exception row for the 404 image" "1 excepted"
+case_11() {
+  own_fixtures notfound
+  printf '/missing.png|fixture: deliberately absent\n' > "${TMP}/notfound/exceptions.txt"
+  run_gate notfound
+  want_green "11: an exception row for the 404 image" "1 excepted"
+}
 
 # 12-14: the exceptions file is closed and fail-closed.
-printf '/missing.png|\n' > "${TMP}/notfound/exceptions.txt"
-run_gate notfound
-want_exit "12: an exception without a reason" 2 "has no reason"
-printf '/other.png|fixture: stale\n' > "${TMP}/clean/exceptions.txt"
-run_gate clean
-want_red "13: an exception that matches nothing" "exception /other.png matched nothing"
-rm -f "${TMP}/clean/exceptions.txt"
-run_gate clean
-want_exit "14: a missing exceptions file" 2 "exceptions file not found"
-: > "${TMP}/clean/exceptions.txt"
-
-# 15: what is recorded.
-for need in "CLS worst 0 " "viewport 1280x800" "variants (light)" "Chrome/" "interval 1000 ms" "no new sideways scroll at 1280x800 and 390x844 (0 baselined)"; do
-  if ! grep -qF -- "$need" <<< "$CLEAN_OUT"; then
-    fail "15: the OK line does not record '${need}'. Output: ${CLEAN_OUT}"
-  fi
-done
-echo "  ok: 15: the OK line records the CLS, viewport, browser version, interval and the sideways-scroll widths"
+case_12() {
+  own_fixtures notfound
+  printf '/missing.png|\n' > "${TMP}/notfound/exceptions.txt"
+  run_gate notfound
+  want_exit "12: an exception without a reason" 2 "has no reason"
+}
+case_13() {
+  own_fixtures clean
+  printf '/other.png|fixture: stale\n' > "${TMP}/clean/exceptions.txt"
+  run_gate clean
+  want_red "13: an exception that matches nothing" "exception /other.png matched nothing"
+}
+case_14() {
+  own_fixtures clean
+  rm -f "${TMP}/clean/exceptions.txt"
+  run_gate clean
+  want_exit "14: a missing exceptions file" 2 "exceptions file not found"
+}
 
 # The baseline. Two pale paragraphs, #a and #b, both color-contrast serious.
 REASON="fixture, shrink-only"
 make_site two "$(page '<p id="a" style="color:#cccccc">pale a</p><p id="b" style="color:#cccccc">pale b</p>' '')"
-printf 'axe|light|/|color-contrast|#a|%s\naxe|light|/|color-contrast|#b|%s\n' "$REASON" "$REASON" > "${TMP}/two/baseline.txt"
-run_gate two
-want_green "16: every axe finding in the baseline" "OK: browser gate"
-want_said "16b: each baselined finding is shown as a WARN" "WARN: baselined axe color-contrast (serious): light /: #a"
-want_said "16c: the other too" "WARN: baselined axe color-contrast (serious): light /: #b"
-want_said "16d: and they are counted" "2 axe findings baselined"
+case_16() {
+  own_fixtures two
+  printf 'axe|light|/|color-contrast|#a|%s\naxe|light|/|color-contrast|#b|%s\n' "$REASON" "$REASON" > "${TMP}/two/baseline.txt"
+  run_gate two
+  want_green "16: every axe finding in the baseline" "OK: browser gate"
+  want_said "16b: each baselined finding is shown as a WARN" "WARN: baselined axe color-contrast (serious): light /: #a"
+  want_said "16c: the other too" "WARN: baselined axe color-contrast (serious): light /: #b"
+  want_said "16d: and they are counted" "2 axe findings baselined"
+}
+case_17() {
+  own_fixtures two
+  printf 'axe|light|/|color-contrast|#a|%s\n' "$REASON" > "${TMP}/two/baseline.txt"
+  run_gate two
+  want_red "17: an axe finding the baseline lacks" "FAIL: light /: axe color-contrast (serious): #b (new, not in the baseline)"
+}
+case_18() {
+  own_fixtures two
+  printf 'axe|light|/|color-contrast|#a|%s\naxe|light|/|color-contrast|#b|%s\naxe|light|/|color-contrast|#gone|%s\n' "$REASON" "$REASON" "$REASON" > "${TMP}/two/baseline.txt"
+  run_gate two
+  want_red "18: a baselined axe finding that is gone" "FAIL: stale baseline row: axe|light|/|color-contrast|#gone"
+}
 
-printf 'axe|light|/|color-contrast|#a|%s\n' "$REASON" > "${TMP}/two/baseline.txt"
-run_gate two
-want_red "17: an axe finding the baseline lacks" "FAIL: light /: axe color-contrast (serious): #b (new, not in the baseline)"
-
-printf 'axe|light|/|color-contrast|#a|%s\naxe|light|/|color-contrast|#b|%s\naxe|light|/|color-contrast|#gone|%s\n' "$REASON" "$REASON" "$REASON" > "${TMP}/two/baseline.txt"
-run_gate two
-want_red "18: a baselined axe finding that is gone" "FAIL: stale baseline row: axe|light|/|color-contrast|#gone"
-
-# CLS rows. M is the shift the fixture measures, read from the gate itself.
-run_gate_real shift
-CLS_M="$(sed -n 's/.*FAIL: light \/: CLS \([0-9.e-]*\) .*/\1/p' <<< "$OUT" | head -1)"
-if [[ -z "$CLS_M" ]]; then
-  fail "the shift fixture did not report a CLS value. Output: ${OUT}"
-  CLS_M=0.05
-fi
+# CLS rows. M is the shift the fixture measures, read from the gate itself by
+# case 8; 19 to 21 run in the second batch, once M is known.
 scaled() { awk -v m="$CLS_M" -v f="$1" 'BEGIN { printf "%.17g", m * f }'; }
+case_19() {
+  own_fixtures shift
+  printf 'cls|light|/|%s|%s\n' "$(scaled 0.999)" "$REASON" > "${TMP}/shift/baseline.txt"
+  run_gate_real shift
+  want_red "19: a CLS above its recorded value" "FAIL: light /: CLS ${CLS_M} grew above the recorded"
+}
+case_20() {
+  own_fixtures shift
+  printf 'cls|light|/|%s|%s\n' "$(scaled 1.001)" "$REASON" > "${TMP}/shift/baseline.txt"
+  run_gate_real shift
+  want_red "20: a CLS below its recorded value" "FAIL: light /: CLS ${CLS_M} is below the recorded"
+  want_said "20b: and it says to lower the row" "lower the row"
+}
+case_21() {
+  own_fixtures shift
+  printf 'cls|light|/|%s|%s\n' "$CLS_M" "$REASON" > "${TMP}/shift/baseline.txt"
+  run_gate_real shift
+  want_green "21: a CLS equal to its recorded value" "WARN: baselined CLS light /: ${CLS_M}"
+}
+case_22() {
+  own_fixtures clean
+  printf 'cls|light|/|0.01|%s\n' "$REASON" > "${TMP}/clean/baseline.txt"
+  run_gate clean
+  want_red "22: a CLS row on a page without a shift" "is below the recorded 0.01"
+}
+case_23() {
+  own_fixtures shift
+  : > "${TMP}/shift/baseline.txt"
+  run_gate_real shift
+  want_red "23: a CLS above 0 with no row" "no baseline row"
+}
 
-printf 'cls|light|/|%s|%s\n' "$(scaled 0.999)" "$REASON" > "${TMP}/shift/baseline.txt"
-run_gate_real shift
-want_red "19: a CLS above its recorded value" "FAIL: light /: CLS ${CLS_M} grew above the recorded"
-printf 'cls|light|/|%s|%s\n' "$(scaled 1.001)" "$REASON" > "${TMP}/shift/baseline.txt"
-run_gate_real shift
-want_red "20: a CLS below its recorded value" "FAIL: light /: CLS ${CLS_M} is below the recorded"
-want_said "20b: and it says to lower the row" "lower the row"
-printf 'cls|light|/|%s|%s\n' "$CLS_M" "$REASON" > "${TMP}/shift/baseline.txt"
-run_gate_real shift
-want_green "21: a CLS equal to its recorded value" "WARN: baselined CLS light /: ${CLS_M}"
-
-printf 'cls|light|/|0.01|%s\n' "$REASON" > "${TMP}/clean/baseline.txt"
-run_gate clean
-want_red "22: a CLS row on a page without a shift" "is below the recorded 0.01"
-: > "${TMP}/clean/baseline.txt"
-
-: > "${TMP}/shift/baseline.txt"
-run_gate_real shift
-want_red "23: a CLS above 0 with no row" "no baseline row"
-
-printf 'axe|light|/|color-contrast|#a|\n' > "${TMP}/two/baseline.txt"
-run_gate two
-want_exit "24a: an axe row without a reason" 2 "has no reason"
-printf 'cls|light|/|0.01|\n' > "${TMP}/two/baseline.txt"
-run_gate two
-want_exit "24b: a CLS row without a reason" 2 "has no reason"
-printf 'axe|light|/|color-contrast|%s\n' "$REASON" > "${TMP}/two/baseline.txt"
-run_gate two
-want_exit "24c: an axe row without a selector" 2 "a row is"
-printf 'cls|light|/|large|%s\n' "$REASON" > "${TMP}/two/baseline.txt"
-run_gate two
-want_exit "24d: a CLS row with a value that is no number" 2 "must be a positive number"
-printf 'other|/|x|%s\n' "$REASON" > "${TMP}/two/baseline.txt"
-run_gate two
-want_exit "24e: a row of an unknown kind" 2 "unknown row"
-printf 'axe|light|/|color-contrast|#a|%s\naxe|light|/|color-contrast|#a|%s\n' "$REASON" "$REASON" > "${TMP}/two/baseline.txt"
-run_gate two
-want_exit "24f: a row listed twice" 2 "listed twice"
-
-rm -f "${TMP}/two/baseline.txt"
-run_gate two
-want_exit "25: a missing baseline file" 2 "baseline file not found"
+# with_file <fixture> <file> <content|->: this case's copy of the fixture with that one
+# file (exceptions, baseline or variants) holding <content>, or removed for -.
+with_file() {
+  own_fixtures "$1"
+  if [[ "$3" == "-" ]]; then
+    rm -f "${TMP}/$1/$2"
+  else
+    printf '%s' "$3" > "${TMP}/$1/$2"
+  fi
+}
+case_24a() {
+  with_file two baseline.txt 'axe|light|/|color-contrast|#a|
+'
+  run_gate two
+  want_exit "24a: an axe row without a reason" 2 "has no reason"
+}
+case_24b() {
+  with_file two baseline.txt 'cls|light|/|0.01|
+'
+  run_gate two
+  want_exit "24b: a CLS row without a reason" 2 "has no reason"
+}
+case_24c() {
+  with_file two baseline.txt "axe|light|/|color-contrast|${REASON}
+"
+  run_gate two
+  want_exit "24c: an axe row without a selector" 2 "a row is"
+}
+case_24d() {
+  with_file two baseline.txt "cls|light|/|large|${REASON}
+"
+  run_gate two
+  want_exit "24d: a CLS row with a value that is no number" 2 "must be a positive number"
+}
+case_24e() {
+  with_file two baseline.txt "other|/|x|${REASON}
+"
+  run_gate two
+  want_exit "24e: a row of an unknown kind" 2 "unknown row"
+}
+case_24f() {
+  with_file two baseline.txt "axe|light|/|color-contrast|#a|${REASON}
+axe|light|/|color-contrast|#a|${REASON}
+"
+  run_gate two
+  want_exit "24f: a row listed twice" 2 "listed twice"
+}
+case_25() {
+  with_file two baseline.txt -
+  run_gate two
+  want_exit "25: a missing baseline file" 2 "baseline file not found"
+}
 
 # External requests.
 make_site viaexternal "$(page '<img src="http://example.invalid/x.png" alt="away">' '')"
-printf 'external|http://example.invalid/|fixture: an embed that must not leave\n' > "${TMP}/viaexternal/exceptions.txt"
-run_gate viaexternal
-want_green "26: a listed external request" "WARN: external blocked: light /: http://example.invalid/x.png"
-want_said "26b: counted" "1 external requests blocked"
-
-run_gate external
-want_red "27: an external request that is not listed" "request http://example.invalid/x.png leaves loopback"
-
-printf 'external|http://elsewhere.invalid/|fixture: never requested\n' > "${TMP}/clean/exceptions.txt"
-run_gate clean
-want_red "28: a listed external prefix no page requests" "FAIL: stale external exception: http://elsewhere.invalid/"
-: > "${TMP}/clean/exceptions.txt"
-
-printf 'external|http://example.invalid/|\n' > "${TMP}/viaexternal/exceptions.txt"
-run_gate viaexternal
-want_exit "29: an external row without a reason" 2 "has no reason"
+case_26() {
+  own_fixtures viaexternal
+  printf 'external|http://example.invalid/|fixture: an embed that must not leave\n' > "${TMP}/viaexternal/exceptions.txt"
+  run_gate viaexternal
+  want_green "26: a listed external request" "WARN: external blocked: light /: http://example.invalid/x.png"
+  want_said "26b: counted" "1 external requests blocked"
+}
+case_27() {
+  own_fixtures external
+  run_gate external
+  want_red "27: an external request that is not listed" "request http://example.invalid/x.png leaves loopback"
+}
+case_28() {
+  own_fixtures clean
+  printf 'external|http://elsewhere.invalid/|fixture: never requested\n' > "${TMP}/clean/exceptions.txt"
+  run_gate clean
+  want_red "28: a listed external prefix no page requests" "FAIL: stale external exception: http://elsewhere.invalid/"
+}
+case_29() {
+  own_fixtures viaexternal
+  printf 'external|http://example.invalid/|\n' > "${TMP}/viaexternal/exceptions.txt"
+  run_gate viaexternal
+  want_exit "29: an external row without a reason" 2 "has no reason"
+}
 
 # The variants (v2). #t is pale in the dark look only: under an attribute the
 # page's own CSS reads (case 30-32), and under the dark colour scheme (case 33).
 make_site themed "$(page '<p id="t">themed text</p>' '<style>:root[data-theme="dark"] #t { color: #cccccc; }</style>')"
 printf 'light|attr:data-theme=light\ndark|attr:data-theme=dark\n' > "${TMP}/themed/variants.txt"
-run_gate themed
-want_red "30: a finding only in an attr: variant" "FAIL: dark /: axe color-contrast (serious): #t (new, not in the baseline)"
-if grep -qF -- "FAIL: light /" <<< "$OUT"; then
-  fail "30b: the light variant was blamed for the dark finding. Output: ${OUT}"
-else
-  echo "  ok: 30b: the light variant is clean"
-fi
-
-printf 'axe|dark|/|color-contrast|#t|%s\n' "$REASON" > "${TMP}/themed/baseline.txt"
-run_gate themed
-want_green "31: the same finding baselined for that variant" "OK: browser gate: 1 pages x 2 variants (light, dark)"
-want_said "31b: shown as a WARN with its variant" "WARN: baselined axe color-contrast (serious): dark /: #t"
-
-printf 'axe|light|/|color-contrast|#t|%s\n' "$REASON" > "${TMP}/themed/baseline.txt"
-run_gate themed
-want_red "32: a row naming the other variant" "FAIL: dark /: axe color-contrast (serious): #t (new, not in the baseline)"
-want_said "32b: and the row of the wrong variant is stale" "FAIL: stale baseline row: axe|light|/|color-contrast|#t"
+case_30() {
+  own_fixtures themed
+  run_gate themed
+  want_red "30: a finding only in an attr: variant" "FAIL: dark /: axe color-contrast (serious): #t (new, not in the baseline)"
+  if grep -qF -- "FAIL: light /" <<< "$OUT"; then
+    fail "30b: the light variant was blamed for the dark finding. Output: ${OUT}"
+  else
+    echo "  ok: 30b: the light variant is clean"
+  fi
+}
+case_31() {
+  own_fixtures themed
+  printf 'axe|dark|/|color-contrast|#t|%s\n' "$REASON" > "${TMP}/themed/baseline.txt"
+  run_gate themed
+  want_green "31: the same finding baselined for that variant" "OK: browser gate: 1 pages x 2 variants (light, dark)"
+  want_said "31b: shown as a WARN with its variant" "WARN: baselined axe color-contrast (serious): dark /: #t"
+}
+case_32() {
+  own_fixtures themed
+  printf 'axe|light|/|color-contrast|#t|%s\n' "$REASON" > "${TMP}/themed/baseline.txt"
+  run_gate themed
+  want_red "32: a row naming the other variant" "FAIL: dark /: axe color-contrast (serious): #t (new, not in the baseline)"
+  want_said "32b: and the row of the wrong variant is stale" "FAIL: stale baseline row: axe|light|/|color-contrast|#t"
+}
 
 make_site schemed "$(page '<p id="t">schemed text</p>' '<style>@media (prefers-color-scheme: dark) { #t { color: #cccccc; } }</style>')"
 printf 'light|scheme:light\ndark|scheme:dark\n' > "${TMP}/schemed/variants.txt"
-run_gate schemed
-want_red "33: a finding only in a scheme:dark variant" "FAIL: dark /: axe color-contrast (serious): #t"
-printf 'axe|dark|/|color-contrast|#t|%s\n' "$REASON" > "${TMP}/schemed/baseline.txt"
-run_gate schemed
-want_green "34: baselined, the scheme:dark run is green, and its OK line names pages x variants and checks" "OK: browser gate: 1 pages x 2 variants (light, dark), 2 checks"
-: > "${TMP}/schemed/baseline.txt"
+case_33() {
+  own_fixtures schemed
+  run_gate schemed
+  want_red "33: a finding only in a scheme:dark variant" "FAIL: dark /: axe color-contrast (serious): #t"
+}
+case_34() {
+  own_fixtures schemed
+  printf 'axe|dark|/|color-contrast|#t|%s\n' "$REASON" > "${TMP}/schemed/baseline.txt"
+  run_gate schemed
+  want_green "34: baselined, the scheme:dark run is green, and its OK line names pages x variants and checks" "OK: browser gate: 1 pages x 2 variants (light, dark), 2 checks"
+}
 
 # 35: the variants file is closed and fail-closed.
-rm -f "${TMP}/clean/variants.txt"
-run_gate clean
-want_exit "35a: a missing variants file" 2 "variants file not found"
-: > "${TMP}/clean/variants.txt"
-run_gate clean
-want_exit "35b: a variants file with no row" 2 "lists no variant"
-printf 'light|scheme:light\nlight|scheme:dark\n' > "${TMP}/clean/variants.txt"
-run_gate clean
-want_exit "35c: a variant listed twice" 2 "listed twice"
-printf 'light|theme:light\n' > "${TMP}/clean/variants.txt"
-run_gate clean
-want_exit "35d: an unknown how to apply" 2 "unknown how to apply"
-printf 'dark|attr:data-theme\n' > "${TMP}/clean/variants.txt"
-run_gate clean
-want_exit "35e: an attr: without a value" 2 "unknown how to apply"
-printf 'light\n' > "${TMP}/clean/variants.txt"
-run_gate clean
-want_exit "35f: a row without a how" 2 "a row is name|how to apply"
-printf 'light|scheme:light\n' > "${TMP}/clean/variants.txt"
+case_35a() {
+  with_file clean variants.txt -
+  run_gate clean
+  want_exit "35a: a missing variants file" 2 "variants file not found"
+}
+case_35b() {
+  with_file clean variants.txt ""
+  run_gate clean
+  want_exit "35b: a variants file with no row" 2 "lists no variant"
+}
+case_35c() {
+  with_file clean variants.txt 'light|scheme:light
+light|scheme:dark
+'
+  run_gate clean
+  want_exit "35c: a variant listed twice" 2 "listed twice"
+}
+case_35d() {
+  with_file clean variants.txt 'light|theme:light
+'
+  run_gate clean
+  want_exit "35d: an unknown how to apply" 2 "unknown how to apply"
+}
+case_35e() {
+  with_file clean variants.txt 'dark|attr:data-theme
+'
+  run_gate clean
+  want_exit "35e: an attr: without a value" 2 "unknown how to apply"
+}
+case_35f() {
+  with_file clean variants.txt 'light
+'
+  run_gate clean
+  want_exit "35f: a row without a how" 2 "a row is name|how to apply"
+}
 
 # 36: a baseline row names a variant of the file; the v1 row has none.
-printf 'axe|dusk|/|color-contrast|#a|%s\n' "$REASON" > "${TMP}/clean/baseline.txt"
-run_gate clean
-want_exit "36a: a baseline row naming an unknown variant" 2 "is not a variant"
-printf 'axe|/|color-contrast|#a|%s\n' "$REASON" > "${TMP}/clean/baseline.txt"
-run_gate clean
-want_exit "36b: a row of the v1 format, without a variant" 2 "a row is axe|<variant>"
-printf 'cls|/|0.01|%s\n' "$REASON" > "${TMP}/clean/baseline.txt"
-run_gate clean
-want_exit "36c: a CLS row of the v1 format, without a variant" 2 "a row is cls|<variant>"
-: > "${TMP}/clean/baseline.txt"
+case_36a() {
+  with_file clean baseline.txt "axe|dusk|/|color-contrast|#a|${REASON}
+"
+  run_gate clean
+  want_exit "36a: a baseline row naming an unknown variant" 2 "is not a variant"
+}
+case_36b() {
+  with_file clean baseline.txt "axe|/|color-contrast|#a|${REASON}
+"
+  run_gate clean
+  want_exit "36b: a row of the v1 format, without a variant" 2 "a row is axe|<variant>"
+}
+case_36c() {
+  with_file clean baseline.txt "cls|/|0.01|${REASON}
+"
+  run_gate clean
+  want_exit "36c: a CLS row of the v1 format, without a variant" 2 "a row is cls|<variant>"
+}
 
 # 37-39: the layout-shift override.
-FORSGREN_CLS_LOADS=2 FORSGREN_CLS_INTERVAL_MS=50 capture "$GATE" "${TMP}/clean/site" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
-want_green "37: the override is honoured" "interval 50 ms"
-run_gate_hit shift
-want_red "38: an override still catches the shift fixture" "largest of 1 cold loads"
-run_gate_hit shiftstall
-want_red "38b: a page that stalls 800 ms after the load, an override still catches the shift" "largest of 1 cold loads"
-run_gate_hit shiftslow
-want_red "40: a delayed load, an override still catches the shift fixture" "largest of 1 cold loads"
-FORSGREN_CLS_LOADS=0 capture "$GATE" "${TMP}/clean/site" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
-want_exit "39a: zero loads" 2 "FORSGREN_CLS_LOADS must be a positive integer"
-FORSGREN_CLS_INTERVAL_MS=fast capture "$GATE" "${TMP}/clean/site" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
-want_exit "39b: an interval that is no number" 2 "FORSGREN_CLS_INTERVAL_MS must be a positive integer"
+case_37() {
+  own_fixtures clean
+  FORSGREN_CLS_LOADS=2 FORSGREN_CLS_INTERVAL_MS=50 capture "$GATE" "${TMP}/clean/site" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
+  want_green "37: the override is honoured" "interval 50 ms"
+}
+case_38() {
+  own_fixtures shift
+  run_gate_hit shift
+  want_red "38: an override still catches the shift fixture" "largest of 1 cold loads"
+}
+case_38b() {
+  own_fixtures shiftstall
+  run_gate_hit shiftstall
+  want_red "38b: a page that stalls 800 ms after the load, an override still catches the shift" "largest of 1 cold loads"
+}
+case_40() {
+  own_fixtures shiftslow
+  run_gate_hit shiftslow
+  want_red "40: a delayed load, an override still catches the shift fixture" "largest of 1 cold loads"
+}
+case_39a() {
+  own_fixtures clean
+  FORSGREN_CLS_LOADS=0 capture "$GATE" "${TMP}/clean/site" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
+  want_exit "39a: zero loads" 2 "FORSGREN_CLS_LOADS must be a positive integer"
+}
+case_39b() {
+  own_fixtures clean
+  FORSGREN_CLS_INTERVAL_MS=fast capture "$GATE" "${TMP}/clean/site" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
+  want_exit "39b: an interval that is no number" 2 "FORSGREN_CLS_INTERVAL_MS must be a positive integer"
+}
 
 # 41-44: sideways scrolling (forsgren#350). The body has no margin, so the
 # overflow is the table's width less the window's: 600 - 390 = 210 px.
@@ -605,61 +789,103 @@ LONG_CELL="$(printf 'note %.0s' {1..120})"
 # pages do: delivered in pieces (forsgren#611), a long cell painted half-parsed
 # would grow and shift, and this case is about sideways scrolling alone.
 make_site wraps "$(page "${SCROLL_BOX}<table><tr><th scope=\"row\">Acme</th><td>${LONG_CELL}</td></tr></table></div><p id=\"page-end\">end</p>" '<link rel="expect" href="#page-end" blocking="render">')"
-run_gate phonewide
-want_red "41: a table wider than its box at the phone width" "FAIL: light /: scrolls sideways at 390x844: table 1 is 210 px wider than its box"
-if grep -qF -- "at 1280x800" <<< "$OUT"; then
-  fail "41b: the laptop width was blamed for a table that fits it. Output: ${OUT}"
-else
-  echo "  ok: 41b: the laptop width is clean"
-fi
-run_gate laptopwide
-want_red "42: a table wider than its box at the laptop width" "FAIL: light /: scrolls sideways at 1280x800: table 1 is 220 px wider than its box"
-want_said "42b: and at the phone width" "FAIL: light /: scrolls sideways at 390x844: table 1 is 1110 px wider than its box"
-run_gate pagewide
-want_red "43: a page wider than the window" "FAIL: light /: scrolls sideways at 1280x800: the page is 220 px wider than the window"
-run_gate wraps
-want_green "44: a long cell that wraps inside its table" "no new sideways scroll at 1280x800 and 390x844 (0 baselined)"
+case_41() {
+  own_fixtures phonewide
+  run_gate phonewide
+  want_red "41: a table wider than its box at the phone width" "FAIL: light /: scrolls sideways at 390x844: table 1 is 210 px wider than its box"
+  if grep -qF -- "at 1280x800" <<< "$OUT"; then
+    fail "41b: the laptop width was blamed for a table that fits it. Output: ${OUT}"
+  else
+    echo "  ok: 41b: the laptop width is clean"
+  fi
+}
+case_42() {
+  own_fixtures laptopwide
+  run_gate laptopwide
+  want_red "42: a table wider than its box at the laptop width" "FAIL: light /: scrolls sideways at 1280x800: table 1 is 220 px wider than its box"
+  want_said "42b: and at the phone width" "FAIL: light /: scrolls sideways at 390x844: table 1 is 1110 px wider than its box"
+}
+case_43() {
+  own_fixtures pagewide
+  run_gate pagewide
+  want_red "43: a page wider than the window" "FAIL: light /: scrolls sideways at 1280x800: the page is 220 px wider than the window"
+}
+case_44() {
+  own_fixtures wraps
+  run_gate wraps
+  want_green "44: a long cell that wraps inside its table" "no new sideways scroll at 1280x800 and 390x844 (0 baselined)"
+}
 
 # 45-49: the sideways baseline, on case 41's page (210 px at 390x844).
-printf 'sideways|light|/|390x844|table 1|210|%s\n' "$REASON" > "${TMP}/phonewide/baseline.txt"
-run_gate phonewide
-want_green "45: an overflow equal to its row" "WARN: baselined sideways scroll: light /: at 390x844 table 1 is 210 px wider than its box"
-want_said "45b: and counted" "no new sideways scroll at 1280x800 and 390x844 (1 baselined)"
-printf 'sideways|light|/|390x844|table 1|209|%s\n' "$REASON" > "${TMP}/phonewide/baseline.txt"
-run_gate phonewide
-want_red "46: an overflow above its row" "FAIL: light /: scrolls sideways at 390x844: table 1 is 210 px wider than its box, above the recorded 209 px (grew)"
-printf 'sideways|light|/|390x844|table 1|211|%s\n' "$REASON" > "${TMP}/phonewide/baseline.txt"
-run_gate phonewide
-want_red "47: an overflow below its row" "FAIL: light /: scrolls sideways at 390x844: table 1 is 210 px wider than its box, below the recorded 211 px: shrink the row"
-printf 'sideways|light|/|390x844|table 1|210|%s\nsideways|light|/|1280x800|table 1|5|%s\n' "$REASON" "$REASON" > "${TMP}/phonewide/baseline.txt"
-run_gate phonewide
-want_red "48: a row whose overflow is gone" "FAIL: stale baseline row: sideways|light|/|1280x800|table 1|5 no longer scrolls sideways; remove it"
-printf 'sideways|light|/|390x844|table 1|210|\n' > "${TMP}/phonewide/baseline.txt"
-run_gate phonewide
-want_exit "49a: a sideways row without a reason" 2 "has no reason"
-printf 'sideways|light|/|390x844|table 1|0|%s\n' "$REASON" > "${TMP}/phonewide/baseline.txt"
-run_gate phonewide
-want_exit "49b: a px that is no positive whole number" 2 "must be a positive whole number of pixels"
-printf 'sideways|light|/|800x600|table 1|210|%s\n' "$REASON" > "${TMP}/phonewide/baseline.txt"
-run_gate phonewide
-want_exit "49c: a viewport the gate does not measure" 2 "is not a viewport the gate measures"
-printf 'sideways|light|/|390x844|table 1|210|%s\nsideways|light|/|390x844|table 1|210|%s\n' "$REASON" "$REASON" > "${TMP}/phonewide/baseline.txt"
-run_gate phonewide
-want_exit "49d: a sideways row listed twice" 2 "listed twice"
-: > "${TMP}/phonewide/baseline.txt"
+case_45() {
+  with_file phonewide baseline.txt "sideways|light|/|390x844|table 1|210|${REASON}
+"
+  run_gate phonewide
+  want_green "45: an overflow equal to its row" "WARN: baselined sideways scroll: light /: at 390x844 table 1 is 210 px wider than its box"
+  want_said "45b: and counted" "no new sideways scroll at 1280x800 and 390x844 (1 baselined)"
+}
+case_46() {
+  with_file phonewide baseline.txt "sideways|light|/|390x844|table 1|209|${REASON}
+"
+  run_gate phonewide
+  want_red "46: an overflow above its row" "FAIL: light /: scrolls sideways at 390x844: table 1 is 210 px wider than its box, above the recorded 209 px (grew)"
+}
+case_47() {
+  with_file phonewide baseline.txt "sideways|light|/|390x844|table 1|211|${REASON}
+"
+  run_gate phonewide
+  want_red "47: an overflow below its row" "FAIL: light /: scrolls sideways at 390x844: table 1 is 210 px wider than its box, below the recorded 211 px: shrink the row"
+}
+case_48() {
+  with_file phonewide baseline.txt "sideways|light|/|390x844|table 1|210|${REASON}
+sideways|light|/|1280x800|table 1|5|${REASON}
+"
+  run_gate phonewide
+  want_red "48: a row whose overflow is gone" "FAIL: stale baseline row: sideways|light|/|1280x800|table 1|5 no longer scrolls sideways; remove it"
+}
+case_49a() {
+  with_file phonewide baseline.txt 'sideways|light|/|390x844|table 1|210|
+'
+  run_gate phonewide
+  want_exit "49a: a sideways row without a reason" 2 "has no reason"
+}
+case_49b() {
+  with_file phonewide baseline.txt "sideways|light|/|390x844|table 1|0|${REASON}
+"
+  run_gate phonewide
+  want_exit "49b: a px that is no positive whole number" 2 "must be a positive whole number of pixels"
+}
+case_49c() {
+  with_file phonewide baseline.txt "sideways|light|/|800x600|table 1|210|${REASON}
+"
+  run_gate phonewide
+  want_exit "49c: a viewport the gate does not measure" 2 "is not a viewport the gate measures"
+}
+case_49d() {
+  with_file phonewide baseline.txt "sideways|light|/|390x844|table 1|210|${REASON}
+sideways|light|/|390x844|table 1|210|${REASON}
+"
+  run_gate phonewide
+  want_exit "49d: a sideways row listed twice" 2 "listed twice"
+}
 
 # 50: the CLS interval starts at the load, before the document and axe checks
 # (forsgren#377). Those take as long as the machine takes: a hosted runner was
 # slow enough that a 1 ms read, started after axe, saw a shift 500 ms after the
 # load (proof K). The page reports a shift when it is read after axe ran.
-: > "${TMP}/readorder/baseline.txt"
-run_gate readorder
-want_green "50: the CLS is read before the axe run, not after it" "OK:"
+case_50() {
+  own_fixtures readorder
+  run_gate readorder
+  want_green "50: the CLS is read before the axe run, not after it" "OK:"
+}
 
 # 51: the same table, a page scrollbar of 15 px: the overflow is the table's
 # width less the window's, 210 px, with or without the scrollbar (forsgren#377).
-run_gate scrollbar
-want_red "51: a page scrollbar does not change the measurement" "FAIL: light /: scrolls sideways at 390x844: table 1 is 210 px wider than its box"
+case_51() {
+  own_fixtures scrollbar
+  run_gate scrollbar
+  want_red "51: a page scrollbar does not change the measurement" "FAIL: light /: scrolls sideways at 390x844: table 1 is 210 px wider than its box"
+}
 
 # 54-56: the delayed-delivery load (forsgren#611). A table of 30 narrow rows,
 # then 30 rows whose first cell is wide: painted before the wide rows arrive,
@@ -677,17 +903,66 @@ make_site heldnoid "$(page "${TABLE_BODY}<p>end</p>" "$HOLD")"
 # the pieces take to arrive (3 x 150 ms), so the first paint comes after the
 # last piece unless the server waits for the paint (forsgren#620).
 make_site unheldslow "$(page "${TABLE_BODY}<p id=\"page-end\">end</p>" "$BUSY_JS")"
-run_gate held
-want_green "54: a table page that holds its first paint, delivered in pieces" "CLS worst 0 "
-want_said "54b: the OK line names the delayed-delivery load" "each page also loaded once in 4 pieces 150 ms apart"
-run_gate unheld
-want_red "55: the same page without the hold" "FAIL: light /: CLS 0."
-want_said "55b: the finding names the delayed-delivery load" "1 delayed-delivery load (4 pieces 150 ms apart: 0."
-run_gate heldnoid
-want_green "56: a hold whose id the page lacks lasts to the end of the parse" "CLS worst 0 "
-run_gate unheldslow
-want_red "57: the same page on a slow runner, a busy main thread past all the pieces" "FAIL: light /: CLS 0."
-want_said "57b: the finding names the delayed-delivery load" "1 delayed-delivery load (4 pieces 150 ms apart: 0."
+case_54() {
+  own_fixtures held
+  run_gate held
+  want_green "54: a table page that holds its first paint, delivered in pieces" "CLS worst 0 "
+  want_said "54b: the OK line names the delayed-delivery load" "each page also loaded once in 4 pieces 150 ms apart"
+}
+case_55() {
+  own_fixtures unheld
+  run_gate unheld
+  want_red "55: the same page without the hold" "FAIL: light /: CLS 0."
+  want_said "55b: the finding names the delayed-delivery load" "1 delayed-delivery load (4 pieces 150 ms apart: 0."
+}
+case_56() {
+  own_fixtures heldnoid
+  run_gate heldnoid
+  want_green "56: a hold whose id the page lacks lasts to the end of the parse" "CLS worst 0 "
+}
+case_57() {
+  own_fixtures unheldslow
+  run_gate unheldslow
+  want_red "57: the same page on a slow runner, a busy main thread past all the pieces" "FAIL: light /: CLS 0."
+  want_said "57b: the finding names the delayed-delivery load" "1 delayed-delivery load (4 pieces 150 ms apart: 0."
+}
+
+# The first batch: every plain case that needs nothing of another case, the slow
+# real-setting and two-variant cases first, so the batch does not end on one of
+# them. 19 to 21 wait for case 8's M; 55a to 55c are defined further down; they
+# run in the second batch, with the mutation proofs.
+PHASE_START=$SECONDS
+mutants_init "$TMP"
+plain_case 8 1 31 32 33 34 30 23 22 \
+  2 3 4 5 6 7 9 10 11 12 13 14 16 17 18 24a 24b 24c 24d 24e 24f 25 \
+  26 27 28 29 35a 35b 35c 35d 35e 35f 36a 36b 36c 37 38 38b 40 39a 39b \
+  41 42 43 44 45 46 47 48 49a 49b 49c 49d 50 51 54 55 56 57
+mutants_wait
+echo "browser gate self-test: the first batch of plain cases, side by side: $((SECONDS - PHASE_START)) s"
+CLS_M="$(cat "$CLS_M_FILE" 2> /dev/null || true)"
+if [[ -z "$CLS_M" ]]; then
+  fail "the shift fixture did not report a CLS value in case 8, so 19 to 21 compare with 0.05"
+  CLS_M=0.05
+fi
+
+# SERIAL_CASES: the cases that still run one after the other, on a machine with no
+# other case of this self-test running, after the first batch and before the
+# second (forsgren#632). Each has its reason:
+#  - 52a to 52g, 53, 53d, 54a to 54c: they signal or kill processes found by a
+#    pattern and count the Chromes and the code-sign clone folders that appear on
+#    the whole machine while they run (signal_case): a Chrome of a side-by-side
+#    case would be counted as theirs, or make the gate rightly keep a folder;
+#  - 53e: a kill and timing case (a loaded machine is simulated by its seam, and
+#    "at once" is timed): other cases would load the machine for real;
+#  - 53g, 53h, 53i: they share the clone folder listing and SEAM_* globals with
+#    the signal cases;
+#  - 52h, 52i: no browser and under a second, so nothing to win, and they swap
+#    the CLONE_PARENT global the signal cases read;
+#  - R, S, X, Z: the mutation proofs of those cases (R is the one forsgren#630
+#    touches), each started alone and collected before the next, below.
+SERIAL_CASES=(52h 52i 52a 52b 52c 52d 52e 52f 53 52g 53d 53g 53h 53i 54a 54b 54c 53e R S X Z)
+echo "browser gate self-test: one after the other (SERIAL_CASES): ${SERIAL_CASES[*]}"
+PHASE_START=$SECONDS
 
 # The exits (see the header): the signal and kill cases of the sites' line.
 # 52-53: the browser is closed and its profile removed on every way out
@@ -1200,6 +1475,7 @@ for seam_mark in hooked reaping files; do
     echo "  ok: 53e: the slowdown '${seam_mark}' was observed"
   fi
 done
+echo "browser gate self-test: the cases of SERIAL_CASES before the mutation proofs, one after the other: $((SECONDS - PHASE_START)) s"
 
 # 55a, 55b, 55c (estate issue 629, step 2): a gate that ends non-zero always
 # says why. The red of the first site run ended after 82 warnings in the middle
@@ -1216,36 +1492,46 @@ module.exports = () => {
   console.log = (...parts) => log('WARN: seam padding ' + 'x'.repeat(1 << 20) + '\n' + parts.join(' '));
 };
 SEAM
-FORSGREN_GATE_BROWSER_HOOK="$BIG_SEAM" run_gate nocharset
-want_red "55a: 1 MiB of output, then a finding: the finding line arrives" "charset not declared"
-if [[ "$(tail -n 1 <<< "$OUT")" != "FAIL: "*"charset not declared"* ]]; then
-  fail "55a: the last line of the output is not the whole FAIL line. Last: $(tail -n 1 <<< "$OUT" | cut -c1-200)"
-fi
+case_55a() {
+  own_fixtures nocharset
+  FORSGREN_GATE_BROWSER_HOOK="$BIG_SEAM" run_gate nocharset
+  want_red "55a: 1 MiB of output, then a finding: the finding line arrives" "charset not declared"
+  if [[ "$(tail -n 1 <<< "$OUT")" != "FAIL: "*"charset not declared"* ]]; then
+    fail "55a: the last line of the output is not the whole FAIL line. Last: $(tail -n 1 <<< "$OUT" | cut -c1-200)"
+  fi
+}
 # 55b: an error nobody catches (a timer in the engine throws): a named FAIL
 # line and exit 2, not a bare stack.
 THROW_SEAM="${TMP}/throw_seam.cjs"
 cat > "$THROW_SEAM" << 'SEAM'
 module.exports = () => { setTimeout(() => { throw new Error('seam boom'); }, 200); };
 SEAM
-FORSGREN_GATE_BROWSER_HOOK="$THROW_SEAM" run_gate clean
-want_exit "55b: an uncaught error in the engine: exit 2 and a FAIL line naming it" 2 "FAIL: browser gate: uncaught error: seam boom"
+case_55b() {
+  own_fixtures clean
+  FORSGREN_GATE_BROWSER_HOOK="$THROW_SEAM" run_gate clean
+  want_exit "55b: an uncaught error in the engine: exit 2 and a FAIL line naming it" 2 "FAIL: browser gate: uncaught error: seam boom"
+}
 # 55c: the engine killed by a signal it cannot catch: the wrapper names the
 # signal and says the engine printed no reason.
 KILL_SEAM="${TMP}/kill_seam.cjs"
 cat > "$KILL_SEAM" << 'SEAM'
 module.exports = () => { process.kill(process.pid, 'SIGKILL'); };
 SEAM
-FORSGREN_GATE_BROWSER_HOOK="$KILL_SEAM" run_gate clean
-want_exit "55c: the engine killed (SIGKILL): the wrapper names the signal" 137 "FAIL: browser gate: the engine was killed by signal KILL (exit 137)"
+case_55c() {
+  own_fixtures clean
+  FORSGREN_GATE_BROWSER_HOOK="$KILL_SEAM" run_gate clean
+  want_exit "55c: the engine killed (SIGKILL): the wrapper names the signal" 137 "FAIL: browser gate: the engine was killed by signal KILL (exit 137)"
+}
 
 # Mutation proofs, run side by side (Scripts/lib_parallel_mutants.sh, forsgren#382).
 # Each proof is a mutant_<letter> function that works on its own copy of the
-# fixture (staged here, at the point of the run where the case left it) and on
-# its own engine copy under $MUTANT_DIR, so no two share a path. The engine copy
-# is run directly, with the real node_modules. Their output comes back in the
-# order they were started, each line with its own reason; a mutation that changes
-# nothing is a failed proof (selftest_mutant), and a proof that aborts fails too.
-mutants_init "$TMP"
+# fixture (staged here from the fixture as made, with the file the proof's case
+# writes) and on its own engine copy under $MUTANT_DIR, so no two share a path.
+# The engine copy is run directly, with the real node_modules. Their output comes
+# back in the order they were started, each line with its own reason; a mutation
+# that changes nothing is a failed proof (selftest_mutant), and a proof that
+# aborts fails too. They run in the second batch, with the plain cases 19 to 21
+# and 55a to 55c (v26, forsgren#632).
 
 # stage <tag> <fixture>: the proof's own copy of the fixture as it is now.
 stage() {
@@ -1499,10 +1785,15 @@ mutant_y() {
   fi
 }
 
+# The second batch: the plain cases that waited for case 8's M, the exit cases
+# 55a to 55c, and the mutation proofs, side by side.
+PHASE_START=$SECONDS
+plain_case 19 20 21 55a 55b 55c
 for proof in a b c d e f g h i j k kslow l m n o p q t u y; do
   mutant_run "mutant_${proof}"
 done
 mutants_wait
+echo "browser gate self-test: the second batch (19 to 21, 55a to 55c, the mutation proofs), side by side: $((SECONDS - PHASE_START)) s"
 
 # The proofs of the exits (R, S, X, Z) drive real signal cases (signal_case): they signal and
 # kill processes, share the machine's clone folders and Chrome listing (a case counts the
@@ -1563,10 +1854,19 @@ mutant_z() {
   fi
 }
 
+PHASE_START=$SECONDS
 for proof in r s x z; do
   mutant_run "mutant_${proof}"
   mutants_wait
 done
+echo "browser gate self-test: the proofs R, S, X and Z, one after the other: $((SECONDS - PHASE_START)) s"
+
+# Every case_ function was started: a case written and never started would pass unseen.
+while IFS= read -r case_fn; do
+  if [[ "$PLAIN_STARTED" != *" ${case_fn#case_} "* ]]; then
+    fail "${case_fn}: a plain case that is defined but never started"
+  fi
+done < <(declare -F | awk '$3 ~ /^case_/ {print $3}')
 
 echo "browser gate self-test: ${SECONDS} s in total"
 selftest_end "the browser gate self-test failed" "browser gate: every case holds, twenty-four mutations seen"

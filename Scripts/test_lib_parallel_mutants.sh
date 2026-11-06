@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_lib_parallel_mutants v3
+# canon: test_lib_parallel_mutants v4
+# v4 adds (forsgren#632): case (m), the browser gate self-test runs its plain cases through the library too, each in a case function started with mutant_run, and only the cases of its named serial list (SERIAL_CASES) one after the other
 # v3 adds (forsgren#629, CI red): case (l), a failing mutant in a second batch under set -e fails the harness with its own status, in a folder of its own
 # Scripts/test_lib_parallel_mutants.sh
 #
@@ -28,6 +29,11 @@
 #       selftest_mutant proof outside a mutant function
 #   (l) a failing mutant in a later batch (after a mutants_wait), under set -e, fails
 #       the harness with its own status and runs in a folder of its own
+#   (m) Scripts/test_gate_browser.sh runs its plain cases through the library too
+#       (forsgren#632): no gate run outside a function, cases started with
+#       mutant_run "case_, and every case it still reports one after the other is
+#       named in its SERIAL_CASES list; a mutation proof shows a plain case moved
+#       back to the top level is seen
 #   (k) Scripts/test_quality_jobs.sh runs its mutation proofs through the library, and
 #       Scripts/test_step_summary_isolation.sh its self-test runs (forsgren#569), each
 #       started with mutant_run and collected with mutants_wait, none run in a loop of
@@ -276,6 +282,39 @@ file_has "(h) it calls mutants_wait" "$BROWSER_TEST" "mutants_wait"
 # one after the other, outside the library.
 outside="$(awk '/^mutant_[a-z0-9_]*\(\) \{/ {inside=1} /^\}/ {inside=0} /selftest_mutant / && !inside {print}' "$BROWSER_TEST")"
 check "(h) no selftest_mutant call outside a mutant function" "" "$outside"
+
+# (m) the browser gate self-test runs its plain cases side by side too (forsgren#632).
+# plain_cases_verdict <file>: "" when every gate run of <file> sits inside a function, the
+# cases are started with mutant_run "case_, and every case reported at the top level (one
+# after the other) is in the file's SERIAL_CASES list; else one line per reason.
+plain_cases_verdict() {
+  local file="$1" top runs serial ids id
+  if ! grep -q '^SERIAL_CASES=(' "$file"; then
+    echo "no SERIAL_CASES=( list naming the cases that run one after the other"
+  fi
+  if ! grep -qF 'mutant_run "case_' "$file"; then
+    echo "no plain case started with mutant_run \"case_"
+  fi
+  top="$(awk '/^[a-z_0-9]+\(\) \{.*\}[[:space:]]*$/ {next} /^[a-z_0-9]+\(\) \{/ {inside=1; next} inside && /^\}/ {inside=0; next} !inside {print}' "$file")"
+  runs="$(grep -E '^[[:space:]]*([A-Z_]+=[^ ]+ )*(run_gate|run_gate_real|run_gate_hit|capture) ' <<< "$top" || true)"
+  if [[ -n "$runs" ]]; then
+    echo "$(wc -l <<< "$runs" | tr -d ' ') gate runs outside a case function, the first: $(head -1 <<< "$runs")"
+  fi
+  serial=" $(sed -n 's/^SERIAL_CASES=(\(.*\))$/\1/p' "$file") "
+  ids="$({ grep -oE '(want_[a-z_]+|fail|echo) "(  ok: )?[0-9]+[a-z]?:' <<< "$top" || true; } | sed -E 's/^[^"]*"(  ok: )?//; s/:$//' | sort -u)"
+  while IFS= read -r id; do
+    if [[ -n "$id" && "$serial" != *" ${id} "* ]]; then
+      echo "case ${id} runs one after the other and is not in SERIAL_CASES"
+    fi
+  done <<< "$ids"
+}
+check "(m) ${BROWSER_TEST} runs its plain cases through the library, only SERIAL_CASES one after the other" "" "$(plain_cases_verdict "$BROWSER_TEST")"
+# Mutation proof: a plain case moved back to the top level is seen, its gate run and its id.
+cp "$BROWSER_TEST" "${TMP}/browser_top.sh"
+printf 'run_gate clean\nwant_green "98: a clean page at the top level" "OK:"\n' >> "${TMP}/browser_top.sh"
+VERDICT_M="$(plain_cases_verdict "${TMP}/browser_top.sh")"
+check_has "(m) mutation proof: a gate run at the top level is seen" "$VERDICT_M" "gate runs outside a case function"
+check_has "(m) mutation proof: and its case, not in SERIAL_CASES, is named" "$VERDICT_M" "case 98 runs one after the other and is not in SERIAL_CASES"
 
 # (k) the quality jobs pin and the step summary isolation gate run through the library.
 for QJ in Scripts/test_quality_jobs.sh Scripts/test_step_summary_isolation.sh; do
