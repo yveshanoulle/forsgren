@@ -281,8 +281,13 @@ a ❌ line saying why, once the date has passed ("re-check forsgren#13: is a
 fix out?"), on any other advisory, when the advisory reaches a production
 path, and when a fix without `--force` exists ("a fix exists: remove the
 exception and update"). An exception for an advisory npm no longer reports
-is a warning (remove the stale exception), not a red; a malformed line or an
-advisory listed twice is red before anything is audited.
+is stale: up to and including its re-check date it is a warning (remove the
+stale exception), so a fix that lands early does not turn the build red at
+once; once the date has passed it is red, naming the entry and its date
+("passed its re-check date … and npm audit no longer reports it: remove it
+from the exception file"), and `npm audit fix` is not tried for it
+(`npm_audit_check` v5, forsgren#631). A malformed line or an advisory listed
+twice is red before anything is audited.
 
 **Re-checked weekly** (Yves, forsgren#13): a re-check date may be at most 7
 days after today, and the gate is red on one further out, so nobody can set

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_npm_audit_check v3
+# canon: test_npm_audit_check v4
+# v4 (forsgren#631): a stale exception past its re-check date is red, cases 15a and 15b, mutations stale-past and on-date.
 # v2 (forsgren#434): moderate and above is red, a low advisory is listed and green.
 # test_npm_audit_check.sh — fixture test for npm_audit_check.sh.
 #
@@ -45,7 +46,10 @@
 #  13. a non-forced fix: not SemVer-major      -> red: a fix exists
 #  14. a moderate advisory, not listed         -> red (the level is moderate)
 #  14b. a low advisory, not listed             -> green, listed as `low:`
-#  15. a stale exception                       -> green with a warning
+#  15. a stale exception before its date      -> green with a warning
+#  15a. a stale exception on its date          -> green with a warning
+#  15b. a stale exception past its date        -> red, naming the entry and
+#                                                 its date; no heal
 #  16. a re-check date 8 days ahead            -> red: re-check weekly
 #  17. a malformed exception file (4 fields, an impossible date, a
 #      duplicate)                              -> red, no audit run
@@ -311,14 +315,37 @@ if grep -q "❌" <<< "$OUT"; then
   fail "the low advisory carries a red cross. Output: ${OUT}"
 fi
 
-# --- Case 15: a stale exception -> green with a warning.
+# --- Case 15: a stale exception before its re-check date -> green with a
+# warning, so a fix that lands early does not turn the build red at once.
 serve "${FIXTURES}/clean.json"
 run_check
-want_green_ok "a stale exception is green"
+want_green_ok "a stale exception before its date is green"
 want_said "  ... with a warning" "remove the stale exception ${ADV} (acme-braces)"
 if grep -q "❌" <<< "$OUT"; then
   fail "the stale warning carries a red cross. Output: ${OUT}"
 fi
+
+# --- Case 15a: a stale exception on its re-check date -> still a warning.
+export NPM_AUDIT_TODAY="2026-10-10"
+run_check
+export NPM_AUDIT_TODAY="2026-10-03"
+want_green_ok "a stale exception on its re-check date is green"
+want_said "  ... with a warning" "remove the stale exception ${ADV} (acme-braces)"
+
+# --- Case 15b: a stale exception past its re-check date -> red, naming the
+# entry and its date (canon v5: a failed check fails, never warns), and no
+# heal under GATE_FIX=1 either: npm audit fix cannot remove an exception.
+STALE_RED="❌ npm-audit: the exception for ${ADV} (acme-braces) passed its re-check date 2026-10-10 and npm audit no longer reports it: remove it from the exception file, ACME#9"
+export NPM_AUDIT_TODAY="2026-10-11"
+run_check
+want_red "a stale exception past its re-check date is red" "$STALE_RED"
+if grep -q "remove the stale exception" <<< "$OUT"; then
+  fail "the stale exception past its date is still printed as a warning. Output: ${OUT}"
+fi
+run_check_fix
+export NPM_AUDIT_TODAY="2026-10-03"
+want_red "  ... under GATE_FIX=1 too" "$STALE_RED"
+no_heal "  ... without npm audit fix"
 
 # --- Case 16: a re-check date 8 days ahead -> red.
 except_ruled "2026-10-11"
@@ -427,6 +454,33 @@ if selftest_mutant "$CHECK" "${TMP}/mutant-stale/npm_audit_check.sh" 's/^def sta
   else
     fail "mutation stale: the mutant still warned, or went red. Output: ${OUT}"
   fi
+fi
+
+# The stale rule past its date: without it, case 15b's entry falls back to
+# the warning and the gate is green, which case 15b refuses.
+if selftest_mutant "$CHECK" "${TMP}/mutant-stale-past/npm_audit_check.sh" 's/^def stale_expired(/def stale_expired(e): false; def unused_stale_expired(/'; then
+  export NPM_AUDIT_TODAY="2026-10-11"
+  except_ruled
+  serve "${FIXTURES}/clean.json"
+  run_check "${TMP}/mutant-stale-past/npm_audit_check.sh"
+  export NPM_AUDIT_TODAY="2026-10-03"
+  if [[ "$RC" -eq 0 ]] && grep -qF "remove the stale exception ${ADV} (acme-braces)" <<< "$OUT" && ! grep -q "❌" <<< "$OUT"; then
+    echo "  ok: mutation stale-past: without it, a stale exception past its date only warns, which case 15b refuses"
+  else
+    fail "mutation stale-past: the mutant did not fall back to the warning (exit ${RC}), so case 15b does not prove the rule. Output: ${OUT}"
+  fi
+fi
+
+# The date comparison: a gate that counts the re-check date itself as passed
+# is red on case 15a's stale entry, naming that date, which case 15a refuses.
+if selftest_mutant "$CHECK" "${TMP}/mutant-on-date/npm_audit_check.sh" 's/^\(def expired(.e): .today \)> /\1>= /'; then
+  export NPM_AUDIT_TODAY="2026-10-10"
+  except_ruled
+  serve "${FIXTURES}/clean.json"
+  run_check "${TMP}/mutant-on-date/npm_audit_check.sh"
+  export NPM_AUDIT_TODAY="2026-10-03"
+  want_red "mutation on-date: a gate that expires on the re-check date is red on case 15a's entry, naming the date" \
+    "passed its re-check date 2026-10-10 and npm audit no longer reports it"
 fi
 
 # --- Case 19: MUTATION PROOF. A copy that always heals ignores GATE_FIX: its

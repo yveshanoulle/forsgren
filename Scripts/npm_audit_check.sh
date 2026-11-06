@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: npm_audit_check v4
+# canon: npm_audit_check v5
+# v5 (forsgren#631): a stale exception past its re-check date is red, not a warning; no heal for it.
 # v3 (forsgren#434, ruling on #420): red from moderate severity up; a low one is listed, green.
 # npm_audit_check.sh — npm-audit gate with one-shot self-heal (GATE_FIX=1 only)
 # and ruled, weekly exceptions.
@@ -19,8 +20,8 @@
 #            package-lock.json is red there.
 #   exit 1 — an advisory is found and GATE_FIX is not 1 (nothing was changed:
 #            the report and the fix to run are named), an advisory remains
-#            after the heal, or the exception file is
-#            wrong; prints the audit report, a `❌ npm-audit:` line per
+#            after the heal, the exception file is
+#            wrong, or it holds a stale exception past its date; prints the audit report, a `❌ npm-audit:` line per
 #            reason, and a final parseable `npm-audit:` summary line for
 #            the caller's error sink.
 #   exit 2 — tooling failure (npm or jq missing, no audit report); never a
@@ -43,8 +44,11 @@
 # <issue>` once, so it is never silent. The file itself is red when a line
 # is malformed, an advisory is listed twice, or a re-check date is more than
 # 7 days after today: an exception is re-checked WEEKLY, and nobody can set
-# it a month out. An entry whose advisory npm no longer reports is a warning
-# (remove the stale exception), not a red. An exception needs Yves's
+# it a month out. An entry whose advisory npm no longer reports is stale: up
+# to and including its re-check date it is a warning (remove the stale
+# exception), so a fix that lands early does not turn the build red at once;
+# after that date it is red, naming the entry and its date, and npm audit
+# fix is not tried for it (v5: a failed check fails, never warns). An exception needs Yves's
 # explicit yes recorded on a GitHub issue, like every suppression.
 #
 # jq is in Scripts/required_tools.txt; it also ships with macOS (/usr/bin/jq since macOS 15) and on
@@ -127,6 +131,7 @@ def expired($e): $today > $e.date;
 def on_prod_path($a): any($prod | advisories[]; .id == $a.id);
 def fix_exists($e): ($full.vulnerabilities[$e.package].fixAvailable // false) as $f | $f == true or (($f | type) == "object" and $f.isSemVerMajor == false);
 def stale($e): any($full | advisories[]; .id == $e.id and .name == $e.package) | not;
+def stale_expired($e): stale($e) and expired($e);
 def verdict($a; $e):
   if $e == null then "❌ npm-audit: \($a.id) (\($a.name) \($a.range), \($a.severity)) is not excepted: \($a.title)"
   else
@@ -139,7 +144,9 @@ def verdict($a; $e):
 ($full | advisories[] | select(blocking) | verdict(.; entry_of(.))),
 ($full | advisories[] | select(blocking | not)
   | "\(.severity): npm-audit: \(.id) (\(.name) \(.range)) is listed, not red: \(.title)"),
-($entries[] | select(stale(.)) | "warning: npm-audit: remove the stale exception \(.id) (\(.package)), \(.issue): npm audit no longer reports it")
+($entries[] | select(stale(.)) | if stale_expired(.)
+  then "❌ npm-audit: the exception for \(.id) (\(.package)) passed its re-check date \(.date) and npm audit no longer reports it: remove it from the exception file, \(.issue)"
+  else "warning: npm-audit: remove the stale exception \(.id) (\(.package)), \(.issue): npm audit no longer reports it" end)
 JQ
 }
 
@@ -204,6 +211,16 @@ fi
 if [[ "$rc" -ne 1 ]]; then
   printf '%s\n' "$first"
   exit "$rc"
+fi
+
+# A stale exception past its re-check date is red whatever the audit says,
+# and npm audit fix cannot remove a line of the exception file: when it is
+# the only red, there is nothing to heal (forsgren#631, v5).
+other_reds="$(grep '^❌' <<< "$first" | grep -v 'and npm audit no longer reports it: remove it from the exception file' || true)"
+if [[ -z "$other_reds" ]]; then
+  printf '%s\n' "$first"
+  echo "❌ npm-audit: the exception file ${exceptions} holds an exception past its re-check date that npm audit no longer reports: nothing was changed"
+  exit 1
 fi
 
 # CHECK-ONLY unless GATE_FIX=1: sfl.sh exports it so

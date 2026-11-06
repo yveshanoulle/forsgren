@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-11-06 — The npm audit check fails on a stale exception past its date (#631)
+
+- `Scripts/npm_audit_check.sh` (`npm_audit_check` v5): an exception that npm audit no longer reports is red once its re-check date has passed, with a ❌ line naming the advisory, the package, the date and the issue ("passed its re-check date … and npm audit no longer reports it: remove it from the exception file"). Up to and including the date it stays a warning, so a fix that lands early does not turn the build red at once. When that is the only red, `npm audit fix` is not tried, even under GATE_FIX=1: it cannot remove a line of the exception file. Before, a stale entry only warned and could stay in the file for good. forsgren's own exception file holds no entry, so its build does not change. Sites take the new version.
+- `Scripts/test_npm_audit_check.sh` (`test_npm_audit_check` v4): cases 15a (stale on its date: a warning) and 15b (stale past its date: red, named, no heal), and two mutation proofs: without the rule the entry falls back to the warning and the gate is green (stale-past), and a date comparison that counts the re-check date as passed is red on case 15a's entry, naming the date (on-date). Today is pinned with `NPM_AUDIT_TODAY`, so no case depends on the wall clock.
+- Red first: case 15b failed on v4, the gate green with "remove the stale exception … npm audit no longer reports it".
+
 ## 2026-11-06 — The isolation scope self-test is red without a weights file (#633)
 
 - `Scripts/test_git_sandbox_isolation_scope.sh` (`test_git_sandbox_isolation_scope` v4): case 25 is red when `Scripts/git_sandbox_isolation_weights.txt` is missing or lists none of the git-using self-tests, and names the file. Before, a site that took the isolation shard files without the weights file saw case 25 pass with "0 and 0": it compared two empty sums. Case 25 is now a function over a weights file; mutation proofs O (the file missing) and P (a file with only the default row) require it red for that reason, not only red. Sites take the new version.
