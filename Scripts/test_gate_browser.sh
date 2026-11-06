@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v22
+# canon: test_gate_browser v23
+# v23 adds (estate issue 629, step 2): cases 55a, 55b and 55c, a gate that ends non-zero always says why: the findings after 1 MiB of output arrive whole, an uncaught error in the engine is a named FAIL line (exit 2), an engine killed by a signal is named by the wrapper
 # v22 writes the proofs R, S, X and Z as mutant functions started with mutant_run (forsgren#629 step 1), each one alone and collected before the next, because they drive signal cases that share the machine's Chrome and clone folders; without the library they still run one after the other
 # v21 folds in the sites' v20 (site issue 63): case 54a, a helper of the gate's Chrome still ending at removal time is waited for and the clone folder removed; case 54b, a clone folder replaced after the launch, and 54c, a new clone folder that is not the identified one, are kept and the reason said (browser_gate v14); the seam cases take a signal, an exit and extra lines of the fake Chrome
 # v19 merges the two lines of the canon (estate issue 629): forsgren's v12 (the cases and proofs of browser_gate v6 to v8: the watch from the start, the delayed-delivery load, the paint wait; the side-by-side proofs; the shared helpers) and the sites' v13 to v18 (the cases 52a to 53i of the exits and the proofs R, S, T, U with the seams of browser_gate v9 to v12); the sites' proofs T and U are X and Z here, because T and U are the delayed-delivery proofs; the helper libraries are used when the repository has them, else defined here
@@ -1127,6 +1128,43 @@ for seam_mark in hooked reaping files; do
     echo "  ok: 53e: the slowdown '${seam_mark}' was observed"
   fi
 done
+
+# 55a, 55b, 55c (estate issue 629, step 2): a gate that ends non-zero always
+# says why. The red of the first site run ended after 82 warnings in the middle
+# of a line, without a FAIL line: the engine wrote to a pipe and ended with
+# process.exit(), which drops what a pipe has not yet taken. Three seams make
+# the engine end in three silent ways; each must leave a named FAIL line.
+# 55a: the engine's report (the findings, printed just before it exits 1) is
+# preceded by 1 MiB of text, through the wrapper's fifo: the finding must
+# arrive whole, as the last line. On v15 the output stopped at 8192 bytes.
+BIG_SEAM="${TMP}/big_seam.cjs"
+cat > "$BIG_SEAM" << 'SEAM'
+module.exports = () => {
+  const log = console.log;
+  console.log = (...parts) => log('WARN: seam padding ' + 'x'.repeat(1 << 20) + '\n' + parts.join(' '));
+};
+SEAM
+FORSGREN_GATE_BROWSER_HOOK="$BIG_SEAM" run_gate nocharset
+want_red "55a: 1 MiB of output, then a finding: the finding line arrives" "charset not declared"
+if [[ "$(tail -n 1 <<< "$OUT")" != "FAIL: "*"charset not declared"* ]]; then
+  fail "55a: the last line of the output is not the whole FAIL line. Last: $(tail -n 1 <<< "$OUT" | cut -c1-200)"
+fi
+# 55b: an error nobody catches (a timer in the engine throws): a named FAIL
+# line and exit 2, not a bare stack.
+THROW_SEAM="${TMP}/throw_seam.cjs"
+cat > "$THROW_SEAM" << 'SEAM'
+module.exports = () => { setTimeout(() => { throw new Error('seam boom'); }, 200); };
+SEAM
+FORSGREN_GATE_BROWSER_HOOK="$THROW_SEAM" run_gate clean
+want_exit "55b: an uncaught error in the engine: exit 2 and a FAIL line naming it" 2 "FAIL: browser gate: uncaught error: seam boom"
+# 55c: the engine killed by a signal it cannot catch: the wrapper names the
+# signal and says the engine printed no reason.
+KILL_SEAM="${TMP}/kill_seam.cjs"
+cat > "$KILL_SEAM" << 'SEAM'
+module.exports = () => { process.kill(process.pid, 'SIGKILL'); };
+SEAM
+FORSGREN_GATE_BROWSER_HOOK="$KILL_SEAM" run_gate clean
+want_exit "55c: the engine killed (SIGKILL): the wrapper names the signal" 137 "FAIL: browser gate: the engine was killed by signal KILL (exit 137)"
 
 # Mutation proofs, run side by side (Scripts/lib_parallel_mutants.sh, forsgren#382).
 # Each proof is a mutant_<letter> function that works on its own copy of the

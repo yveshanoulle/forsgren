@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: gate_browser v4
+# canon: gate_browser v5
+# v5 (estate issue 629, step 2): a non-zero end always names its reason: an engine killed by a signal, or one that ended with no FAIL line, gets one from the wrapper; the engine (browser_gate v16) flushes its output before it exits
 # v4 merges the two lines of the canon (estate issue 629): v3 (the exit-trap idiom of forsgren#381, temp names through lib_tmp.sh) and the sites' v2 (the same idiom as the local fix of site issue 34, with plain mktemp); the wrapper is v3 as it was
 # Scripts/gate_browser.sh (forsgren#205)
 #
@@ -96,6 +97,14 @@ wait "$TEE_PID"
 set -e
 
 if [[ "$rc" -ne 0 ]]; then
+  # A gate that ends non-zero always says why (estate issue 629, step 2). The
+  # engine names its own reasons; one that was killed, or ended with nothing
+  # the gate can recognise as a reason, is named here.
+  if [[ "$rc" -gt 128 ]]; then
+    echo "FAIL: browser gate: the engine was killed by signal $(kill -l "$((rc - 128))" 2>/dev/null || echo "$((rc - 128))") (exit ${rc}); it printed no reason" >&2
+  elif ! grep -Eq '^(FAIL: |browser-gate: |browser gate: )' "$OUT_FILE"; then
+    echo "FAIL: browser gate: the engine ended with exit ${rc} and printed no reason" >&2
+  fi
   exit "$rc"
 fi
 COMPLETED=1

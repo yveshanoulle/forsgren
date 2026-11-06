@@ -1,4 +1,5 @@
-// canon: browser_gate v15
+// canon: browser_gate v16
+// v16 (estate issue 629, step 2): every exit that follows a write waits for stdout and stderr to be taken (a site's red ended after 8192 bytes in the middle of a line, with its FAIL lines lost: process.exit() drops what a pipe has not taken); an uncaught error or an unhandled rejection ends the run with a FAIL line naming it, exit 2, Chrome closed. The findings, the baseline format and the exit statuses are unchanged.
 // v15 folds in the sites' v14 (site issue 63): a code-sign clone folder that is kept is always named on stderr with its reason (one that was replaced after the launch was kept without a word); where a helper of the gate's own Chrome still runs at removal time the gate waits for it (bounded like a folder removal, 3 s) and then removes the folder
 // v13 merges the two lines of the canon (estate issue 629): the forsgren line v6 to v8 (watch from the start, delayed-delivery load, paint wait) and the sites line v9 to v12 (below). Both sets are in full; the findings, the baseline format and the exit statuses are unchanged.
 // v12 adds (site issue 61): test seams, all off unless their variable is set: FORSGREN_GATE_BROWSER_HOOK names a module the engine calls with its browser right after the launch (the self-test slows only the gate this way, as the module namespace of puppeteer-core cannot be assigned to); FORSGREN_GATE_CLONE_PARENT is a folder used in place of the code-sign clone parent, and FORSGREN_GATE_PS_LISTING a file used in place of the ps listing of other Chromes, so that the ownership cases do not depend on what else runs on the machine
@@ -234,8 +235,25 @@ const CHROME_ARGS = [
   '--use-mock-keychain',
 ];
 
+// Ends the process with <code> once what was written to stdout and stderr has
+// been taken (v16). On a pipe node writes asynchronously, and process.exit()
+// drops what the pipe has not taken yet: the site run of estate issue 629 ended
+// after 8192 bytes, in the middle of a line, with no FAIL line. Every exit that
+// follows a write goes through here. Writes complete in order, so the callback
+// of an empty write is the end of the ones before it.
+function exitAfterFlush(code) {
+  process.exitCode = code;
+  process.stdout.write('', () => process.stderr.write('', () => process.exit(code)));
+}
+
+// die: a refused input, at the start of the run, where nothing is queued yet
+// and the code after it must not run: the message is written synchronously.
 function die(message) {
-  console.error(`browser-gate: ${message}`);
+  try {
+    fs.writeSync(2, `browser-gate: ${message}\n`);
+  } catch {
+    console.error(`browser-gate: ${message}`);
+  }
   process.exit(2);
 }
 
@@ -1006,9 +1024,28 @@ function release() {
 // A signal ends the run like an error would: close, remove, exit 128 + number.
 for (const [name, code] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]]) {
   process.on(name, () => {
-    release().then(() => process.exit(code), (error) => {
+    release().then(() => exitAfterFlush(code), (error) => {
       console.error(`browser gate: cleanup after ${name} failed: ${error.message}`);
-      process.exit(2);
+      exitAfterFlush(2);
+    });
+  });
+}
+
+// An error nobody caught (a timer, an event handler) ends the run like an error
+// in main would, with a FAIL line that names it, exit 2, Chrome closed and the
+// profile removed (v16). Without these node printed a bare stack and exited 1
+// with Chrome and its profile left behind.
+let dying = false;
+for (const kind of ['uncaughtException', 'unhandledRejection']) {
+  process.on(kind, (reason) => {
+    if (dying) return;
+    dying = true;
+    const error = reason instanceof Error ? reason : new Error(String(reason));
+    console.error(`FAIL: browser gate: uncaught error: ${error.message}`);
+    console.error(error.stack || '');
+    release().then(() => exitAfterFlush(2), (cleanup) => {
+      console.error(`browser gate: cleanup after the uncaught error failed: ${cleanup.message}`);
+      exitAfterFlush(2);
     });
   });
 }
@@ -1082,7 +1119,8 @@ async function main() {
   if (warnings.length > 0) console.log(warnings.join('\n'));
   if (findings.length > 0) {
     console.log(findings.join('\n'));
-    process.exit(1);
+    exitAfterFlush(1);
+    return;
   }
   const sum = (key) => checks.reduce((total, check) => total + check[key], 0);
   const clsWorst = Math.max(...checks.map((check) => check.cls));
@@ -1096,4 +1134,7 @@ async function main() {
   );
 }
 
-main().catch((error) => die(error.stack || error.message));
+main().catch((error) => {
+  console.error(`browser-gate: ${error.stack || error.message}`);
+  exitAfterFlush(2);
+});
