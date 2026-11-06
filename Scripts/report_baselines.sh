@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: report_baselines v4
+# canon: report_baselines v5
 # Scripts/report_baselines.sh <language|browser|image> [data-dir] (estate issue 300)
 #
 # Renders one gate's baseline data as markdown tables, so what a site has
@@ -50,8 +50,8 @@ cd "$(dirname "$0")/.."
 
 # shellcheck source=Scripts/lib_tmp.sh
 source Scripts/lib_tmp.sh
-OUT_FILE="$(tmp_file report_baselines_out_file)"
-TMPD="$(tmp_dir report_baselines_tmpd)"
+OUT_FILE="$(tmp_file report_baselines_out)"
+TMPD="$(tmp_dir report_baselines)"
 # On bash 3.2 an abort (an unbound variable under set -eu) ends a script with
 # an EXIT trap with status 0. COMPLETED, set as the very last statement, is the
 # only way out with 0: an exit of 0 without it is an abort and becomes exit 1.
@@ -218,7 +218,7 @@ render_language() {
     sentence_file="${TMPD}/sentences.txt"
     : > "$sentence_file"
     if grep -vE '^[[:space:]]*(#|$)' "$base" | awk -F'|' 'NF != 7 { bad = 1 } END { exit bad }'; then
-      if grep -qvE '^[[:space:]]*(#|$)' "$base"; then sentences_for "$base" "$sentence_file"; fi
+      if grep -q . <<< "$(grep -vE '^[[:space:]]*(#|$)' "$base")"; then sentences_for "$base" "$sentence_file"; fi
     fi
     awk -F'|' -v SENT="$sentence_file" "${AWK_COMMON}"'
       skip() { next }

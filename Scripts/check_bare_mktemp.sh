@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: check_bare_mktemp v1 + forsgren#615 (unchecked tmp_dir/tmp_file)
+# canon: check_bare_mktemp v2 + forsgren#615 (unchecked tmp_dir/tmp_file)
 # Scripts/check_bare_mktemp.sh
 #
 # Every temp path honours TMPDIR (the estate sweep; forsgren#612). On
@@ -49,10 +49,6 @@
 #
 # sfl.sh runs it from Scripts/gate_report_order.txt, and so does CI, through
 # Scripts/run_ci_phase.sh.
-#
-# forsgren's copy reads the list of scanned files for the stale-exemption
-# check from a here-string, not a pipe into grep -q (forsgren#428's rule,
-# Scripts/check_pipe_grep_q.sh); the verdicts are the canon's.
 #
 # Local invocation: ./Scripts/check_bare_mktemp.sh
 
