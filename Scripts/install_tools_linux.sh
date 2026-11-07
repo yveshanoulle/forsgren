@@ -12,7 +12,11 @@
 #     anything is unpacked, and the one member the pin names is copied out;
 #   - a Python tool (yamllint) is installed into its own virtual environment
 #     with `pip install --require-hashes --only-binary=:all: --no-deps` from a
-#     requirements file whose every line carries a hash.
+#     requirements file whose every line carries a hash;
+#   - a setup tool (forsgren#642: node and go for the browser jobs) is not
+#     installed here: the job's own pinned setup step installed it before this
+#     one (actions/setup-node from .nvmrc, actions/setup-go from go.mod), and
+#     this script runs it from PATH and holds it to the version that file pins.
 # Nothing is piped into a shell and no package manager is asked for "the
 # newest". After the install each tool is RUN and must report the pinned
 # version: a tool that is present but another version is red, because the hosted
@@ -136,11 +140,41 @@ an unhashed install would trust whatever PyPI serves"
   ln -sf "${venv}/bin/${tool}" "${BIN}/${tool}"
 }
 
+# check_setup <tool> <source>: a tool the job's setup step installed. It must be
+# on PATH and report the version <source> pins: .nvmrc holds Node's major (node
+# --version starts with v<major>.), go.mod's toolchain line the exact Go (go
+# version names it). A source of another name has no version to read: red.
+check_setup() {
+  local tool="$1" src="$2" want reported matched=no
+  command -v "$tool" >/dev/null 2>&1 || die "${tool}: not on PATH — its pin says the job's own setup step \
+installs it (from ${src}), and no such step put it there before this one"
+  case "$(basename "$src")" in
+    .nvmrc)
+      [ -f "$src" ] || die "${tool}: no ${src} to read the Node major from"
+      want="v$(tr -d '[:space:]' < "$src")"
+      reported="$("$tool" --version 2>&1 | head -1)" || true
+      case "$reported" in "${want}."*) matched=yes ;; esac
+      ;;
+    go.mod)
+      want="$(Scripts/go_toolchain.sh "$src")" || die "${tool}: ${src} names no toolchain"
+      reported="$("$tool" version 2>&1 | head -1)" || true
+      case "$reported" in *" ${want} "*) matched=yes ;; esac
+      ;;
+    *) die "${tool}: the setup source ${src} is neither .nvmrc nor go.mod — there is no version to hold it to" ;;
+  esac
+  [ "$matched" = yes ] || die "${tool} reports '${reported}', not the ${want} that ${src} pins: the gates would run another version"
+  echo "✅ ${tool}: ${reported} (installed by the job's setup step, as ${src} pins it)"
+}
+
 for tool in "${tools[@]}"; do
+  kind="$(pin_get "$tool" kind)"
+  if [ "$kind" = setup ]; then
+    check_setup "$tool" "$(pin_get "$tool" source)"
+    continue
+  fi
   version="$(pin_get "$tool" version)"
   [ -n "$version" ] || die "${tool} has no pin in ${PINS_FILE} — there is no pinned Linux build to install, \
 and the gates needing it would run against nothing"
-  kind="$(pin_get "$tool" kind)"
   src="$(pin_get "$tool" source)"
   url="$(pin_get "$tool" release)/$(pin_get "$tool" file)"
   case "$kind" in

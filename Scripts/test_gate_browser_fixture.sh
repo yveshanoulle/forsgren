@@ -127,10 +127,12 @@ FORSGREN_FIXTURE_DIR="${TMP}/nowhere" FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL
 want_exit "8: a fixture site that cannot be built" 2 "the fixture site could not be built"
 
 # Mutation proofs: a copy of the gate in its own root, with the engine, the
-# settings library and node_modules beside it (the gate changes into its root).
+# libraries the gate sources (read from it, so a library it gains comes along,
+# forsgren#642) and node_modules beside it (the gate changes into its root).
 GATE_ROOT="${TMP}/gateroot"
 mkdir -p "${GATE_ROOT}/Scripts"
-cp Scripts/lib_site_settings.sh Scripts/browser_gate.mjs Scripts/site_settings.txt "${GATE_ROOT}/Scripts/"
+cp Scripts/browser_gate.mjs Scripts/site_settings.txt "${GATE_ROOT}/Scripts/"
+while IFS= read -r lib; do cp "$lib" "${GATE_ROOT}/Scripts/"; done < <(sed -n 's#^source \(Scripts/lib_[a-z_]*\.sh\)$#\1#p' "$GATE")
 ln -s "${REPO_ROOT}/node_modules" "${GATE_ROOT}/node_modules"
 MUTANT="${GATE_ROOT}/Scripts/gate_browser_fixture.sh"
 

@@ -6,13 +6,19 @@
 #   <tool>|<field>|<value>
 #
 #   version  the version the tool must report after it is installed
-#   kind     archive, or pip (yamllint is Python, with no standalone binary)
+#   kind     archive, pip (yamllint is Python, with no standalone binary), or
+#            setup (forsgren#642): installed by the job's own pinned setup
+#            step before the installer runs, never downloaded here
 #   release  archive: the release's download directory (a URL)
 #   file     archive: the x86_64 Linux file in it; release/file is downloaded
 #   source   pip: a requirements file with --hash lines
 #   sha256   archive only: the sha256 of that file. Nothing is installed
 #            when the checksum differs.
 #   member   archive only: the path of the tool inside the .tar.gz
+#   source   setup: the file the setup step reads its version from (.nvmrc
+#            for actions/setup-node, go.mod for actions/setup-go); the tool
+#            must report that version. A setup tool has no version row: the
+#            file is the one place its version is written.
 #
 # VERSIONS equal what Homebrew installs on the Mac today (read with
 # `brew list --versions`, 2026-10-26): actionlint 1.7.12, shellcheck 0.11.0,
@@ -47,3 +53,9 @@ zizmor|member|zizmor
 yamllint|version|1.38.0
 yamllint|kind|pip
 yamllint|source|Scripts/linux_yamllint_requirements.txt
+# node and go for the browser jobs (forsgren#642): actions/setup-node and
+# actions/setup-go install them in the job, from the files below.
+node|kind|setup
+node|source|.nvmrc
+go|kind|setup
+go|source|go.mod

@@ -198,11 +198,11 @@ fi
 # (forsgren#269), and up to 167 for the temp helper self-test, the bare mktemp
 # self-test and the bare mktemp gate (forsgren#612), and up to 168 for the tmp
 # failure stops self-test (forsgren#615), and up to 169 for the local hook
-# self-test (forsgren#290), and up to 170 for the FBP forwarder self-test (forsgren#627), and up to 171 for the TBD tables browser self-test (forsgren#626), and up to 173 for the default TBD fixture self-test and gate (forsgren#626).
+# self-test (forsgren#290), and up to 170 for the FBP forwarder self-test (forsgren#627), and up to 171 for the TBD tables browser self-test (forsgren#626), and up to 173 for the default TBD fixture self-test and gate (forsgren#626), and up to 174 for the browser gate baseline choice self-test (forsgren#642).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=173
+MIN_GATES=174
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -926,6 +926,19 @@ the Lint gates job would have no way to install a tool"
         || fail "${base} holds the parallel mutants helper and Scripts/test_gate_browser.sh never sources it"
       order_names "test_lib_parallel_mutants.sh" \
         || fail "Scripts/test_lib_parallel_mutants.sh is not an order-file row — the parallel mutants helper would be unproven"
+      ;;
+
+    # SOURCED HELPER, not a gate (forsgren#642): which baseline file the two
+    # browser gates read on this platform (Darwin the macOS file, Linux the
+    # _linux one). Both gates must still source it, and its self-test is an
+    # order-file row.
+    lib_browser_baseline.sh)
+      for consumer in gate_browser.sh gate_browser_fixture.sh; do
+        runs_script "Scripts/${consumer}" "$base" \
+          || fail "${base} picks the baseline of the platform and Scripts/${consumer} never sources it"
+      done
+      order_names "test_gate_browser_baseline.sh" \
+        || fail "Scripts/test_gate_browser_baseline.sh is not an order-file row — the baseline choice would be unproven"
       ;;
 
     *)

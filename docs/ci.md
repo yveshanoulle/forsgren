@@ -62,7 +62,9 @@ the `lint` job.
 `quality_2` takes `Scripts/required_tools_quality_2_gates.txt` (go, node, jq),
 `browser_1` and `browser_2` take `Scripts/required_tools_browser_1_gates.txt`
 and `Scripts/required_tools_browser_2_gates.txt` (node), and `browser_3` takes
-`Scripts/required_tools_browser_3_gates.txt` (go, node; forsgren#641). Each list
+`Scripts/required_tools_browser_3_gates.txt` (go, node; forsgren#641); since
+forsgren#642 the three browser jobs run on Linux and pass their list to
+`Scripts/install_tools_linux.sh` instead (see the browser jobs below). Each list
 was read from the scripts of the job's rows in `Scripts/ci_job_groups.txt` and
 the scripts those call. A tool a gate needs and its list lacks is not skipped:
 the gate fails with `command not found`. `Scripts/test_quality_jobs.sh` pins
@@ -80,9 +82,9 @@ never in none. The file names the groups below; the job ids are the keys of
 |---|---|---|---|
 | `quality` (Quality gates) | macOS | `Scripts/required_tools_quality_gates.txt` (gitleaks, go, jq, languagetool, node) | every gate no group names: the language gate, the secret scan, the site build and the POST gates, the long tail of small gates |
 | `quality_2` (Quality gates 2/2) | macOS | `Scripts/required_tools_quality_2_gates.txt` (go, node, jq) | Go tests and Go coverage, golden pages, and the slower self-tests, among them the exit-trap completion behaviour |
-| `browser_1` (Browser gates 1/3) | macOS | `Scripts/required_tools_browser_1_gates.txt` (node) | the browser gate self-test, shard 1/2 |
-| `browser_2` (Browser gates 2/3) | macOS | `Scripts/required_tools_browser_2_gates.txt` (node) | the browser gate self-test, shard 2/2, and the browser gate process self-test |
-| `browser_3` (Browser gates 3/3) | macOS | `Scripts/required_tools_browser_3_gates.txt` (go, node) | the fixture-site self-test, the browser gate and the fixture-site gate, with its own site build |
+| `browser_1` (Browser gates 1/3) | Linux | `Scripts/required_tools_browser_1_gates.txt` (node) | the browser gate self-test, shard 1/2 |
+| `browser_2` (Browser gates 2/3) | Linux | `Scripts/required_tools_browser_2_gates.txt` (node) | the browser gate self-test, shard 2/2, and the browser gate process self-test |
+| `browser_3` (Browser gates 3/3) | Linux | `Scripts/required_tools_browser_3_gates.txt` (go, node) | the fixture-site self-test, the browser gate and the fixture-site gate, with its own site build |
 | `lint` (Lint gates) | Linux | `Scripts/required_tools_linux.txt` | actionlint, shellcheck, yamllint, zizmor and Go lint, each with its self-test, and the Go test duplication gate |
 | `workflows` (Workflow gates) | Linux | `Scripts/required_tools_linux_gates.txt` | the gates that read only workflows and scripts, go mod tidy, three Go self-tests and eleven Linux-safe self-tests of the main job |
 | `isolation_1`, `isolation_2` | Linux | `Scripts/required_tools_linux_gates.txt` | the git sandbox isolation self-test, one shard each |
@@ -94,17 +96,15 @@ never in none. The file names the groups below; the job ids are the keys of
 gitleaks) and the language gate (`sandbox-exec`, LanguageTool and its Java), and
 builds the site its POST gates read. `quality_2` holds the exit-trap completion
 behaviour gate, which proves the idiom against bash 3.2, the bash a Mac runs
-scripts with. The three browser jobs open the hosted macOS image's Chrome. Every
-other gate reads files with bash, awk, sed, grep and jq, or runs Go, and ran
-the same on Linux when it was moved. Quality starts 5 macOS gate jobs together
-(`quality`, `quality_2`, `browser_1`, `browser_2`, `browser_3`; forsgren#641),
-GitHub's limit of 5: a macOS job of another workflow of the account that
-starts at the same moment waits for a slot, and so does `preview`, which
-starts only after every gate job.
+scripts with. Every other gate reads files with bash, awk, sed, grep and jq,
+runs Go, or opens Chrome (the three browser jobs, on Linux since forsgren#642),
+and runs on Linux. Quality starts 2 macOS gate jobs together (`quality` and
+`quality_2`), under GitHub's limit of 5 macOS jobs at once for the account;
+`preview`, the third macOS job, starts only after every gate job.
 
 **The tools check is derived.** `Scripts/test_quality_jobs.sh` reads the scripts
 of each job's gates and the `Scripts/*.sh` those call, transitively (the
-closure of `Scripts/lib_gate_select.sh`), and is red when a gate of a macOS job
+closure of `Scripts/lib_gate_select.sh`), and is red when a gate of a listed job
 names a tool of `Scripts/required_tools.txt` that the job's own list lacks. A
 tool needed two calls deep, such as go through `Scripts/build_fixture_site.sh`,
 is therefore found. The main job's ~110 gates name the lint tools as text (a
@@ -252,9 +252,9 @@ isolation jobs and of the summary job too, and the `preview` job `needs:` them.
 shellcheck, yamllint and zizmor with their self-tests) runs on `ubuntu-latest`,
 not `macos-latest`: these tools behave the same on Linux and read files only, and
 a Linux runner starts without the queue GitHub warns of for macOS arm64. Since
-forsgren#447 five more jobs run on Linux (below); the gate jobs that stay on
-macOS are the ones where the language gate needs `sandbox-exec`, the gates meet
-bash 3.2 and BSD tools, and the browser gates meet Chrome. The job
+forsgren#447 five more jobs run on Linux (below), and since forsgren#642 the
+three browser jobs; the gate jobs that stay on macOS are the ones where the
+language gate needs `sandbox-exec` and the gates meet bash 3.2 and BSD tools. The job
 keeps the steps of the others, but its Install tools step is
 `Scripts/install_tools_linux.sh Scripts/required_tools_linux.txt` (the estate's
 `Scripts/install_tools.sh` stays the Homebrew installer, unchanged), which installs the
@@ -284,15 +284,17 @@ gates need nothing of macOS now run on `ubuntu-latest`: `workflows`,
 jobs. Quality then starts 4 macOS gate jobs together (`quality`, `quality_2`,
 `browser_1` and `browser`), one slot under the limit, and the `preview` job,
 the fifth macOS job, starts only after every gate job (since forsgren#641 the
-browser gates are three jobs, so 5 macOS gate jobs start together, at the
-limit, and `preview` is the sixth). The runner pins gate is
+browser gates are three jobs, so 5 macOS gate jobs started together, at the
+limit, and `preview` was the sixth; since forsgren#642 the three browser jobs
+run on Linux, so 2 macOS gate jobs start together and `preview` is the
+third). The runner pins gate is
 red on a Linux job back on macOS, a macOS job on Linux, another image, and on
 more than 5 `macos-latest` jobs with no `needs:`. What stays on macOS and why:
 the main job holds the secret scan (Homebrew's gitleaks), the language gate
 (`sandbox-exec`, LanguageTool and its Java) and the site build its POST gates
 read; `quality_2` holds the exit-trap completion behaviour gate, which proves
-the idiom against bash 3.2, the bash a Mac runs scripts with; the three browser
-jobs open the hosted image's Chrome. What moved and why it can: the `workflows`
+the idiom against bash 3.2, the bash a Mac runs scripts with. What moved and
+why it can: the `workflows`
 gates read the workflows and scripts with bash, awk, sed and grep, run the
 steps' scripts against stubs and build forsgren with Go, and the workflows they
 pin run on `ubuntu-latest` themselves (except Quality); the git sandbox
@@ -391,10 +393,39 @@ s of the weights file, about 393 s each on the runner's two side-by-side slots.
 built site. `browser_3` runs its PRE row, builds its own site with
 `Scripts/build_site.sh`, then runs its POST rows, all with the job name
 `browser_3`; the fixture-site self-test and gate build the fixture site
-themselves, hence go in its tools list. The setup is the main job's (the hosted
-image's Chrome, puppeteer-core and axe-core from `npm ci`). The order file is
-unchanged. The report job's status takes the three results, and the `preview`
-job `needs:` all three.
+themselves, hence go in its tools list. The report job's status takes the three
+results, and the `preview` job `needs:` all three. The times above were
+measured on macOS.
+
+**The browser jobs run on Linux** (forsgren#642). The three browser jobs run on
+`ubuntu-latest` with the Linux jobs' setup: `actions/setup-go` from `go.mod`,
+the gate environment (`GOTOOLCHAIN` only, no Homebrew prefixes),
+`actions/setup-node` from `.nvmrc`, then
+`Scripts/install_tools_linux.sh Scripts/required_tools_browser_<n>_gates.txt`,
+where node and go are setup tools (`Scripts/linux_tool_pins.txt`, kind
+`setup`): nothing is downloaded, the installer runs the one the setup step put
+on PATH and holds it to the version `.nvmrc` or `go.mod` pins, and then `npm ci`.
+Chrome is the hosted image's: the runner-images Ubuntu readme lists "Google
+Chrome" and "Chromium" under "Browsers and Drivers", and the image installs
+Google Chrome from its `.deb` (`/usr/bin/google-chrome`) and links Chromium as
+`/usr/bin/chromium`; `Scripts/browser_gate.mjs` tries the macOS path, then
+`/usr/bin/google-chrome`, so it opens Google Chrome there with no change.
+**A baseline per platform.** The browser baselines hold widths in px, and fonts
+render differently on Linux than on macOS, so one file cannot hold both.
+`Scripts/gate_browser.sh` and `Scripts/gate_browser_fixture.sh` pick their
+default baseline with `Scripts/lib_browser_baseline.sh` by `uname -s`: Darwin
+(the local FBP) reads `Scripts/browser_gate_baseline.txt` and
+`Scripts/browser_gate_fixture_baseline.txt`, Linux reads
+`Scripts/browser_gate_baseline_linux.txt` and
+`Scripts/browser_gate_fixture_baseline_linux.txt`, and any other platform stops
+the gate with exit 2, never a guess. Both follow the same rules: an exact match,
+shrink-only, a reason on every row, a row only by a ruling. The Linux files are
+filled from the widths the first Quality run on `ubuntu-latest` measures
+(forsgren#642, step 2 fills them): that run is red on `Browser gates 3/3` by
+design, its FAIL lines naming each Linux width, and the owner rules on the rows.
+Its self-test
+`Scripts/test_gate_browser_baseline.sh` runs each wrapper with `uname` and
+`node` faked on PATH.
 The `lint` job (forsgren#282) runs actionlint, shellcheck, yamllint and zizmor
 with their self-tests, the lint rows of the order file's static block, with the
 same setup and the job name `lint`, so a lint finding is its own red check on
@@ -801,7 +832,8 @@ Nine PRE gates keep the CI honest:
   the GitHub-hosted image it names, `ubuntu-latest` for the Linux jobs and
   `macos-latest` for the others (a hosted image is what makes the
   pull-request trigger safe), with at most 5 `macos-latest` jobs starting
-  together (forsgren#447).
+  together (forsgren#447); since forsgren#642 the three browser jobs are Linux
+  jobs too, so 2 macOS gate jobs start together.
 - **workflow triggers** (`Scripts/check_workflow_triggers.sh`, forsgren's
   own): no workflow in `.github/workflows` triggers on `pull_request`,
   `pull_request_target`, `pull_request_review` or

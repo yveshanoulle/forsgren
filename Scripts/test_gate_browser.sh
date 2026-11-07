@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v30
+# canon: test_gate_browser v30 + forsgren#642 (proof S copies the libraries the wrapper sources, read from it)
 # v30 adds (forsgren#641): --shard N/M runs only the cases and proofs that Scripts/lib_isolation_shard.sh deals to shard N of M by the seconds of Scripts/browser_gate_selftest_weights.txt (case 8 with 19 to 21 and proof B, which read the CLS it measures; the cases of SERIAL_CASES with the proofs R, Rb, S, X, Z and Dh, one unit), so a CI can run it in several jobs, every case in exactly one; --list prints the cases and proofs a run would start, one per line, and stops before it needs Chrome; without --shard every case runs, as before; a repository without the library refuses --shard (exit 64)
 # v29 adds (forsgren#636): case 53f, Chrome killed during the launch while a helper of its process group holds its pipe (its command pipe a FIFO nobody writes, so the launch is surely still on), ends the run within 10 s with `FAIL: browser gate: Chrome died during the launch (PID <pid>, exit <code> | signal <signal>)`, no Chrome, no profile (browser_gate v17); mutation proof Dh, the engine not hearing Chrome's process end, still runs 10 s after the kill; moved from the browser gate process self-test (its v4 case 53f and proof D), so the sites test the engine's newest behaviour; a signal case may take a bound of its own (SIG_WAIT_S, 20 s by default), named in its reason; the file names no path that only forsgren has (a comment named the process self-test's path, and a site's script-references gate, which reads comments, found it unresolved)
 # v28 fixes (forsgren#630, step 2): proof S asserts the Chrome the mutation leaves alive, never whether node still held its pipe when the wait began (timing: at load ~6 node had closed it in 2 of 3 runs, and the proof failed with Chrome alive); either branch of the wait ends within 10 s (SIG_GONE_BOUND, as proof Rb sets its bound)
@@ -2123,7 +2123,10 @@ mutant_rb() {
 mutant_s() {
   local wmut="${MUTANT_DIR}/wmut"
   mkdir -p "${wmut}/Scripts"
-  cp Scripts/browser_gate.mjs Scripts/lib_site_settings.sh Scripts/lib_tmp.sh "${wmut}/Scripts/"
+  cp Scripts/browser_gate.mjs "${wmut}/Scripts/"
+  # The libraries the wrapper sources, read from it, so a library it gains comes
+  # along (forsgren#642: lib_browser_baseline.sh).
+  while IFS= read -r lib; do cp "$lib" "${wmut}/Scripts/"; done < <(sed -n 's#^source \(Scripts/lib_[a-z_]*\.sh\)$#\1#p' Scripts/gate_browser.sh)
   ln -s "${REPO_ROOT}/node_modules" "${wmut}/node_modules"
   if selftest_mutant Scripts/gate_browser.sh "${wmut}/Scripts/gate_browser.sh" 's/if \[\[ -n "[$]NODE_PID" \]\]; then/if false; then/'; then
     SIG_GONE_BOUND=10

@@ -365,8 +365,10 @@ Seven PRE gates read the repository's own scripts and files:
   push or `pull_request` trigger on `main`, any `paths` or `paths-ignore` on
   either, a `pull_request_target`, no `workflow_dispatch`, any job off the
   image it names (`ubuntu-latest` for `lint`, `workflows`, `report`,
-  `summary`, `isolation_1` and `isolation_2`, `macos-latest` for the others,
-  forsgren#447), and more than 5 `macos-latest` jobs with no `needs:`; each is
+  `summary`, `isolation_1` and `isolation_2`, forsgren#447, and the three
+  browser jobs `browser_1`, `browser_2` and `browser_3`, forsgren#642,
+  `macos-latest` for the others, so 2 macOS gate jobs start together), and
+  more than 5 `macos-latest` jobs with no `needs:`; each is
   proven against a synthetic workflow that must be rejected.
 - **stray tracked files** (`Scripts/test_no_stray_tracked_files.sh`,
   another estate repository's): red on a tracked `.DS_Store` at any depth, and on a
@@ -819,6 +821,20 @@ The POST gates, on the generated site:
   (`Scripts/browser_gate_baseline.txt`) holds one sideways row (the settings
   table at 390x844) and the exceptions (`Scripts/browser_gate_exceptions.txt`)
   have no rows; a missing file is exit 2.
+  A baseline per platform (forsgren#642): the widths are px, and fonts render
+  differently on Linux, where Quality's browser jobs run (`ubuntu-latest`), than
+  on macOS, where the local FBP runs. Without a fourth argument the wrapper
+  picks its baseline with `Scripts/lib_browser_baseline.sh` by `uname -s`:
+  `Scripts/browser_gate_baseline.txt` on Darwin,
+  `Scripts/browser_gate_baseline_linux.txt` on Linux, and exit 2 naming any
+  other platform, never the macOS file as a guess. The Linux file follows the
+  same rules and is filled from the widths the first Quality run on
+  `ubuntu-latest` measures (forsgren#642, step 2 fills it; that run is red on
+  `Browser gates 3/3` by design). The self-test
+  `Scripts/test_gate_browser_baseline.sh` (forsgren only) runs both wrappers
+  with `uname` and `node` faked on PATH: Darwin, Linux, another platform and a
+  given baseline, with 2 mutation proofs (a wrapper that always reads the macOS
+  file, a library that falls back to it on an unknown platform).
   axe-core is an automated gate, not proof of WCAG conformance. No new workflow,
   trigger, secret or permission.
 
@@ -837,10 +853,12 @@ The POST gates, on the generated site:
   the fixture cannot go back to the placeholder. This gate then runs the browser
   gate's engine (`Scripts/browser_gate.mjs`) on that site: the same checks, the
   same manifest, exceptions and variants, and its own shrink-only baseline,
-  `Scripts/browser_gate_fixture_baseline.txt` (only a ruling adds a row: today
-  the sideways rows of decision #364, every table but the TBD one;
-  `Scripts/report_baselines.sh browser` shows it on the Quality page). The
-  canon `gate_browser.sh` is unchanged. The fixture build is checked by cases 20
+  `Scripts/browser_gate_fixture_baseline.txt` on macOS (only a ruling adds a row:
+  today the sideways rows of decision #364, every table but the TBD one;
+  `Scripts/report_baselines.sh browser` shows it on the Quality page) and
+  `Scripts/browser_gate_fixture_baseline_linux.txt` on Linux (forsgren#642, the
+  same choice as the browser gate's above). The canon `gate_browser.sh` is
+  unchanged but for that choice. The fixture build is checked by cases 20
   to 36 of `Scripts/test_build_site.sh`, the gate by its self-test (the data site
   clean, a finding only on a data page, the baseline, stale rows, exit 2 cases,
   the default build, mutation proofs H and I).

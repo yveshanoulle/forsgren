@@ -874,6 +874,14 @@ browser gate|Scripts/gate_browser.sh|post|
 browser gate (fixture site) self-test|Scripts/test_gate_browser_fixture.sh|pre|
 browser gate (fixture site)|Scripts/gate_browser_fixture.sh|post|
 #
+# Which baseline the two browser gates read (forsgren#642, forsgren only, not
+# canon): the widths are measured in px and fonts render differently on macOS and
+# on Linux, so Scripts/lib_browser_baseline.sh picks the macOS file on Darwin and
+# the _linux file on Linux, and refuses any other platform. This self-test runs
+# each wrapper with uname and node faked on PATH, no Chrome, with 2 mutation
+# proofs. Pre: it needs no built site.
+browser gate baseline choice self-test|Scripts/test_gate_browser_baseline.sh|pre|
+#
 # The TBD page has two tables and an overflow of table 2 (Integration) is red on its
 # own at both widths (forsgren#626, forsgren only, not canon). Needs no built site.
 browser gate (TBD tables) self-test|Scripts/test_gate_browser_tbd_tables.sh|pre|

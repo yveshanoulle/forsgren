@@ -11,7 +11,7 @@
 # run bash, awk, sed and grep; they install the same two only so the four jobs
 # share one setup. go, node, jq, git and python3 ship with the hosted Linux
 # image (Node from actions/setup-node). actionlint and zizmor belong to the
-# lint job alone, and gitleaks, languagetool and Chrome to gates that stay on
-# macOS.
+# lint job alone, and gitleaks and languagetool to gates that stay on macOS.
+# The browser jobs (forsgren#642) read their own lists.
 shellcheck
 yamllint

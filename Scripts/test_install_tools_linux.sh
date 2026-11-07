@@ -20,15 +20,23 @@ cd "$(dirname "$0")/.."
 #   5. an empty tool list is red (a list that went empty must not read as done)
 #   6. a CPU other than x86_64 is red, naming it
 #   7. a requirements file with no --hash line is red
-#   8. the real pin list: a row per tool of Scripts/required_tools_linux.txt and
-#      of Scripts/required_tools_linux_gates.txt (forsgren#447, step 3),
-#      each with a version that is in its URL, a 64-hex sha256, an https GitHub
-#      release URL, and a requirements file with hashes; and each tool of the
-#      Linux list is also in the Homebrew list, so the two machines install the
-#      same tools
-# MUTATION PROOF: the installer with its checksum comparison removed, and with
-# its version check removed, ACCEPTS the corresponding bad fixture, so cases 2
-# and 3 are what stands between a wrong build and the gates.
+#   8. the real pin list: a row per tool of Scripts/required_tools_linux.txt, of
+#      Scripts/required_tools_linux_gates.txt (forsgren#447, step 3) and of the
+#      three browser jobs' lists (forsgren#642), each archive with a version
+#      that is in its URL, a 64-hex sha256 and an https GitHub release URL, each
+#      pip tool with a requirements file with hashes, each setup tool with a
+#      source the installer knows (.nvmrc or go.mod) that exists; and each tool
+#      of a Linux list is also in the Homebrew list, so the two machines install
+#      the same tools
+#  10. a setup tool (forsgren#642: node from actions/setup-node, go from
+#      actions/setup-go, installed by the job before the installer runs): it is
+#      run from PATH and must report the version its source pins (.nvmrc's
+#      major, go.mod's toolchain line); another version is red, naming both; a
+#      setup tool not on PATH is red; a source the installer does not know is red
+# MUTATION PROOF: the installer with its checksum comparison removed, with its
+# version check removed, and with the version check of a setup tool removed,
+# ACCEPTS the corresponding bad fixture, so cases 2, 3 and 10 are what stands
+# between a wrong build and the gates.
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
@@ -180,7 +188,9 @@ want_red "is red for a requirements file with no --hash line" "carries no --hash
 # --- Case 8: the real pin list, for each Linux tool list: the lint job's and the
 # one of the other Linux gate jobs (forsgren#447, step 3).
 PINS=Scripts/linux_tool_pins.txt
-for LIST in Scripts/required_tools_linux.txt Scripts/required_tools_linux_gates.txt; do
+for LIST in Scripts/required_tools_linux.txt Scripts/required_tools_linux_gates.txt \
+  Scripts/required_tools_browser_1_gates.txt Scripts/required_tools_browser_2_gates.txt \
+  Scripts/required_tools_browser_3_gates.txt; do
   [[ -f "$LIST" ]] || selftest_abort "${LIST} does not exist"
   real_tools=()
   while IFS= read -r line || [[ -n "$line" ]]; do
@@ -194,11 +204,17 @@ for LIST in Scripts/required_tools_linux.txt Scripts/required_tools_linux_gates.
   for t in "${real_tools[@]}"; do
     version="$(pin "$t" version)"
     kind="$(pin "$t" kind)"
-    if [[ -z "$version" ]]; then
+    if [[ "$kind" == setup ]]; then
+      src="$(pin "$t" source)"
+      case "$(basename "$src")" in
+        .nvmrc | go.mod) [[ -f "$src" ]] || fail "${t}: the setup source ${src} does not exist" ;;
+        *) fail "${t}: the setup source '${src}' is neither .nvmrc nor go.mod" ;;
+      esac
+      [[ -z "$version" ]] || fail "${t}: a setup tool takes its version from ${src}, not from a version row"
+    elif [[ -z "$version" ]]; then
       fail "${t} (in ${LIST}) has no pin in ${PINS}"
       continue
-    fi
-    if [[ "$kind" == archive ]]; then
+    elif [[ "$kind" == archive ]]; then
       url="$(pin "$t" release)/$(pin "$t" file)"
       sha="$(pin "$t" sha256)"
       gh_release='^https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/releases/download/v'
@@ -214,8 +230,8 @@ for LIST in Scripts/required_tools_linux.txt Scripts/required_tools_linux_gates.
         fail "${reqs}: a requirement is not pinned with =="
       fi
       grep -q -- '--hash=sha256:[0-9a-f]\{64\}' "$reqs" || fail "${t}: ${reqs} carries no sha256 hash"
-    else
-      fail "${t}: kind '${kind}' is neither archive nor pip"
+    elif [[ "$kind" != setup ]]; then
+      fail "${t}: kind '${kind}' is neither archive, pip nor setup"
     fi
     grep -qxF "$t" <(grep -v '^#' Scripts/required_tools.txt | tr -d ' ') \
       || fail "${t} is in ${LIST} but not in Scripts/required_tools.txt: the machines would install different tools"
@@ -230,13 +246,53 @@ selftest_mutant "$INSTALLER" "${TMP}/abort/Scripts/install_tools_linux.sh" \
 RUN_INSTALLER="${TMP}/abort/Scripts/install_tools_linux.sh" run_installer "${TMP}/pins_good.txt" "${TMP}/tools4.txt"
 want_red "an unexpected abort after the cleanup trap is set exits non-zero" "aborted before completing"
 
+# --- Case 10: the setup tools (forsgren#642), stubbed on PATH: node prints
+# FAKE_NODE_VERSION for --version, go prints FAKE_GO_VERSION for `version`.
+STUBS="${TMP}/stubs"
+mkdir -p "${STUBS}" "${FIX}/src"
+cat > "${STUBS}/node" <<'S'
+#!/usr/bin/env bash
+[ "${1:-}" = --version ] && echo "${FAKE_NODE_VERSION:-v26.13.0}"
+S
+cat > "${STUBS}/go" <<'S'
+#!/usr/bin/env bash
+[ "${1:-}" = version ] && echo "go version ${FAKE_GO_VERSION:-go1.27.3} linux/amd64"
+S
+chmod 755 "${STUBS}/node" "${STUBS}/go"
+printf '26\n' > "${FIX}/src/.nvmrc"
+printf 'module example.invalid/m\n\ngo 1.27\n\ntoolchain go1.27.3\n' > "${FIX}/src/go.mod"
+printf 'node|kind|setup\nnode|source|%s\ngo|kind|setup\ngo|source|%s\n' "${FIX}/src/.nvmrc" "${FIX}/src/go.mod" > "${TMP}/pins_setup.txt"
+printf 'go\nnode\n' > "${TMP}/tools_setup.txt"
+SETUP_PATH="PATH=${STUBS}:${PATH}"
+run_installer "${TMP}/pins_setup.txt" "${TMP}/tools_setup.txt" "$SETUP_PATH"
+want_green "10: the setup tools report the versions their sources pin" "OK: 2 required tools present"
+want_said "  ... node is checked against .nvmrc" "node: v26.13.0 (installed by the job's setup step, as ${FIX}/src/.nvmrc pins it)"
+want_said "  ... go is checked against go.mod" "go: go version go1.27.3 linux/amd64 (installed by the job's setup step, as ${FIX}/src/go.mod pins it)"
+run_installer "${TMP}/pins_setup.txt" "${TMP}/tools_setup.txt" "$SETUP_PATH" FAKE_NODE_VERSION=v24.1.0
+want_red "10b: a setup node of another major" "node reports 'v24.1.0', not the v26 that ${FIX}/src/.nvmrc pins"
+run_installer "${TMP}/pins_setup.txt" "${TMP}/tools_setup.txt" "$SETUP_PATH" FAKE_GO_VERSION=go1.26.0
+want_red "10c: a setup go of another toolchain" "go reports 'go version go1.26.0 linux/amd64', not the go1.27.3 that ${FIX}/src/go.mod pins"
+printf 'nosuchtool|kind|setup\nnosuchtool|source|%s\n' "${FIX}/src/.nvmrc" > "${TMP}/pins_nosuch.txt"
+printf 'nosuchtool\n' > "${TMP}/tools_nosuch.txt"
+run_installer "${TMP}/pins_nosuch.txt" "${TMP}/tools_nosuch.txt" "$SETUP_PATH"
+want_red "10d: a setup tool that is not on PATH" "nosuchtool: not on PATH"
+printf 'node|kind|setup\nnode|source|%s\n' "${FIX}/reqs.txt" > "${TMP}/pins_badsrc.txt"
+printf 'node\n' > "${TMP}/tools_node.txt"
+run_installer "${TMP}/pins_badsrc.txt" "${TMP}/tools_node.txt" "$SETUP_PATH"
+want_red "10e: a setup source the installer does not know" "node: the setup source ${FIX}/reqs.txt is neither .nvmrc nor go.mod"
+
 # --- Mutation proof: a blind installer accepts the bad fixture.
 MROOT="${TMP}/mut"
 mkdir -p "${MROOT}/Scripts"
 mutant_accepts() {
-  local label="$1" expr="$2" pins="$3"
+  local label="$1" expr="$2" pins="$3" tools="${TMP}/tools4.txt"
+  shift 3
+  if [[ "$#" -gt 0 ]]; then
+    tools="$1"
+    shift
+  fi
   if selftest_mutant "$INSTALLER" "${MROOT}/Scripts/install_tools_linux.sh" "$expr"; then
-    RUN_INSTALLER="${MROOT}/Scripts/install_tools_linux.sh" run_installer "$pins" "${TMP}/tools4.txt"
+    RUN_INSTALLER="${MROOT}/Scripts/install_tools_linux.sh" run_installer "$pins" "$tools" "$@"
     if [[ "$RC" -eq 0 ]]; then
       echo "  ok: mutation proof: ${label}"
     else
@@ -248,6 +304,9 @@ mutant_accepts "an installer that does not compare the checksum accepts a wrong 
   's/^  \[ "[$]got" = "[$]want" \] || die .*$/  true/' "${TMP}/pins_badsum.txt"
 mutant_accepts "an installer that does not read the version accepts another one" \
   's/^    \*"[$]{version}"\*) echo/    *) echo/' "${TMP}/pins_oldver.txt"
+mutant_accepts "an installer that does not read a setup tool's version accepts another major" \
+  's/^  \[ "[$]matched" = yes \] || die .*$/  true/' "${TMP}/pins_setup.txt" "${TMP}/tools_node.txt" \
+  "$SETUP_PATH" FAKE_NODE_VERSION=v24.1.0
 
 selftest_end "the Linux tool install is not what the pins promise" \
   "the Linux tool install installs only the pinned, verified builds (and each wrong shape is still detected)"

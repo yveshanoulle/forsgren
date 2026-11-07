@@ -1,6 +1,8 @@
 # Tools the browser_1 job of quality.yml needs (forsgren#447, step 4), one per
-# line. Read by Scripts/install_tools.sh, which the job runs with this file in
-# place of Scripts/required_tools.txt; sfl.sh keeps the full list.
+# line. Read by Scripts/install_tools_linux.sh on ubuntu-latest (forsgren#642),
+# which holds each to its pin in Scripts/linux_tool_pins.txt: node is a setup
+# tool, installed by the job's actions/setup-node and held to .nvmrc. sfl.sh
+# keeps the full list of Scripts/required_tools.txt.
 #
 # ONLY what its gate runs: the browser gate self-test --shard 1/2
 # (Scripts/test_gate_browser.sh, forsgren#641), which drives

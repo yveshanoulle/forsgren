@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: gate_browser v5
+# canon: gate_browser v5 + forsgren#642 (the default baseline per platform, Scripts/lib_browser_baseline.sh)
 # v5 (estate issue 629, step 2): a non-zero end always names its reason: an engine killed by a signal, or one that ended with no FAIL line, gets one from the wrapper; the engine (browser_gate v16) flushes its output before it exits
 # v4 merges the two lines of the canon (estate issue 629): v3 (the exit-trap idiom of forsgren#381, temp names through lib_tmp.sh) and the sites' v2 (the same idiom as the local fix of site issue 34, with plain mktemp); the wrapper is v3 as it was
 # Scripts/gate_browser.sh (forsgren#205)
@@ -14,8 +14,10 @@
 #
 # Usage: gate_browser.sh [site-dir [manifest [exceptions [baseline [variants]]]]]
 # Defaults: site_dir and required_pages_manifest of Scripts/site_settings.txt,
-# Scripts/browser_gate_exceptions.txt, Scripts/browser_gate_baseline.txt (the
-# shrink-only baseline of estate issue 305) and Scripts/browser_gate_variants.txt
+# Scripts/browser_gate_exceptions.txt, the shrink-only baseline of estate issue
+# 305 of this platform (forsgren#642: Scripts/browser_gate_baseline.txt on
+# macOS, Scripts/browser_gate_baseline_linux.txt on Linux, any other platform
+# exit 2; fonts render differently, so the widths differ) and Scripts/browser_gate_variants.txt
 # (the looks of the site, each checked on its own). A missing file is exit 2, never a
 # guess. Chrome is the one installed (FORSGREN_CHROME names another); none is
 # exit 2.
@@ -71,7 +73,12 @@ if [[ -z "$MANIFEST" ]]; then
   MANIFEST="$(site_settings_get Scripts/site_settings.txt required_pages_manifest)" || exit 2
 fi
 EXCEPTIONS="${3:-Scripts/browser_gate_exceptions.txt}"
-BASELINE="${4:-Scripts/browser_gate_baseline.txt}"
+# shellcheck source=Scripts/lib_browser_baseline.sh
+source Scripts/lib_browser_baseline.sh
+BASELINE="${4:-}"
+if [[ -z "$BASELINE" ]]; then
+  BASELINE="$(browser_baseline Scripts/browser_gate_baseline.txt Scripts/browser_gate_baseline_linux.txt)" || exit 2
+fi
 VARIANTS="${5:-Scripts/browser_gate_variants.txt}"
 
 if ! command -v node >/dev/null 2>&1; then

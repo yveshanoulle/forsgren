@@ -171,15 +171,27 @@ Run `./sfl.sh pre` (or `./FBP.sh`) and the tools install themselves.
 `Scripts/required_tools.txt` lists them, and `Scripts/install_tools.sh` installs
 each missing one with Homebrew and upgrades the ones already there. Homebrew
 must already be installed. Only the tools the quality gates use are listed.
-In CI every macOS gate job installs only what its gates need, from its own
+In CI every gate job installs only what its gates need, from its own
 list (the installer's optional argument): the main job from
 `Scripts/required_tools_quality_gates.txt` (the full list less the four lint
-tools, forsgren#591), and the `quality_2`, `browser_1`, `browser_2` and
-`browser_3` jobs from `Scripts/required_tools_quality_2_gates.txt`,
+tools, forsgren#591) and the `quality_2` job from
+`Scripts/required_tools_quality_2_gates.txt`, both on macOS with
+`Scripts/install_tools.sh`, and the `browser_1`, `browser_2` and `browser_3`
+jobs, on Linux since forsgren#642, from
 `Scripts/required_tools_browser_1_gates.txt`,
 `Scripts/required_tools_browser_2_gates.txt` and
-`Scripts/required_tools_browser_3_gates.txt` (forsgren#447, #641,
-[docs/ci.md](ci.md)).
+`Scripts/required_tools_browser_3_gates.txt` with `Scripts/install_tools_linux.sh`
+(forsgren#447, #641, #642, [docs/ci.md](ci.md)).
+
+**The browser baselines are per platform** (forsgren#642). The browser gates
+measure widths in px, and fonts render differently on Linux, where Quality's
+browser jobs run, than on the Mac, where FBP runs. So `Scripts/gate_browser.sh`
+and `Scripts/gate_browser_fixture.sh` read `Scripts/browser_gate_baseline.txt`
+and `Scripts/browser_gate_fixture_baseline.txt` on macOS, and the `_linux.txt`
+twins on Linux (`Scripts/lib_browser_baseline.sh`, by `uname -s`; any other
+platform is exit 2). A local FBP is unchanged. The Linux files are filled from
+the widths the first Quality run on `ubuntu-latest` measures (forsgren#642,
+step 2 fills them); a row in either file needs the owner's yes.
 
 **Go is pinned separately.** `brew install go` also upgrades an outdated Go for
 the whole machine, which would be a surprise if forsgren followed it. So
@@ -347,7 +359,9 @@ broken runner cannot report green:
   forsgren#427): the Linux counterpart of that installer, which the Linux jobs
   of Quality run on `ubuntu-latest` (forsgren#447), with the download stubbed: it installs the pinned
   builds of `Scripts/linux_tool_pins.txt`, refuses a wrong sha256, and is red
-  for another version, a tool with no pin, an empty list or another CPU.
+  for another version, a tool with no pin, an empty list or another CPU; a
+  setup tool (node and go of the browser jobs, forsgren#642) is run from PATH
+  and is red unless it reports the version `.nvmrc` or `go.mod` pins.
 - **Go toolchain pin self-test** (`Scripts/test_go_toolchain.sh`):
   `Scripts/go_toolchain.sh` prints go.mod's `toolchain` version and is red
   without one.

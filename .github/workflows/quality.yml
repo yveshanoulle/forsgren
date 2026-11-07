@@ -38,18 +38,20 @@
 # commit and sets up its gate environment, Node and the tools its gates run:
 # the macOS jobs with Scripts/install_tools.sh and their own list
 # (Scripts/required_tools_<job>_gates.txt), the Linux jobs with setup-go and
-# Scripts/install_tools_linux.sh. The `report` job merges what each job
+# Scripts/install_tools_linux.sh (the browser jobs with their own list). The `report` job merges what each job
 # handed over (an artifact quality-report-<job>) into the one Quality report;
 # `preview` needs them all. Scripts/test_quality_jobs.sh pins the layout.
 #
-# RUNNERS (forsgren#427, forsgren#447 step 3). GitHub runs at most 5 macOS jobs
-# at once for the account, so the jobs whose gates need no macOS run on
-# ubuntu-latest: `lint`, `workflows`, `summary`, `isolation_1`, `isolation_2`
-# and `report`. The five that start together on macos-latest, the limit, are
-# `quality`, `quality_2`, `browser_1`, `browser_2` and `browser_3` (the language
-# gate's sandbox-exec and LanguageTool, the secret scan's Homebrew gitleaks, the
-# exit-trap gate's bash 3.2, the browser gates' Chrome); `preview` waits for
-# all of them.
+# RUNNERS (forsgren#427, forsgren#447 step 3, forsgren#642). GitHub runs at most
+# 5 macOS jobs at once for the account, so the jobs whose gates need no macOS
+# run on ubuntu-latest: `lint`, `workflows`, `summary`, `isolation_1`,
+# `isolation_2`, `report` and the three browser jobs `browser_1`, `browser_2`
+# and `browser_3` (forsgren#642: the hosted image's Chrome, and a Linux
+# baseline per site, since fonts render differently and the widths differ).
+# The two that start together on macos-latest are `quality` and `quality_2`
+# (the language gate's sandbox-exec and LanguageTool, the secret scan's
+# Homebrew gitleaks, the exit-trap gate's bash 3.2); `preview` waits for all
+# of them.
 # Scripts/test_quality_runner_pins.sh pins each job's image and the count.
 #
 # CHECK-ONLY. Nothing here fixes: gofmt runs as `gofmt -l` (the gofmt row),
@@ -777,15 +779,18 @@ jobs:
   # (Scripts/ci_job_groups.txt: --shard 1/2 and 2/2, dealt by the seconds of
   # Scripts/browser_gate_selftest_weights.txt, about 390 s each), and browser_2
   # also the process self-test (forsgren#386); about 460 and 545 s with the
-  # setup. Scripts/ci_job_groups.txt gives them their rows and
-  # Scripts/run_ci_phase.sh skips them in the other jobs. The same setup as the
-  # main job, step for step: its comments are the main job's; the hosted
-  # image's Chrome is the one the self-tests open, puppeteer-core comes from npm
-  # ci. No site build: all are PRE rows that read no built site. No secret
-  # reaches them, and none is secret-class.
+  # setup (measured on macOS). Scripts/ci_job_groups.txt gives them their rows and
+  # Scripts/run_ci_phase.sh skips them in the other jobs. On ubuntu-latest since
+  # forsgren#642, with the Linux jobs' setup: setup-go, the gate environment,
+  # setup-node, Scripts/install_tools_linux.sh with the job's own list (node,
+  # held to .nvmrc) and npm ci; the hosted image's Chrome (/usr/bin/google-chrome,
+  # the first Linux path Scripts/browser_gate.mjs tries) is the one the
+  # self-tests open, puppeteer-core comes from npm ci. No site build: all are PRE
+  # rows that read no built site. No secret reaches them, and none is
+  # secret-class.
   browser_1:
     name: Browser gates 1/3
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -793,12 +798,24 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # forsgren#573: the Go of go.mod's toolchain line, fetched and verified
+      # once by setup-go (module and build cache on), not by every gate through
+      # GOTOOLCHAIN: a sum.golang.org lookup failure made go mod tidy red in
+      # run 40811450730. A failed setup fails the job; no gate is skipped. The
+      # next step still exports GOTOOLCHAIN from go.mod, which now names the Go
+      # installed here, so go runs it from the machine and downloads nothing.
+      # Scripts/test_quality_jobs.sh pins this step in every Linux job.
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # On Linux: no Homebrew prefixes (forsgren#642); the tools come from
+      # setup-go, setup-node and Scripts/install_tools_linux.sh.
       - name: Set up the gate environment
         shell: bash
         run: |
           set -euo pipefail
-          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
-          echo "/usr/local/bin" >> "$GITHUB_PATH"
           toolchain="$(./Scripts/go_toolchain.sh)"
           echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
 
@@ -808,15 +825,13 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
-      # Only the tool its gates run: node (forsgren#447, step 4; forsgren#641).
+      # Only the tool its gates run: node (forsgren#447, step 4; forsgren#641),
+      # on Linux the one setup-node installed, held to .nvmrc (forsgren#642).
       - name: Install tools
         shell: bash
-        env:
-          HOMEBREW_NO_INSTALL_CLEANUP: "1"
-          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
         run: |
           set -euo pipefail
-          ./Scripts/install_tools.sh Scripts/required_tools_browser_1_gates.txt
+          ./Scripts/install_tools_linux.sh Scripts/required_tools_browser_1_gates.txt
 
       - name: Install dependencies
         run: npm ci
@@ -861,7 +876,7 @@ jobs:
 
   browser_2:
     name: Browser gates 2/3
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -869,12 +884,24 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # forsgren#573: the Go of go.mod's toolchain line, fetched and verified
+      # once by setup-go (module and build cache on), not by every gate through
+      # GOTOOLCHAIN: a sum.golang.org lookup failure made go mod tidy red in
+      # run 40811450730. A failed setup fails the job; no gate is skipped. The
+      # next step still exports GOTOOLCHAIN from go.mod, which now names the Go
+      # installed here, so go runs it from the machine and downloads nothing.
+      # Scripts/test_quality_jobs.sh pins this step in every Linux job.
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # On Linux: no Homebrew prefixes (forsgren#642); the tools come from
+      # setup-go, setup-node and Scripts/install_tools_linux.sh.
       - name: Set up the gate environment
         shell: bash
         run: |
           set -euo pipefail
-          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
-          echo "/usr/local/bin" >> "$GITHUB_PATH"
           toolchain="$(./Scripts/go_toolchain.sh)"
           echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
 
@@ -884,15 +911,13 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
-      # Only the tool its gates run: node (forsgren#447, step 4; forsgren#641).
+      # Only the tool its gates run: node (forsgren#447, step 4; forsgren#641),
+      # on Linux the one setup-node installed, held to .nvmrc (forsgren#642).
       - name: Install tools
         shell: bash
-        env:
-          HOMEBREW_NO_INSTALL_CLEANUP: "1"
-          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
         run: |
           set -euo pipefail
-          ./Scripts/install_tools.sh Scripts/required_tools_browser_2_gates.txt
+          ./Scripts/install_tools_linux.sh Scripts/required_tools_browser_2_gates.txt
 
       - name: Install dependencies
         run: npm ci
@@ -939,16 +964,21 @@ jobs:
   # up to forsgren#641): the browser gate and the browser gate on the fixture
   # site with its self-test (Scripts/ci_job_groups.txt gives them to this job,
   # and Scripts/run_ci_phase.sh skips them in the others), about 490 s of
-  # gates and its site build, about 560 s with the setup.
-  # The same setup as the main job, step for step: the hosted image's Chrome is
-  # the one the gates open, puppeteer-core and axe-core come from npm ci. The
+  # gates and its site build, about 560 s with the setup (measured on macOS).
+  # On ubuntu-latest since forsgren#642, with the Linux jobs' setup (go and node
+  # from setup-go and setup-node, held to go.mod and .nvmrc by
+  # Scripts/install_tools_linux.sh): the hosted image's Chrome is the one the
+  # gates open, puppeteer-core and axe-core come from npm ci. On Linux the two
+  # post gates read the Linux baselines (Scripts/browser_gate_baseline_linux.txt,
+  # Scripts/browser_gate_fixture_baseline_linux.txt), chosen by
+  # Scripts/lib_browser_baseline.sh: fonts render differently than on macOS. The
   # browser gate reads the built site, so this job builds its own (.build/site,
   # 0.3 s) between its PRE and POST rows, exactly as the main job does; the
   # fixture-site gate and its self-test render their own. No secret reaches
   # it, and none of its gates is secret-class.
   browser_3:
     name: Browser gates 3/3
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -956,12 +986,24 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # forsgren#573: the Go of go.mod's toolchain line, fetched and verified
+      # once by setup-go (module and build cache on), not by every gate through
+      # GOTOOLCHAIN: a sum.golang.org lookup failure made go mod tidy red in
+      # run 40811450730. A failed setup fails the job; no gate is skipped. The
+      # next step still exports GOTOOLCHAIN from go.mod, which now names the Go
+      # installed here, so go runs it from the machine and downloads nothing.
+      # Scripts/test_quality_jobs.sh pins this step in every Linux job.
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # On Linux: no Homebrew prefixes (forsgren#642); the tools come from
+      # setup-go, setup-node and Scripts/install_tools_linux.sh.
       - name: Set up the gate environment
         shell: bash
         run: |
           set -euo pipefail
-          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
-          echo "/usr/local/bin" >> "$GITHUB_PATH"
           toolchain="$(./Scripts/go_toolchain.sh)"
           echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
 
@@ -971,16 +1013,14 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
-      # Only the tools its gates and its site build run: go and node
-      # (forsgren#447, step 4).
+      # Only the tools its gates and its own site build run: go and node
+      # (forsgren#447, step 4), on Linux the ones setup-go and setup-node
+      # installed, held to go.mod and .nvmrc (forsgren#642).
       - name: Install tools
         shell: bash
-        env:
-          HOMEBREW_NO_INSTALL_CLEANUP: "1"
-          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
         run: |
           set -euo pipefail
-          ./Scripts/install_tools.sh Scripts/required_tools_browser_3_gates.txt
+          ./Scripts/install_tools_linux.sh Scripts/required_tools_browser_3_gates.txt
 
       - name: Install dependencies
         run: npm ci
@@ -1241,7 +1281,7 @@ jobs:
   # The job group never cancels a run in flight; GitHub keeps the newest of
   # the waiting ones, and the preview workflow cancels an older deploy itself.
   # macos-latest (Scripts/test_quality_runner_pins.sh); it starts after every
-  # gate job, so it never takes one of the 5 macOS slots they need.
+  # gate job, so it never takes a macOS slot one of them needs.
   # Scripts/test_preview_workflow.sh pins this job.
   preview:
     name: Start the preview deploy

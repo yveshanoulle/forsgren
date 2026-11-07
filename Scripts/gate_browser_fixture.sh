@@ -9,9 +9,11 @@
 # fixture of Scripts/testdata/fixture_site (Scripts/build_fixture_site.sh,
 # built into a temporary directory): the same checks (axe serious and critical,
 # doctype, charset, console errors, failed requests, CLS exactly 0), the same
-# manifest, exceptions and variants, and its own shrink-only baseline,
-# Scripts/browser_gate_fixture_baseline.txt (only a ruling adds a row: today the
-# sideways rows of decision #364, forsgren#350).
+# manifest, exceptions and variants, and its own shrink-only baseline of this
+# platform, Scripts/browser_gate_fixture_baseline.txt on macOS (only a ruling adds
+# a row: today the sideways rows of decision #364, forsgren#350) and
+# Scripts/browser_gate_fixture_baseline_linux.txt on Linux (forsgren#642: fonts
+# render differently, so the widths differ; any other platform is exit 2).
 # Self-test: Scripts/test_gate_browser_fixture.sh.
 #
 # axe-core is an automated accessibility gate, not proof of complete WCAG
@@ -71,7 +73,12 @@ if [[ -z "$MANIFEST" ]]; then
   MANIFEST="$(site_settings_get Scripts/site_settings.txt required_pages_manifest)" || exit 2
 fi
 EXCEPTIONS="${3:-Scripts/browser_gate_exceptions.txt}"
-BASELINE="${4:-Scripts/browser_gate_fixture_baseline.txt}"
+# shellcheck source=Scripts/lib_browser_baseline.sh
+source Scripts/lib_browser_baseline.sh
+BASELINE="${4:-}"
+if [[ -z "$BASELINE" ]]; then
+  BASELINE="$(browser_baseline Scripts/browser_gate_fixture_baseline.txt Scripts/browser_gate_fixture_baseline_linux.txt)" || exit 2
+fi
 VARIANTS="${5:-Scripts/browser_gate_variants.txt}"
 
 if ! command -v node >/dev/null 2>&1; then

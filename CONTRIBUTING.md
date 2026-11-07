@@ -157,6 +157,7 @@ run report shows how many checks each of them ran.
 - browser gate (`Scripts/gate_browser.sh`, post)
 - browser gate (fixture site) self-test (`Scripts/test_gate_browser_fixture.sh`, pre)
 - browser gate (fixture site) (`Scripts/gate_browser_fixture.sh`, post)
+- browser gate baseline choice self-test (`Scripts/test_gate_browser_baseline.sh`, pre)
 - browser gate (TBD tables) self-test (`Scripts/test_gate_browser_tbd_tables.sh`, pre)
 - browser gate (default TBD fixture) self-test (`Scripts/test_gate_browser_fixture_default.sh`, pre)
 - browser gate (default TBD fixture) (`Scripts/gate_browser_fixture_default.sh`, post)

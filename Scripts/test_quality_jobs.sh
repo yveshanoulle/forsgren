@@ -11,8 +11,9 @@
 #      npm ci, in that order; on ubuntu-latest since forsgren#447, step 3, as
 #      the summary, workflows and report jobs, installing the tools of
 #      Scripts/required_tools_linux_gates.txt with Scripts/install_tools_linux.sh
-#      (the main, quality_2, browser_1, browser_2 and browser_3 jobs stay on
-#      macos-latest)
+#      (the main and quality_2 jobs stay on macos-latest; browser_1, browser_2
+#      and browser_3 run on ubuntu-latest since forsgren#642, each installing
+#      its own list with Scripts/install_tools_linux.sh)
 #   2. it runs Scripts/run_ci_phase.sh pre for the job `isolation_1` and the job
 #      `isolation_2` (forsgren#426: the git sandbox isolation self-test in two
 #      shards, one job each); the main
@@ -74,7 +75,9 @@
 #      with no site build: the group file gives browser_1 the browser gate
 #      self-test --shard 1/2 and browser_2 its --shard 2/2 with the browser
 #      gate process self-test; a gate is in two jobs only as one shard each
-#   3g. the tools each macOS job installs (forsgren#447, step 4): quality_2,
+#   3g. the tools each gate job installs from its own list (forsgren#447,
+#      step 4; the browser jobs with Scripts/install_tools_linux.sh since
+#      forsgren#642, quality_2 with Scripts/install_tools.sh): quality_2,
 #      browser_1, browser_2 and browser_3 pass their own list,
 #      Scripts/required_tools_<job>_gates.txt, which exists and lists exactly
 #      the tools its gates need (node for browser_1 and browser_2, go and node
@@ -240,7 +243,7 @@ handover_findings() {
 # isolation shards run), not the lint job's list.
 LINUX_GATES_INSTALL="Scripts/install_tools_linux.sh Scripts/required_tools_linux_gates.txt"
 
-# tools_file_of <job>: the tools list of a macOS gate job (forsgren#447, step 4),
+# tools_file_of <job>: the tools list of a gate job (forsgren#447, step 4),
 # named after the job; the main job's id is quality (forsgren#591 step 2).
 tools_file_of() {
   echo "Scripts/required_tools_${1}_gates.txt"
@@ -250,7 +253,8 @@ tools_file_of() {
 # at a copy); the lists are Scripts/required_tools_<job>_gates.txt.
 TOOLS_DIR="Scripts"
 
-# listed_tools <file>: the tools of a list as Scripts/install_tools.sh reads it
+# listed_tools <file>: the tools of a list as Scripts/install_tools.sh and
+# Scripts/install_tools_linux.sh read it
 # (comments and blanks left out), sorted, each followed by a space.
 listed_tools() {
   { sed -e 's/#.*//' "$1" | tr -d '[:blank:]' | grep . | LC_ALL=C sort | tr '\n' ' '; } || true
@@ -443,7 +447,7 @@ job_findings() {
   done
   setup_findings "$sum" summary ubuntu-latest "$LINUX_GATES_INSTALL"
   for n in 1 2 3; do
-    setup_findings "${JOBS_TMP}/browser_${n}.yml" "browser_${n}" macos-latest "Scripts/install_tools.sh $(tools_file_of "browser_${n}")"
+    setup_findings "${JOBS_TMP}/browser_${n}.yml" "browser_${n}" ubuntu-latest "Scripts/install_tools_linux.sh $(tools_file_of "browser_${n}")"
   done
   setup_findings "$wfl" workflows ubuntu-latest "$LINUX_GATES_INSTALL"
   handover_findings "$main" quality
@@ -731,7 +735,7 @@ fi
 
 OUT="$(tools_file_findings)"
 if [[ -z "$OUT" ]]; then
-  echo "  ok: the tools lists of the macOS gate jobs hold every pin"
+  echo "  ok: the tools lists of the quality_2 and browser jobs hold every pin"
 else
   fail "the tools lists break a pin:"$'\n'"$OUT"
 fi
@@ -812,6 +816,9 @@ GO_JOBS=(
   "lint:${L}"
   "summary:${S}"
   "workflows:${W}"
+  "browser_1:${B1}"
+  "browser_2:${B2}"
+  "browser_3:${B3}"
 )
 for entry in "${GO_JOBS[@]}"; do
   j="${entry%%:*}"
@@ -880,7 +887,7 @@ for n in 1 2 3; do
   mutant "report without the browser_${n} result" "${R}"'{/QS_BROWSER_'"${n}"'_RESULT:/d;}' "report: the report job has no QS_BROWSER_${n}_RESULT from needs.browser_${n}.result"
   mutant "status without the browser_${n} result" "${R}"'s/ "[$]QS_BROWSER_'"${n}"'_RESULT"//' "report: the status call does not pass"
   mutant "no browser_${n} job" "s/^  browser_${n}:/  browser_${n}_gone:/" "job: the file has no browser_${n} job"
-  mutant "browser_${n} on another runner" "${BP}"'s/runs-on: macos-latest/runs-on: ubuntu-latest/' "runs-on: the browser_${n} job is not on macos-latest"
+  mutant "browser_${n} on another runner" "${BP}"'s/runs-on: ubuntu-latest/runs-on: macos-latest/' "runs-on: the browser_${n} job is not on ubuntu-latest"
   mutant "browser_${n} without npm ci" "${BP}"'s/run: npm ci/run: true/' "setup: the browser_${n} job does not run npm ci"
   mutant "browser_${n} hand-over not always" "${BP}"'{/Hand over the gate report/,/uses:/s/if: always()/if: success()/;}' "handover: the browser_${n} job's"
   mutant "browser_${n} hand-over under another name" "${BP}"'s/name: quality-report-browser_'"${n}"'/name: quality-report-other/' "handover: the browser_${n} job does not upload the artifact quality-report-browser_${n}"
@@ -890,12 +897,12 @@ for n in 1 2; do
   mutant "browser_${n} runs the main job's gates" "${BP}s/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" browser_${n}/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" main/" "browser_${n}: the browser_${n} job must run exactly"
   mutant "browser_${n} runs the other shard's job" "${BP}s/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" browser_${n}/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" browser_$((3 - n))/" "browser_${n}: the browser_${n} job must run exactly"
   mutant "browser_${n} runs the browser_3 job's gates" "${BP}s/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" browser_${n}/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" browser_3/" "browser_${n}: the browser_${n} job must run exactly"
-  mutant "browser_${n} builds a site" "${BP}"'s#\./Scripts/install_tools.sh#./Scripts/install_tools.sh; ./Scripts/build_site.sh#' "browser_${n}: the browser_${n} job builds a site"
-  mutant "a step naming the browser_${n} gate" "${BP}"'s#\./Scripts/install_tools.sh#./Scripts/install_tools.sh; ./Scripts/test_gate_browser.sh#' "browser: a step names a browser gate itself"
+  mutant "browser_${n} builds a site" "${BP}"'s#\./Scripts/install_tools_linux.sh#./Scripts/install_tools_linux.sh; ./Scripts/build_site.sh#' "browser_${n}: the browser_${n} job builds a site"
+  mutant "a step naming the browser_${n} gate" "${BP}"'s#\./Scripts/install_tools_linux.sh#./Scripts/install_tools_linux.sh; ./Scripts/test_gate_browser.sh#' "browser: a step names a browser gate itself"
 done
 mutant "browser_3 without its site build" "${B3}"'s#\./Scripts/build_site.sh#./Scripts/other.sh#' "browser_3: the browser_3 job must run PRE, then its own site build"
 mutant "browser_3 running the main job's gates" "${B3}s/run_ci_phase.sh post \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" browser_3/run_ci_phase.sh post \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" main/" "browser_3: the browser_3 job must run run_ci_phase.sh pre and post"
-mutant "a step naming a browser gate" "${B3}"'s#\./Scripts/install_tools.sh#./Scripts/install_tools.sh; ./Scripts/gate_browser.sh#' "browser: a step names a browser gate itself"
+mutant "a step naming a browser gate" "${B3}"'s#\./Scripts/install_tools_linux.sh#./Scripts/install_tools_linux.sh; ./Scripts/gate_browser.sh#' "browser: a step names a browser gate itself"
 mutant "report without workflows in needs" "${R}"'s/needs: \[quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows\]/needs: [quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3]/' "report: the gate job workflows is not in the report job's needs:"
 mutant "report without the workflows result" "${R}"'{/QS_WORKFLOWS_RESULT:/d;}' "report: the report job has no QS_WORKFLOWS_RESULT from needs.workflows.result"
 mutant "status without the workflows result" "${R}"'s/ "[$]QS_WORKFLOWS_RESULT"//' "report: the status call does not pass"
@@ -915,15 +922,22 @@ mutant "report status not merged" "${R}"'s#merge_quality_report.sh status#merge_
 mutant "a softened job" "${I1}"'s/^    runs-on: ubuntu-latest/    continue-on-error: true\
     runs-on: ubuntu-latest/' "verdict: continue-on-error softens a failure"
 
-# Pin 3g, the install commands: each of the four jobs on the full installer,
-# and the main job on a list.
-for j in quality_2:"$Q2" browser_1:"$B1" browser_2:"$B2" browser_3:"$B3"; do
+# Pin 3g, the install commands: each of the four jobs on its own list, quality_2
+# with the Homebrew installer and the three browser jobs with the Linux one
+# (forsgren#642), and the main job on a list.
+mutant "quality_2 installing the full tool list" "${Q2}"'s#install_tools\.sh Scripts/required_tools_[a-z0-9_]*_gates\.txt#install_tools.sh#' \
+  "setup: the quality_2 job does not run Scripts/install_tools.sh $(tools_file_of quality_2)"
+mutant "quality_2 installing another job's list" "${Q2}"'s#required_tools_[a-z0-9_]*_gates\.txt#required_tools_linux_gates.txt#' \
+  "setup: the quality_2 job does not run Scripts/install_tools.sh $(tools_file_of quality_2)"
+for j in browser_1:"$B1" browser_2:"$B2" browser_3:"$B3"; do
   jid="${j%%:*}"
   jrange="${j#*:}"
-  mutant "${jid} installing the full tool list" "${jrange}"'s#install_tools\.sh Scripts/required_tools_[a-z0-9_]*_gates\.txt#install_tools.sh#' \
-    "setup: the ${jid} job does not run Scripts/install_tools.sh $(tools_file_of "$jid")"
+  mutant "${jid} installing the full Linux tool list" "${jrange}"'s#install_tools_linux\.sh Scripts/required_tools_[a-z0-9_]*_gates\.txt#install_tools_linux.sh#' \
+    "setup: the ${jid} job does not run Scripts/install_tools_linux.sh $(tools_file_of "$jid")"
   mutant "${jid} installing another job's list" "${jrange}"'s#required_tools_[a-z0-9_]*_gates\.txt#required_tools_linux_gates.txt#' \
-    "setup: the ${jid} job does not run Scripts/install_tools.sh $(tools_file_of "$jid")"
+    "setup: the ${jid} job does not run Scripts/install_tools_linux.sh $(tools_file_of "$jid")"
+  mutant "${jid} using the Homebrew installer" "${jrange}"'s#install_tools_linux\.sh#install_tools.sh#' \
+    "setup: the ${jid} job does not run Scripts/install_tools_linux.sh $(tools_file_of "$jid")"
 done
 mutant "main installing the full tool list" "${Q}"'s#install_tools\.sh Scripts/required_tools_quality_gates\.txt#install_tools.sh#' \
   "setup: the quality job does not run Scripts/install_tools.sh $(tools_file_of quality)"

@@ -74,6 +74,8 @@ browser gate self-test|in|Scripts/lib_tmp.sh
 browser gate self-test|in|Scripts/lib_site_settings.sh
 browser gate self-test|in|Scripts/site_settings.txt
 browser gate self-test|in|Scripts/browser_gate_baseline.txt
+browser gate self-test|in|Scripts/browser_gate_baseline_linux.txt
+browser gate self-test|in|Scripts/lib_browser_baseline.sh
 browser gate self-test|in|Scripts/browser_gate_exceptions.txt
 browser gate self-test|in|Scripts/browser_gate_variants.txt
 browser gate self-test|in|package.json
@@ -102,6 +104,8 @@ browser gate process self-test|in|package-lock.json
 browser gate process self-test|in|internal/page/required-pages.json
 browser gate process self-test|in|Scripts/lib_has.sh
 browser gate process self-test|in|Scripts/browser_gate_baseline.txt
+browser gate process self-test|in|Scripts/browser_gate_baseline_linux.txt
+browser gate process self-test|in|Scripts/lib_browser_baseline.sh
 browser gate process self-test|in|Scripts/browser_gate_exceptions.txt
 browser gate process self-test|in|Scripts/browser_gate_variants.txt
 browser gate process self-test|in|Scripts/lib_parallel_mutants.sh
@@ -120,6 +124,8 @@ browser gate|in|Scripts/browser_gate.mjs
 browser gate|in|Scripts/lib_site_settings.sh
 browser gate|in|Scripts/site_settings.txt
 browser gate|in|Scripts/browser_gate_baseline.txt
+browser gate|in|Scripts/browser_gate_baseline_linux.txt
+browser gate|in|Scripts/lib_browser_baseline.sh
 browser gate|in|Scripts/browser_gate_exceptions.txt
 browser gate|in|Scripts/browser_gate_variants.txt
 browser gate|in|internal/page/required-pages.json
@@ -144,6 +150,8 @@ browser gate (fixture site) self-test|in|Scripts/test_gate_browser.sh
 browser gate (fixture site) self-test|in|Scripts/lib_gate_browser_selftest.sh
 browser gate (fixture site) self-test|in|Scripts/gate_browser.sh
 browser gate (fixture site) self-test|in|Scripts/browser_gate_baseline.txt
+browser gate (fixture site) self-test|in|Scripts/browser_gate_baseline_linux.txt
+browser gate (fixture site) self-test|in|Scripts/lib_browser_baseline.sh
 browser gate (fixture site) self-test|in|Scripts/gate_browser_fixture.sh
 browser gate (fixture site) self-test|in|Scripts/build_fixture_site.sh
 browser gate (fixture site) self-test|in|Scripts/browser_gate.mjs
@@ -153,6 +161,7 @@ browser gate (fixture site) self-test|in|Scripts/lib_site_settings.sh
 browser gate (fixture site) self-test|in|Scripts/site_settings.txt
 browser gate (fixture site) self-test|in|Scripts/browser_gate_exceptions.txt
 browser gate (fixture site) self-test|in|Scripts/browser_gate_fixture_baseline.txt
+browser gate (fixture site) self-test|in|Scripts/browser_gate_fixture_baseline_linux.txt
 browser gate (fixture site) self-test|in|Scripts/browser_gate_variants.txt
 browser gate (fixture site) self-test|in|Scripts/testdata/fixture_site/
 browser gate (fixture site) self-test|in|internal/page/required-pages.json
@@ -179,12 +188,15 @@ browser gate (fixture site)|in|Scripts/lib_gate_browser_selftest.sh
 browser gate (fixture site)|in|Scripts/lib_selftest.sh
 browser gate (fixture site)|in|Scripts/lib_tmp.sh
 browser gate (fixture site)|in|Scripts/browser_gate_baseline.txt
+browser gate (fixture site)|in|Scripts/browser_gate_baseline_linux.txt
+browser gate (fixture site)|in|Scripts/lib_browser_baseline.sh
 browser gate (fixture site)|in|Scripts/build_fixture_site.sh
 browser gate (fixture site)|in|Scripts/browser_gate.mjs
 browser gate (fixture site)|in|Scripts/lib_site_settings.sh
 browser gate (fixture site)|in|Scripts/site_settings.txt
 browser gate (fixture site)|in|Scripts/browser_gate_exceptions.txt
 browser gate (fixture site)|in|Scripts/browser_gate_fixture_baseline.txt
+browser gate (fixture site)|in|Scripts/browser_gate_fixture_baseline_linux.txt
 browser gate (fixture site)|in|Scripts/browser_gate_variants.txt
 browser gate (fixture site)|in|Scripts/testdata/fixture_site/
 browser gate (fixture site)|in|internal/page/required-pages.json
@@ -254,8 +266,11 @@ step summary isolation|in|.github/workflows/quality.yml
 step summary isolation|in|.github/workflows/release.yml
 step summary isolation|in|package.json
 step summary isolation|in|Scripts/browser_gate_baseline.txt
+step summary isolation|in|Scripts/browser_gate_baseline_linux.txt
+step summary isolation|in|Scripts/lib_browser_baseline.sh
 step summary isolation|in|Scripts/browser_gate_exceptions.txt
 step summary isolation|in|Scripts/browser_gate_fixture_baseline.txt
+step summary isolation|in|Scripts/browser_gate_fixture_baseline_linux.txt
 step summary isolation|in|Scripts/browser_gate_variants.txt
 step summary isolation|in|Scripts/browser_gate.mjs
 step summary isolation|in|Scripts/build_site.sh
@@ -268,6 +283,7 @@ step summary isolation|in|Scripts/gate_language.sh
 step summary isolation|in|Scripts/gate_report_order.txt
 step summary isolation|in|Scripts/install_tools.sh
 step summary isolation|in|Scripts/install_tools_linux.sh
+step summary isolation|in|Scripts/go_toolchain.sh
 step summary isolation|in|Scripts/linux_tool_pins.txt
 step summary isolation|in|Scripts/required_tools_linux.txt
 step summary isolation|in|Scripts/required_tools_linux_gates.txt

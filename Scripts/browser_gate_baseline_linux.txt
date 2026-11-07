@@ -1,0 +1,14 @@
+# The browser gate's baseline on Linux (forsgren#642): the widths measured on
+# GitHub's hosted ubuntu-latest image, where Quality's browser jobs run. Fonts
+# render differently there than on macOS, so the widths of
+# Scripts/browser_gate_baseline.txt (the macOS file the local FBP reads) do not
+# hold; Scripts/gate_browser.sh picks this file on Linux
+# (Scripts/lib_browser_baseline.sh). Rows follow the same rules as the macOS
+# file: the same closed format, a reason on every row, every row starts with its
+# variant, an exact match, shrink-only, and only a ruling adds a row.
+#   axe|<variant>|<page>|<rule>|<selector>|reason
+#   cls|<variant>|<page>|<value>|reason
+#   sideways|<variant>|<page>|<viewport>|<what>|<px>|reason
+#
+# No rows yet: the first Quality run on ubuntu-latest measures them, and its
+# FAIL lines are the rows the owner rules on (forsgren#642, step 2).

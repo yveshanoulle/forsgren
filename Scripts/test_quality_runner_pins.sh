@@ -46,7 +46,8 @@ cd "$(dirname "$0")/.."
 #   4. workflow_dispatch exists, so a run can be started by hand;
 #   5. each job runs on exactly the image this check names for it: the Linux
 #      jobs (LINUX_JOBS: `lint` since forsgren#427; `workflows`, `report`,
-#      `summary`, `isolation_1` and `isolation_2` since forsgren#447, step 3)
+#      `summary`, `isolation_1` and `isolation_2` since forsgren#447, step 3;
+#      `browser_1`, `browser_2` and `browser_3` since forsgren#642)
 #      on `ubuntu-latest`, every other job on `macos-latest`, GitHub's hosted
 #      macOS image. No other image is allowed, and a Linux job back on macOS
 #      is as red as a macOS job on Linux: the move is a decision made here;
@@ -133,9 +134,11 @@ judge_event() {
 # workflows, report, summary, isolation_1 and isolation_2 (forsgren#447, step
 # 3): their gates read workflows and scripts or check a decoy repository and
 # the step summary, and none needs bash 3.2, a BSD tool, sandbox-exec,
-# LanguageTool, Homebrew's gitleaks or Chrome, which keep the other jobs on
-# macOS.
-LINUX_JOBS=(lint workflows report summary isolation_1 isolation_2)
+# LanguageTool or Homebrew's gitleaks, which keep the other jobs on macOS.
+# browser_1, browser_2 and browser_3 (forsgren#642): their gates open the
+# hosted image's Chrome with Node, and the Linux widths have their own
+# baseline files (Scripts/gate_browser.sh picks the file by the platform).
+LINUX_JOBS=(lint workflows report summary isolation_1 isolation_2 browser_1 browser_2 browser_3)
 # MACOS_SLOTS: GitHub's limit of macOS jobs running at once for the account
 # (pin 6, forsgren#447: measured, 5 started and the sixth waited).
 MACOS_SLOTS=5
@@ -209,7 +212,7 @@ judge() {
     [[ "$runner" == "$want" ]] && continue
     echo "has a job (${job}) on runs-on: ${runner:-none}, not ${want} — Quality runs on GitHub's hosted images" \
       "(forsgren#1, the runner swap), a throwaway machine per run, which is what makes its pull_request" \
-      "trigger safe; the jobs ${LINUX_JOBS[*]} run on ubuntu-latest (forsgren#427, forsgren#447) and every" \
+      "trigger safe; the jobs ${LINUX_JOBS[*]} run on ubuntu-latest (forsgren#427, forsgren#447, forsgren#642) and every" \
       "other job on macos-latest"
   done <<< "$runners"
   if [[ "$starting" -gt "$MACOS_SLOTS" ]]; then
@@ -231,9 +234,10 @@ if [[ -n "$out" ]]; then
     [[ -n "$line" ]] && fail "${WF} ${line}"
   done <<< "$out"
 else
+  starting_macos="$(job_runners "$WF" | awk -F'\t' '$2 == "macos-latest" && $3 == "no"' | wc -l | tr -d ' ')"
   echo "  ok: ${WF} runs on every push to and pull request into main, with no paths filter, and by hand," \
-    "the jobs ${LINUX_JOBS[*]} on ubuntu-latest and the others on macos-latest, at most ${MACOS_SLOTS} macOS" \
-    "jobs starting together"
+    "the jobs ${LINUX_JOBS[*]} on ubuntu-latest and the others on macos-latest, ${starting_macos} macOS" \
+    "jobs starting together (at most ${MACOS_SLOTS})"
 fi
 
 # shellcheck source=Scripts/lib_tmp.sh
@@ -350,14 +354,14 @@ TRIGGERS='  push:
     branches: ["main"]
   workflow_dispatch:'
 
-# Each Linux job of forsgren#447 back on macOS is red; on ubuntu-latest it is accepted.
-for j in workflows report summary isolation_1 isolation_2; do
+# Each Linux job of forsgren#447 and #642 back on macOS is red; on ubuntu-latest it is accepted.
+for j in workflows report summary isolation_1 isolation_2 browser_1 browser_2 browser_3; do
   write_workflow "${j}_mac" "$TRIGGERS" macos-latest "$j"
   rejects "${j}_mac" "(${j}) on runs-on: macos-latest, not ubuntu-latest" "the ${j} job back on macos-latest"
   write_workflow "${j}_ubuntu" "$TRIGGERS" ubuntu-latest "$j"
   verdict="$(judge "${TMP}/${j}_ubuntu.yml")"
   if [[ -z "$verdict" ]]; then
-    echo "  ok: the ${j} job on ubuntu-latest is accepted (forsgren#447)"
+    echo "  ok: the ${j} job on ubuntu-latest is accepted (forsgren#447, #642)"
   else
     fail "the synthetic workflow with the ${j} job on ubuntu-latest was REJECTED (${verdict})"
   fi
@@ -386,11 +390,11 @@ write_jobs() {
 
 # Pin 6: six macOS jobs starting together are red; five, and a sixth that waits
 # on a needs:, are accepted.
-write_jobs six_macos quality:macos-latest:no quality_2:macos-latest:no browser_1:macos-latest:no \
-  browser_2:macos-latest:no browser_3:macos-latest:no extra_1:macos-latest:no
+write_jobs six_macos quality:macos-latest:no quality_2:macos-latest:no extra_1:macos-latest:no \
+  extra_2:macos-latest:no extra_3:macos-latest:no extra_4:macos-latest:no
 rejects six_macos "starts 6 macos-latest jobs together" "six macOS jobs with no needs:"
-write_jobs five_macos quality:macos-latest:no quality_2:macos-latest:no browser_1:macos-latest:no \
-  browser_2:macos-latest:no browser_3:macos-latest:no preview:macos-latest:yes lint:ubuntu-latest:no
+write_jobs five_macos quality:macos-latest:no quality_2:macos-latest:no extra_1:macos-latest:no \
+  extra_2:macos-latest:no extra_3:macos-latest:no preview:macos-latest:yes lint:ubuntu-latest:no
 verdict="$(judge "${TMP}/five_macos.yml")"
 if [[ -z "$verdict" ]]; then
   echo "  ok: five macOS jobs starting together, a sixth with needs: and a Linux job are accepted"

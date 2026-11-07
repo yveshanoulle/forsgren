@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser_process v5
+# canon: test_gate_browser_process v5 + forsgren#642 (proofs S and Sb copy the libraries the wrapper sources, read from it)
 # v5 (forsgren#636): case 53f and mutation proof D moved to the canon browser gate self-test (Scripts/test_gate_browser.sh v29, as case 53f and proof Dh), so the sites test browser_gate v17 too; this self-test keeps what is forsgren's own: the exits on forty looks (52a-52f, 53, 53c), the singleton folders of forsgren#613 and the proofs V, W, R, Rb, S and Sb
 # v4 (forsgren#630, step 2): case 53f, Chrome killed during the launch while a helper of its group holds its pipe (and its command pipe is a FIFO nobody writes, so the launch is surely still on), ends the run within 10 s with `FAIL: browser gate: Chrome died during the launch (PID <pid>, exit <code> | signal <signal>)`, no Chrome, no profile (browser_gate v17); mutation proof D, the engine not hearing Chrome's process end, keeps the run going past the 10 s; proof S asserts only the Chrome it leaves alive, never whether node still held the pipe (timing: at load ~6 node had closed it in 2 of 3 runs), each branch of the wait within 10 s, and proof Sb forces the branch of a closed pipe (SIG_HOLDER_GONE)
 # v3 (forsgren#630): a signal case waits for its Chrome with wait_chrome_gone (lib_gate_browser_selftest v2): 10 s while the node holding its pipe is alive, up to 60 s once the pipe's other end is closed, a bound hit named with the PIDs left, the node and the seconds; proof R runs with its Chrome stalled for 15 s, proof Rb shows the bound named, proof S that node still holds the pipe
@@ -382,7 +382,10 @@ fi
 # closed pipe (SIG_HOLDER_GONE) so that branch is proved on every run.
 WMUT="${TMP}/wmut"
 mkdir -p "${WMUT}/Scripts"
-cp Scripts/browser_gate.mjs Scripts/lib_site_settings.sh "${WMUT}/Scripts/"
+cp Scripts/browser_gate.mjs "${WMUT}/Scripts/"
+# The libraries the wrapper sources, read from it, so a library it gains comes
+# along (forsgren#642: lib_browser_baseline.sh).
+while IFS= read -r lib; do cp "$lib" "${WMUT}/Scripts/"; done < <(sed -n 's#^source \(Scripts/lib_[a-z_]*\.sh\)$#\1#p' Scripts/gate_browser.sh)
 ln -s "${REPO_ROOT}/node_modules" "${WMUT}/node_modules"
 FORWARD='s/if \[\[ -n "[$]NODE_PID" \]\]; then/if false; then/'
 if selftest_mutant Scripts/gate_browser.sh "${WMUT}/Scripts/gate_browser.sh" "$FORWARD"; then
