@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: check_shellcheck v3
+# canon: check_shellcheck v4
 # Shellcheck — every shell script git tracks or will commit (tracked, or
 # untracked and not ignored: Scripts/lib_repo_files.sh), DERIVED rather than
 # named, so a new script is covered the moment it is added instead of when
@@ -30,7 +30,7 @@
 #
 # Byte-identical across the estate's repositories: what differs per site is data.
 # sfl.sh runs it from Scripts/gate_report_order.txt, and so does CI, through
-# Scripts/run_ci_phase.sh.
+# the CI phase runner.
 #
 # Optional file list (estate issue 301): with paths after the program name
 # (relative to the root), only those files are checked, with the same -x
