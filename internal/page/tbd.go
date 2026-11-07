@@ -147,6 +147,21 @@ func (d Data) TbdRows() []TbdRow {
 	return rows
 }
 
+// TbdIntegrationRows are the rows of the Integration table: TbdRows less the
+// rows whose integration is per repository, a service row with data, which
+// would say Per repository across all four groups (forsgren#640). A row
+// without data keeps its one sentence.
+func (d Data) TbdIntegrationRows() []TbdRow {
+	var rows []TbdRow
+	for _, r := range d.TbdRows() {
+		if r.PerRepository() && !r.NoData() {
+			continue
+		}
+		rows = append(rows, r)
+	}
+	return rows
+}
+
 // withoutAbsent is the row without the measures it says are absent
 // (IntervalAbsent, PushAbsent; the Bot PR Lead Time goes with PushAbsent), so
 // that its cells show a dash because the row says so, never because a measure

@@ -72,7 +72,7 @@
           </tr>
 {{end}}        </thead>
         <tbody>
-{{range .TbdRows}}          <tr{{if .IsLabel}} class="label"{{end}}>
+{{range .TbdIntegrationRows}}          <tr{{if .IsLabel}} class="label"{{end}}>
 {{template "tbdrowhead" .}}{{if .NoData}}            <td colspan="{{.IntegrationSpan}}">{{.NoDataSentence}}</td>
 {{else}}{{range .IntegrationGroups}}{{template "spreadgroup" .}}{{end}}{{end}}          </tr>
 {{end}}        </tbody>

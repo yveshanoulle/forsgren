@@ -1387,6 +1387,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdTitle": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdMessage": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdRows": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdIntegrationRows": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:IsLabel": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:PerRepository": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:PerRepositorySentence": 100.0,

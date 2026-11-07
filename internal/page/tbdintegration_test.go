@@ -8,7 +8,8 @@ import (
 
 // The Integration table (forsgren#622, step 2; decision #623, recommendation
 // C): a second table below the TBD table, under an h2, with the TBD table's
-// rows and the four Integration groups, so the TBD table keeps its columns.
+// rows, less a service row with data (forsgren#640), and the four Integration
+// groups, so the TBD table keeps its columns.
 
 // integrationCells are the cells of tbdData's projects in the second table, in
 // the two ways the key tbd_figures shows them: the commits per working day per
@@ -133,20 +134,33 @@ func TestTheTbdTableHasNoIntegrationColumn(t *testing.T) {
 	}
 }
 
-// TestTheIntegrationTableSpansItsColumnsForNoDataAndServices: a project without
-// data is one sentence across the 4 (11) columns, a service row says Per
-// repository across them, a label row is class label, and sub_rows: false
-// leaves the label rows out.
-func TestTheIntegrationTableSpansItsColumnsForNoDataAndServices(t *testing.T) {
+// TestTheIntegrationTableSpansItsColumnsForNoData: a project or a service
+// without data is one sentence across the 4 (11) columns, a label row is class
+// label, and sub_rows: false leaves the label rows out.
+func TestTheIntegrationTableSpansItsColumnsForNoData(t *testing.T) {
 	for all, span := range map[bool]string{false: "4", true: "11"} {
 		noData := integrationPart(t, withoutData(all))
 		wantAll(t, "no data", noData, "<th scope=\"row\">Acme Docs</th>\n            <td colspan=\""+span+
 			"\">currently no data for this project in the last 30 days</td>")
 		data := inFigures(subRowsData(), all)
 		part := integrationPart(t, data)
-		wantAll(t, "service", part, labelCell("Acme Shop", "API")+"\n            <td colspan=\""+span+
-			"\">Per repository</td>", labelCell("Acme Shop", "Website"), "<tr class=\"label\">")
+		wantAll(t, "service", part, labelCell("Acme Shop", "IOS")+"\n            <td colspan=\""+span+
+			"\">currently no data for this service in the last 30 days</td>", labelCell("Acme Shop", "Website"),
+			"<tr class=\"label\">")
 		data.HideSubRows = true
-		wantNone(t, "sub rows off", integrationPart(t, data), "Per repository", "Website")
+		wantNone(t, "sub rows off", integrationPart(t, data), "IOS", "Website")
+	}
+}
+
+// TestTheIntegrationTableLeavesOutThePerRepositoryRows (forsgren#640): a
+// service row with data has no integration figures of its own, so the second
+// table leaves it out, while the first table keeps it with its Per repository
+// runs.
+func TestTheIntegrationTableLeavesOutThePerRepositoryRows(t *testing.T) {
+	for _, all := range []bool{false, true} {
+		got := rendered(t, "tbd.html", inFigures(subRowsData(), all))
+		first, integration, _ := strings.Cut(got, `<h2 id="tbd-integration-heading">`)
+		wantAll(t, "tbd table", first, labelCell("Acme Shop", "API"), ">Per repository</td>")
+		wantNone(t, "integration", integration, labelCell("Acme Shop", "API"), "Per repository")
 	}
 }

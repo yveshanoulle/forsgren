@@ -332,15 +332,12 @@ func (r TbdRow) IntegrationSpan() int {
 
 // IntegrationGroups are the Integration groups of a row: the commits per
 // working day per developer, the share of developers integrating on most
-// working days, the trunk freshness and the longest gap. A service row writes
-// Per repository across them all and a project with its push read refused or
-// not collected the push state, as the push groups do.
+// working days, the trunk freshness and the longest gap. A project with its
+// push read refused or not collected writes the push state across them all, as
+// the push groups do. A service row with data is not in the Integration table
+// (Data.TbdIntegrationRows, forsgren#640), so no row here is per repository.
 func (r TbdRow) IntegrationGroups() []spreadGroup {
-	state := r.Push.State()
-	if r.PerRepository() {
-		state = r.PerRepositorySentence()
-	}
-	if state != "" {
+	if state := r.Push.State(); state != "" {
 		return []spreadGroup{{State: state, Colspan: r.IntegrationSpan()}}
 	}
 	in := r.Integration
