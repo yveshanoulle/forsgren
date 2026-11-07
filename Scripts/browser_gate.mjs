@@ -1,4 +1,5 @@
-// canon: browser_gate v18
+// canon: browser_gate v19
+// v19 (forsgren#642): a launch whose own error comes before Chrome's 'exit' still names the death: on Linux the closed pipe of a dying Chrome is read first and puppeteer.launch rejects with TargetCloseError, so v18 printed that error and neither the death nor Chrome's stderr; the engine now gives Chrome's process LAUNCH_EXIT_SETTLE_MS (2 s) to be seen ending and names it as v17 and v18 do, with the launch's own error after Chrome's lines. A code-sign clone folder is the same folder at removal only with the same inode and the same birth time: a file system that hands a freed inode out again (ext4) gave a folder replaced after the launch the old number, and it was removed. The findings, the baseline format and the exit statuses are unchanged.
 // v18 (forsgren#642): a Chrome that dies during the launch is named with its own last lines on stderr (up to 20, kept from its spawn), or with the words that it wrote none: on Linux Chrome ends itself on a singleton socket path too long (LOG(FATAL) "Socket path too long") and is seen as SIGABRT, and the reason was only on its stderr, which nobody read. The findings, the baseline format and the exit statuses are unchanged.
 // v17 (forsgren#630, step 2): a Chrome that dies during the launch ends the run at once, whoever holds its pipe: the engine keeps the process puppeteer spawns for its executable and races the launch with that process's own 'exit', so a helper or a wrapper's child holding a copy of the pipe no longer keeps the launch (and the run) waiting; the FAIL names it, `FAIL: browser gate: Chrome died during the launch (PID <pid>, exit <code> | signal <signal>)`, exit 2, and Chrome's process group is ended and the profile removed as on every way out. The findings, the baseline format and the exit statuses are unchanged.
 // v16 (estate issue 629, step 2): every exit that follows a write waits for stdout and stderr to be taken (a site's red ended after 8192 bytes in the middle of a line, with its FAIL lines lost: process.exit() drops what a pipe has not taken); an uncaught error or an unhandled rejection ends the run with a FAIL line naming it, exit 2, Chrome closed. The findings, the baseline format and the exit statuses are unchanged.
@@ -847,6 +848,34 @@ function diedDuringLaunch(spawn) {
   return death;
 }
 
+// The launch, or Chrome's death during it, whichever comes first (v17). The
+// launch's own error may come first although Chrome died (v19): on Linux the
+// closed pipe is read before the process's 'exit', and puppeteer.launch rejects
+// with TargetCloseError. Chrome's process then has up to LAUNCH_EXIT_SETTLE_MS
+// to be seen ending (its own 'exit' ends the wait): its death is named, with the
+// launch's error kept beside it; a Chrome still alive leaves the error as it is.
+const LAUNCH_EXIT_SETTLE_MS = 2000;
+function launchOrDeath(launching, death) {
+  let deathFirst = false;
+  death.catch(() => { deathFirst = true; });
+  const failed = launching.catch(async (error) => {
+    if (deathFirst || !live.chrome) throw error;
+    let timer;
+    const settled = new Promise((resolve) => { timer = setTimeout(resolve, LAUNCH_EXIT_SETTLE_MS); });
+    try {
+      await Promise.race([death, settled]);
+    } catch (died) {
+      died.launchError = error;
+      throw died;
+    } finally {
+      clearTimeout(timer);
+    }
+    throw error;
+  });
+  failed.catch(() => {}); // a death that won the race may make this reject later
+  return Promise.race([failed, death]);
+}
+
 // A check that loses the race to a dead Chrome may still reject later.
 function unlessGone(work, gone) {
   work.catch(() => {});
@@ -949,8 +978,9 @@ async function removeFolder(folder, what) {
 //   - exactly one folder is new since just before the launch, born after it;
 //   - no other Chrome main process started from CLONE_WINDOW_MS before the
 //     launch until now (any Chrome that starts makes a folder of its own);
-//   - at removal the folder is still the same one (same inode) and no process
-//     of this Chrome's profile runs any more.
+//   - at removal the folder is still the same one (same inode and same birth
+//     time: ext4 hands a freed inode out again, v19) and no process of this
+//     Chrome's profile runs any more.
 const CLONE_WINDOW_MS = 5000;
 const CHROME_MAIN = /\.app\/Contents\/MacOS\/(Google Chrome|Chromium|Chrome)/;
 const CLONE_NAME = /^code_sign_clone\.[A-Za-z0-9]+$/;
@@ -994,7 +1024,7 @@ function otherChromeStarts(sinceMs, pid) {
     return now - elapsedMs(match[2]) >= sinceMs;
   });
 }
-// { folder, inode } for this Chrome's folder, or { reason } for why it is left.
+// { folder, inode, born } for this Chrome's folder, or { reason } for why it is left.
 function identifyClone(baseline, pid) {
   const fresh = cloneNames(baseline.parent).filter((name) => !baseline.names.has(name));
   if (fresh.length !== 1) return { reason: `${fresh.length} new clone folders appeared during the launch (a Chrome of another process makes one too)` };
@@ -1004,7 +1034,7 @@ function identifyClone(baseline, pid) {
   const others = otherChromeStarts(baseline.launchedAt - CLONE_WINDOW_MS, pid);
   if (others === null) return { reason: 'ps could not list the Chrome processes' };
   if (others.length > 0) return { reason: 'another Chrome started during the launch, so the new clone folder may be its own' };
-  return { folder, inode: stat.ino };
+  return { folder, inode: stat.ino, born: stat.birthtimeMs };
 }
 // True while a process still runs with this profile folder (a launch that failed
 // has no browser object to ask).
@@ -1082,7 +1112,7 @@ function release() {
     const left = (reason) => { said = true; console.error(`browser gate: the code-sign clone folder of this Chrome is left for the nightly cleanup (estate issue 617): ${reason}`); };
     if (clone.folder) {
       const now = fs.statSync(clone.folder, { throwIfNoEntry: false });
-      if (!now) { /* Chrome removed it itself: nothing is kept */ } else if (now.ino !== clone.inode) {
+      if (!now) { /* Chrome removed it itself: nothing is kept */ } else if (now.ino !== clone.inode || now.birthtimeMs !== clone.born) {
         left(`${clone.folder} was replaced by another folder after the launch`);
       } else if (await profileChromeEnded(profile)) {
         await attempt(clone.folder, 'Chrome code-sign clone folder');
@@ -1175,7 +1205,7 @@ async function main() {
     // A Chrome that dies during the launch ends it at once (v17), whoever holds
     // its pipe: the launch alone would wait for that pipe to close.
     try {
-      live.browser = await Promise.race([live.launching, live.launchDeath]);
+      live.browser = await launchOrDeath(live.launching, live.launchDeath);
     } finally {
       spawn.restore();
     }
@@ -1227,15 +1257,16 @@ async function main() {
   );
 }
 
-// What a Chrome that died during the launch wrote last on stderr (v18).
-function chromeSaid(lines) {
-  if (lines.length === 0) return ' (Chrome wrote nothing on stderr)';
-  return `\nChrome's last lines on stderr:\n${lines.map((line) => `  ${line}`).join('\n')}`;
+// What a Chrome that died during the launch wrote last on stderr (v18), and the
+// launch's own error when it came first (v19).
+function chromeSaid(lines, launchError) {
+  const said = lines.length === 0 ? ' (Chrome wrote nothing on stderr)' : `\nChrome's last lines on stderr:\n${lines.map((line) => `  ${line}`).join('\n')}`;
+  return launchError ? `${said}\nThe launch's own error, which came first: ${launchError.name}: ${launchError.message}` : said;
 }
 
 main().catch(async (error) => {
   if (error instanceof ChromeDiedInLaunch) {
-    console.error(`FAIL: browser gate: ${error.message}${chromeSaid(await error.lastLines())}`);
+    console.error(`FAIL: browser gate: ${error.message}${chromeSaid(await error.lastLines(), error.launchError)}`);
   } else {
     console.error(`browser-gate: ${error.stack || error.message}`);
   }

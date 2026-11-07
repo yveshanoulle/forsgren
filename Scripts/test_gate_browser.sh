@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v31
+# canon: test_gate_browser v32
+# v32 (forsgren#642): case 54b says why its replaced folder is a new one on Linux too: ext4 hands the freed inode of the removed folder to the new one, so the engine compares the birth time as well (browser_gate v19); on the first Linux run the folder was taken for the identified one and removed (Quality run 42406819133)
 # v31 (forsgren#642): a signal case's TMPDIR is a folder of its own straight under the temp root (mktemp), its side files under TMP: on Linux Chrome's singleton socket lies in the profile, and under TMP/sig_<label> its path passed the 107 characters of a Unix socket, so Chrome aborted (SIGABRT) during the launch; proof S copies the libraries the wrapper sources, read from it
 # v30 adds (forsgren#641): --shard N/M runs only the cases and proofs that Scripts/lib_isolation_shard.sh deals to shard N of M by the seconds of Scripts/browser_gate_selftest_weights.txt (case 8 with 19 to 21 and proof B, which read the CLS it measures; the cases of SERIAL_CASES with the proofs R, Rb, S, X, Z and Dh, one unit), so a CI can run it in several jobs, every case in exactly one; --list prints the cases and proofs a run would start, one per line, and stops before it needs Chrome; without --shard every case runs, as before; a repository without the library refuses --shard (exit 64)
 # v29 adds (forsgren#636): case 53f, Chrome killed during the launch while a helper of its process group holds its pipe (its command pipe a FIFO nobody writes, so the launch is surely still on), ends the run within 10 s with `FAIL: browser gate: Chrome died during the launch (PID <pid>, exit <code> | signal <signal>)`, no Chrome, no profile (browser_gate v17); mutation proof Dh, the engine not hearing Chrome's process end, still runs 10 s after the kill; moved from the browser gate process self-test (its v4 case 53f and proof D), so the sites test the engine's newest behaviour; a signal case may take a bound of its own (SIG_WAIT_S, 20 s by default), named in its reason; the file names no path that only forsgren has (a comment named the process self-test's path, and a site's script-references gate, which reads comments, found it unresolved)
@@ -1599,8 +1600,10 @@ elif [[ -e "$SEAM_FOLDER" ]]; then
 else
   echo "  ok: 54a: a helper still ending at removal time is waited for, then the clone folder is removed"
 fi
-# 54b: the folder identified for the Chrome is replaced by another one (new
-# inode) after the launch; the gate does not remove it and must say why.
+# 54b: the folder identified for the Chrome is replaced by another one after
+# the launch; the gate does not remove it and must say why. On macOS the new
+# folder has a new inode; on Linux (ext4) it may get the removed folder's inode
+# back, and only its birth time tells it apart (browser_gate v19).
 # The swap runs on the next turn of the engine's event loop after the hook, so
 # after the identification, which the engine does synchronously right after the
 # hook returns, and it marks itself done (FORSGREN_TEST_READY_MARK); the kill

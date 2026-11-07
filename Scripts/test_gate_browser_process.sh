@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser_process v6
+# canon: test_gate_browser_process v7
+# v7 (forsgren#642): case 53k, a launch that fails before Chrome's process is seen ending (its pipe closed first, as a dying Chrome's is read on Linux, where 53j got TargetCloseError in Quality run 42406819133) still names the death, Chrome's last lines on stderr and then the launch's own error (browser_gate v19)
 # v6 (forsgren#642): Linux. A signal case's TMPDIR is a folder of its own straight under the temp root (tmp_dir), its output under TMP: under TMP/sig_<label> the path of Chrome's singleton socket, which on Linux lies in the profile, passed the 107 characters of a Unix socket and Chrome aborted (SIGABRT) during the launch; the singleton folders are asserted where the platform puts them (own_place_why: in the profile on Linux, outside it on macOS), the decoy of another Chrome lies in the shared temp folder on Linux, and proof V asserts on Linux that the folders go with the profile; case 53j: a Chrome that dies during the launch is named with its last lines on stderr (browser_gate v18); proofs S and Sb copy the libraries the wrapper sources, read from it
 # v5 (forsgren#636): case 53f and mutation proof D moved to the canon browser gate self-test (Scripts/test_gate_browser.sh v29, as case 53f and proof Dh), so the sites test browser_gate v17 too; this self-test keeps what is forsgren's own: the exits on forty looks (52a-52f, 53, 53c), the singleton folders of forsgren#613 and the proofs V, W, R, Rb, S and Sb
 # v4 (forsgren#630, step 2): case 53f, Chrome killed during the launch while a helper of its group holds its pipe (and its command pipe is a FIFO nobody writes, so the launch is surely still on), ends the run within 10 s with `FAIL: browser gate: Chrome died during the launch (PID <pid>, exit <code> | signal <signal>)`, no Chrome, no profile (browser_gate v17); mutation proof D, the engine not hearing Chrome's process end, keeps the run going past the 10 s; proof S asserts only the Chrome it leaves alive, never whether node still held the pipe (timing: at load ~6 node had closed it in 2 of 3 runs), each branch of the wait within 10 s, and proof Sb forces the branch of a closed pipe (SIG_HOLDER_GONE)
@@ -32,6 +33,10 @@
 #      reason (forsgren#383). The gate gets up to 60 s to end, and Chrome up to
 #      60 s to be gone once its pipe closed (10 s while node still holds it, v3):
 #      observable conditions, never a fixed window (forsgren#384, forsgren#630).
+#  53j. Chrome aborts during the launch -> exit 2, the FAIL naming the death
+#      (PID, SIGABRT) and quoting Chrome's last lines on stderr (browser_gate v18)
+#  53k. Chrome closes its pipe during the launch and lives on (the launch's error
+#      comes first) -> the same FAIL, then the launch's own error (browser_gate v19)
 #  54. The singleton folders of Chrome (forsgren#613): on macOS Chrome makes
 #      com.google.Chrome.XXXXXX (SingletonCookie, SingletonSocket) in the system
 #      temp folder, whatever TMPDIR says, and a killed Chrome leaves them (on
@@ -390,6 +395,33 @@ elif [[ ! "$ABORT_OUT" =~ $ABORT_WANTED ]]; then
   fail "53j: the FAIL line should name the death and quote Chrome's last lines on stderr. Output: ${ABORT_OUT}"
 else
   echo "  ok: 53j: a Chrome that aborts during the launch is named with its last lines on stderr"
+fi
+
+# 53k (forsgren#642, browser_gate v19): the launch's own error comes before
+# Chrome's 'exit'. On Linux the closed pipe of a dying Chrome was read first,
+# puppeteer.launch rejected with TargetCloseError and 53j saw no death and no
+# stderr (Quality run 42406819133). This fake closes its pipe (fds 3 and 4)
+# after its two lines and lives on, so the launch fails first on any platform;
+# puppeteer then ends it (SIGKILL to its group). The FAIL names the death and
+# Chrome's lines, then the launch's own error.
+CLOSE_CHROME="${TMP}/close_chrome.sh"
+printf '#!/bin/sh\necho "a first line of the fake Chrome" >&2\necho "the fake Chrome closes its pipe" >&2\nexec 3>&- 4>&-\nsleep 10\n' > "$CLOSE_CHROME"
+chmod +x "$CLOSE_CHROME"
+CLOSE_RC=0
+CLOSE_OUT="$(FORSGREN_CHROME="$CLOSE_CHROME" "$GATE" "${TMP}/slow/site" "${TMP}/slow/manifest.json" \
+  "${TMP}/slow/exceptions.txt" "${TMP}/slow/baseline.txt" "${TMP}/slow/variants.txt" 2>&1)" || CLOSE_RC=$?
+CLOSE_WANTED="FAIL: browser gate: Chrome died during the launch \(PID [0-9]+, signal SIGKILL\)
+Chrome's last lines on stderr:
+  a first line of the fake Chrome
+  the fake Chrome closes its pipe
+The launch's own error, which came first: [^
+]+"
+if [[ "$CLOSE_RC" -ne 2 ]]; then
+  fail "53k: a Chrome whose pipe closes before its process ends should end the run with exit 2, got ${CLOSE_RC}. Output: ${CLOSE_OUT}"
+elif [[ ! "$CLOSE_OUT" =~ $CLOSE_WANTED ]]; then
+  fail "53k: the FAIL line should name the death, quote Chrome's last lines on stderr and the launch's own error. Output: ${CLOSE_OUT}"
+else
+  echo "  ok: 53k: a launch that fails before Chrome's process ends still names the death, its last lines on stderr and the launch's error"
 fi
 
 # Mutation proofs: the engine copy is run directly, with the real node_modules.
