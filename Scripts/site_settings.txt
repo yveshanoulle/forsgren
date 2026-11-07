@@ -1,12 +1,19 @@
 # Per-repo values for the shared gate scripts, read only through
 # Scripts/lib_site_settings.sh. One key=value per line. The key set is closed:
-# the lib lists the allowed keys, and every key is required.
+# the lib lists the allowed keys and key families; every key is required, and
+# a family needs at least one member.
 #
 # site_dir                 the directory that ships
 # html_dupl_target         the directory the HTML duplication ratchet measures
-# html_dupl_ceiling        the duplication ceiling in percent, direction DOWN only
+# html_dupl_ceiling_jscpd<major>
+#                          the duplication ceiling in percent measured with that
+#                          jscpd major, direction DOWN only. One line per major:
+#                          the gate asks the jscpd it runs for its version and
+#                          takes that major's line; a running major without a
+#                          line is red. 5 is the pinned jscpd 5.4.2 on the
+#                          templates (forsgren issue 637, lib_site_settings v3).
 # required_pages_manifest  the hand-authored manifest of the pages a release must serve
 site_dir=.build/site
 html_dupl_target=internal/page/templates
-html_dupl_ceiling=0.00
+html_dupl_ceiling_jscpd5=0.00
 required_pages_manifest=internal/page/required-pages.json

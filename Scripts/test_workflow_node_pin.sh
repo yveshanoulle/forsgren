@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_workflow_node_pin v1
+# canon: test_workflow_node_pin v2
 # Scripts/test_workflow_node_pin.sh
 #
 # The Node pin in CI: every workflow that runs npm
@@ -35,27 +35,30 @@ selftest_begin "workflow node pin self-test"
 judge_file() {
   awk -v file="$1" -v checksha="${CHECK_SHA:-1}" -v checkmin="${CHECK_MIN:-1}" -v minmajor=5 '
     function code(s) { return s !~ /^[[:space:]]*#/ }
-    # Judged per job (forsgren#259: Quality has several jobs, each with its own
-    # setup): the step count, the first install and the setup-node step are
-    # those of one job, and a job that needs no Node is not judged.
-    function finish() {
-      if (needs) {
-        if (!sn) { print file ": runs npm or node but has no actions/setup-node step"; }
-        else {
-          if (checksha == 1 && usesline !~ /setup-node@[0-9a-f]{40}[[:space:]]+# v[0-9]+\.[0-9]+\.[0-9]+/)
-            print file ": actions/setup-node is not pinned by a 40-hex commit sha with a # vX.Y.Z comment"
-          if (checkmin == 1 && match(usesline, /# v[0-9]+/)) {
-            major = substr(usesline, RSTART + 3, RLENGTH - 3) + 0
-            if (major < minmajor) print file ": actions/setup-node is v" major ", which runs on Node 20; v" minmajor ".0.0 is the first release on node24"
-          }
-          if (vf !~ /node-version-file:[[:space:]]*\.nvmrc[[:space:]]*$/)
-            print file ": actions/setup-node does not set node-version-file: .nvmrc"
-          if (first && sn >= first) print file ": actions/setup-node comes after the first step that installs tools or runs npm"
-        }
+    # Per job (site issue 47): a workflow with several jobs is judged one
+    # job at a time, so a job without its own setup-node is red even when
+    # another job has one. The counters restart at each job header.
+    function judge_job(   label) {
+      label = file (job == "" ? "" : " (job " job ")")
+      if (job == "" || !needs) return
+      if (!sn) { print label ": runs npm or node but has no actions/setup-node step"; return }
+      if (checksha == 1 && usesline !~ /setup-node@[0-9a-f]{40}[[:space:]]+# v[0-9]+\.[0-9]+\.[0-9]+/)
+        print label ": actions/setup-node is not pinned by a 40-hex commit sha with a # vX.Y.Z comment"
+      if (checkmin == 1 && match(usesline, /# v[0-9]+/)) {
+        major = substr(usesline, RSTART + 3, RLENGTH - 3) + 0
+        if (major < minmajor) print label ": actions/setup-node is v" major ", which runs on Node 20; v" minmajor ".0.0 is the first release on node24"
       }
-      step = 0; needs = 0; sn = 0; first = 0; usesline = ""; vf = ""
+      if (vf !~ /node-version-file:[[:space:]]*\.nvmrc[[:space:]]*$/)
+        print label ": actions/setup-node does not set node-version-file: .nvmrc"
+      if (first && sn >= first) print label ": actions/setup-node comes after the first step that installs tools or runs npm"
     }
-    /^  [A-Za-z0-9_-]+:[[:space:]]*$/ { finish() }
+    /^jobs:/ { injobs = 1 }
+    injobs && /^  [A-Za-z0-9_-]+:[[:space:]]*$/ {
+      judge_job()
+      job = $0; sub(/^  /, "", job); sub(/:.*/, "", job)
+      step = 0; needs = 0; sn = 0; usesline = ""; vf = ""; first = 0
+      next
+    }
     /^      - / { step++ }
     code($0) && $0 ~ /(^|[[:space:];&|(])(npm|npx|node)[[:space:]]/ && $0 ~ /run:|^[[:space:]]+[a-z]/ && $0 !~ /uses:/ { needs = 1 }
     code($0) && $0 ~ /uses:[[:space:]]*actions\/setup-node@/ {
@@ -63,7 +66,7 @@ judge_file() {
     }
     sn && step == sn && code($0) && $0 ~ /node-version-file:/ { vf = $0 }
     code($0) && !first && ($0 ~ /Scripts\/install_tools\.sh/ || $0 ~ /npm ci/) { first = step }
-    END { finish() }
+    END { judge_job() }
   ' "$1"
 }
 
@@ -134,12 +137,37 @@ synth late "${SHA}  # v7.0.0" "node-version-file: .nvmrc" after
 judge late "$WF"
 want_red "6. setup-node after the installs" "comes after the first step"
 
-# Each job is judged on its own (forsgren#259): a second job that runs npm ci
-# with no setup-node step of its own is red, though the first job has one.
-synth twojobs "${SHA}  # v7.0.0" "node-version-file: .nvmrc" before
-printf '  k:\n    runs-on: macos-latest\n    steps:\n      - name: Install dependencies\n        run: npm ci\n' >> "$WF"
-judge twojobs "$WF"
-want_red "6b. a second job that runs npm with no setup-node of its own" "has no actions/setup-node step"
+# 8. Several jobs (site issue 47): each job that runs npm needs its own
+# setup-node, before its own installs. A second job without one, or with it
+# after the installs, is red even though the first job is fine; the problem
+# names the job.
+multi_job() {
+  local f="${TMP}/$1.yml" second="$2"
+  {
+    printf 'name: t\non: push\njobs:\n  first:\n    runs-on: macos-latest\n    steps:\n'
+    printf '      - uses: actions/setup-node@%s  # v7.0.0\n        with:\n          node-version-file: .nvmrc\n' "$SHA"
+    printf '      - run: npm ci\n  second:\n    runs-on: macos-latest\n    steps:\n'
+    case "$second" in
+      good)
+        printf '      - uses: actions/setup-node@%s  # v7.0.0\n        with:\n          node-version-file: .nvmrc\n' "$SHA"
+        printf '      - run: npm ci\n' ;;
+      none) printf '      - run: npm ci\n' ;;
+      late)
+        printf '      - run: npm ci\n'
+        printf '      - uses: actions/setup-node@%s  # v7.0.0\n        with:\n          node-version-file: .nvmrc\n' "$SHA" ;;
+    esac
+  } > "$f"
+  WF="$f"
+}
+multi_job twogood good
+judge twogood "$WF"
+want_rc "8. two jobs, each with its own setup-node before its installs, are accepted" 0
+multi_job twonone none
+judge twonone "$WF"
+want_red "8b. a second job without its own setup-node" "(job second): runs npm or node but has no actions/setup-node step"
+multi_job twolate late
+judge twolate "$WF"
+want_red "8c. a second job whose setup-node comes after its installs" "(job second): actions/setup-node comes after the first step"
 
 # The real workflows: every file that uses node or npm is covered.
 for wf in .github/workflows/*.yml; do

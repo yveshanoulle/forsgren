@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_check_privacy_posture v2
+# canon: test_check_privacy_posture v3
 # Scripts/test_check_privacy_posture.sh
 #
 # Self-test for Scripts/check_privacy_posture.sh, the
@@ -71,7 +71,7 @@ mkroot() {
   mkdir -p "${root}/Scripts" "${root}/Site"
   cp "$GATE" "${root}/Scripts/check_privacy_posture.sh"
   cp Scripts/lib_site_settings.sh "${root}/Scripts/lib_site_settings.sh"
-  printf 'site_dir=Site\nhtml_dupl_target=Site\nhtml_dupl_ceiling=1.0\nrequired_pages_manifest=m.json\n' > "${root}/Scripts/site_settings.txt"
+  printf 'site_dir=Site\nhtml_dupl_target=Site\nhtml_dupl_ceiling_jscpd4=1.0\nrequired_pages_manifest=m.json\n' > "${root}/Scripts/site_settings.txt"
   if [[ "${2-$EXC_OK}" != "-" ]]; then
     printf '%s' "${2-$EXC_OK}" > "${root}/Scripts/privacy_posture_exceptions.txt"
   fi

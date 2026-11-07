@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_check_lint_coverage v1
+# canon: test_check_lint_coverage v3
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -110,7 +110,7 @@ new_sandbox() { # <check-script>; sets SB
   mkdir -p "$SB/Scripts" "$SB/node_modules/.bin" "$SB/Site" "$SB/fakebin"
   cp "$1" "$SB/Scripts/check_lint_coverage.sh"
   cp Scripts/lint_json_count.py Scripts/lib_site_settings.sh Scripts/lib_tmp.sh "$SB/Scripts/"
-  printf 'site_dir=Site\nhtml_dupl_target=Site\nhtml_dupl_ceiling=1.0\nrequired_pages_manifest=m.json\n' > "$SB/Scripts/site_settings.txt"
+  printf 'site_dir=Site\nhtml_dupl_target=Site\nhtml_dupl_ceiling_jscpd4=1.0\nrequired_pages_manifest=m.json\n' > "$SB/Scripts/site_settings.txt"
   printf '{}\n' > "$SB/.htmlhintrc"
   cp "$site"/* "$SB/Site/"
   cp "$bin/htmlhint" "$SB/node_modules/.bin/htmlhint"

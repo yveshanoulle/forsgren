@@ -105,16 +105,19 @@ Two PRE gates check the page templates and the pages they render:
   pinned like the linters below, and the gate checks the pin: no readable
   jscpd pin in `package.json` devDependencies (no file, no JSON, no jscpd) is
   exit 2. An installed jscpd that differs from the pin never fails this gate
-  by itself; that match is the npm dependency policy's check. forsgren's
-  settings lib declares no per-major ceiling family, so the gate keeps its
-  single `html_dupl_ceiling` whatever jscpd major runs.
+  by itself; that match is the npm dependency policy's check. The ceiling is
+  the running major's `html_dupl_ceiling_jscpd<major>` line of the site
+  settings (forsgren has `html_dupl_ceiling_jscpd5`, for the pinned 5.4.2); a
+  running major without a line is red.
 - **site settings** (`Scripts/lib_site_settings.sh` and
   `Scripts/site_settings.txt`, the estate canon, forsgren#215): the values
   the shared gate scripts read per repository, through one reader that fails
   closed (a missing file, an unknown or missing key is exit 2, never a
   guessed default): `site_dir=.build/site` (the generated site, read by
   HTMLHint, Stylelint and lint coverage), `html_dupl_target` and
-  `html_dupl_ceiling` (the templates, 0.00%), `required_pages_manifest`. The
+  `html_dupl_ceiling_jscpd5` (the templates, 0.00% with jscpd 5; the key
+  family `html_dupl_ceiling_jscpd<major>` of `lib_site_settings` v3 needs at
+  least one line), `required_pages_manifest`. The
   reader accepts one optional leading dot per path component, which
   `.build/site` needs. Its self-test is `Scripts/test_lib_site_settings.sh`.
   The other per-repository data of the canon gates sit in empty exception

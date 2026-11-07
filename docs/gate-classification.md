@@ -61,10 +61,10 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 25 | tool install self-test | `test_install_tools.sh` | pre | required, `test_install_tools v1` |
 | 161 | Linux tool install self-test | `test_install_tools_linux.sh` | pre | required; forsgren's own (forsgren#427, not canon): `install_tools_linux.sh`, the Linux installer the Lint gates job calls on ubuntu-latest, with the download and Python stubbed: four pinned tools installed and run at their pinned version, a wrong sha256 refused with nothing installed, another version, a tool with no pin, an empty list, another CPU and an unhashed requirements file red, the real pin list checked, 2 mutations |
 | 26 | npm install sync self-test | `test_npm_sync_install.sh` | pre | required, `test_npm_sync_install v1` |
-| 27 | site-settings self-test | `test_lib_site_settings.sh` | pre | required, `test_lib_site_settings v2` |
-| 28 | HTMLHint self-test | `test_gate_htmlhint.sh` | pre | required, `test_gate_htmlhint v1` |
+| 27 | site-settings self-test | `test_lib_site_settings.sh` | pre | required, `test_lib_site_settings v3` |
+| 28 | HTMLHint self-test | `test_gate_htmlhint.sh` | pre | required, `test_gate_htmlhint v4` |
 | 29 | HTMLHint | `gate_htmlhint.sh` | post | required, `gate_htmlhint v2` |
-| 30 | Stylelint self-test | `test_gate_stylelint.sh` | pre | required, `test_gate_stylelint v1` |
+| 30 | Stylelint self-test | `test_gate_stylelint.sh` | pre | required, `test_gate_stylelint v2` |
 | 31 | Stylelint | `gate_stylelint.sh` | post | required, `gate_stylelint v2` |
 | 32 | Stylelint source-fix self-test | `test_fix_source_css.sh` | pre | required |
 | 33 | starter page build | `build_starter_page.sh` | post | required |
@@ -111,7 +111,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 68 | Go vulnerabilities | `check_govulncheck.sh` | pre | required; documented exception: offline skip (see below) |
 | 69 | Go dead code self-test | `test_check_deadcode.sh` | pre | required |
 | 70 | Go dead code | `check_deadcode.sh` | pre | required |
-| 71 | lint-coverage self-test | `test_check_lint_coverage.sh` | pre | required, `test_check_lint_coverage v1` |
+| 71 | lint-coverage self-test | `test_check_lint_coverage.sh` | pre | required, `test_check_lint_coverage v3` |
 | 72 | lint coverage | `check_lint_coverage.sh` | post | required, `check_lint_coverage v2` |
 | 73 | npm-audit self-test | `test_npm_audit_check.sh` | pre | required, `test_npm_audit_check v4`; documented exception: one dated advisory (see below) |
 | 74 | npm audit | `npm_audit_check.sh` | pre | required, `npm_audit_check v5`; documented exception: one dated advisory (see below) |
@@ -129,7 +129,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 86 | FBP build-site page count | `test_fbp_build_pagecount.sh` | pre | required |
 | 87 | FBP aborted run | `test_fbp_aborted.sh` | pre | required |
 | 88 | FBP abort exit | `test_fbp_abort_exit.sh` | pre | required |
-| 89 | privacy-posture self-test | `test_check_privacy_posture.sh` | pre | required, `test_check_privacy_posture v1` |
+| 89 | privacy-posture self-test | `test_check_privacy_posture.sh` | pre | required, `test_check_privacy_posture v3` |
 | 90 | privacy posture | `check_privacy_posture.sh` | post | required, `check_privacy_posture v1` |
 | 91 | repository-links self-test | `test_check_repo_links.sh` | pre | required |
 | 92 | repository links | `check_repo_links.sh` | post | required |
@@ -152,7 +152,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 107 | starter page build self-test | `test_build_starter_page.sh` | pre | required |
 | 108 | starter page links self-test | `test_check_starter_links.sh` | pre | required |
 | 109 | starter page gates self-test | `test_starter_page_gates.sh` | pre | required |
-| 110 | workflow node pin | `test_workflow_node_pin.sh` | pre | required, `test_workflow_node_pin v1` |
+| 110 | workflow node pin | `test_workflow_node_pin.sh` | pre | required, `test_workflow_node_pin v2` |
 | 152 | dependabot config | `test_dependabot_config.sh` | pre | required; forsgren's own (forsgren#86): `.github/dependabot.yml` has `gomod`, `github-actions` and `npm` (forsgren#605) at `/`, a cron schedule, a commit-message prefix, groups, a cooldown and a comment per choice; 4 mutations (comments, cooldown, groups, npm) |
 | 111 | npm lockfile sync self-test | `test_check_npm_lock_sync.sh` | pre | required, `test_check_npm_lock_sync v1` |
 | 112 | npm lockfile sync | `check_npm_lock_sync.sh` | pre | required, `check_npm_lock_sync v1` |

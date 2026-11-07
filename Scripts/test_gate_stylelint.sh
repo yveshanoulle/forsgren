@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_gate_stylelint v1
+# canon: test_gate_stylelint v2
 # Scripts/test_gate_stylelint.sh
 #
 # Self-test for Scripts/gate_stylelint.sh, the Stylelint post gate, run in PRE
@@ -117,7 +117,7 @@ want_exit "4. a site directory that does not exist" 2 "stylelint: site dir not f
 new_root settings
 mkdir -p "${ROOT}/pages"
 printf '%s' "$BAD_CSS" > "${ROOT}/pages/styles.css"
-printf 'site_dir=pages\nhtml_dupl_target=pages\nhtml_dupl_ceiling=1.0\nrequired_pages_manifest=m.json\n' > "${ROOT}/Scripts/site_settings.txt"
+printf 'site_dir=pages\nhtml_dupl_target=pages\nhtml_dupl_ceiling_jscpd4=1.0\nrequired_pages_manifest=m.json\n' > "${ROOT}/Scripts/site_settings.txt"
 capture env -u GATE_FIX "${ROOT}/Scripts/gate_stylelint.sh"
 want_red "5. the site dir from site_settings.txt" "color-hex-length"
 
