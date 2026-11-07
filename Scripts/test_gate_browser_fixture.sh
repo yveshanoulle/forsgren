@@ -30,6 +30,8 @@ GATE="${REPO_ROOT}/Scripts/gate_browser_fixture.sh"
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_browser_baseline.sh
+source Scripts/lib_browser_baseline.sh
 selftest_begin "browser gate (fixture site) self-test"
 
 for need in "$GATE" "${REPO_ROOT}/Scripts/browser_gate.mjs" "${REPO_ROOT}/node_modules/puppeteer-core" "${REPO_ROOT}/node_modules/axe-core"; do
@@ -119,7 +121,10 @@ want_exit "6: a site directory that does not exist" 2 "site dir not found"
 # 7: the default site is the fixture site; only "/" and "/history.html" are asked for,
 # with the rows of the real fixture baseline for those two pages: their tables scroll
 # inside their box at a phone's width, recorded there (forsgren#350, decision #364).
-awk -F'|' '$1 == "sideways" && ($3 == "/" || $3 == "/history.html")' Scripts/browser_gate_fixture_baseline.txt > "${TMP}/clean/fixture_rows.txt"
+# The fixture baseline of this platform, as the gate picks it (forsgren#642): the
+# widths differ between macOS and Linux.
+FIXTURE_BASELINE="$(browser_baseline Scripts/browser_gate_fixture_baseline.txt Scripts/browser_gate_fixture_baseline_linux.txt)"
+awk -F'|' '$1 == "sideways" && ($3 == "/" || $3 == "/history.html")' "$FIXTURE_BASELINE" > "${TMP}/clean/fixture_rows.txt"
 FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS=300 capture "$GATE" "" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/fixture_rows.txt" "${TMP}/clean/variants.txt"
 want_green "7: the gate builds the fixture site and its History page passes" "OK: browser gate: 2 pages x 1 variants (light)"
 

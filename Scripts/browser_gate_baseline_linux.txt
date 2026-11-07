@@ -10,5 +10,7 @@
 #   cls|<variant>|<page>|<value>|reason
 #   sideways|<variant>|<page>|<viewport>|<what>|<px>|reason
 #
-# No rows yet: the first Quality run on ubuntu-latest measures them, and its
-# FAIL lines are the rows the owner rules on (forsgren#642, step 2).
+# The rows: the FAIL lines of the browser gate in the first Quality run on
+# ubuntu-latest, run 42393428814 (forsgren#642, step 2), each with the width of
+# its macOS row in its reason.
+sideways|light|/settings.html|390x844|table 1|346|the settings table scrolls inside its box by design (forsgren#38); shrink-only until its follow-up issue of forsgren#350 (decision #364); 346 px measured on GitHub's ubuntu-latest Chrome in Quality run 42393428814 (forsgren#642), the macOS row is 346 px

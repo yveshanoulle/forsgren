@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser_process v5 + forsgren#642 (proofs S and Sb copy the libraries the wrapper sources, read from it)
+# canon: test_gate_browser_process v6
+# v6 (forsgren#642): Linux. A signal case's TMPDIR is a folder of its own straight under the temp root (tmp_dir), its output under TMP: under TMP/sig_<label> the path of Chrome's singleton socket, which on Linux lies in the profile, passed the 107 characters of a Unix socket and Chrome aborted (SIGABRT) during the launch; the singleton folders are asserted where the platform puts them (own_place_why: in the profile on Linux, outside it on macOS), the decoy of another Chrome lies in the shared temp folder on Linux, and proof V asserts on Linux that the folders go with the profile; case 53j: a Chrome that dies during the launch is named with its last lines on stderr (browser_gate v18); proofs S and Sb copy the libraries the wrapper sources, read from it
 # v5 (forsgren#636): case 53f and mutation proof D moved to the canon browser gate self-test (Scripts/test_gate_browser.sh v29, as case 53f and proof Dh), so the sites test browser_gate v17 too; this self-test keeps what is forsgren's own: the exits on forty looks (52a-52f, 53, 53c), the singleton folders of forsgren#613 and the proofs V, W, R, Rb, S and Sb
 # v4 (forsgren#630, step 2): case 53f, Chrome killed during the launch while a helper of its group holds its pipe (and its command pipe is a FIFO nobody writes, so the launch is surely still on), ends the run within 10 s with `FAIL: browser gate: Chrome died during the launch (PID <pid>, exit <code> | signal <signal>)`, no Chrome, no profile (browser_gate v17); mutation proof D, the engine not hearing Chrome's process end, keeps the run going past the 10 s; proof S asserts only the Chrome it leaves alive, never whether node still held the pipe (timing: at load ~6 node had closed it in 2 of 3 runs), each branch of the wait within 10 s, and proof Sb forces the branch of a closed pipe (SIG_HOLDER_GONE)
 # v3 (forsgren#630): a signal case waits for its Chrome with wait_chrome_gone (lib_gate_browser_selftest v2): 10 s while the node holding its pipe is alive, up to 60 s once the pipe's other end is closed, a bound hit named with the PIDs left, the node and the seconds; proof R runs with its Chrome stalled for 15 s, proof Rb shows the bound named, proof S that node still holds the pipe
@@ -31,9 +32,10 @@
 #      reason (forsgren#383). The gate gets up to 60 s to end, and Chrome up to
 #      60 s to be gone once its pipe closed (10 s while node still holds it, v3):
 #      observable conditions, never a fixed window (forsgren#384, forsgren#630).
-#  54. The singleton folders of Chrome (forsgren#613): Chrome makes
+#  54. The singleton folders of Chrome (forsgren#613): on macOS Chrome makes
 #      com.google.Chrome.XXXXXX (SingletonCookie, SingletonSocket) in the system
-#      temp folder, whatever TMPDIR says, and a killed Chrome leaves them. Every
+#      temp folder, whatever TMPDIR says, and a killed Chrome leaves them (on
+#      Linux .com.google.Chrome.XXXXXX in its TMPDIR, the profile, v6). Every
 #      case above finds the folders of ITS Chrome through the SingletonSocket
 #      link of its profile (read while the run is up), removes exactly those
 #      after the end, and is red on one still there (the folders are named). A
@@ -174,14 +176,25 @@ chrome_cleanup() {
 # before the signal), SIG_OWN (the singleton folders of its Chrome, forsgren#613),
 # SIG_LEFT (those still there after the cleanup SIG_CLEANUP: own, none, wide),
 # SIG_FOREIGN_GONE (the decoy of another Chrome was removed), SIG_ENDED, SIG_WAITED (the bound, SIG_WAIT_S or 60 s) and SIG_OUT.
+# The case's TMPDIR is a folder of its own straight under the temp root, its
+# output under TMP (v6, forsgren#642): on Linux Chrome binds its singleton socket
+# at <TMPDIR>/.com.google.Chrome.XXXXXX/SingletonSocket, and the engine gives
+# Chrome the profile as TMPDIR, so the socket path is the case's TMPDIR plus 62
+# characters. A Unix socket path holds at most 107, and under ${TMP}/sig_<label>
+# it was 127 or more: Chrome ends itself on that during the launch (LOG(FATAL)
+# "Socket path too long", chrome/browser/process_singleton_posix.cc), seen as
+# SIGABRT in every case here. macOS puts the socket in its own temp folder,
+# whatever TMPDIR says, so the length never showed there. SIG_TMPD is the
+# case's TMPDIR, for own_place_why.
 signal_case() {
-  local label="$1" target="$2" sig="$3" dir first tmpd pid target_pid up=engine_up
+  local label="$1" target="$2" sig="$3" dir first tmpd out pid target_pid up=engine_up
   shift 3
   if [[ "$sig" == "launch" ]]; then up=launch_up; fi
-  tmpd="${TMP}/sig_${label}"
-  mkdir -p "$tmpd"
+  tmpd="$(tmp_dir "sig_${label}")"
+  SIG_TMPD="$tmpd"
+  out="${TMP}/sig_${label}.out"
   TMPDIR="$tmpd" perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' "$@" "${TMP}/slow/site" "${TMP}/slow/manifest.json" \
-    "${TMP}/slow/exceptions.txt" "${TMP}/slow/baseline.txt" "${TMP}/slow/variants.txt" > "${tmpd}.out" 2>&1 &
+    "${TMP}/slow/exceptions.txt" "${TMP}/slow/baseline.txt" "${TMP}/slow/variants.txt" > "$out" 2>&1 &
   pid=$!
   SIG_UP=0
   for _ in $(seq 1 300); do
@@ -197,7 +210,10 @@ signal_case() {
     SIG_OWN="$(own_chrome_dirs "$tmpd")"
     if [[ -n "$SIG_OWN" ]]; then
       first="$(head -1 <<< "$SIG_OWN")"
+      # The decoy lies where another Chrome's folder would: beside this one on
+      # macOS, in the shared temp folder on Linux, where this one is in the profile.
       SIG_FOREIGN="${first%.*}.foreign$$"
+      if [[ "$first" == "$tmpd"/* ]]; then SIG_FOREIGN="$(dirname "$tmpd")/$(basename "${first%.*}").foreign$$"; fi
       mkdir -p "$SIG_FOREIGN"
     fi
   fi
@@ -238,7 +254,7 @@ signal_case() {
   wait_chrome_gone "$tmpd"
   SIG_CHROME="$({ pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-" || true; } | wc -l | tr -d ' ')"
   SIG_PROFILE="$(find "$tmpd" -maxdepth 1 -name 'browser-gate-*' | wc -l | tr -d ' ')"
-  SIG_OUT="$(cat "${tmpd}.out")"
+  SIG_OUT="$(cat "$out")"
   # Whatever a failed case left behind is ours (found by its folder): clean up.
   pkill -9 -f -- "--user-data-dir=${tmpd}/browser-gate-" || true
   rm -rf "$tmpd"
@@ -251,6 +267,20 @@ signal_case() {
   if [[ -n "$SIG_FOREIGN" ]]; then
     if [[ ! -e "$SIG_FOREIGN" ]]; then SIG_FOREIGN_GONE=1; fi
     rm -rf "$SIG_FOREIGN"
+  fi
+}
+
+# own_place_why: "" when the singleton folders of the last signal_case are where
+# Chrome puts them on this platform (v6, forsgren#642), else the reason. On Linux
+# Chrome follows TMPDIR, which the engine sets to the profile, so they are in the
+# profile and go with it; on macOS they are in the system temp folder, outside it.
+own_place_why() {
+  local first
+  first="$(head -1 <<< "$SIG_OWN")"
+  if [[ "$(uname -s)" == "Linux" && "$first" != "$SIG_TMPD"/browser-gate-* ]]; then
+    echo "on Linux the singleton folder of the case's Chrome should be in its profile (Chrome's TMPDIR), found at ${first}"
+  elif [[ "$(uname -s)" != "Linux" && "$first" == "$SIG_TMPD"/* ]]; then
+    echo "on macOS the singleton folder of the case's Chrome should be in the system temp folder, found at ${first}"
   fi
 }
 
@@ -273,6 +303,8 @@ closed_verdict() {
     echo "the profile folder is still there"
   elif [[ -z "$SIG_OWN" ]]; then
     echo "no singleton folder of the case's Chrome was found (the SingletonSocket link of its profile)"
+  elif [[ -n "$(own_place_why)" ]]; then
+    own_place_why
   elif [[ "$SIG_FOREIGN_GONE" -ne 0 ]]; then
     echo "the folder of another Chrome was removed with the singleton folders"
   elif [[ -n "$SIG_LEFT" ]]; then
@@ -338,14 +370,43 @@ if ! grep -qE "Chrome (ended|disconnected) during the run|Chrome died during the
   fail "53c: the usual error is missing. Output: ${SIG_OUT}"
 fi
 
+# 53j (forsgren#642, browser_gate v18): a Chrome that dies during the launch is
+# named with its own last lines on stderr. On Linux a Chrome LOG(FATAL) ends it
+# (seen as SIGABRT) and says why only there (a singleton socket path too long, the
+# signal cases of v5). A fake Chrome writes two lines and aborts itself.
+ABORT_CHROME="${TMP}/abort_chrome.sh"
+printf '#!/bin/sh\necho "a first line of the fake Chrome" >&2\necho "[1:1:FATAL:fake.cc(1)] Check failed: the fake reason" >&2\nkill -ABRT $$\n' > "$ABORT_CHROME"
+chmod +x "$ABORT_CHROME"
+ABORT_RC=0
+ABORT_OUT="$(FORSGREN_CHROME="$ABORT_CHROME" "$GATE" "${TMP}/slow/site" "${TMP}/slow/manifest.json" \
+  "${TMP}/slow/exceptions.txt" "${TMP}/slow/baseline.txt" "${TMP}/slow/variants.txt" 2>&1)" || ABORT_RC=$?
+ABORT_WANTED="FAIL: browser gate: Chrome died during the launch \(PID [0-9]+, signal SIGABRT\)
+Chrome's last lines on stderr:
+  a first line of the fake Chrome
+  \[1:1:FATAL:fake.cc\(1\)\] Check failed: the fake reason"
+if [[ "$ABORT_RC" -ne 2 ]]; then
+  fail "53j: a Chrome that aborts during the launch should end the run with exit 2, got ${ABORT_RC}. Output: ${ABORT_OUT}"
+elif [[ ! "$ABORT_OUT" =~ $ABORT_WANTED ]]; then
+  fail "53j: the FAIL line should name the death and quote Chrome's last lines on stderr. Output: ${ABORT_OUT}"
+else
+  echo "  ok: 53j: a Chrome that aborts during the launch is named with its last lines on stderr"
+fi
+
 # Mutation proofs: the engine copy is run directly, with the real node_modules.
 MUT="${TMP}/mutants"
 
 # V: no cleanup of the singleton folders -> the case names the folders it left
 # (this test then removes them itself).
+# On Linux the folders are in the profile (own_place_why), which the engine
+# removes, so the same run is closed without the cleanup: that is asserted
+# there, the folders named in the profile (v6, forsgren#642).
 SIG_CLEANUP=none signal_case mutant_v self error "$GATE"
-want_left "mutation proof V: without the cleanup a killed Chrome leaves its singleton folders" 2 \
-  "singleton folders of the case's Chrome are still there"
+if [[ "$(uname -s)" == "Linux" ]]; then
+  want_closed "mutation proof V (Linux): without the cleanup a killed Chrome still leaves no singleton folder: they are in its profile, removed with it" 2
+else
+  want_left "mutation proof V: without the cleanup a killed Chrome leaves its singleton folders" 2 \
+    "singleton folders of the case's Chrome are still there"
+fi
 for left in $SIG_LEFT; do rm -rf "$left"; done
 
 # W: a cleanup too wide -> the decoy of another

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v30 + forsgren#642 (proof S copies the libraries the wrapper sources, read from it)
+# canon: test_gate_browser v31
+# v31 (forsgren#642): a signal case's TMPDIR is a folder of its own straight under the temp root (mktemp), its side files under TMP: on Linux Chrome's singleton socket lies in the profile, and under TMP/sig_<label> its path passed the 107 characters of a Unix socket, so Chrome aborted (SIGABRT) during the launch; proof S copies the libraries the wrapper sources, read from it
 # v30 adds (forsgren#641): --shard N/M runs only the cases and proofs that Scripts/lib_isolation_shard.sh deals to shard N of M by the seconds of Scripts/browser_gate_selftest_weights.txt (case 8 with 19 to 21 and proof B, which read the CLS it measures; the cases of SERIAL_CASES with the proofs R, Rb, S, X, Z and Dh, one unit), so a CI can run it in several jobs, every case in exactly one; --list prints the cases and proofs a run would start, one per line, and stops before it needs Chrome; without --shard every case runs, as before; a repository without the library refuses --shard (exit 64)
 # v29 adds (forsgren#636): case 53f, Chrome killed during the launch while a helper of its process group holds its pipe (its command pipe a FIFO nobody writes, so the launch is surely still on), ends the run within 10 s with `FAIL: browser gate: Chrome died during the launch (PID <pid>, exit <code> | signal <signal>)`, no Chrome, no profile (browser_gate v17); mutation proof Dh, the engine not hearing Chrome's process end, still runs 10 s after the kill; moved from the browser gate process self-test (its v4 case 53f and proof D), so the sites test the engine's newest behaviour; a signal case may take a bound of its own (SIG_WAIT_S, 20 s by default), named in its reason; the file names no path that only forsgren has (a comment named the process self-test's path, and a site's script-references gate, which reads comments, found it unresolved)
 # v28 fixes (forsgren#630, step 2): proof S asserts the Chrome the mutation leaves alive, never whether node still held its pipe when the wait began (timing: at load ~6 node had closed it in 2 of 3 runs, and the proof failed with Chrome alive); either branch of the wait ends within 10 s (SIG_GONE_BOUND, as proof Rb sets its bound)
@@ -1241,15 +1242,27 @@ remove_new_clones() {
   done <<< "$new"
 }
 
+# The case's TMPDIR is a folder of its own straight under the temp root, its side
+# files (.out, .ready, the listings) under TMP (forsgren#642): on Linux Chrome
+# binds its singleton socket at <TMPDIR>/.com.google.Chrome.XXXXXX/SingletonSocket,
+# and the engine gives Chrome the profile as TMPDIR, so the socket path is the
+# case's TMPDIR plus 62 characters. A Unix socket path holds at most 107, and
+# under ${TMP}/sig_<label> it was 117 or more: Chrome ends itself on that during
+# the launch (LOG(FATAL) "Socket path too long", process_singleton_posix.cc),
+# seen as SIGABRT in every case here. macOS puts the socket in its own temp
+# folder, whatever TMPDIR says, so the length never showed there.
 signal_case() {
-  local label="$1" target="$2" sig="$3" tmpd pid target_pid
+  local label="$1" target="$2" sig="$3" root tmpd side pid target_pid
   shift 3
-  tmpd="${TMP}/sig_${label}"
-  mkdir -p "$tmpd"
-  clone_names > "${tmpd}.clones_before"
-  other_chromes "$tmpd" > "${tmpd}.others_before"
-  rm -f "${tmpd}.ready"
-  TMPDIR="$tmpd" FORSGREN_TEST_READY_MARK="${tmpd}.ready" perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' "$@" "${TMP}/slow/site" "${TMP}/slow/manifest.json" "${TMP}/slow/exceptions.txt" "${TMP}/slow/baseline.txt" "${TMP}/slow/variants.txt" > "${tmpd}.out" 2>&1 &
+  # One slash, as Chrome writes its --user-data-dir (macOS's TMPDIR ends in /).
+  root="${TMPDIR:-/tmp}"
+  root="${root%/}"
+  tmpd="$(mktemp -d "${root}/sig_${label}.XXXXXX")"
+  side="${TMP}/sig_${label}"
+  clone_names > "${side}.clones_before"
+  other_chromes "$tmpd" > "${side}.others_before"
+  rm -f "${side}.ready"
+  TMPDIR="$tmpd" FORSGREN_TEST_READY_MARK="${side}.ready" perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' "$@" "${TMP}/slow/site" "${TMP}/slow/manifest.json" "${TMP}/slow/exceptions.txt" "${TMP}/slow/baseline.txt" "${TMP}/slow/variants.txt" > "${side}.out" 2>&1 &
   pid=$!
   SIG_UP=0
   for _ in $(seq 1 150); do
@@ -1266,12 +1279,12 @@ signal_case() {
   if [[ "$SIG_WAIT_READY" -eq 1 ]]; then
     SIG_READY=0
     for _ in $(seq 1 150); do
-      if [[ -e "${tmpd}.ready" ]]; then SIG_READY=1; break; fi
+      if [[ -e "${side}.ready" ]]; then SIG_READY=1; break; fi
       if ! kill -0 "$pid" 2> /dev/null; then break; fi
       sleep 0.1
     done
   fi
-  SIG_CLONE_MADE="$({ clone_names | comm -13 "${tmpd}.clones_before" - || true; } | wc -l | tr -d ' ')"
+  SIG_CLONE_MADE="$({ clone_names | comm -13 "${side}.clones_before" - || true; } | wc -l | tr -d ' ')"
   SIG_PIPE_HOLDER="$(chrome_parent "$tmpd")"
   target_pid="$pid"
   if [[ "$target" == "node" ]]; then
@@ -1298,16 +1311,16 @@ signal_case() {
   wait_chrome_gone "$tmpd"
   SIG_CHROME="$({ pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-" || true; } | wc -l | tr -d ' ')"
   SIG_PROFILE="$(find "$tmpd" -maxdepth 1 -name 'browser-gate-*' | wc -l | tr -d ' ')"
-  SIG_OUT="$(cat "${tmpd}.out")"
-  SIG_CLONE_LEFT="$({ clone_names | comm -13 "${tmpd}.clones_before" - || true; } | wc -l | tr -d ' ')"
-  SIG_CLONE_CONCURRENT="$({ other_chromes "$tmpd" | comm -13 "${tmpd}.others_before" - || true; } | wc -l | tr -d ' ')"
+  SIG_OUT="$(cat "${side}.out")"
+  SIG_CLONE_LEFT="$({ clone_names | comm -13 "${side}.clones_before" - || true; } | wc -l | tr -d ' ')"
+  SIG_CLONE_CONCURRENT="$({ other_chromes "$tmpd" | comm -13 "${side}.others_before" - || true; } | wc -l | tr -d ' ')"
   # Whatever a failed case left behind is ours (found by its folder): clean up.
   pkill -9 -f -- "--user-data-dir=${tmpd}/browser-gate-" || true
   pkill -9 -f -- "${tmpd}/browser-gate-" || true
   if [[ "$SIG_CLONE_LEFT" -ne 0 && "$SIG_CLONE_CONCURRENT" -eq 0 ]]; then
-    remove_new_clones "${tmpd}.clones_before"
+    remove_new_clones "${side}.clones_before"
   fi
-  rm -rf "$tmpd" "${tmpd}.clones_before" "${tmpd}.others_before" "${tmpd}.ready"
+  rm -rf "$tmpd" "${side}.clones_before" "${side}.others_before" "${side}.ready"
 }
 
 # ready_why: the reason the last signal_case proves nothing because its seam
@@ -1328,7 +1341,7 @@ ready_why() {
 # 30 s wait.
 closed_verdict() {
   if [[ "$SIG_UP" -ne 1 ]]; then
-    echo "its Chrome was never found by the profile path ${TMP}/sig_<label>/browser-gate-*, so no Chrome count of the case proves anything"
+    echo "its Chrome was never found by the profile path ${TMPDIR:-/tmp}/sig_<label>.XXXXXX/browser-gate-*, so no Chrome count of the case proves anything"
   elif [[ "$SIG_READY" -ne 1 ]]; then
     ready_why
   elif [[ -n "$(stall_why)" ]]; then

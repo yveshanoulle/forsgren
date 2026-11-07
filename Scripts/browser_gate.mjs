@@ -1,4 +1,5 @@
-// canon: browser_gate v17
+// canon: browser_gate v18
+// v18 (forsgren#642): a Chrome that dies during the launch is named with its own last lines on stderr (up to 20, kept from its spawn), or with the words that it wrote none: on Linux Chrome ends itself on a singleton socket path too long (LOG(FATAL) "Socket path too long") and is seen as SIGABRT, and the reason was only on its stderr, which nobody read. The findings, the baseline format and the exit statuses are unchanged.
 // v17 (forsgren#630, step 2): a Chrome that dies during the launch ends the run at once, whoever holds its pipe: the engine keeps the process puppeteer spawns for its executable and races the launch with that process's own 'exit', so a helper or a wrapper's child holding a copy of the pipe no longer keeps the launch (and the run) waiting; the FAIL names it, `FAIL: browser gate: Chrome died during the launch (PID <pid>, exit <code> | signal <signal>)`, exit 2, and Chrome's process group is ended and the profile removed as on every way out. The findings, the baseline format and the exit statuses are unchanged.
 // v16 (estate issue 629, step 2): every exit that follows a write waits for stdout and stderr to be taken (a site's red ended after 8192 bytes in the middle of a line, with its FAIL lines lost: process.exit() drops what a pipe has not taken); an uncaught error or an unhandled rejection ends the run with a FAIL line naming it, exit 2, Chrome closed. The findings, the baseline format and the exit statuses are unchanged.
 // v15 folds in the sites' v14 (site issue 63): a code-sign clone folder that is kept is always named on stderr with its reason (one that was replaced after the launch was kept without a word); where a helper of the gate's own Chrome still runs at removal time the gate waits for it (bounded like a folder removal, 3 s) and then removes the folder
@@ -786,24 +787,56 @@ function watchSpawn(executablePath) {
   const childProcess = require('node:child_process');
   const original = childProcess.spawn;
   let seen;
+  let lastLines = async () => [];
   const spawned = new Promise((resolve) => { seen = resolve; });
   childProcess.spawn = function spawnWatched(file, ...rest) {
     const child = original.call(this, file, ...rest);
     if (file === executablePath) {
       childProcess.spawn = original;
+      lastLines = stderrTail(child);
       seen(child);
     }
     return child;
   };
-  return { spawned, restore: () => { childProcess.spawn = original; } };
+  return { spawned, lastLines: () => lastLines(), restore: () => { childProcess.spawn = original; } };
+}
+
+// Chrome's last lines on stderr (v18): a Chrome that dies during the launch says
+// why only there (on Linux a LOG(FATAL), seen as SIGABRT). Puppeteer pipes Chrome's
+// stderr and reads it itself; this reads the same stream from the spawn on and
+// keeps its end. Asked after the process's 'exit', it waits for the stream to
+// close, at most STDERR_SETTLE_MS, since a helper may hold a copy of it.
+const STDERR_TAIL_LINES = 20;
+const STDERR_TAIL_BYTES = 16384;
+const STDERR_SETTLE_MS = 1000;
+function stderrTail(child) {
+  let text = '';
+  const closed = new Promise((resolve) => {
+    if (!child.stderr) { resolve(); return; }
+    child.stderr.on('data', (chunk) => { text = (text + chunk).slice(-STDERR_TAIL_BYTES); });
+    child.stderr.once('close', resolve);
+  });
+  return async () => {
+    let timer;
+    await Promise.race([closed, new Promise((resolve) => { timer = setTimeout(resolve, STDERR_SETTLE_MS); })]);
+    clearTimeout(timer);
+    return text.split('\n').map((line) => line.trimEnd()).filter(Boolean).slice(-STDERR_TAIL_LINES);
+  };
 }
 
 // Rejects when Chrome's process ends before the launch resolved, naming it: its
-// PID and its exit code or signal (v17). The process's own event, never a timer.
-class ChromeDiedInLaunch extends Error {}
-function diedDuringLaunch(spawned) {
-  const death = spawned.then((child) => new Promise((resolve, reject) => {
-    const died = (code, signal) => reject(new ChromeDiedInLaunch(`Chrome died during the launch (PID ${child.pid}, ${code === null ? `signal ${signal}` : `exit ${code}`})`));
+// PID and its exit code or signal (v17). The process's own event, never a timer:
+// the rejection is not held back for stderr; the FAIL line asks for its last
+// lines once the release is over (v18, chromeSaid).
+class ChromeDiedInLaunch extends Error {
+  constructor(message, lastLines) {
+    super(message);
+    this.lastLines = lastLines;
+  }
+}
+function diedDuringLaunch(spawn) {
+  const death = spawn.spawned.then((child) => new Promise((resolve, reject) => {
+    const died = (code, signal) => reject(new ChromeDiedInLaunch(`Chrome died during the launch (PID ${child.pid}, ${code === null ? `signal ${signal}` : `exit ${code}`})`, spawn.lastLines));
     if (child.exitCode !== null || child.signalCode !== null) {
       died(child.exitCode, child.signalCode);
       return;
@@ -1120,7 +1153,7 @@ async function main() {
     live.cloneBaseline = cloneBaseline();
     const spawn = watchSpawn(executablePath);
     spawn.spawned.then((child) => { live.chrome = child; });
-    live.launchDeath = diedDuringLaunch(spawn.spawned);
+    live.launchDeath = diedDuringLaunch(spawn);
     live.launching = puppeteer.launch({
       executablePath,
       headless: true,
@@ -1194,9 +1227,15 @@ async function main() {
   );
 }
 
-main().catch((error) => {
+// What a Chrome that died during the launch wrote last on stderr (v18).
+function chromeSaid(lines) {
+  if (lines.length === 0) return ' (Chrome wrote nothing on stderr)';
+  return `\nChrome's last lines on stderr:\n${lines.map((line) => `  ${line}`).join('\n')}`;
+}
+
+main().catch(async (error) => {
   if (error instanceof ChromeDiedInLaunch) {
-    console.error(`FAIL: browser gate: ${error.message}`);
+    console.error(`FAIL: browser gate: ${error.message}${chromeSaid(await error.lastLines())}`);
   } else {
     console.error(`browser-gate: ${error.stack || error.message}`);
   }
