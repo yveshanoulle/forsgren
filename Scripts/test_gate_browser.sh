@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v27
+# canon: test_gate_browser v28
+# v28 fixes (forsgren#630, step 2): proof S asserts the Chrome the mutation leaves alive, never whether node still held its pipe when the wait began (timing: at load ~6 node had closed it in 2 of 3 runs, and the proof failed with Chrome alive); either branch of the wait ends within 10 s (SIG_GONE_BOUND, as proof Rb sets its bound)
 # v27 fixes (forsgren#630, step 1): a signal case waits for its Chrome to end on the signal itself, not for a fixed 10 s: while the node that holds Chrome's pipe is alive 10 s (SIG_HELD_BOUND), once the pipe's other end is closed up to 60 s (SIG_GONE_BOUND), and a bound hit is named (the PIDs still alive, the node whose pipe end closed, the seconds); proof R runs with its Chrome stalled for 15 s (SIG_STALL_CHROME: stopped before the signal, continued after), which turned v26 red as load ~100 did; proof Rb shows the bound named, proof S that Chrome stays because node still holds its pipe
 # v26 runs the plain cases side by side (forsgren#632): each is a case_<id> function started through Scripts/lib_parallel_mutants.sh, on its own copy of its fixtures in its own folder, writing the files its case needs and judged for its own reason; two batches (the cases, then 19 to 21, 55a to 55c and the mutation proofs), and between them only the cases of the named list SERIAL_CASES (the signal, kill and timing cases and their proofs R, S, X, Z) one after the other; the log shows the seconds of each batch
 # v25 fixes (forsgren#629, CI red, 53e): case 53e kills Chrome only after its load seam has installed the slowdowns and marked the end of the launch (SIG_WAIT_READY, FORSGREN_TEST_READY_MARK); v24 still killed it once a renderer showed, which on a fast hosted runner came inside the launch, so the seam never ran and 'hooked' and 'reaping' were never observed
@@ -1916,14 +1917,18 @@ mutant_rb() {
 }
 
 # S: the wrapper does not forward the signal -> it ends, node and Chrome stay.
+# It asserts the Chrome left, never which branch of the wait it took: whether
+# node still holds the pipe when the wait begins is timing (v28, forsgren#630),
+# and either branch ends within 10 s (SIG_GONE_BOUND, as proof Rb sets it).
 mutant_s() {
   local wmut="${MUTANT_DIR}/wmut"
   mkdir -p "${wmut}/Scripts"
   cp Scripts/browser_gate.mjs Scripts/lib_site_settings.sh Scripts/lib_tmp.sh "${wmut}/Scripts/"
   ln -s "${REPO_ROOT}/node_modules" "${wmut}/node_modules"
   if selftest_mutant Scripts/gate_browser.sh "${wmut}/Scripts/gate_browser.sh" 's/if \[\[ -n "[$]NODE_PID" \]\]; then/if false; then/'; then
+    SIG_GONE_BOUND=10
     signal_case mutant_s self TERM "${wmut}/Scripts/gate_browser.sh"
-    want_left "mutation proof S: without forwarding case 52a leaves Chrome alive" 143 "Chrome processes of the gate are still alive, their pipe still held by node PID"
+    want_left "mutation proof S: without forwarding case 52a leaves Chrome alive" 143 "Chrome processes of the gate are still alive"
   fi
 }
 

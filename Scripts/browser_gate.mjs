@@ -1,4 +1,5 @@
-// canon: browser_gate v16
+// canon: browser_gate v17
+// v17 (forsgren#630, step 2): a Chrome that dies during the launch ends the run at once, whoever holds its pipe: the engine keeps the process puppeteer spawns for its executable and races the launch with that process's own 'exit', so a helper or a wrapper's child holding a copy of the pipe no longer keeps the launch (and the run) waiting; the FAIL names it, `FAIL: browser gate: Chrome died during the launch (PID <pid>, exit <code> | signal <signal>)`, exit 2, and Chrome's process group is ended and the profile removed as on every way out. The findings, the baseline format and the exit statuses are unchanged.
 // v16 (estate issue 629, step 2): every exit that follows a write waits for stdout and stderr to be taken (a site's red ended after 8192 bytes in the middle of a line, with its FAIL lines lost: process.exit() drops what a pipe has not taken); an uncaught error or an unhandled rejection ends the run with a FAIL line naming it, exit 2, Chrome closed. The findings, the baseline format and the exit statuses are unchanged.
 // v15 folds in the sites' v14 (site issue 63): a code-sign clone folder that is kept is always named on stderr with its reason (one that was replaced after the launch was kept without a word); where a helper of the gate's own Chrome still runs at removal time the gate waits for it (bounded like a folder removal, 3 s) and then removes the folder
 // v13 merges the two lines of the canon (estate issue 629): the forsgren line v6 to v8 (watch from the start, delayed-delivery load, paint wait) and the sites line v9 to v12 (below). Both sets are in full; the findings, the baseline format and the exit statuses are unchanged.
@@ -774,6 +775,45 @@ function chromeGone(browser) {
   return gone;
 }
 
+// Chrome's own process, seen the moment puppeteer starts it (v17, forsgren#630).
+// puppeteer.launch hands the process out only once the launch resolved, and the
+// launch waits for Chrome's pipe to close, which a process holding a copy of the
+// pipe (a helper of Chrome's group, a wrapper's child) delays as long as it
+// lives. So the engine keeps the spawn of the executable it launches, for the
+// launch only, and watches that process's own 'exit'. Puppeteer's module calls
+// spawn on the shared child_process exports object, which is what is wrapped.
+function watchSpawn(executablePath) {
+  const childProcess = require('node:child_process');
+  const original = childProcess.spawn;
+  let seen;
+  const spawned = new Promise((resolve) => { seen = resolve; });
+  childProcess.spawn = function spawnWatched(file, ...rest) {
+    const child = original.call(this, file, ...rest);
+    if (file === executablePath) {
+      childProcess.spawn = original;
+      seen(child);
+    }
+    return child;
+  };
+  return { spawned, restore: () => { childProcess.spawn = original; } };
+}
+
+// Rejects when Chrome's process ends before the launch resolved, naming it: its
+// PID and its exit code or signal (v17). The process's own event, never a timer.
+class ChromeDiedInLaunch extends Error {}
+function diedDuringLaunch(spawned) {
+  const death = spawned.then((child) => new Promise((resolve, reject) => {
+    const died = (code, signal) => reject(new ChromeDiedInLaunch(`Chrome died during the launch (PID ${child.pid}, ${code === null ? `signal ${signal}` : `exit ${code}`})`));
+    if (child.exitCode !== null || child.signalCode !== null) {
+      died(child.exitCode, child.signalCode);
+      return;
+    }
+    child.once('exit', died);
+  }));
+  death.catch(() => {}); // seen only while the launch races it; a later death is chromeGone's
+  return death;
+}
+
 // A check that loses the race to a dead Chrome may still reject later.
 function unlessGone(work, gone) {
   work.catch(() => {});
@@ -810,7 +850,9 @@ async function checkPage(browser, origin, variant, pagePath, exceptions, baselin
 // What main() has open, so that every way out closes it: the end, an error
 // (release() in main's finally) and a signal (below). Whoever made the profile
 // directory removes it.
-const live = { browser: null, launching: null, server: null, profile: null, cloning: null, cloneBaseline: null };
+// chrome is Chrome's process from its spawn on, launchDeath diedDuringLaunch's
+// promise (v17).
+const live = { browser: null, launching: null, chrome: null, launchDeath: null, server: null, profile: null, cloning: null, cloneBaseline: null };
 const CLOSE_TIMEOUT_MS = 3000;
 let releasing = null;
 
@@ -952,17 +994,20 @@ async function profileChromeEnded(profile) {
 // first), before this Chrome is ended.
 function cloneOf(browser) {
   if (!live.cloneBaseline) return { reason: null };
-  live.cloning ||= identifyClone(live.cloneBaseline, browser?.process()?.pid);
+  live.cloning ||= identifyClone(live.cloneBaseline, (browser?.process() ?? live.chrome)?.pid);
   return live.cloning;
 }
 
 // A signal during the launch finds no browser yet, although Chrome runs: wait
-// for the launch (bounded), so that this browser is closed too.
+// for the launch (bounded), so that this browser is closed too. A Chrome that
+// died during the launch ends the wait at once (v17): its launch may wait for a
+// pipe another process still holds.
 async function launched() {
   if (!live.launching) return null;
   let timer;
   const late = new Promise((resolve) => { timer = setTimeout(() => resolve(null), 30000); });
-  const browser = await Promise.race([live.launching.catch(() => null), late]);
+  const died = live.launchDeath ? live.launchDeath.catch(() => null) : late;
+  const browser = await Promise.race([live.launching.catch(() => null), died, late]);
   clearTimeout(timer);
   return browser;
 }
@@ -986,6 +1031,11 @@ function release() {
         clearTimeout(timer);
       }
       if (child && child.pid) await endChromeGroup(child.pid);
+    } else if (live.chrome?.pid) {
+      // No browser: Chrome died or hung during the launch. Its group is ended
+      // all the same (v17), so a helper that holds its pipe or writes into the
+      // profile goes with it.
+      await endChromeGroup(live.chrome.pid);
     }
     if (server) server.close();
     // No Chrome process of the group is left, so nothing writes into the profile
@@ -1068,6 +1118,9 @@ async function main() {
   try {
     live.profile = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-gate-'));
     live.cloneBaseline = cloneBaseline();
+    const spawn = watchSpawn(executablePath);
+    spawn.spawned.then((child) => { live.chrome = child; });
+    live.launchDeath = diedDuringLaunch(spawn.spawned);
     live.launching = puppeteer.launch({
       executablePath,
       headless: true,
@@ -1085,7 +1138,14 @@ async function main() {
       // the watch below is attached as soon as the launch resolves (v6).
       waitForInitialPage: false,
     });
-    live.browser = await live.launching;
+    live.launching.catch(() => {}); // a launch left behind by a dead Chrome may reject later
+    // A Chrome that dies during the launch ends it at once (v17), whoever holds
+    // its pipe: the launch alone would wait for that pipe to close.
+    try {
+      live.browser = await Promise.race([live.launching, live.launchDeath]);
+    } finally {
+      spawn.restore();
+    }
     // Test seam (site issue 61): the self-test slows only the gate through a
     // module it names here. Unset, as in every real run, nothing happens.
     if (process.env.FORSGREN_GATE_BROWSER_HOOK) require(process.env.FORSGREN_GATE_BROWSER_HOOK)(live.browser);
@@ -1135,6 +1195,10 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(`browser-gate: ${error.stack || error.message}`);
+  if (error instanceof ChromeDiedInLaunch) {
+    console.error(`FAIL: browser gate: ${error.message}`);
+  } else {
+    console.error(`browser-gate: ${error.stack || error.message}`);
+  }
   exitAfterFlush(2);
 });
