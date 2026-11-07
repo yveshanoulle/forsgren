@@ -857,8 +857,9 @@ browser gate self-test|Scripts/test_gate_browser.sh|pre|
 # #411 A): the signal cases 52a-52f, the Chrome killed mid-run and during the
 # launch (53, 53c) and mutation proofs R and S, in their own script and row, so a
 # race in a process case no longer hides the deterministic cases above. Same
-# canon family and the same helpers (Scripts/lib_gate_browser_selftest.sh); the
-# second pre row of the browser job.
+# canon family and the same helpers (Scripts/lib_gate_browser_selftest.sh); in
+# Quality it runs in the browser_2 job, after shard 2/2 of the self-test above
+# (forsgren#641).
 browser gate process self-test|Scripts/test_gate_browser_process.sh|pre|
 browser gate|Scripts/gate_browser.sh|post|
 #

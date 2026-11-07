@@ -413,12 +413,12 @@ phase_calls() {
 
 # job_findings <file>: pins 1 to 5.
 job_findings() {
-  local wf="$1" main q2 lnt iso sum bpre brw wfl rep calls id others needs listed pre_line build_line post_line n
+  local wf="$1" main q2 lnt iso sum pre_job b3 wfl rep calls id others needs listed pre_line build_line post_line n
   main="${JOBS_TMP}/main.yml"
   q2="${JOBS_TMP}/quality_2.yml"
   lnt="${JOBS_TMP}/lint.yml"
   sum="${JOBS_TMP}/summary.yml"
-  brw="${JOBS_TMP}/browser_3.yml"
+  b3="${JOBS_TMP}/browser_3.yml"
   wfl="${JOBS_TMP}/workflows.yml"
   rep="${JOBS_TMP}/report.yml"
   job_of "$wf" quality > "$main"
@@ -458,24 +458,24 @@ job_findings() {
   done
   handover_findings "$wfl" workflows
 
-  if [[ -s "$brw" ]]; then
-    calls="$(phase_calls "$brw")"
+  if [[ -s "$b3" ]]; then
+    calls="$(phase_calls "$b3")"
     [[ "$(grep -cE " \"[$]DETAILS\" browser_3( |\$)" <<< "$calls")" == 2 && "$(wc -l <<< "$calls" | tr -d ' ')" == 2 ]] \
       || echo "browser_3: the browser_3 job must run run_ci_phase.sh pre and post, each ending with the job name browser_3, got: ${calls:-none}"
-    pre_line="$(line_of "$brw" './Scripts/run_ci_phase.sh pre')"
-    build_line="$(line_of "$brw" './Scripts/build_site.sh')"
-    post_line="$(line_of "$brw" './Scripts/run_ci_phase.sh post')"
+    pre_line="$(line_of "$b3" './Scripts/run_ci_phase.sh pre')"
+    build_line="$(line_of "$b3" './Scripts/build_site.sh')"
+    post_line="$(line_of "$b3" './Scripts/run_ci_phase.sh post')"
     if [[ -z "$build_line" ]] || ! later "$build_line" "$pre_line" || ! later "$post_line" "$build_line"; then
       echo "browser_3: the browser_3 job must run PRE, then its own site build (Scripts/build_site.sh), then POST: the browser gate reads the built site"
     fi
   fi
   for n in 1 2; do
-    bpre="${JOBS_TMP}/browser_${n}.yml"
-    [[ -s "$bpre" ]] || continue
-    calls="$(phase_calls "$bpre")"
+    pre_job="${JOBS_TMP}/browser_${n}.yml"
+    [[ -s "$pre_job" ]] || continue
+    calls="$(phase_calls "$pre_job")"
     [[ "$calls" == *"run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" browser_${n}" && "$(wc -l <<< "$calls" | tr -d ' ')" == 1 ]] \
       || echo "browser_${n}: the browser_${n} job must run exactly ./Scripts/run_ci_phase.sh pre \"\$ROWS\" \"\$DETAILS\" browser_${n}, got: ${calls:-none}"
-    if code "$bpre" | has -F './Scripts/build_site.sh'; then
+    if code "$pre_job" | has -F './Scripts/build_site.sh'; then
       echo "browser_${n}: the browser_${n} job builds a site; its gates are PRE rows that read no built site"
     fi
   done
@@ -869,33 +869,33 @@ FIRST_Q2_GATE="$(gates_of quality_2 | sed -n 1p)"
 mutant "a step naming a quality_2 gate" "${Q2}"'s#\./Scripts/install_tools.sh#./Scripts/install_tools.sh; ./Scripts/'"${FIRST_Q2_GATE}"'.sh#' "quality_2: a step names a quality_2 gate itself"
 mutant "quality_2 hand-over not always" "${Q2}"'{/Hand over the gate report/,/uses:/s/if: always()/if: success()/;}' "handover: the quality_2 job's"
 mutant "quality_2 hand-over under another name" "${Q2}"'s/name: quality-report-quality_2/name: quality-report-other/' "handover: the quality_2 job does not upload the artifact quality-report-quality_2"
-for n in 1 2; do
-  case "$n" in 1) BP="$B1" ;; *) BP="$B2" ;; esac
+# The three browser jobs: what every gate job must hold, then what the two PRE
+# jobs (browser_1, browser_2) and browser_3 each hold of their own.
+browser_range() {
+  case "$1" in 1) BP="$B1" ;; 2) BP="$B2" ;; *) BP="$B3" ;; esac
+}
+for n in 1 2 3; do
+  browser_range "$n"
   mutant "report without browser_${n} in needs" "${R}"'s/ browser_'"${n}"',//' "report: the gate job browser_${n} is not in the report job's needs:"
   mutant "report without the browser_${n} result" "${R}"'{/QS_BROWSER_'"${n}"'_RESULT:/d;}' "report: the report job has no QS_BROWSER_${n}_RESULT from needs.browser_${n}.result"
   mutant "status without the browser_${n} result" "${R}"'s/ "[$]QS_BROWSER_'"${n}"'_RESULT"//' "report: the status call does not pass"
   mutant "no browser_${n} job" "s/^  browser_${n}:/  browser_${n}_gone:/" "job: the file has no browser_${n} job"
   mutant "browser_${n} on another runner" "${BP}"'s/runs-on: macos-latest/runs-on: ubuntu-latest/' "runs-on: the browser_${n} job is not on macos-latest"
   mutant "browser_${n} without npm ci" "${BP}"'s/run: npm ci/run: true/' "setup: the browser_${n} job does not run npm ci"
+  mutant "browser_${n} hand-over not always" "${BP}"'{/Hand over the gate report/,/uses:/s/if: always()/if: success()/;}' "handover: the browser_${n} job's"
+  mutant "browser_${n} hand-over under another name" "${BP}"'s/name: quality-report-browser_'"${n}"'/name: quality-report-other/' "handover: the browser_${n} job does not upload the artifact quality-report-browser_${n}"
+done
+for n in 1 2; do
+  browser_range "$n"
   mutant "browser_${n} runs the main job's gates" "${BP}s/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" browser_${n}/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" main/" "browser_${n}: the browser_${n} job must run exactly"
   mutant "browser_${n} runs the other shard's job" "${BP}s/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" browser_${n}/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" browser_$((3 - n))/" "browser_${n}: the browser_${n} job must run exactly"
   mutant "browser_${n} runs the browser_3 job's gates" "${BP}s/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" browser_${n}/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" browser_3/" "browser_${n}: the browser_${n} job must run exactly"
   mutant "browser_${n} builds a site" "${BP}"'s#\./Scripts/install_tools.sh#./Scripts/install_tools.sh; ./Scripts/build_site.sh#' "browser_${n}: the browser_${n} job builds a site"
   mutant "a step naming the browser_${n} gate" "${BP}"'s#\./Scripts/install_tools.sh#./Scripts/install_tools.sh; ./Scripts/test_gate_browser.sh#' "browser: a step names a browser gate itself"
-  mutant "browser_${n} hand-over not always" "${BP}"'{/Hand over the gate report/,/uses:/s/if: always()/if: success()/;}' "handover: the browser_${n} job's"
-  mutant "browser_${n} hand-over under another name" "${BP}"'s/name: quality-report-browser_'"${n}"'/name: quality-report-other/' "handover: the browser_${n} job does not upload the artifact quality-report-browser_${n}"
 done
-mutant "report without browser_3 in needs" "${R}"'s/ browser_3,//' "report: the gate job browser_3 is not in the report job's needs:"
-mutant "report without the browser_3 result" "${R}"'{/QS_BROWSER_3_RESULT:/d;}' "report: the report job has no QS_BROWSER_3_RESULT from needs.browser_3.result"
-mutant "status without the browser_3 result" "${R}"'s/ "[$]QS_BROWSER_3_RESULT"//' "report: the status call does not pass"
-mutant "no browser_3 job" 's/^  browser_3:/  browser_3_gone:/' "job: the file has no browser_3 job"
-mutant "browser_3 on another runner" "${B3}"'s/runs-on: macos-latest/runs-on: ubuntu-latest/' "runs-on: the browser_3 job is not on macos-latest"
-mutant "browser_3 without npm ci" "${B3}"'s/run: npm ci/run: true/' "setup: the browser_3 job does not run npm ci"
 mutant "browser_3 without its site build" "${B3}"'s#\./Scripts/build_site.sh#./Scripts/other.sh#' "browser_3: the browser_3 job must run PRE, then its own site build"
 mutant "browser_3 running the main job's gates" "${B3}s/run_ci_phase.sh post \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" browser_3/run_ci_phase.sh post \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" main/" "browser_3: the browser_3 job must run run_ci_phase.sh pre and post"
 mutant "a step naming a browser gate" "${B3}"'s#\./Scripts/install_tools.sh#./Scripts/install_tools.sh; ./Scripts/gate_browser.sh#' "browser: a step names a browser gate itself"
-mutant "browser_3 hand-over not always" "${B3}"'{/Hand over the gate report/,/uses:/s/if: always()/if: success()/;}' "handover: the browser_3 job's"
-mutant "browser_3 hand-over under another name" "${B3}"'s/name: quality-report-browser_3/name: quality-report-other/' "handover: the browser_3 job does not upload the artifact quality-report-browser_3"
 mutant "report without workflows in needs" "${R}"'s/needs: \[quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows\]/needs: [quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3]/' "report: the gate job workflows is not in the report job's needs:"
 mutant "report without the workflows result" "${R}"'{/QS_WORKFLOWS_RESULT:/d;}' "report: the report job has no QS_WORKFLOWS_RESULT from needs.workflows.result"
 mutant "status without the workflows result" "${R}"'s/ "[$]QS_WORKFLOWS_RESULT"//' "report: the status call does not pass"
@@ -1041,15 +1041,20 @@ shard_copy() {
   cp Scripts/test_gate_browser.sh Scripts/lib_isolation_shard.sh Scripts/browser_gate_selftest_weights.txt "${VERDICT_TMP}/$1/Scripts/"
   echo "${VERDICT_TMP}/$1/Scripts/test_gate_browser.sh"
 }
-SHARD_MUT="$(shard_copy shard_all)"
-sed -i.bak 's/shard_assign "[$]SHARD_N" /shard_assign 1 /' "$SHARD_MUT"
-cmp -s "$SHARD_MUT" Scripts/test_gate_browser.sh && fail "the shard mutant 'every shard deals shard 1' changed nothing"
-OUT="$(BROWSER_SELFTEST="$SHARD_MUT" shard_findings)"
+# shard_sed_mutant <folder> <label> <sed-expression>: OUT is what shard_findings
+# says of a copy (SHARD_MUT) whose self-test the sed changed; a sed that changed
+# nothing fails, since it would prove nothing.
+shard_sed_mutant() {
+  SHARD_MUT="$(shard_copy "$1")"
+  sed -i.bak "$3" "$SHARD_MUT"
+  if cmp -s "$SHARD_MUT" Scripts/test_gate_browser.sh; then
+    fail "the shard mutant '${2}' changed nothing"
+  fi
+  OUT="$(BROWSER_SELFTEST="$SHARD_MUT" shard_findings)"
+}
+shard_sed_mutant shard_all "every shard deals shard 1" 's/shard_assign "[$]SHARD_N" /shard_assign 1 /'
 expect_named "every shard running the cases of shard 1" "run in two jobs of the browser gate self-test"
-SHARD_MUT="$(shard_copy shard_nofollow)"
-sed -i.bak 's/tr . . .[\]n. <<< "[$]{entry#[*] }"/:/' "$SHARD_MUT"
-cmp -s "$SHARD_MUT" Scripts/test_gate_browser.sh && fail "the shard mutant 'no followers of case 8' changed nothing"
-OUT="$(BROWSER_SELFTEST="$SHARD_MUT" shard_findings)"
+shard_sed_mutant shard_nofollow "no followers of case 8" 's/tr . . .[\]n. <<< "[$]{entry#[*] }"/:/'
 expect_named "the cases that wait for case 8 dealt to no shard" "the cases case_19 case_20 case_21 mutant_b run in no job of the browser gate self-test"
 SHARD_MUT="$(shard_copy shard_unlisted)"
 printf '%s\n' 'case_99() { :; }' >> "$SHARD_MUT"
