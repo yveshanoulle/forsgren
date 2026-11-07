@@ -64,10 +64,20 @@ updates:
     # A pull request title and commit start with this prefix.
     commit-message:
       prefix: npm
-    # One pull request for all minor and patch updates of the gate tooling,
-    # so a run does not open one pull request per package. A major update
-    # stays its own pull request, read on its own.
+    # stylelint and stylelint-config-* move together, majors included
+    # (forsgren#638): stylelint-config-standard has a peer range on
+    # stylelint's major, so a pull request that moves only one of them fails
+    # npm ci. This group comes first: Dependabot puts a dependency in the
+    # first group that matches it, and npm-tooling matches every package.
+    # One pull request for all minor and patch updates of the other gate
+    # tooling, so a run does not open one pull request per package. A major
+    # update stays its own pull request, read on its own.
     groups:
+      stylelint:
+        patterns:
+          - "stylelint"
+          - "stylelint-config-*"
+        update-types: [major, minor, patch]
       npm-tooling:
         patterns:
           - "*"

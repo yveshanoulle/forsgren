@@ -16,12 +16,19 @@
 #      open several pull requests;
 #   5. cooldown with default-days: 3 (the documented default, written out);
 #   6. a comment line directly above schedule:, commit-message:, groups: and
-#      cooldown:, one per choice.
+#      cooldown:, one per choice;
+#   7. npm only (forsgren#638): a group with the patterns stylelint and
+#      stylelint-config-*, update-types major, minor and patch, placed before
+#      every group with the pattern "*". stylelint-config-standard has a peer
+#      range on stylelint's major, so the two majors must share one pull
+#      request, and Dependabot puts a dependency in the first group it matches.
 # Synthetic files show each broken shape red, with its reason, and the real
 # file green. Mutation proofs: a judge that skips the comment check must accept
 # the uncommented file, one that skips the cooldown check the file without it,
 # one that skips the groups check the file without groups, one that skips the
-# npm check the file without the npm entry.
+# npm check the file without the npm entry, one that skips the order check the
+# file with the stylelint group after npm-tooling, one that skips the
+# update-types check the file whose stylelint group lacks major.
 
 set -euo pipefail
 
@@ -41,12 +48,34 @@ judge_file() {
   awk -v file="$f" -v skip="${SKIP:-}" '
     function skipped(w) { return index("," skip ",", "," w ",") > 0 }
     function iscomment(s) { return s ~ /^[[:space:]]*#/ }
+    function hasword(s, w) { return s ~ ("(^|[^a-z])" w "([^a-z]|$)") }
+    # The npm group for stylelint and stylelint-config-* (forsgren#638).
+    function stylelint_group(   k, parts, g, sg) {
+      sg = ""
+      for (k in gorder) {
+        split(k, parts, SUBSEP)
+        if (parts[1] != "npm") continue
+        g = parts[2]
+        if (index(pats["npm", g], ",stylelint,") && index(pats["npm", g], ",stylelint-config-*,")) sg = g
+      }
+      if (sg == "") { print file ": npm: no group with the patterns stylelint and stylelint-config-*"; return }
+      if (!skipped("major") && !(hasword(types["npm", sg], "major") && hasword(types["npm", sg], "minor") && hasword(types["npm", sg], "patch")))
+        print file ": npm: the stylelint group " sg " does not cover the update types major, minor and patch"
+      if (skipped("order")) return
+      for (k in gorder) {
+        split(k, parts, SUBSEP)
+        if (parts[1] != "npm") continue
+        g = parts[2]
+        if (index(pats["npm", g], ",*,") && gorder["npm", g] < gorder["npm", sg])
+          print file ": npm: the stylelint group " sg " comes after " g ", which takes stylelint first"
+      }
+    }
     function needcomment(key) {
       if (!skipped("comments") && !iscomment(prev))
         print file ": " eco ": no comment line directly above " key
     }
     /^  - package-ecosystem:/ {
-      eco = $3; seen[eco] = 1
+      eco = $3; seen[eco] = 1; ingrp = 0; gname = ""; skey = ""
     }
     eco != "" && !iscomment($0) {
       if ($0 ~ /^    directory:/) dir[eco] = $2
@@ -60,6 +89,21 @@ judge_file() {
       if ($0 ~ /^        patterns:/) pat[eco] = 1
       if ($0 ~ /^    cooldown:/) { needcomment("cooldown:"); cd[eco] = 1 }
       if ($0 ~ /^      default-days:/) days[eco] = $2
+      # Inside groups: a group name, its keys, and its patterns and
+      # update-types (flow [a, b] or one per line).
+      if ($0 ~ /^    [^ ]/) ingrp = ($0 ~ /^    groups:/)
+      if (ingrp && $0 ~ /^      [^ ][^:]*:[[:space:]]*$/) {
+        gname = $1; sub(/:$/, "", gname); gorder[eco, gname] = ++gcount[eco]; skey = ""
+      }
+      if (ingrp && $0 ~ /^        [^ ]/) {
+        skey = $1; sub(/:.*/, "", skey)
+        if (skey == "update-types") { t = $0; sub(/^ *update-types:/, "", t); types[eco, gname] = types[eco, gname] " " t }
+      }
+      if (ingrp && $0 ~ /^          - /) {
+        v = $0; sub(/[[:space:]]+#.*/, "", v); sub(/^ *- */, "", v); gsub(/["\047]/, "", v)
+        if (skey == "patterns") pats[eco, gname] = pats[eco, gname] "," v ","
+        if (skey == "update-types") types[eco, gname] = types[eco, gname] " " v
+      }
     }
     NF { prev = $0 }
     END {
@@ -74,12 +118,16 @@ judge_file() {
         if (!cm[e] || !prefix[e]) print file ": " e ": no commit-message prefix"
         if (!skipped("groups") && (!grp[e] || !pat[e])) print file ": " e ": no groups with patterns"
         if (!skipped("cooldown") && days[e] != "3") print file ": " e ": no cooldown with default-days: 3"
+        if (e == "npm") stylelint_group()
       }
     }
   ' "$f"
 }
 
-# block <eco> <prefix> <dir> <comments:1|0> <groups:1|0> <cooldown:1|0> — one ecosystem entry.
+# block <eco> <prefix> <dir> <comments:1|0> <groups> <cooldown:1|0> — one ecosystem entry.
+# <groups>: 0 none; 1 one group for "*"; and for npm (forsgren#638) 2 the
+# stylelint group then npm-tooling, 3 npm-tooling then the stylelint group,
+# 4 the stylelint group without major, then npm-tooling.
 block() {
   local c=""
   [[ "$4" == 1 ]] && c="    # a choice, explained"
@@ -88,14 +136,28 @@ block() {
   printf '    schedule:\n      interval: cron\n      cronjob: "0 4 * * *"\n      timezone: UTC\n'
   [[ -n "$c" ]] && printf '%s\n' "$c"
   printf '    commit-message:\n      prefix: %s\n' "$2"
-  if [[ "$5" == 1 ]]; then
+  if [[ "$5" != 0 ]]; then
     [[ -n "$c" ]] && printf '%s\n' "$c"
-    printf '    groups:\n      all:\n        patterns:\n          - "*"\n'
+    printf '    groups:\n'
+    case "$5" in
+      1) printf '      all:\n        patterns:\n          - "*"\n' ;;
+      2) stylelint_group "major, minor, patch"; tooling_group ;;
+      3) tooling_group; stylelint_group "major, minor, patch" ;;
+      4) stylelint_group "minor, patch"; tooling_group ;;
+    esac
   fi
   if [[ "$6" == 1 ]]; then
     [[ -n "$c" ]] && printf '%s\n' "$c"
     printf '    cooldown:\n      default-days: 3\n'
   fi
+}
+
+# stylelint_group <update-types> / tooling_group — the npm groups of block.
+stylelint_group() {
+  printf '      stylelint:\n        patterns:\n          - "stylelint"\n          - "stylelint-config-*"\n        update-types: [%s]\n' "$1"
+}
+tooling_group() {
+  printf '      npm-tooling:\n        patterns:\n          - "*"\n        update-types: [minor, patch]\n'
 }
 
 # synth <name> <block-args...> [-- <block-args...>]... — writes a file with one
@@ -114,7 +176,7 @@ synth() {
 }
 
 # The npm entry, complete, for the cases that break another ecosystem.
-NPM=(npm npm / 1 1 1)
+NPM=(npm npm / 1 2 1)
 
 # judge <file> — sets OUT and RC (1 when there are problems).
 judge() {
@@ -166,13 +228,27 @@ judge "$WF"
 want_red "10. no npm ecosystem" "the npm ecosystem is not declared"
 NPM_WF="$WF"
 
-synth npmuncommented gomod go / 1 1 1 -- github-actions actions / 1 1 1 -- npm npm / 0 1 1
+synth npmuncommented gomod go / 1 1 1 -- github-actions actions / 1 1 1 -- npm npm / 0 2 1
 judge "$WF"
 want_red "11. npm entry without a comment above a choice" "npm: no comment line directly above schedule:"
 
+synth npmnostylelint gomod go / 1 1 1 -- github-actions actions / 1 1 1 -- npm npm / 1 1 1
+judge "$WF"
+want_red "12. npm without a stylelint group" "npm: no group with the patterns stylelint and stylelint-config-*"
+
+synth npmafter gomod go / 1 1 1 -- github-actions actions / 1 1 1 -- npm npm / 1 3 1
+judge "$WF"
+want_red "13. the stylelint group after npm-tooling" "npm: the stylelint group stylelint comes after npm-tooling, which takes stylelint first"
+ORDER_WF="$WF"
+
+synth npmnomajor gomod go / 1 1 1 -- github-actions actions / 1 1 1 -- npm npm / 1 4 1
+judge "$WF"
+want_red "14. the stylelint group without major" "npm: the stylelint group stylelint does not cover the update types major, minor and patch"
+MAJOR_WF="$WF"
+
 # The real file.
 judge .github/dependabot.yml
-want_rc "12. .github/dependabot.yml has the three ecosystems with every choice commented" 0
+want_rc "15. .github/dependabot.yml has the three ecosystems with every choice commented, and the npm stylelint group" 0
 
 # --- mutation proofs ----------------------------------------------------------
 SKIP=comments judge "$COMMENTS_WF"
@@ -201,5 +277,18 @@ else
   fail "mutation proof: the npm-blind judge still refused the file. Output: ${OUT}"
 fi
 
+SKIP=order judge "$ORDER_WF"
+if [[ "$RC" -eq 0 ]]; then
+  echo "  ok: mutation proof: without the order check the stylelint group after npm-tooling is accepted, so case 13 is red because of it"
+else
+  fail "mutation proof: the order-blind judge still refused the file. Output: ${OUT}"
+fi
+SKIP=major judge "$MAJOR_WF"
+if [[ "$RC" -eq 0 ]]; then
+  echo "  ok: mutation proof: without the update-types check the stylelint group without major is accepted, so case 14 is red because of it"
+else
+  fail "mutation proof: the update-types-blind judge still refused the file. Output: ${OUT}"
+fi
+
 selftest_end "the dependabot config does not hold" \
-  "dependabot config: gomod, github-actions and npm at /, cron schedule, commit-message prefix, groups, cooldown and a comment per choice; each broken shape is red; mutation proven"
+  "dependabot config: gomod, github-actions and npm at /, cron schedule, commit-message prefix, groups, cooldown and a comment per choice, npm with stylelint and stylelint-config-* in one group for every update type before npm-tooling; each broken shape is red; mutation proven"
