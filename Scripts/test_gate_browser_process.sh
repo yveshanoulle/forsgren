@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser_process v4
+# canon: test_gate_browser_process v5
+# v5 (forsgren#636): case 53f and mutation proof D moved to the canon browser gate self-test (Scripts/test_gate_browser.sh v29, as case 53f and proof Dh), so the sites test browser_gate v17 too; this self-test keeps what is forsgren's own: the exits on forty looks (52a-52f, 53, 53c), the singleton folders of forsgren#613 and the proofs V, W, R, Rb, S and Sb
 # v4 (forsgren#630, step 2): case 53f, Chrome killed during the launch while a helper of its group holds its pipe (and its command pipe is a FIFO nobody writes, so the launch is surely still on), ends the run within 10 s with `FAIL: browser gate: Chrome died during the launch (PID <pid>, exit <code> | signal <signal>)`, no Chrome, no profile (browser_gate v17); mutation proof D, the engine not hearing Chrome's process end, keeps the run going past the 10 s; proof S asserts only the Chrome it leaves alive, never whether node still held the pipe (timing: at load ~6 node had closed it in 2 of 3 runs), each branch of the wait within 10 s, and proof Sb forces the branch of a closed pipe (SIG_HOLDER_GONE)
 # v3 (forsgren#630): a signal case waits for its Chrome with wait_chrome_gone (lib_gate_browser_selftest v2): 10 s while the node holding its pipe is alive, up to 60 s once the pipe's other end is closed, a bound hit named with the PIDs left, the node and the seconds; proof R runs with its Chrome stalled for 15 s, proof Rb shows the bound named, proof S that node still holds the pipe
 # Scripts/test_gate_browser_process.sh (forsgren#386, decision #411 A)
@@ -20,10 +21,6 @@
 #  53c. Chrome killed while the run starts (a Chrome that opens no initial page,
 #      through FORSGREN_CHROME) -> exit 2 within 15 s with the usual error; no
 #      Chrome, no profile folder (forsgren#386, browser_gate v6)
-#  53f. Chrome killed during the launch while a helper of its process group
-#      holds its pipe -> exit 2 within 10 s, a FAIL naming the death during the
-#      launch with Chrome's PID and exit status; no Chrome, no profile folder
-#      (forsgren#630, browser_gate v17)
 #      The signal comes once the run is provably mid-run: the profile folder
 #      exists and Chrome holds a connection to the gate's own server, i.e. it
 #      is loading a fixture page, which only happens after the launch resolved
@@ -46,9 +43,10 @@
 #      them (named); a Chrome ended by a signal removes its own;
 #   W. a cleanup too wide also removes the decoy of another Chrome: red;
 #   R. no signal handler in the engine: case 52e leaves the profile folder;
-#   S. the wrapper not forwarding the signal: case 52a leaves Chrome alive;
-#   D. the engine not hearing Chrome's process end during the launch: case 53f
-#      still runs 10 s after the kill.
+#   S. the wrapper not forwarding the signal: case 52a leaves Chrome alive.
+# Case 53f (Chrome killed during the launch while a helper holds its pipe) and
+# its proof, D here up to v4, are in the canon browser gate self-test
+# (Scripts/test_gate_browser.sh, case 53f and proof Dh, forsgren#636).
 # There is no mutation proof for case 53c (forsgren#443). Proof U, the old engine
 # with waitForInitialPage: true kept running in case 53c, went: it raced on a
 # hosted runner, where the kill marker (the profile folder) can come before
@@ -119,15 +117,6 @@ launch_up() {
   [[ -n "$(find "$1" -maxdepth 3 -path '*/browser-gate-*/Default/Local Storage' 2> /dev/null)" ]]
 }
 
-# held_up <dir> (v4, forsgren#630): the profile of the case's Chrome has its
-# Local State file: Chrome is up. Case 53f's Chrome never hears puppeteer (its
-# command pipe is a FIFO nobody writes), so the launch cannot be over then, on
-# any machine; the case still requires the engine's words for a death during
-# the launch.
-held_up() {
-  [[ -n "$(find "$1" -maxdepth 2 -path '*/browser-gate-*/Local State' 2> /dev/null)" ]]
-}
-
 # real_chrome: the Chrome the engine finds (FORSGREN_CHROME, else its candidates).
 real_chrome() {
   local candidate
@@ -176,11 +165,11 @@ chrome_cleanup() {
   esac
 }
 
-# signal_case <label> <target: self|node> <signal|error|launch|held> <command...>:
+# signal_case <label> <target: self|node> <signal|error|launch> <command...>:
 # runs the command on the slow fixture with its own TMPDIR, waits until it is
-# up (engine_up; for launch: launch_up; for held: held_up) for up to 60 s,
+# up (engine_up; for launch: launch_up) for up to 60 s,
 # sends the signal to the command (self) or to the node process under it
-# (node), or kills the Chrome (error, launch, held), then waits for the end. Sets SIG_RC, SIG_CHROME (alive after
+# (node), or kills the Chrome (error, launch), then waits for the end. Sets SIG_RC, SIG_CHROME (alive after
 # wait_chrome_gone, v3), SIG_PROFILE (folders left), SIG_UP, SIG_EARLY (the gate had ended
 # before the signal), SIG_OWN (the singleton folders of its Chrome, forsgren#613),
 # SIG_LEFT (those still there after the cleanup SIG_CLEANUP: own, none, wide),
@@ -189,7 +178,6 @@ signal_case() {
   local label="$1" target="$2" sig="$3" dir first tmpd pid target_pid up=engine_up
   shift 3
   if [[ "$sig" == "launch" ]]; then up=launch_up; fi
-  if [[ "$sig" == "held" ]]; then up=held_up; fi
   tmpd="${TMP}/sig_${label}"
   mkdir -p "$tmpd"
   TMPDIR="$tmpd" perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' "$@" "${TMP}/slow/site" "${TMP}/slow/manifest.json" \
@@ -225,7 +213,7 @@ signal_case() {
   if [[ "$SIG_UP" -eq 1 ]]; then SIG_PIPE_HOLDER="$(chrome_parent "$tmpd")"; fi
   if [[ "$SIG_UP" -eq 0 || "$SIG_EARLY" -eq 1 ]]; then
     : # no signal: the verdict names the missing precondition
-  elif [[ "$sig" == "error" || "$sig" == "launch" || "$sig" == "held" ]]; then
+  elif [[ "$sig" == "error" || "$sig" == "launch" ]]; then
     pkill -9 -f -- "--user-data-dir=${tmpd}/browser-gate-" || true
   else
     stall_chrome "$tmpd"
@@ -350,76 +338,8 @@ if ! grep -qE "Chrome (ended|disconnected) during the run|Chrome died during the
   fail "53c: the usual error is missing. Output: ${SIG_OUT}"
 fi
 
-# 53f (v4, forsgren#630, browser_gate v17): Chrome killed during the launch while
-# another process holds its pipe. The pipe holder is the self-test's helper of
-# cases 52g and 53d: a thin wrapper starts a process in Chrome's own process
-# group that inherits the pipe and writes into the profile until it is killed,
-# then execs the real Chrome. Puppeteer's launch never sees the pipe close, so
-# the old engine waited for the holder (here for good: this holder never ends by
-# itself). Chrome's command end of the pipe (fd 3) is a FIFO nobody writes, so
-# it never answers and the launch is still on when Chrome is killed, whatever
-# the machine's speed (a kill timed on a file of the profile came after the
-# launch on a fast machine). The engine must see Chrome's own process end and
-# end the run within HELD_BOUND seconds with a FAIL that names it: died during
-# the launch, its PID and its exit status.
-HOLDER_PIDS="${TMP}/holder.pids"
-: > "$HOLDER_PIDS"
-DEAF_FIFO="${TMP}/deaf.fifo"
-mkfifo "$DEAF_FIFO"
-HELD_CHROME="${TMP}/held_chrome.sh"
-cat > "$HELD_CHROME" << EOF
-#!/usr/bin/env bash
-bash -c 'while :; do mkdir -p "\$0/late"; sleep 0.1; done' "\$HOME" &
-echo \$! >> "${HOLDER_PIDS}"
-exec "$(real_chrome)" "\$@" --no-startup-window 3<> "${DEAF_FIFO}"
-EOF
-chmod +x "$HELD_CHROME"
-HELD_FAIL='FAIL: browser gate: Chrome died during the launch \(PID [0-9]+, (exit [0-9]+|signal SIG[A-Z0-9]+)\)'
-HELD_BOUND=10
-# end_holders: a pipe holder that outlived its case (an engine that never ended
-# Chrome's group) is ended here, so it cannot hold on into the next case.
-end_holders() {
-  local holder
-  while IFS= read -r holder; do
-    if [[ -n "$holder" ]]; then kill -9 "$holder" 2> /dev/null || true; fi
-  done < "$HOLDER_PIDS"
-  : > "$HOLDER_PIDS"
-}
-# held_verdict: "" when the last signal_case is closed with exit 2 and its output
-# names the death during the launch, else the reason.
-held_verdict() {
-  local why
-  why="$(closed_verdict 2)"
-  if [[ -n "$why" ]]; then
-    echo "$why"
-  elif ! [[ "$SIG_OUT" =~ $HELD_FAIL ]]; then
-    echo "the output does not name Chrome's death during the launch with its PID and exit status (a kill after the launch proves nothing here)"
-  fi
-}
-SIG_WAIT_S="$HELD_BOUND" signal_case chrome_killed_held self held env "FORSGREN_CHROME=${HELD_CHROME}" "$GATE"
-end_holders
-HELD_WHY="$(held_verdict)"
-if [[ -n "$HELD_WHY" ]]; then
-  fail "53f: Chrome killed during the launch while a helper holds its pipe should end the run within ${HELD_BOUND} s, named: ${HELD_WHY}. Output: ${SIG_OUT}"
-else
-  echo "  ok: 53f: Chrome killed during the launch while a helper holds its pipe ends the run within ${HELD_BOUND} s with a FAIL naming it, its PID and its exit status"
-fi
-
 # Mutation proofs: the engine copy is run directly, with the real node_modules.
 MUT="${TMP}/mutants"
-
-# D (v4, forsgren#630): the engine never hears Chrome's process end during the
-# launch -> case 53f waits for the pipe holder and still runs after its bound.
-if selftest_mutant "$ENGINE" "${MUT}/d.mjs" "s/child.once('exit', died);/child.once('exit-never', died);/"; then
-  SIG_WAIT_S="$HELD_BOUND" signal_case mutant_d self held env "FORSGREN_CHROME=${HELD_CHROME}" FORSGREN_NODE_ROOT="$REPO_ROOT" node "${MUT}/d.mjs"
-  end_holders
-  HELD_WHY="$(held_verdict)"
-  if [[ "$HELD_WHY" == "the gate was still running ${HELD_BOUND} s after the signal" ]]; then
-    echo "  ok: mutation proof D: without the watch on Chrome's process case 53f still runs ${HELD_BOUND} s after the kill"
-  else
-    fail "mutation proof D: without the watch on Chrome's process case 53f should still run ${HELD_BOUND} s after the kill, got '${HELD_WHY}'. Output: ${SIG_OUT}"
-  fi
-fi
 
 # V: no cleanup of the singleton folders -> the case names the folders it left
 # (this test then removes them itself).
@@ -476,4 +396,4 @@ fi
 
 echo "browser gate process self-test: ${SECONDS} s in total"
 selftest_end "the browser gate process self-test failed" \
-  "browser gate: every exit closes Chrome, removes the profile and the singleton folders of its Chrome, seven mutations seen"
+  "browser gate: every exit closes Chrome, removes the profile and the singleton folders of its Chrome, six mutations seen"
