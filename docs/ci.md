@@ -326,7 +326,11 @@ isolation self-test|--shard 1/2` and `isolation_2|git sandbox isolation
 self-test|--shard 2/2`. The main job skips the gate, each shard job runs it with
 its arguments, and `Scripts/run_ci_phase.sh` records its row as `<label> (shard
 N/M)` (the arguments without their dashes), so a red names its shard in the
-error line, the row and the details. `Scripts/test_git_sandbox_isolation.sh`
+error line, the row and the details. Since `run_ci_phase v8` (forsgren#646,
+decision #647 A) the arguments are canon: the field may hold only letters,
+digits, `_ . / = -` and spaces, it is split into words with `read -r -a` (never
+eval or an unquoted expansion), and any other character makes the row red in
+its job, named, the gate not run. `Scripts/test_git_sandbox_isolation.sh`
 takes `--shard N/M` and runs the self-tests at positions N, N+M, N+2M of the
 sorted list of git-using self-tests (index modulo M, in the C locale): every
 self-test runs in exactly one shard and a new one lands in one by itself, with
@@ -342,11 +346,14 @@ job that died early never leaves the gate green. The gate's details hold the
 output of every shard. Another long gate shards the same way: its rows get
 `--shard` in the group file, one job each in `quality.yml`, and a test of
 `--shard` in the gate's own script. `Scripts/run_ci_phase.sh <pre|post> <rows>
-<details> [job]` takes the job as its fourth argument (default `main`): a gate
-the group file lists runs in that job only, every other gate in the main job,
-so a gate is never in two jobs or none, and a group file that names a gate the
-order file does not have is red. `Scripts/run_ci_phase.sh report-dir` (canon
-`run_ci_phase v4`, forsgren#574) prints the per-run folder a job keeps its
+<details> [job]` takes the job as its fourth argument (no job, or `main`, is
+the default job): a gate the group file lists runs in that job only, in the
+phase the order file gives it (pre or post: `browser_3` runs its own post
+gates), every other gate in the main job, so a gate is never in two jobs or
+none. The group file is checked before any gate, in every job: a gate the
+order file does not have, a row for the job `main`, a job name with a character
+other than letters, digits, `_` and `-`, and the same job and gate twice are
+each red, named. `Scripts/run_ci_phase.sh report-dir` (forsgren#574) prints the per-run folder a job keeps its
 report in, `$RUNNER_TEMP/quality_<run id>_<run attempt>_<job>`: the rows
 (`quality_rows.md`), the details (`quality_details/`) and the hand-over
 (`handover/`). A self-hosted runner reuses its temp folder, so a fixed path let
@@ -811,7 +818,9 @@ Nine PRE gates keep the CI honest:
   be run by. It holds the gate-count ratchet: `MIN_GATES` is the number of
   rows of the order file (n/a rows included), it may only go up, and a
   self-proof removes one row and requires the count to fall under it.
-- **CI phase runner** (`Scripts/test_run_ci_phase.sh`, the estate canon):
+- **CI phase runner** (`Scripts/test_run_ci_phase.sh`, the estate canon
+  `test_run_ci_phase v9` of `run_ci_phase v8`, whose canon home is forsgren
+  since forsgren#646, decision #647 A):
   runs `Scripts/run_ci_phase.sh` over the real order file with a stub at
   every declared path (each row must run exactly once, in its own phase, in
   file order) and over made-up order files (failures, the secret-class exit,
@@ -819,8 +828,19 @@ Nine PRE gates keep the CI honest:
   phase with no row), the per-run report folder (`report-dir`: one folder per
   run, attempt and job, an unset variable is exit 64), the cancel (the gate and
   its children are stopped, no row and no later gate; exit 143) and the paths in
-  `quality.yml` (no fixed rows or details path, `report-dir` in every job, the
-  upload from the per-run folder), and against weakened copies of the runner.
+  `quality.yml` (no fixed rows or details path; every gate job, a job that
+  calls the runner's pre or post phase, read from the workflow, asks
+  `report-dir` and hands its rows on through the per-run folder), group row
+  arguments (the safe set, `read -r -a`, unsafe ones red and never expanded, no
+  eval), the default job, post rows in a named job, the group file checks, the
+  checked temp file, the build-volume TMPDIR only where the repository has
+  the sites' build-volume script (forsgren has none, so it keeps the TMPDIR it
+  is given and says nothing) and gate selection only where it has the sites'
+  CI gate selection library (forsgren has none and its workflow sets no
+  `CI_GATE_EVENT`, so every gate runs and nothing is said), and against
+  weakened copies of the runner. The runner names the build-volume script
+  only behind an existence test of that path, which `check_script_references
+  v3` accepts as an optional script (forsgren#646).
 - **quality trigger scope** (`Scripts/test_quality_trigger_scope.sh`, the
   sites' shared canon, forsgren#240): the workflow has no `paths` or
   `paths-ignore` filter, or a `paths` filter that holds every glob the gates

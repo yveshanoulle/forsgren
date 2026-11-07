@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: check_script_references v2
+# canon: check_script_references v3
+# v3 (forsgren#646): an OPTIONAL script, one a shared script uses only where a repository has it, is not a broken reference where it is absent: every scanned file that names it tests that very path for existence on a code line, and no file of the repository holds it in any letter case.
 # Scripts/check_script_references.sh [repo-root]
 #
 # The script-references gate, byte-identical across the
@@ -18,6 +19,14 @@
 #            deliberately missing paths as inputs. A leading ./ or ../ run, and
 #            the dashes of a parameter-expansion fallback, are stripped before
 #            resolving.
+#            OPTIONAL (v3): a byte-identical script may use a script only some
+#            repositories have, behind an existence test of that path. Such a
+#            reference is accepted where the path is absent only when EVERY
+#            scanned file that names it tests that same path (`[ -e|-f|-r|-x`,
+#            `[[` or `test`, optionally ./ and quotes) on a line that is not a
+#            comment, and no file holds the path in another letter case (so a
+#            wrong-case spelling behind a test stays red). A file that names
+#            the path without such a test (a doc, another script) keeps it red.
 # REVERSE  - every script under Scripts/ is named by at least one caller other
 #            than itself: an executable file, an order or tool file (sfl
 #            dispatches every gate from the order file, so that row IS the
@@ -135,6 +144,54 @@ if [ -z "$refs" ]; then
   exit 1
 fi
 
+# exists_in_any_case <path>: the path names a file or folder in some letter
+# case (each component compared case-insensitively with its parent's listing).
+exists_in_any_case() {
+  local path="$1" parent="." comp entry found lc
+  local oldifs="$IFS"
+  IFS=/
+  for comp in $path; do
+    IFS="$oldifs"
+    case "$comp" in ''|.) IFS=/; continue ;; esac
+    lc="$(printf '%s' "$comp" | tr '[:upper:]' '[:lower:]')"
+    found=""
+    for entry in "$parent"/* "$parent"/.*; do
+      [ -e "$entry" ] || continue
+      if [ "$(printf '%s' "${entry##*/}" | tr '[:upper:]' '[:lower:]')" = "$lc" ]; then
+        found="$entry"
+        break
+      fi
+    done
+    if [ -z "$found" ]; then
+      IFS="$oldifs"
+      return 1
+    fi
+    parent="$found"
+    IFS=/
+  done
+  IFS="$oldifs"
+  return 0
+}
+
+# optional_reference <ref> <path>: every scanned file (fixtures aside) that
+# names <ref> tests <path> for existence on a line that is not a comment, and
+# the path exists in no letter case: an optional script, used only where a
+# repository has it.
+optional_reference() {
+  local ref="$1" path="$2" files f pat code
+  exists_in_any_case "$path" && return 1
+  # The extraction keeps only letters, digits and _ . / -, so the dot is the
+  # one character to escape.
+  pat="$(printf '%s' "$path" | sed 's/[.]/\\./g')"
+  files="$(printf '%s\n' "$scanned" | grep -v '/test_[^/]*$' | tr '\n' '\0' | xargs -0 grep -lF -- "$ref" 2>/dev/null)"
+  [ -n "$files" ] || return 1
+  for f in $files; do
+    code="$(grep -vE '^[[:space:]]*#' "$f")"
+    grep -qE "(\\[\\[?|test)[[:space:]]+-[efrx][[:space:]]+\"?(\\./)?${pat}\"?([[:space:]]|\\]|;|\$)" <<< "$code" || return 1
+  done
+  return 0
+}
+
 for ref in $refs; do
   # Outside the repo, so not ours to verify: absolute paths, home-relative
   # prereqs, URLs.
@@ -162,6 +219,7 @@ for ref in $refs; do
   esac
 
   if ! resolves_case_sensitively "$stripped"; then
+    optional_reference "$ref" "$stripped" && continue
     echo "❌ UNRESOLVED REFERENCE: ${ref} — no such path (checked case-sensitively)" >&2
     status=1
   fi

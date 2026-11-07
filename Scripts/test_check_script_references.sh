@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_check_script_references v3
+# canon: test_check_script_references v4
+# v4 (forsgren#646): fixtures 31-35 (an optional script behind an existence test) and mutation proofs G-J.
 # Scripts/test_check_script_references.sh
 #
 # Fixture test for Scripts/check_script_references.sh,
@@ -12,10 +13,16 @@
 #   order file, 5d reverse callers, 6-7 and 11 subdirectories and moves, 13 a
 #   standalone folder is red, 20-21 case and external paths, 22-25 a fallback
 #   default, a missing path under an existing directory and red-on-zero, 26-28
-#   flat Scripts/, 29 a path named only in a comment, 30 the orphan is named.
+#   flat Scripts/, 29 a path named only in a comment, 30 the orphan is named,
+#   31-35 an optional script: green behind an existence test of that path in
+#   every file that names it, red when a doc names it too, when the test names
+#   another path, when the test is only a comment, and for a wrong-case
+#   spelling behind a test.
 # Mutation proofs (weakened copies of the gate): A forward resolution always
 # true, B no zero-files check, C no flatness check, D the exit status
-# swallowed, E comments ignored, F the reverse check off. Each fixture that is
+# swallowed, E comments ignored, F the reverse check off, G the optional rule
+# off, H one guarding file enough, I the letter-case check off, J a test in a
+# comment taken. Each fixture that is
 # red must turn green (or lose its reason) under the mutation that removes
 # the check it names.
 set -uo pipefail
@@ -278,6 +285,62 @@ run_check "$CHECK_ABS" "$selfref"
 grep -qF 'UNREFERENCED SCRIPT: Scripts/talks_to_itself.sh' <<<"$OUT" \
   || fail "the self-reference case does not name the orphan. Output: $OUT"
 
+# --- Fixtures 31-35: an OPTIONAL script behind an existence test (v3) ---
+# A byte-identical script may use a script only some repositories have. Where
+# it is absent, the reference is accepted only when every file that names it
+# tests that same path on a code line, and no file holds it in another case.
+optional_caller='#!/usr/bin/env bash
+bash Scripts/used.sh
+if [ -e ./Scripts/optional.sh ]; then
+  ./Scripts/optional.sh || echo "Scripts/optional.sh failed"
+fi
+'
+
+# 31: the only file naming it tests it -> must PASS
+optional="$tmproot/optional-guarded"
+make_tree "$optional"
+printf '%s' "$optional_caller" > "$optional/caller.sh"
+run_check "$CHECK_ABS" "$optional"
+[ "$RC" -eq 0 ] || fail "an optional script named only behind an existence test of its path was red. Output: $OUT"
+
+# 32: a doc names it too, with no test -> must FAIL, naming it
+optdoc="$tmproot/optional-doc"
+make_tree "$optdoc"
+printf '%s' "$optional_caller" > "$optdoc/caller.sh"
+printf 'The runner uses Scripts/optional.sh where it exists.\n' > "$optdoc/README.md"
+run_check "$CHECK_ABS" "$optdoc"
+[ "$RC" -ne 0 ] || fail "a doc naming an absent optional script without a test was green"
+grep -qF 'UNRESOLVED REFERENCE: Scripts/optional.sh' <<<"$OUT" \
+  || fail "the optional-doc case is red for another reason. Output: $OUT"
+
+# 33: the test names another path (a typo) -> must FAIL, naming the used one
+opttypo="$tmproot/optional-typo"
+make_tree "$opttypo"
+printf '#!/usr/bin/env bash\nbash Scripts/used.sh\nif [ -x ./Scripts/optinal.sh ]; then\n  ./Scripts/optional.sh\nfi\n' > "$opttypo/caller.sh"
+run_check "$CHECK_ABS" "$opttypo"
+[ "$RC" -ne 0 ] || fail "an absent script behind a test of ANOTHER path was green"
+grep -qF 'UNRESOLVED REFERENCE: ./Scripts/optional.sh' <<<"$OUT" \
+  || fail "the optional-typo case is red for another reason. Output: $OUT"
+
+# 34: the test is only a comment -> must FAIL
+optcomment="$tmproot/optional-comment"
+make_tree "$optcomment"
+printf '#!/usr/bin/env bash\nbash Scripts/used.sh\n# [ -e ./Scripts/optional.sh ] would guard it\n./Scripts/optional.sh\n' > "$optcomment/caller.sh"
+run_check "$CHECK_ABS" "$optcomment"
+[ "$RC" -ne 0 ] || fail "an absent script whose existence test is only a comment was green"
+grep -qF 'UNRESOLVED REFERENCE: ./Scripts/optional.sh' <<<"$OUT" \
+  || fail "the optional-comment case is red for another reason. Output: $OUT"
+
+# 35: a wrong-case spelling of a script that exists, behind a test -> must FAIL
+# (on a case-insensitive disk the test passes; on Linux CI it silently skips).
+optcase="$tmproot/optional-case"
+make_tree "$optcase"
+printf '#!/usr/bin/env bash\nif [ -f scripts/used.sh ]; then\n  bash scripts/used.sh\nfi\n' > "$optcase/caller.sh"
+run_check "$CHECK_ABS" "$optcase"
+[ "$RC" -ne 0 ] || fail "a wrong-case spelling of an existing script behind an existence test was green"
+grep -qF 'UNRESOLVED REFERENCE: scripts/used.sh' <<<"$OUT" \
+  || fail "the optional-case case is red for another reason. Output: $OUT"
+
 # --- Mutation proofs: each red above is red BECAUSE of the check it names ---
 # mutant <name> <sed-expression> — a copy of the gate with one line replaced;
 # a sed that changes nothing proves nothing, so that is a failure too.
@@ -375,5 +438,30 @@ mutant reverse-off "s/^if \\[ -n \"\\\$unreferenced\" \\]; then\$/if false; then
 run_check "$MUTANT" "$orphan"
 [ "$RC" -eq 0 ] \
   || fail "mutation proof F: a gate without the reverse check is still red on fixture 3 (exit $RC) — red for another reason. Output: $OUT"
+
+# G: the optional rule. Without it fixture 31 is red, naming the guarded path,
+# so fixture 31 is green because of that rule.
+mutant optional-off "s/^    optional_reference \"\\\$ref\" \"\\\$stripped\" && continue\$/    :/"
+run_check "$MUTANT" "$optional"
+grep -qF 'UNRESOLVED REFERENCE: ./Scripts/optional.sh' <<<"$OUT" \
+  || fail "mutation proof G: a gate without the optional rule does not name the guarded path on fixture 31. Output: $OUT"
+
+# H: one guarding file enough. Then fixture 32's doc no longer keeps it red.
+mutant optional-any-file "s/<<< \"\\\$code\" || return 1\$/<<< \"\$code\" \\&\\& return 0/"
+run_check "$MUTANT" "$optdoc"
+[ "$RC" -eq 0 ] \
+  || fail "mutation proof H: a gate taking one guarding file as enough is still red on fixture 32 (exit $RC) — red for another reason. Output: $OUT"
+
+# I: the letter-case check off. Then fixture 35's wrong case passes.
+mutant optional-any-case "s/^  exists_in_any_case \"\\\$path\" && return 1\$/  :/"
+run_check "$MUTANT" "$optcase"
+[ "$RC" -eq 0 ] \
+  || fail "mutation proof I: a gate without the letter-case check is still red on fixture 35 (exit $RC) — red for another reason. Output: $OUT"
+
+# J: a test in a comment taken. Then fixture 34 passes.
+mutant optional-comment-test "s/grep -vE '^\[\[:space:\]\]\*#' \"\\\$f\"/cat \"\$f\"/"
+run_check "$MUTANT" "$optcomment"
+[ "$RC" -eq 0 ] \
+  || fail "mutation proof J: a gate that reads a commented test is still red on fixture 34 (exit $RC) — red for another reason. Output: $OUT"
 
 echo "✅ test_check_script_references: PASS"

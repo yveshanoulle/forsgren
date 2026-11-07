@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_run_ci_phase v5
+# canon: test_run_ci_phase v9
+# v9 (forsgren#646, decision #647 A; canon home forsgren): the test of run_ci_phase v8, one for every site. It keeps every case of forsgren's v5 and of the sites' v8 and adds: group row arguments split by read -r -a within a safe character set (unsafe ones red, never expanded, no eval), the default job, post rows in a named job, the group file checks, the build-volume TMPDIR only where Scripts/builds_tmpdir.sh exists (the real script, with the fake Companion, only there), the checked temp file, gate selection only where its library exists, and workflow_paths per gate job read from the workflow (any site's layout).
 # v3 (forsgren#426): the shards case (group rows with arguments) and two mutations; the jobs of the real-order case come from the group file.
 # v4 (forsgren#574): the report_dir, cancel and workflow_paths cases and two mutations.
 # v5 (forsgren#641): workflow_paths reads the number of gate jobs from quality.yml (every job but report and preview) instead of a fixed 9, and two workflow mutations prove it.
@@ -60,14 +61,34 @@ fail() { echo "❌ FAIL: $*"; failed=1; }
 [[ -f "$ORDER" ]] || { echo "FAIL: ${ORDER} not found" >&2; exit 1; }
 
 # The runner's canon line must be in its first 40 lines.
-head -40 "$RUNNER" | has -xF '# canon: run_ci_phase v4' \
-  || fail "${RUNNER} has no '# canon: run_ci_phase v4' line in its first 40 lines"
+head -40 "$RUNNER" | has -xF '# canon: run_ci_phase v8' \
+  || fail "${RUNNER} has no '# canon: run_ci_phase v8' line in its first 40 lines"
 
 REAL_RUNNER="$(pwd)/${RUNNER}"
 # shellcheck source=Scripts/lib_tmp.sh
 source Scripts/lib_tmp.sh
 TMP="$(tmp_dir test_run_ci_phase)" || exit 1
 trap 'rm -rf "$TMP"; finish' EXIT
+# The runner appends to the step summary; on a Quality run the ambient one is
+# the real run page, so every case writes to this one unless it names its own.
+GITHUB_STEP_SUMMARY="${TMP}/ambient_step_summary.md"
+: > "$GITHUB_STEP_SUMMARY"
+export GITHUB_STEP_SUMMARY
+# Where the repository has a build volume script (a self-hosted site), the
+# real one is tried too, and it pushes the volume's status to the Stream
+# Deck: then, and only then, the fake Companion of Scripts/lib_fake_companion.sh
+# stands in for the real one. A repository without the script has no such
+# library either.
+BUILDS_TMPDIR_SCRIPT=""
+if [[ -f Scripts/builds_tmpdir.sh ]]; then
+  BUILDS_TMPDIR_SCRIPT="$(pwd)/Scripts/builds_tmpdir.sh"
+  # The sandboxes are not all git repositories, so builds_tmpdir.sh gets its
+  # folder through its seam.
+  export BUILDS_REPO_FOLDER="fixture-repo"
+  # shellcheck source=/dev/null # present only in a repository that has Scripts/builds_tmpdir.sh
+  source Scripts/lib_fake_companion.sh
+  fake_companion "${TMP}/fake-companion"
+fi
 
 # new_sandbox <runner>: a fresh git repository holding a copy of the runner and
 # one committed, tracked file, so a gate that writes to it dirties the tree.
@@ -99,6 +120,7 @@ stub() {
 #!/usr/bin/env bash
 printf '%s\n' "${0#./}" >> "$STUB_TRACE"
 printf '%s|%s\n' "${0#./}" "$*" >> "${STUB_TRACE}.args"
+{ printf '%s|' "${0#./}"; [ "$#" -eq 0 ] || printf '[%s]' "$@"; printf '\n'; } >> "${STUB_TRACE}.argv"
 STUB
     printf 'echo "stub output of %s"\n' "$path"
     [[ -z "$writes" ]] || printf 'echo changed >> tracked.txt\n'
@@ -135,7 +157,7 @@ run_phase() {
     "$@" "${SB}/Scripts/run_ci_phase.sh" "$phase" "$RUN_ROWS" "$RUN_DETAILS" ${RUN_JOB:+"$RUN_JOB"} 2>&1)" || RUN_RC=$?
 }
 
-rows_text() { tr '\n' ' ' < "$RUN_ROWS" 2>/dev/null || true; }
+rows_text() { tr '\n' ' ' 2>/dev/null < "$RUN_ROWS" || true; }
 
 # --- the cases: each prints one line per problem -----------------------------
 
@@ -379,6 +401,341 @@ case_shards() {
   return 0
 }
 
+# forsgren#646 (decision #644 A, gap (a) of #647): group row arguments in the
+# canon. The third field is split into words by `read -r -a`, never by eval or
+# an unquoted expansion, and may hold only letters, digits, _ . / = - and
+# spaces. A row without a third field, or with an empty one, is the plain
+# `<job>|<label>` row. Arguments with any other character are a red row named
+# by the label, the gate not run, and the job's other gates still run.
+case_group_args() {
+  local bad label
+  RUN_JOB=""
+  new_sandbox "$1"
+  order "plain|Scripts/pass_a.sh|pre|" "trailing bar|Scripts/pass_b.sh|pre|" \
+    "split|Scripts/pass_c.sh|pre|" "spaced|Scripts/pass_d.sh|pre|" "words|Scripts/pass_e.sh|pre|"
+  stub Scripts/pass_a.sh 0
+  stub Scripts/pass_b.sh 0
+  stub Scripts/pass_c.sh 0
+  stub Scripts/pass_d.sh 0
+  stub Scripts/pass_e.sh 0
+  groups "j|plain" "j|trailing bar|" "j|split|--shard 1/2" "j|spaced|  --shard   2/2  " "j|words|--mode=fast ./x_y.txt"
+  rm -f "${TRACE}.argv"
+  RUN_JOB=j run_phase pre
+  [[ "$RUN_RC" -eq 0 ]] || echo "job j with safe arguments: exit ${RUN_RC}, want 0: ${RUN_OUT}"
+  # .argv brackets each word, so one word "--shard 1/2" and two words differ.
+  [[ "$(cat "${TRACE}.argv" 2>/dev/null)" == "$(printf '%s\n' 'Scripts/pass_a.sh|' 'Scripts/pass_b.sh|' \
+    'Scripts/pass_c.sh|[--shard][1/2]' 'Scripts/pass_d.sh|[--shard][2/2]' 'Scripts/pass_e.sh|[--mode=fast][./x_y.txt]')" ]] \
+    || echo "the gates were not called with the row's words (none for a row without or with an empty third field): $(tr '\n' ' ' < "${TRACE}.argv" 2>/dev/null)"
+  [[ "$(cat "$RUN_ROWS" 2>/dev/null)" == "$(printf '%s\n' 'plain|✅' 'trailing bar|✅' 'split (shard 1/2)|✅' \
+    'spaced (shard 2/2)|✅' 'words (mode=fast ./x_y.txt)|✅')" ]] \
+    || echo "the rows do not name the arguments (or a row without them is no longer plain): $(rows_text)"
+  # Unsafe arguments: each is a red row named by its label, never run, and
+  # nothing in it is expanded or executed.
+  new_sandbox "$1"
+  order "good|Scripts/pass_a.sh|pre|" "subst|Scripts/pass_b.sh|pre|" "semicolon|Scripts/pass_b.sh|pre|" \
+    "glob|Scripts/pass_b.sh|pre|" "quotes|Scripts/pass_b.sh|pre|" "pipe|Scripts/pass_b.sh|pre|" \
+    "backtick|Scripts/pass_b.sh|pre|" "dollar|Scripts/pass_b.sh|pre|" "after|Scripts/pass_c.sh|pre|"
+  stub Scripts/pass_a.sh 0
+  stub Scripts/pass_b.sh 0
+  stub Scripts/pass_c.sh 0
+  # shellcheck disable=SC2016 # the arguments are data the runner must refuse, never expanded here
+  groups "bad|good" 'bad|subst|$(touch PWNED)' "bad|semicolon|--a;touch PWNED" "bad|glob|*" \
+    'bad|quotes|--name "a b"' "bad|pipe|--x|--y" 'bad|backtick|`touch PWNED`' 'bad|dollar|--home=$HOME' "bad|after"
+  RUN_JOB=bad run_phase pre
+  [[ "$RUN_RC" -eq 1 ]] || echo "unsafe arguments: exit ${RUN_RC}, want 1: ${RUN_OUT}"
+  [[ ! -e "${SB}/PWNED" ]] || echo "an argument was executed: ${SB}/PWNED exists"
+  has -F Scripts/pass_b.sh < "$TRACE" && echo "a gate with unsafe arguments was run: $(tr '\n' ' ' < "${TRACE}.args" 2>/dev/null)"
+  for bad in subst semicolon glob quotes pipe backtick dollar; do
+    grep -qxF "${bad}|❌" "$RUN_ROWS" 2>/dev/null || echo "unsafe arguments of '${bad}' have no red row under the plain label: $(rows_text)"
+    label="$(printf '%s' "$bad" | tr -c 'A-Za-z0-9' '_')"
+    grep -qF 'arguments' "${RUN_DETAILS}/${label}.md" 2>/dev/null || echo "the details of '${bad}' do not say its arguments are refused"
+  done
+  grep -qxF 'good|✅' "$RUN_ROWS" 2>/dev/null && grep -qxF 'after|✅' "$RUN_ROWS" 2>/dev/null \
+    || echo "a refused row stopped the job's other gates: $(rows_text)"
+  # No eval anywhere in the runner's code (comments aside).
+  grep -nE '^[^#]*(^|[^A-Za-z0-9_])eval([^A-Za-z0-9_]|$)' "${SB}/Scripts/run_ci_phase.sh" \
+    | sed 's/^/the runner uses eval: /' || true
+  RUN_JOB=""
+  return 0
+}
+
+# Gap (b) of #647: with no job argument the runner runs, in either phase, the
+# rows the group file gives to no job, so a gate is in exactly one job; with no
+# group file it runs every row. A site that lists every pre row (the v7
+# layout) and calls post with no job runs every post row, as before. A job the
+# group file does not name, or a job name with a character other than letters,
+# digits, _ and -, is a usage error (64).
+case_default_job() {
+  RUN_JOB=""
+  new_sandbox "$1"
+  order "listed pre|Scripts/pass_a.sh|pre|" "unlisted pre|Scripts/pass_b.sh|pre|" \
+    "unlisted post|Scripts/pass_c.sh|post|" "listed post|Scripts/pass_d.sh|post|"
+  stub Scripts/pass_a.sh 0
+  stub Scripts/pass_b.sh 0
+  stub Scripts/pass_c.sh 0
+  stub Scripts/pass_d.sh 0
+  run_phase pre
+  [[ "$RUN_RC" -eq 0 && "$(cat "$TRACE")" == "$(printf 'Scripts/pass_a.sh\nScripts/pass_b.sh')" ]] \
+    || echo "no group file, no job: pre must run every pre row, exit ${RUN_RC}, ran: $(tr '\n' ' ' < "$TRACE")"
+  groups "x|listed pre" "y|listed post"
+  : > "$TRACE"
+  run_phase pre
+  [[ "$RUN_RC" -eq 0 && "$(cat "$TRACE")" == "Scripts/pass_b.sh" ]] \
+    || echo "no job: pre must run only the rows no job lists, exit ${RUN_RC}, ran: $(tr '\n' ' ' < "$TRACE")"
+  : > "$TRACE"
+  run_phase post
+  [[ "$RUN_RC" -eq 0 && "$(cat "$TRACE")" == "Scripts/pass_c.sh" ]] \
+    || echo "no job: post must run only the rows no job lists, exit ${RUN_RC}, ran: $(tr '\n' ' ' < "$TRACE")"
+  groups "x|listed pre" "x|unlisted pre"
+  : > "$TRACE"
+  run_phase post
+  [[ "$RUN_RC" -eq 0 && "$(cat "$TRACE")" == "$(printf 'Scripts/pass_c.sh\nScripts/pass_d.sh')" ]] \
+    || echo "every pre row listed (the v7 layout): post with no job must run every post row, exit ${RUN_RC}, ran: $(tr '\n' ' ' < "$TRACE")"
+  RUN_JOB=nope run_phase pre
+  [[ "$RUN_RC" -eq 64 ]] || echo "a job the group file does not name exited ${RUN_RC}, want 64: ${RUN_OUT}"
+  groups "x|listed pre" "a/b|unlisted pre"
+  RUN_JOB=a/b run_phase pre
+  [[ "$RUN_RC" -eq 64 ]] || echo "a job name with a / exited ${RUN_RC}, want 64: ${RUN_OUT}"
+  RUN_JOB=""
+  return 0
+}
+
+# Gap (c) of #647: a named job may hold post rows (a job that builds its own
+# site and runs its post gates). It runs its listed rows of the phase it is
+# called with; with no job the post phase skips them; a job with no row of the
+# phase is the empty phase, red.
+case_post_job() {
+  RUN_JOB=""
+  new_sandbox "$1"
+  order "own pre|Scripts/pass_a.sh|pre|" "main pre|Scripts/pass_b.sh|pre|" \
+    "own post|Scripts/pass_c.sh|post|" "main post|Scripts/pass_d.sh|post|" "only post|Scripts/pass_e.sh|post|"
+  stub Scripts/pass_a.sh 0
+  stub Scripts/pass_b.sh 0
+  stub Scripts/pass_c.sh 0
+  stub Scripts/pass_d.sh 0
+  stub Scripts/pass_e.sh 0
+  groups "site|own pre" "site|own post" "postonly|only post"
+  RUN_JOB=site run_phase pre
+  [[ "$RUN_RC" -eq 0 && "$(cat "$TRACE")" == "Scripts/pass_a.sh" ]] \
+    || echo "job site, pre: must run its pre row, exit ${RUN_RC}, ran: $(tr '\n' ' ' < "$TRACE"): ${RUN_OUT}"
+  : > "$TRACE"
+  RUN_JOB=site run_phase post
+  [[ "$RUN_RC" -eq 0 && "$(cat "$TRACE")" == "Scripts/pass_c.sh" ]] \
+    || echo "job site, post: must run its post row, exit ${RUN_RC}, ran: $(tr '\n' ' ' < "$TRACE"): ${RUN_OUT}"
+  [[ "$(cat "$RUN_ROWS" 2>/dev/null)" == "own post|✅" ]] || echo "job site, post: wrong rows: $(rows_text)"
+  : > "$TRACE"
+  RUN_JOB="" run_phase post
+  [[ "$RUN_RC" -eq 0 && "$(cat "$TRACE")" == "Scripts/pass_d.sh" ]] \
+    || echo "no job, post: must skip the post rows of named jobs, exit ${RUN_RC}, ran: $(tr '\n' ' ' < "$TRACE")"
+  RUN_JOB=postonly run_phase pre
+  [[ "$RUN_RC" -eq 1 ]] && grep -qF 'declares no pre row' <<< "$RUN_OUT" \
+    || echo "a job with post rows only, called for pre, must be the red empty phase, exit ${RUN_RC}: ${RUN_OUT}"
+  RUN_JOB=""
+  return 0
+}
+
+# Gap (d) of #647: the build-volume temp folder only where the repository has
+# Scripts/builds_tmpdir.sh. Without it the gates keep the TMPDIR they were
+# given and nothing is said about a build volume. With it the runner exports
+# the folder it prints, repeats its ⚠️ line, names the folder in the step
+# summary, and a failing or silent script stops the phase before any gate. A
+# builds_tmpdir.sh that is there but not executable is red, never skipped.
+case_builds_tmpdir() {
+  local given seen summary
+  RUN_JOB=""
+  new_sandbox "$1"
+  order "tmp probe|Scripts/tmp_probe.sh|pre|"
+  cat > "${SB}/Scripts/tmp_probe.sh" <<'PROBE'
+#!/usr/bin/env bash
+printf '%s\n' "${TMPDIR:-unset}" > "${STUB_TRACE}.tmpdir"
+exit 0
+PROBE
+  chmod +x "${SB}/Scripts/tmp_probe.sh"
+  given="${SB}.given_tmp"
+  mkdir -p "$given"
+  run_phase pre env TMPDIR="$given"
+  seen="$(cat "${TRACE}.tmpdir" 2>/dev/null || true)"
+  [[ "$RUN_RC" -eq 0 ]] || echo "no builds_tmpdir.sh: exit ${RUN_RC}, want 0: ${RUN_OUT}"
+  [[ "$seen" == "$given" ]] || echo "no builds_tmpdir.sh: the gate must keep the given TMPDIR ${given}, it saw ${seen:-nothing}"
+  grep -qF 'builds_tmpdir' <<< "$RUN_OUT" && echo "no builds_tmpdir.sh: the runner still talks about it: ${RUN_OUT}"
+  # With the script: its folder is exported, its ⚠️ line repeated, the folder
+  # named in the step summary.
+  mkdir -p "${SB}.volume_tmp"
+  printf '#!/usr/bin/env bash\necho "⚠️ fake volume note" >&2\nprintf "%%s\\n" "%s"\n' "${SB}.volume_tmp" > "${SB}/Scripts/builds_tmpdir.sh"
+  chmod +x "${SB}/Scripts/builds_tmpdir.sh"
+  summary="${SB}.summary.md"
+  : > "$summary"
+  rm -f "${TRACE}.tmpdir"
+  run_phase pre env TMPDIR="$given" GITHUB_STEP_SUMMARY="$summary"
+  seen="$(cat "${TRACE}.tmpdir" 2>/dev/null || true)"
+  [[ "$RUN_RC" -eq 0 ]] || echo "builds_tmpdir.sh present: exit ${RUN_RC}, want 0: ${RUN_OUT}"
+  [[ "$seen" == "${SB}.volume_tmp" ]] || echo "builds_tmpdir.sh present: the gate must see its folder ${SB}.volume_tmp, it saw ${seen:-nothing}"
+  grep -qF '⚠️ fake volume note' <<< "$RUN_OUT" || echo "builds_tmpdir.sh present: its ⚠️ line is not repeated: ${RUN_OUT}"
+  grep -qF "${SB}.volume_tmp" "$summary" || echo "builds_tmpdir.sh present: the step summary does not name the temp folder: $(cat "$summary")"
+  # A failing script, and one that names no folder, stop the phase.
+  for body in 'exit 1' 'exit 0'; do
+    printf '#!/usr/bin/env bash\n%s\n' "$body" > "${SB}/Scripts/builds_tmpdir.sh"
+    rm -f "${TRACE}.tmpdir"
+    run_phase pre
+    [[ "$RUN_RC" -eq 1 ]] || echo "builds_tmpdir.sh '${body}' with no folder: exit ${RUN_RC}, want 1: ${RUN_OUT}"
+    [[ ! -e "${TRACE}.tmpdir" ]] || echo "builds_tmpdir.sh '${body}' with no folder: a gate ran anyway"
+    grep -qF 'no gate ran' <<< "$RUN_OUT" || echo "builds_tmpdir.sh '${body}' with no folder: the runner does not say no gate ran: ${RUN_OUT}"
+  done
+  # There but not executable: red, never taken for absent.
+  printf '#!/usr/bin/env bash\nprintf "%%s\\n" "%s"\n' "${SB}.volume_tmp" > "${SB}/Scripts/builds_tmpdir.sh"
+  chmod -x "${SB}/Scripts/builds_tmpdir.sh"
+  rm -f "${TRACE}.tmpdir"
+  run_phase pre
+  [[ "$RUN_RC" -eq 1 && ! -e "${TRACE}.tmpdir" ]] \
+    || echo "a builds_tmpdir.sh that is not executable must stop the phase, exit ${RUN_RC}: ${RUN_OUT}"
+  return 0
+}
+
+# Gap (e) of #647: the capture file is a checked tmp_file. When no temp file
+# can be made (TMPDIR names a folder that does not exist) the runner stops
+# with a ❌ line naming the temp folder, runs no gate and records no green row.
+case_tmp_failure() {
+  RUN_JOB=""
+  new_sandbox "$1"
+  order "first|Scripts/pass_a.sh|pre|"
+  stub Scripts/pass_a.sh 0
+  run_phase pre env TMPDIR="${SB}.no_such_folder"
+  [[ "$RUN_RC" -ne 0 ]] || echo "no temp file possible: exit 0, want a failure: ${RUN_OUT}"
+  grep -qF '❌' <<< "$RUN_OUT" && grep -qF "${SB}.no_such_folder" <<< "$RUN_OUT" \
+    || echo "no temp file possible: no ❌ line naming the temp folder: ${RUN_OUT}"
+  grep -qF 'cannot make a temp file' <<< "$RUN_OUT" || echo "no temp file possible: the failure is not named as the temp file: ${RUN_OUT}"
+  [[ ! -s "$TRACE" ]] || echo "no temp file possible: a gate ran: $(tr '\n' ' ' < "$TRACE")"
+  [[ ! -s "$RUN_ROWS" ]] || echo "no temp file possible: a row was recorded: $(rows_text)"
+  return 0
+}
+
+# The group file is checked before any gate, in every job: the same
+# `<job>|<label>` twice, a row for the job main (the default job is not
+# listed) and a job name with a character other than letters, digits, _ and -
+# are each red and named. A malformed order row is red in a named job too.
+case_group_file() {
+  RUN_JOB=""
+  new_sandbox "$1"
+  order "alpha|Scripts/pass_a.sh|pre|" "beta|Scripts/pass_b.sh|pre|"
+  stub Scripts/pass_a.sh 0
+  stub Scripts/pass_b.sh 0
+  groups "x|alpha" "x|alpha"
+  RUN_JOB=x run_phase pre
+  [[ "$RUN_RC" -eq 1 ]] && grep -qF 'x|alpha' <<< "$RUN_OUT" \
+    || echo "the same job and gate twice must be red and named, exit ${RUN_RC}: ${RUN_OUT}"
+  [[ ! -s "$TRACE" ]] || echo "a gate ran over a group file with a row twice: $(tr '\n' ' ' < "$TRACE")"
+  groups "x|alpha" "main|beta"
+  RUN_JOB="" run_phase pre
+  [[ "$RUN_RC" -eq 1 ]] && grep -qF 'job main' <<< "$RUN_OUT" \
+    || echo "a group row for the job main must be red and named, exit ${RUN_RC}: ${RUN_OUT}"
+  groups "x|alpha" "y.z|beta"
+  RUN_JOB=x run_phase pre
+  [[ "$RUN_RC" -eq 1 ]] && grep -qF "'y.z'" <<< "$RUN_OUT" \
+    || echo "a group row whose job name holds a . must be red and named, exit ${RUN_RC}: ${RUN_OUT}"
+  groups "x|alpha"
+  order "alpha|Scripts/pass_a.sh|pre|" "typo|Scripts/pass_b.sh|prez|"
+  RUN_JOB=x run_phase pre
+  grep -qxF 'typo|❌' "$RUN_ROWS" 2>/dev/null || echo "a malformed row is not red in the named job x: $(rows_text)"
+  RUN_JOB=""
+  return 0
+}
+
+# Gate selection, where Scripts/lib_ci_gate_select.sh exists. Without it every
+# gate runs, never a skipped one, and the runner says nothing unless the
+# workflow asks for selection (CI_GATE_EVENT set) or the library is there but
+# cannot be read. With it a gate the selector skips is a ⏭ row, counted as not
+# run, never as passed.
+case_gate_selection() {
+  local summary="${TMP}/selection_summary_$$.md" lib
+  RUN_JOB=""
+  new_sandbox "$1"
+  order "alpha|Scripts/pass_a.sh|pre|" "beta|Scripts/pass_b.sh|pre|"
+  stub Scripts/pass_a.sh 0
+  stub Scripts/pass_b.sh 0
+  : > "$summary"
+  run_phase pre env -u CI_GATE_EVENT -u CI_GATE_BASE GITHUB_STEP_SUMMARY="$summary"
+  [[ "$RUN_RC" -eq 0 && "$(cat "$TRACE")" == "$(printf 'Scripts/pass_a.sh\nScripts/pass_b.sh')" ]] \
+    || echo "no selector: every gate must run, exit ${RUN_RC}, ran: $(tr '\n' ' ' < "$TRACE")"
+  grep -qF 'Gate selection' <<< "$RUN_OUT" && echo "no selector and none asked for: the runner still names gate selection: ${RUN_OUT}"
+  [[ ! -s "$summary" ]] || echo "no selector and none asked for: the step summary got: $(cat "$summary")"
+  : > "$TRACE"
+  run_phase pre env CI_GATE_EVENT=push CI_GATE_BASE=0 GITHUB_STEP_SUMMARY="$summary"
+  [[ "$RUN_RC" -eq 0 && "$(cat "$TRACE")" == "$(printf 'Scripts/pass_a.sh\nScripts/pass_b.sh')" ]] \
+    || echo "a workflow that asks for selection without the library: every gate must run, exit ${RUN_RC}, ran: $(tr '\n' ' ' < "$TRACE")"
+  grep -qF 'cannot be read, so every gate runs' <<< "$RUN_OUT" \
+    || echo "a workflow that asks for selection without the library: the full run is not named: ${RUN_OUT}"
+  # A stub library: beta is skipped.
+  lib="${SB}/Scripts/lib_ci_gate_select.sh"
+  cat > "$lib" <<'LIB'
+ci_gate_select_init() { CI_SELECT_NOTE="stub selection for $1"; }
+ci_gate_select() { if [ "$1" = beta ]; then echo "skip: stub reason"; else echo "run: stub"; fi; }
+LIB
+  : > "$TRACE"
+  : > "$summary"
+  run_phase pre env CI_GATE_EVENT=push GITHUB_STEP_SUMMARY="$summary"
+  [[ "$RUN_RC" -eq 0 && "$(cat "$TRACE")" == "Scripts/pass_a.sh" ]] \
+    || echo "a selector that skips beta: only alpha must run, exit ${RUN_RC}, ran: $(tr '\n' ' ' < "$TRACE")"
+  grep -qxF 'beta|⏭ not run (selector: stub reason)' "$RUN_ROWS" 2>/dev/null \
+    || echo "the skipped gate has no not-run row: $(rows_text)"
+  grep -qF '1 of 2 gates passed, none red; ⏭ 1 not run (selector), not passed' <<< "$RUN_OUT" \
+    || echo "the phase does not count the skipped gate as not run: ${RUN_OUT}"
+  grep -qF 'Gate selection: stub selection for push' <<< "$RUN_OUT" || echo "the selector's note is not in the log: ${RUN_OUT}"
+  grep -qF 'stub selection for push' "$summary" || echo "the selector's note is not in the step summary: $(cat "$summary")"
+  # There but unreadable: every gate runs, named.
+  chmod 000 "$lib"
+  : > "$TRACE"
+  run_phase pre env -u CI_GATE_EVENT
+  chmod 644 "$lib"
+  [[ "$RUN_RC" -eq 0 && "$(cat "$TRACE")" == "$(printf 'Scripts/pass_a.sh\nScripts/pass_b.sh')" ]] \
+    || echo "an unreadable selector: every gate must run, exit ${RUN_RC}, ran: $(tr '\n' ' ' < "$TRACE")"
+  grep -qF 'cannot be read, so every gate runs' <<< "$RUN_OUT" || echo "an unreadable selector is not named: ${RUN_OUT}"
+  return 0
+}
+
+# The REAL Scripts/builds_tmpdir.sh, only where the repository has it (a
+# self-hosted site; its Stream Deck push goes to the fake Companion set up at
+# the top). A writable fake volume: the probe gate sees
+# <volume>/tmp/fixture-repo, and the log and the step summary carry a `temp
+# folder` row naming it. A missing volume: the probe sees the default TMPDIR,
+# the phase still passes, and the log and the step summary carry the ⚠️ line.
+case_builds_tmpdir_real() {
+  local vol default seen summary
+  [[ -n "$BUILDS_TMPDIR_SCRIPT" ]] || return 0
+  new_sandbox "$1"
+  cp "$BUILDS_TMPDIR_SCRIPT" "${SB}/Scripts/builds_tmpdir.sh"
+  chmod +x "${SB}/Scripts/builds_tmpdir.sh"
+  order "probe|Scripts/probe.sh|pre|"
+  cat > "${SB}/Scripts/probe.sh" <<'PROBE'
+#!/usr/bin/env bash
+printf '%s\n' "${TMPDIR:-}" > "$PROBE_SEEN"
+PROBE
+  chmod +x "${SB}/Scripts/probe.sh"
+  vol="${SB}.volume"
+  default="${SB}.default-tmp"
+  mkdir -p "$vol" "$default"
+  seen="${SB}.seen"
+  summary="${SB}.summary.md"
+  : > "$seen"; : > "$summary"
+  run_phase pre env BUILDS_VOLUME="$vol" TMPDIR="$default" PROBE_SEEN="$seen" GITHUB_STEP_SUMMARY="$summary"
+  [[ "$RUN_RC" -eq 0 ]] || echo "writable volume: exit ${RUN_RC}, want 0: ${RUN_OUT}"
+  [[ "$(cat "$seen")" == "${vol}/tmp/fixture-repo" ]] \
+    || echo "writable volume: the probe gate saw TMPDIR=$(cat "$seen"), not ${vol}/tmp/fixture-repo"
+  grep -qF "${vol}/tmp/fixture-repo" <<< "$(grep -E 'temp folder' <<< "$RUN_OUT")" \
+    || echo "writable volume: the log has no 'temp folder' row naming ${vol}/tmp/fixture-repo"
+  grep -qF "${vol}/tmp/fixture-repo" <<< "$(grep -E 'temp folder' "$summary")" \
+    || echo "writable volume: the step summary has no 'temp folder' row naming ${vol}/tmp/fixture-repo"
+  : > "$seen"; : > "$summary"
+  run_phase pre env BUILDS_VOLUME="${SB}.missing" TMPDIR="$default" PROBE_SEEN="$seen" GITHUB_STEP_SUMMARY="$summary"
+  [[ "$RUN_RC" -eq 0 ]] || echo "missing volume: exit ${RUN_RC}, want 0 (estate decision 388, the run continues): ${RUN_OUT}"
+  [[ "$(cat "$seen")" == "$default" ]] \
+    || echo "missing volume: the probe gate saw TMPDIR=$(cat "$seen"), not the default ${default}"
+  grep -qF "${SB}.missing" <<< "$(grep -F '⚠️' <<< "$RUN_OUT")" \
+    || echo "missing volume: the log has no ⚠️ line naming ${SB}.missing"
+  grep -qF "${SB}.missing" <<< "$(grep -F '⚠️' "$summary")" \
+    || echo "missing volume: the step summary has no ⚠️ line naming ${SB}.missing"
+  return 0
+}
+
 # The REAL order file, with a stub for every runnable row: both phases pass and
 # between them run each row exactly once, in its own phase. A real row the
 # runner would call malformed fails here.
@@ -386,30 +743,46 @@ case_real_order_file() {
   local script want got
   new_sandbox "$1"
   cp "$ORDER" "${SB}/Scripts/gate_report_order.txt"
-  cp Scripts/ci_job_groups.txt "${SB}/Scripts/ci_job_groups.txt" 2>/dev/null || echo "Scripts/ci_job_groups.txt is missing: no gate is assigned to a job"
+  # No group file is a repository whose gates all run in the default job.
+  local groups_file="${TMP}/no_job_groups.txt"
+  : > "$groups_file"
+  if [[ -f Scripts/ci_job_groups.txt ]]; then
+    cp Scripts/ci_job_groups.txt "${SB}/Scripts/ci_job_groups.txt"
+    groups_file=Scripts/ci_job_groups.txt
+  fi
   while IFS='|' read -r _l script _p _c; do
     [[ -n "${script:-}" && "$script" != "n/a" ]] || continue
     stub "$script" 0
   done < <(grep -v '^#' "$ORDER" | grep .)
-  run_phase pre
-  [[ "$RUN_RC" -eq 0 ]] || echo "pre over the real order file exited ${RUN_RC}: ${RUN_OUT}"
+  # default_has <phase>: the default job has a row in the phase (a site that
+  # gives every pre row to a job has none in pre, and does not call it).
+  default_has() {
+    awk -F'|' -v ph="$1" 'NR == FNR { if ($0 !~ /^#/ && $2 != "") g[$2] = 1; next } $0 !~ /^#/ && $2 != "" && $2 != "n/a" && $3 == ph && !($1 in g) { f = 1 } END { exit !f }' \
+      "$groups_file" "$ORDER"
+  }
+  if default_has pre; then
+    run_phase pre
+    [[ "$RUN_RC" -eq 0 ]] || echo "pre over the real order file exited ${RUN_RC}: ${RUN_OUT}"
+  fi
   # Every job the group file names, in every phase it has a row in (the jobs
   # are read from the data file, not spelled here).
   while IFS='|' read -r job; do
     [[ -n "$job" ]] || continue
     for phase in pre post; do
       awk -F'|' -v j="$job" -v ph="$phase" 'NR == FNR { if ($0 !~ /^#/ && $1 == j) want[$2] = 1; next } $0 !~ /^#/ && ($1 in want) && $3 == ph { f = 1 } END { exit !f }' \
-        Scripts/ci_job_groups.txt "$ORDER" || continue
+        "$groups_file" "$ORDER" || continue
       RUN_JOB="$job" run_phase "$phase"
       [[ "$RUN_RC" -eq 0 ]] || echo "${phase} of the job ${job} over the real order file exited ${RUN_RC}: ${RUN_OUT}"
     done
-  done < <(awk -F'|' '$0 !~ /^#/ && $1 != "" && !seen[$1]++ { print $1 }' Scripts/ci_job_groups.txt)
+  done < <(awk -F'|' '$0 !~ /^#/ && $1 != "" && !seen[$1]++ { print $1 }' "$groups_file")
   RUN_JOB=""
-  run_phase post
-  [[ "$RUN_RC" -eq 0 ]] || echo "post over the real order file exited ${RUN_RC}: ${RUN_OUT}"
+  if default_has post; then
+    run_phase post
+    [[ "$RUN_RC" -eq 0 ]] || echo "post over the real order file exited ${RUN_RC}: ${RUN_OUT}"
+  fi
   # Each runnable row runs once, or once per group row that names it (a split
   # gate runs once in each of its shard jobs).
-  want="$(awk -F'|' 'NR == FNR { if ($0 !~ /^#/ && $2 != "") n[$2]++; next } $0 !~ /^#/ && $2 != "" && $2 != "n/a" { for (i = 0; i < (n[$1] ? n[$1] : 1); i++) print $2 }' Scripts/ci_job_groups.txt "$ORDER" | LC_ALL=C sort)"
+  want="$(awk -F'|' 'NR == FNR { if ($0 !~ /^#/ && $2 != "") n[$2]++; next } $0 !~ /^#/ && $2 != "" && $2 != "n/a" { for (i = 0; i < (n[$1] ? n[$1] : 1); i++) print $2 }' "$groups_file" "$ORDER" | LC_ALL=C sort)"
   got="$(LC_ALL=C sort "$TRACE")"
   [[ "$got" == "$want" ]] || echo "the jobs and phases did not run every runnable row exactly once"
   return 0
@@ -558,28 +931,48 @@ SLOW
   return 0
 }
 
-# The workflow names the folder through the runner, never a fixed path: every
-# job and the report job ask `report-dir`, and every gate job's upload names
-# the per-run folder. The number of gate jobs is read from the workflow (every
-# job but report and preview, forsgren#641), so a new gate job needs no edit here.
-# gate_job_count <workflow>: its jobs other than report and preview.
+# The workflow names the folder through the runner, never a fixed path. The
+# gate jobs are read from the workflow, not counted here (forsgren#641; gap (f)
+# of #647 makes it hold for every site's layout): a gate job is a job that
+# calls `run_ci_phase.sh pre` or `post`. Each gate job asks `report-dir`, and
+# hands its rows on through the per-run folder: a per-run hand-over folder
+# (forsgren's merge_quality_report.sh) or a per-run quality_rows.md upload (the
+# sites'). A job that names a hand-over folder names the per-run one.
+# workflow_jobs <workflow>: one line per job, `<id> <gate> <report-dir> <per-run
+# hand-over> <per-run rows> <other hand-over>` (gate 1 or 0, then counts).
+workflow_jobs() {
+  awk -v per='runner\\.temp }}/quality_\\$\\{\\{ github\\.run_id }}_\\$\\{\\{ github\\.run_attempt }}_\\$\\{\\{ github\\.job }}/' '
+    function flush() { if (id != "") print id, g + 0, r + 0, h + 0, q + 0, o + 0 }
+    /^jobs:/ { on = 1; next }
+    on && /^[^[:space:]#]/ { flush(); id = ""; on = 0 }
+    on && /^  [A-Za-z0-9_-]+:[[:space:]]*$/ { flush(); id = $1; sub(/:$/, "", id); g = r = h = q = o = 0; next }
+    !on || id == "" { next }
+    /run_ci_phase\.sh (pre|post) / { g = 1 }
+    /run_ci_phase\.sh report-dir/ { r++ }
+    $0 ~ per "handover[[:space:]]*$" { h++; next }
+    $0 ~ per "quality_rows\\.md" { q++ }
+    /\/handover[[:space:]]*$/ { o++ }
+    END { flush() }' "$1"
+}
+# gate_job_count <workflow>: the jobs that call the runner's pre or post phase.
 gate_job_count() {
-  awk '/^jobs:/ { on = 1; next } on && /^[^[:space:]#]/ { on = 0 } on && /^  [A-Za-z0-9_-]+:[[:space:]]*$/ { id = $1; sub(/:$/, "", id); if (id != "report" && id != "preview") n++ } END { print n + 0 }' "$1"
+  workflow_jobs "$1" | awk '$2 == 1 { n++ } END { print n + 0 }'
 }
 case_workflow_paths() {
-  local wf="${QUALITY_WF:-.github/workflows/quality.yml}" n jobs
+  local wf="${QUALITY_WF:-.github/workflows/quality.yml}" id gate r h q o
   grep -nE '(RUNNER_TEMP\}|runner\.temp \}\})/quality_(rows|details)' "$wf" \
     | sed 's/^/a fixed rows or details path in quality.yml: /' || true
-  jobs="$(gate_job_count "$wf")"
-  [[ "$jobs" -ge 1 ]] || echo "quality.yml has no gate job this case can read"
-  n="$(grep -cE 'run_ci_phase\.sh report-dir' "$wf" || true)"
-  [[ "$n" -eq $((2 * jobs + 1)) ]] || echo "quality.yml asks the runner for the report folder ${n} times, want $((2 * jobs + 1)) (the report job once, each of the ${jobs} gate jobs twice: start and hand-over)"
-  n="$(grep -cE 'runner\.temp \}\}/quality_\$\{\{ github\.run_id \}\}_\$\{\{ github\.run_attempt \}\}_\$\{\{ github\.job \}\}/handover$' "$wf" || true)"
-  [[ "$n" -eq $((jobs + 1)) ]] || echo "quality.yml names the per-run hand-over folder ${n} times, want $((jobs + 1)) (${jobs} uploads and the report job download)"
+  [[ "$(gate_job_count "$wf")" -ge 1 ]] || echo "quality.yml has no gate job this case can read"
+  while read -r id gate r h q o; do
+    [[ "$gate" -eq 1 ]] || continue
+    [[ "$r" -ge 1 ]] || echo "the gate job ${id} never asks the runner for its report folder (report-dir)"
+    [[ "$h" -ge 1 || "$q" -ge 1 ]] || echo "the gate job ${id} hands its rows on through no per-run folder (no per-run hand-over, no per-run quality_rows.md)"
+    [[ "$o" -eq 0 ]] || echo "the gate job ${id} names a hand-over folder that is not the per-run one"
+  done < <(workflow_jobs "$wf")
   return 0
 }
 
-CASES=(report_dir cancel capture_gone workflow_paths na_skip phase_filter secret_class dirty_tree empty_phase missing_script non_executable bad_row usage job_groups shards real_order_file)
+CASES=(report_dir cancel capture_gone workflow_paths na_skip phase_filter secret_class dirty_tree empty_phase missing_script non_executable bad_row usage job_groups shards group_args default_job post_job group_file builds_tmpdir builds_tmpdir_real tmp_failure gate_selection real_order_file)
 
 # --- 1. the real runner passes every case ------------------------------------
 for c in "${CASES[@]}"; do
@@ -638,15 +1031,15 @@ mutation_proof "a runner whose main job runs the gates of other jobs" \
 
 # A job runs the gates of main, not its own.
 mutation_proof "a runner whose jobs ignore their group" \
-  $'s/^JOB="\\$\\{4:-main\\}"$/JOB="main"/' job_groups
+  $'s/^JOB="\\$\\{4:-\\}"$/JOB=""/' job_groups
 
 # A shard job runs its gate without the group row's arguments.
 mutation_proof "a runner that drops the arguments of a group row" \
-  $'s/" \\$args </" </' shards
+  $'s/ \\$\\{gate_args\\[@\\]\\+"\\$\\{gate_args\\[@\\]\\}"\\} </ </' shards
 
 # A shard row keeps the plain label, so a red cannot name its shard.
 mutation_proof "a runner that does not name the shard in the row" \
-  $'s/^    label="\\$\\{label\\} \\(.*$/    :/' shards
+  $'s/^      shown="\\$\\{label\\} \\(.*$/      :/' shards
 
 # Without the trap the cancel kills the loop and leaves the gate running.
 mutation_proof "a runner without the cancel trap" \
@@ -663,14 +1056,60 @@ mutation_proof "a runner whose report folder ignores the job" \
   $'s/"\\$GITHUB_RUN_ATTEMPT" "\\$GITHUB_JOB"$/"$GITHUB_RUN_ATTEMPT" job/' report_dir \
   "two jobs of one run share a report folder"
 
-# workflow_paths counts against the gate jobs it reads (forsgren#641): a copy of
-# quality.yml with one more gate job that asks for no report folder and hands
-# nothing over, and a copy whose browser_2 job lost its hand-over path, must be
-# named with the counts they break.
+# v8 (forsgren#646). Arguments outside the safe set are taken as none.
+mutation_proof "a runner without the safe character set for arguments" \
+  $'s/bad_args="its arguments/bad_args=""; : "its arguments/' group_args
+
+# Arguments split by eval.
+mutation_proof "a runner that splits arguments with eval" \
+  $'s/read -r -a gate_args <<< "\\$args"/eval "gate_args=($args)"/' group_args
+
+# Any job name is taken.
+mutation_proof "a runner that takes any job name" \
+  $'s/^    \'\'\\|\\*\\[!A-Za-z0-9_-\\]\\*\\) echo "❌ FAIL: the job name.*$/    \'\') usage ;;/' default_job
+
+# A named job may not run post rows (the sites' v7 rule).
+mutation_proof "a runner that refuses post rows in a named job" \
+  $'s/^\\[ "\\$JOB" != "main" \\] \\|\\| JOB=""$/&; [ -z "$JOB" ] || [ "$PHASE" = "pre" ] || usage/' post_job
+
+# A malformed row is skipped in a named job.
+mutation_proof "a runner that reports a malformed row only in the default job" \
+  $'s/^  if \\[ -z "\\$bad" \\]; then$/  if [ -n "$bad" ] \\&\\& [ -n "$JOB" ]; then continue; fi; if [ -z "$bad" ]; then/' group_file
+
+# The same job and gate twice is taken.
+mutation_proof "a runner that takes a group row twice" \
+  $'s/^  if \\[ -n "\\$twice" \\]; then$/  if false; then/' group_file
+
+# builds_tmpdir.sh is run where the repository has none.
+mutation_proof "a runner that runs builds_tmpdir.sh where there is none" \
+  $'s/^if \\[ -e \\.\\/Scripts\\/builds_tmpdir\\.sh \\]; then$/if true; then/' builds_tmpdir
+
+# A failing or silent builds_tmpdir.sh does not stop the phase.
+mutation_proof "a runner that ignores a failing builds_tmpdir.sh" \
+  $'s/^  if \\[ -z "\\$BUILDS_TMPDIR" \\]; then$/  if false; then/' builds_tmpdir
+
+# The capture file's tmp_file is not checked.
+mutation_proof "a runner that does not check its temp file" \
+  $'s/capture_path="\\$\\(tmp_file run_ci_phase_capture\\)" \\|\\| \\{.*$/capture_path="$(tmp_file run_ci_phase_capture)"/' tmp_failure
+
+# The absent selector is named on every run.
+mutation_proof "a runner that names a missing selector nobody asked for" \
+  $'s/^  if \\[ -e "\\$SELECT_LIB" \\] \\|\\| \\[ -n "\\$\\{CI_GATE_EVENT:-\\}" \\]; then$/  if true; then/' gate_selection
+
+# Without the selector a gate is skipped instead of run.
+mutation_proof "a runner that skips gates without a selector" \
+  $'s/echo "run: \\[selector_unreadable\\]/echo "skip: [selector_unreadable]/' gate_selection
+
+# workflow_paths reads the gate jobs from the workflow (forsgren#641, #646), so
+# its proofs do too: a copy of quality.yml with one more gate job that asks for
+# no report folder, and copies whose last gate job with a per-run hand-over or
+# rows path loses it (another folder, or a fixed one), must each be named. The
+# job is read from the workflow, never spelled here, so every site's layout
+# gets the same proofs.
 # wf_proof <label> <awk-program> <finding>: case_workflow_paths on the mutated copy.
 wf_proof() {
   local mutated="${TMP}/quality_$((MUTANT_N += 1)).yml" problems
-  awk "$2" .github/workflows/quality.yml > "$mutated"
+  awk -v job="$WF_JOB" "$2" .github/workflows/quality.yml > "$mutated"
   if cmp -s .github/workflows/quality.yml "$mutated"; then
     fail "mutation ${1}: the awk changed nothing, so it proves nothing"
     return 0
@@ -682,12 +1121,21 @@ wf_proof() {
     fail "mutation ${1}: workflow_paths did not say '${3}'. It said: ${problems:-nothing}"
   fi
 }
+WF_JOB="$(workflow_jobs .github/workflows/quality.yml | awk '$2 == 1 && ($4 > 0 || $5 > 0) { j = $1 } END { print j }')"
+[[ -n "$WF_JOB" ]] || fail "quality.yml has no gate job with a per-run hand-over or rows path for the workflow proofs"
+# In the job: the lines of its per-run folder (the awk sees the job's id line
+# as `  <job>:` and leaves at the next one).
+WF_IN_JOB="/^  [A-Za-z0-9_-]+:[[:space:]]*\$/ { id = \$1; sub(/:\$/, \"\", id); on = (id == job) }"
+WF_PER_RUN='/quality_\$\{\{ github\.run_id \}\}_/'
 wf_proof "a gate job that asks for no report folder" \
-  '/^  report:$/ { print "  extra_gate:"; print "    runs-on: ubuntu-latest"; print "    steps:"; print "      - run: true"; print "" } { print }' \
-  "each of the $(( $(gate_job_count .github/workflows/quality.yml) + 1 )) gate jobs twice"
+  '{ print } /^jobs:/ { print "  extra_gate:"; print "    runs-on: ubuntu-latest"; print "    steps:"; print "      - run: ./Scripts/run_ci_phase.sh pre rows details extra_gate"; print "" }' \
+  "the gate job extra_gate never asks the runner for its report folder"
 wf_proof "a gate job whose hand-over names another folder" \
-  '/^  browser_2:$/ { on = 1 } /^  browser_3:$/ { on = 0 } on && /\/handover$/ { sub(/\/handover$/, "/elsewhere") } { print }' \
-  "names the per-run hand-over folder"
+  "${WF_IN_JOB} on && ${WF_PER_RUN} { sub(/\\/handover[[:space:]]*\$/, \"/elsewhere\"); sub(/\\/quality_rows\\.md/, \"/elsewhere.md\") } { print }" \
+  "the gate job ${WF_JOB} hands its rows on through no per-run folder"
+wf_proof "a gate job whose hand-over is a fixed folder" \
+  "${WF_IN_JOB} on && !done && ${WF_PER_RUN} && /(\\/handover|\\/quality_rows\\.md)[[:space:]]*\$/ { sub(/(path: )?\\\$\\{\\{ runner\\.temp \\}\\}.*\$/, (\$0 ~ /path: / ? \"path: \" : \"\") \"/tmp/handover\"); done = 1 } { print }" \
+  "the gate job ${WF_JOB} names a hand-over folder that is not the per-run one"
 
 COMPLETED=1
 
@@ -697,4 +1145,4 @@ if [[ "$failed" -ne 0 ]]; then
   exit 1
 fi
 
-echo "OK: run_ci_phase.sh skips n/a rows, filters phases, exits 2 on a secret-class failure, and is red on a dirty tree, an empty phase, a missing or non-executable script and a malformed row, and runs each gate in exactly one job (each proved against a weakened runner)"
+echo "OK: run_ci_phase.sh skips n/a rows, filters phases, exits 2 on a secret-class failure, and is red on a dirty tree, an empty phase, a missing or non-executable script, a malformed row, unsafe group arguments, a wrong group file and a failed temp file; it runs each gate in exactly one job (the default job the unlisted ones, a named job its own pre or post rows, shards with their words split by read -r -a), and takes the build-volume TMPDIR and gate selection only where their scripts exist (each proved against a weakened runner)"

@@ -188,10 +188,15 @@ done
 for pair in "bst|${BST}" "fst|${FST}" "bg|${BG}" "fg|${FG}"; do
   check_ran "4. CI:" "${pair%%|*}" "${pair#*|}"
 done
-if grep -qE 'gate_select|lib_gate_select' Scripts/run_ci_phase.sh; then
-  fail "4. Scripts/run_ci_phase.sh names the gate selection: Quality must run every row"
+# run_ci_phase v8 (forsgren#646) selects only where Scripts/lib_ci_gate_select.sh
+# exists and the workflow sets CI_GATE_EVENT; forsgren has neither, so Quality
+# runs every row.
+if [[ -e Scripts/lib_ci_gate_select.sh ]]; then
+  fail "4. Scripts/lib_ci_gate_select.sh exists, so Scripts/run_ci_phase.sh would select gates: Quality must run every row"
+elif grep -qF 'CI_GATE_EVENT' .github/workflows/quality.yml; then
+  fail "4. quality.yml sets CI_GATE_EVENT, which asks Scripts/run_ci_phase.sh for gate selection: Quality must run every row"
 else
-  echo "  ok: 4. Scripts/run_ci_phase.sh names no gate selection"
+  echo "  ok: 4. forsgren has no CI gate selector and quality.yml asks for none, so Quality runs every row"
 fi
 
 # Case 5 (forsgren#266): FBP.sh's summary lists the gates sfl skipped by selection, each
