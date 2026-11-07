@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser_process v2
+# canon: test_gate_browser_process v3
+# v3 (forsgren#630): a signal case waits for its Chrome with wait_chrome_gone (lib_gate_browser_selftest v2): 10 s while the node holding its pipe is alive, up to 60 s once the pipe's other end is closed, a bound hit named with the PIDs left, the node and the seconds; proof R runs with its Chrome stalled for 15 s, proof Rb shows the bound named, proof S that node still holds the pipe
 # Scripts/test_gate_browser_process.sh (forsgren#386, decision #411 A)
 #
 # The second self-test of the browser gate (Scripts/gate_browser.sh): the exits,
@@ -26,7 +27,8 @@
 #      after a delay. The fixture has forty looks so the gate is still running;
 #      a gate not up in 60 s, or ended before the signal, is red with that
 #      reason (forsgren#383). The gate gets up to 60 s to end, and Chrome up to
-#      60 s to be gone: observable conditions, never a fixed window (forsgren#384).
+#      60 s to be gone once its pipe closed (10 s while node still holds it, v3):
+#      observable conditions, never a fixed window (forsgren#384, forsgren#630).
 #  54. The singleton folders of Chrome (forsgren#613): Chrome makes
 #      com.google.Chrome.XXXXXX (SingletonCookie, SingletonSocket) in the system
 #      temp folder, whatever TMPDIR says, and a killed Chrome leaves them. Every
@@ -162,8 +164,8 @@ chrome_cleanup() {
 # runs the command on the slow fixture with its own TMPDIR, waits until it is
 # up (engine_up; for launch: launch_up) for up to 60 s, sends the signal to the
 # command (self) or to the node process under it (node), or kills the Chrome
-# (error, launch), then waits for the end. Sets SIG_RC, SIG_CHROME (alive, polled
-# up to 60 s), SIG_PROFILE (folders left), SIG_UP, SIG_EARLY (the gate had ended
+# (error, launch), then waits for the end. Sets SIG_RC, SIG_CHROME (alive after
+# wait_chrome_gone, v3), SIG_PROFILE (folders left), SIG_UP, SIG_EARLY (the gate had ended
 # before the signal), SIG_OWN (the singleton folders of its Chrome, forsgren#613),
 # SIG_LEFT (those still there after the cleanup SIG_CLEANUP: own, none, wide),
 # SIG_FOREIGN_GONE (the decoy of another Chrome was removed), SIG_ENDED, SIG_WAITED (the bound, SIG_WAIT_S or 60 s) and SIG_OUT.
@@ -201,11 +203,15 @@ signal_case() {
     target_pid="$(node_pid)"
     if [[ -z "$target_pid" ]]; then target_pid="$pid"; fi
   fi
+  SIG_STALLED=0
+  SIG_PIPE_HOLDER=""
+  if [[ "$SIG_UP" -eq 1 ]]; then SIG_PIPE_HOLDER="$(chrome_parent "$tmpd")"; fi
   if [[ "$SIG_UP" -eq 0 || "$SIG_EARLY" -eq 1 ]]; then
     : # no signal: the verdict names the missing precondition
   elif [[ "$sig" == "error" || "$sig" == "launch" ]]; then
     pkill -9 -f -- "--user-data-dir=${tmpd}/browser-gate-" || true
   else
+    stall_chrome "$tmpd"
     kill -s "$sig" "$target_pid" || true
   fi
   SIG_ENDED=1
@@ -219,12 +225,9 @@ signal_case() {
     kill -9 "$pid" || true
   fi
   wait "$pid" 2>/dev/null && SIG_RC=0 || SIG_RC=$?
-  # Chrome gone: one poll of the condition itself, up to 60 s, not a fixed
-  # window (a fixed 10 s was a clock, forsgren#386).
-  for _ in $(seq 1 300); do
-    if ! pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-" > /dev/null; then break; fi
-    sleep 0.2
-  done
+  # Chrome gone: the condition itself, not a fixed window (a fixed 10 s was a
+  # clock, forsgren#386), within named bounds (wait_chrome_gone, v3, forsgren#630).
+  wait_chrome_gone "$tmpd"
   SIG_CHROME="$({ pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-" || true; } | wc -l | tr -d ' ')"
   SIG_PROFILE="$(find "$tmpd" -maxdepth 1 -name 'browser-gate-*' | wc -l | tr -d ' ')"
   SIG_OUT="$(cat "${tmpd}.out")"
@@ -250,12 +253,14 @@ closed_verdict() {
     echo "the gate was not mid-run 60 s after its start (no profile folder, or no connection from Chrome to its server)"
   elif [[ "$SIG_EARLY" -eq 1 ]]; then
     echo "the gate ended before the signal was sent"
+  elif [[ -n "$(stall_why)" ]]; then
+    stall_why
   elif [[ "$SIG_ENDED" -ne 1 ]]; then
     echo "the gate was still running ${SIG_WAITED} s after the signal"
   elif [[ "$SIG_RC" != "$1" ]]; then
     echo "expected exit $1, got ${SIG_RC}"
   elif [[ "$SIG_CHROME" -ne 0 ]]; then
-    echo "${SIG_CHROME} Chrome processes of the gate are still alive"
+    chrome_alive_why "$SIG_CHROME"
   elif [[ "$SIG_PROFILE" -ne 0 ]]; then
     echo "the profile folder is still there"
   elif [[ -z "$SIG_OWN" ]]; then
@@ -342,10 +347,23 @@ want_left "mutation proof W: a cleanup too wide also removes the folder of anoth
   "the folder of another Chrome was removed"
 
 # R: no signal handler in the engine (the event name is one no signal sends) ->
-# a SIGTERM kills the engine; Chrome ends with its pipe, the profile stays.
+# a SIGTERM kills the engine; Chrome ends with its pipe, the profile stays. Its
+# Chrome is stalled for 15 s past the engine's end (v3, forsgren#630), as a machine
+# at load ~100 delayed it: the wait must follow Chrome's end.
 if selftest_mutant "$ENGINE" "${MUT}/r.mjs" "s/process.on(name, /process.on(name + 'x', /"; then
-  signal_case mutant_r self TERM env FORSGREN_NODE_ROOT="$REPO_ROOT" node "${MUT}/r.mjs"
+  SIG_STALL_CHROME=15 signal_case mutant_r self TERM env FORSGREN_NODE_ROOT="$REPO_ROOT" node "${MUT}/r.mjs"
   want_left "mutation proof R: without the handler case 52e leaves the profile" 143 "the profile folder is still there"
+  # Rb (v3, forsgren#630): a bound hit is a FAIL that names what it waited for. The
+  # same engine with a bound of 3 s and a Chrome stalled for 8 s: the reason names
+  # the PIDs left, the node whose pipe end closed and the 3 s.
+  SIG_STALL_CHROME=8 SIG_GONE_BOUND=3 signal_case mutant_rb self TERM env FORSGREN_NODE_ROOT="$REPO_ROOT" node "${MUT}/r.mjs"
+  RB_WHY="$(closed_verdict 143)"
+  RB_WANTED='Chrome processes of the gate are still alive 3 s after the gate ended, the other end of their pipe \(node PID [0-9]+\) closed: PIDs [0-9]+'
+  if [[ "$RB_WHY" =~ $RB_WANTED ]]; then
+    echo "  ok: mutation proof Rb: a Chrome alive past the bound is named with its PIDs, its pipe's node and the 3 s waited"
+  else
+    fail "mutation proof Rb: a Chrome alive past the bound of 3 s should be named with its PIDs, its pipe's node and the seconds, got '${RB_WHY}'. Output: ${SIG_OUT}"
+  fi
 fi
 
 # S: the wrapper does not forward the signal -> it ends, node and Chrome stay.
@@ -357,9 +375,9 @@ FORWARD='s/if \[\[ -n "[$]NODE_PID" \]\]; then/if false; then/'
 if selftest_mutant Scripts/gate_browser.sh "${WMUT}/Scripts/gate_browser.sh" "$FORWARD"; then
   signal_case mutant_s self TERM "${WMUT}/Scripts/gate_browser.sh"
   want_left "mutation proof S: without forwarding case 52a leaves Chrome alive" 143 \
-    "Chrome processes of the gate are still alive"
+    "Chrome processes of the gate are still alive, their pipe still held by node PID"
 fi
 
 echo "browser gate process self-test: ${SECONDS} s in total"
 selftest_end "the browser gate process self-test failed" \
-  "browser gate: every exit closes Chrome, removes the profile and the singleton folders of its Chrome, four mutations seen"
+  "browser gate: every exit closes Chrome, removes the profile and the singleton folders of its Chrome, five mutations seen"

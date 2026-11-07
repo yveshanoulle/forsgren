@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-11-07 — The browser gate self-test waits for Chrome to end, not for 10 s (#630, step 1)
+
+- `Scripts/test_gate_browser.sh` (`test_gate_browser` v27): a signal case waits for its Chrome to end instead of giving it a fixed 10 s after the gate ended. While the node process that holds Chrome's pipe is still Chrome's parent and alive, it waits 10 s for node to close it. Once the pipe's other end is closed, it waits up to 60 s. A bound that is hit is named in the reason: the Chrome PIDs still alive, the node whose pipe end closed, and the seconds waited.
+- Proof R now runs with its Chrome stalled for 15 s (`SIG_STALL_CHROME`: Chrome is stopped before the signal and continued after), as a machine at load ~100 delayed it. Proof Rb runs the same with a bound of 3 s and requires the named reason. Proof S requires that Chrome stays alive because node still holds its pipe. Twenty-five mutations.
+- The wait (`wait_chrome_gone`, `chrome_alive_why`) and the stall (`stall_chrome`, `stall_why`) are in `Scripts/lib_gate_browser_selftest.sh` (`lib_gate_browser_selftest` v2), so the two browser gate self-tests share them. `test_gate_browser.sh` defines them itself when a repository lacks the library.
+- `Scripts/test_gate_browser_process.sh` (`test_gate_browser_process` v3) waits for Chrome the same way. Its own proof R already polled for up to 60 s, and now it also runs with its Chrome stalled for 15 s. It gets proof Rb as well, and its proof S now requires that node still holds the pipe. Five mutations.
+- Red first: with the stall, v26 failed proof R with "7 Chrome processes of the gate are still alive" instead of "the profile folder is still there". In the process self-test, v2 passed the stalled proof R because it already waited up to 60 s, and failed proof Rb: a bound of 3 s was not named ("got 'the profile folder is still there'").
+
 ## 2026-11-06 — The npm audit check fails on a stale exception past its date (#631)
 
 - `Scripts/npm_audit_check.sh` (`npm_audit_check` v5): an exception that npm audit no longer reports is red once its re-check date has passed, with a ❌ line naming the advisory, the package, the date and the issue ("passed its re-check date … and npm audit no longer reports it: remove it from the exception file"). Up to and including the date it stays a warning, so a fix that lands early does not turn the build red at once. When that is the only red, `npm audit fix` is not tried, even under GATE_FIX=1: it cannot remove a line of the exception file. Before, a stale entry only warned and could stay in the file for good. forsgren's own exception file holds no entry, so its build does not change. Sites take the new version.

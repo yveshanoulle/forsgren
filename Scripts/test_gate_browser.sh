@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v26
+# canon: test_gate_browser v27
+# v27 fixes (forsgren#630, step 1): a signal case waits for its Chrome to end on the signal itself, not for a fixed 10 s: while the node that holds Chrome's pipe is alive 10 s (SIG_HELD_BOUND), once the pipe's other end is closed up to 60 s (SIG_GONE_BOUND), and a bound hit is named (the PIDs still alive, the node whose pipe end closed, the seconds); proof R runs with its Chrome stalled for 15 s (SIG_STALL_CHROME: stopped before the signal, continued after), which turned v26 red as load ~100 did; proof Rb shows the bound named, proof S that Chrome stays because node still holds its pipe
 # v26 runs the plain cases side by side (forsgren#632): each is a case_<id> function started through Scripts/lib_parallel_mutants.sh, on its own copy of its fixtures in its own folder, writing the files its case needs and judged for its own reason; two batches (the cases, then 19 to 21, 55a to 55c and the mutation proofs), and between them only the cases of the named list SERIAL_CASES (the signal, kill and timing cases and their proofs R, S, X, Z) one after the other; the log shows the seconds of each batch
 # v25 fixes (forsgren#629, CI red, 53e): case 53e kills Chrome only after its load seam has installed the slowdowns and marked the end of the launch (SIG_WAIT_READY, FORSGREN_TEST_READY_MARK); v24 still killed it once a renderer showed, which on a fast hosted runner came inside the launch, so the seam never ran and 'hooked' and 'reaping' were never observed
 # v24 fixes (forsgren#629, CI red): the cases that kill Chrome after the launch (53d, 54b, 54c) wait for a mark their seam makes once the engine's launch is over and, for 54b and 54c, once the clone folder is swapped or added (FORSGREN_TEST_READY_MARK, SIG_WAIT_READY); v23 killed as soon as a renderer showed, which on a fast hosted runner came inside the launch or before the 800 ms timer of the swap; a missing mark says the case proves nothing
@@ -160,12 +161,16 @@
 #  53e (site issue 60). A loaded machine slows only the gate (browser_gate v12's
 #      FORSGREN_GATE_BROWSER_HOOK); a killed Chrome still ends the run at once;
 #      the kill waits for the seam's mark of the end of the launch (v25)
-#   R. no signal handler in the engine: case 52e leaves the profile folder;
-#   S. the wrapper not forwarding the signal: case 52a leaves Chrome alive;
+#   R. no signal handler in the engine: case 52e leaves the profile folder, with
+#      its Chrome stalled for 15 s past the engine's end (v27, forsgren#630);
+#   Rb. the same with a bound of 3 s: the reason names the Chrome PIDs left, the
+#      node whose pipe end closed and the 3 s (v27);
+#   S. the wrapper not forwarding the signal: case 52a leaves Chrome alive, its
+#      pipe still held by node;
 #   X. (the sites' proof T) the clone folder never removed: case 53h leaves it;
 #   Z. (the sites' proof U) the engine never calls the seam: case 53e's marker
 #      is missing.
-# These cases and R, S, X, Z run one after the other (SERIAL_CASES, v26); every
+# These cases and R, Rb, S, X, Z run one after the other (SERIAL_CASES, v26); every
 # other case and proof runs side by side, see "The plain cases" below. The browser gate
 # process self-test (Scripts/test_gate_browser_process.sh, only where the
 # repository has it: the cases 52a-52f, 53 and 53c on forty looks and the
@@ -277,6 +282,79 @@ HTML
     : > "$dir/exceptions.txt"
     : > "$dir/baseline.txt"
     printf 'light|scheme:light\n' > "$dir/variants.txt"
+  }
+  # The wait for a signal case's Chrome and the stall of proof R (v27, forsgren#630).
+  # chrome_main <tmpd>: the PID of the main Chrome process of the case (the one
+  # without --type=), empty when it is gone. chrome_parent <tmpd>: its parent, the
+  # node process that launched it and holds the other end of its pipe.
+  chrome_main() {
+    { ps -A -o pid=,command= || true; } | { grep -F -e "--user-data-dir=${1}/browser-gate-" || true; } | { grep -v -F -e ' --type=' || true; } | awk 'NR == 1 {print $1}'
+  }
+  chrome_parent() {
+    local main
+    main="$(chrome_main "$1")"
+    if [[ -n "$main" ]]; then
+      { ps -o ppid= -p "$main" || true; } | tr -d ' '
+    fi
+  }
+
+  # wait_chrome_gone <tmpd>: waits, once the gate has ended, until no Chrome process
+  # of the case is left (v27, forsgren#630). Chrome ends by itself when the other end
+  # of its pipe closes; on a machine at load ~100 that took more than the fixed 10 s
+  # of v26, and proof R flaked. So it waits for the signal itself, the processes
+  # gone, within two bounds:
+  #  - while the node process that holds the pipe (SIG_PIPE_HOLDER, Chrome's parent
+  #    before the signal) is still Chrome's parent and alive, Chrome cannot see its
+  #    pipe close: SIG_HELD_BOUND (10 s) for node to close it, then the reason names
+  #    that node (proof S);
+  #  - once the pipe's other end is closed, SIG_GONE_BOUND (60 s); hit, the reason
+  #    names the PIDs still alive, the node whose pipe end closed and the seconds
+  #    (proof Rb).
+  # SIG_GONE_WHY is "" when every process ended, else the words for closed_verdict.
+  SIG_HELD_BOUND=10
+  SIG_GONE_BOUND=60
+  wait_chrome_gone() {
+    local tmpd="$1" start=$SECONDS parent
+    SIG_GONE_WHY=""
+    while pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-" > /dev/null; do
+      parent="$(chrome_parent "$tmpd")"
+      if [[ -n "$SIG_PIPE_HOLDER" && "$parent" == "$SIG_PIPE_HOLDER" ]] && kill -0 "$parent" 2> /dev/null; then
+        if (( SECONDS - start >= SIG_HELD_BOUND )); then
+          SIG_GONE_WHY=", their pipe still held by node PID ${parent} after ${SIG_HELD_BOUND} s"
+          return 0
+        fi
+      elif (( SECONDS - start >= SIG_GONE_BOUND )); then
+        SIG_GONE_WHY=" ${SIG_GONE_BOUND} s after the gate ended, the other end of their pipe (node PID ${SIG_PIPE_HOLDER:-not found}) closed: PIDs $({ pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-" || true; } | tr '\n' ' ' | sed 's/ $//')"
+        return 0
+      fi
+      sleep 0.2
+    done
+  }
+
+  # stall_chrome <tmpd> (forsgren#630): when SIG_STALL_CHROME is above 0, stops the
+  # Chrome of the signal case whose TMPDIR is <tmpd> and continues it that many
+  # seconds later, so it sees its pipe close only then, as a CPU-starved machine
+  # (load ~100) let it. Called right before the signal. SIG_STALLED is 1 when a
+  # Chrome was stopped; stall_why says why the case proves nothing when a stall was
+  # asked for and no Chrome could be stopped, else "".
+  SIG_STALL_CHROME=0
+  SIG_STALLED=0
+  stall_chrome() {
+    SIG_STALLED=0
+    if [[ "$SIG_STALL_CHROME" -gt 0 ]] && pkill -STOP -f -- "--user-data-dir=${1}/browser-gate-"; then
+      SIG_STALLED=1
+      ( sleep "$SIG_STALL_CHROME"; pkill -CONT -f -- "--user-data-dir=${1}/browser-gate-" || true ) > /dev/null 2>&1 &
+    fi
+  }
+  stall_why() {
+    if [[ "$SIG_STALL_CHROME" -gt 0 && "$SIG_STALLED" -ne 1 ]]; then
+      echo "its Chrome could not be stopped for the stall of ${SIG_STALL_CHROME} s, so a slow end of Chrome is not proved"
+    fi
+  }
+  # chrome_alive_why <count>: the reason of a case whose <count> Chrome processes
+  # outlived the wait, with what wait_chrome_gone saw (SIG_GONE_WHY).
+  chrome_alive_why() {
+    echo "${1} Chrome processes of the gate are still alive${SIG_GONE_WHY}"
   }
 fi
 if [[ "$PARALLEL_LIB" -eq 0 ]]; then
@@ -958,9 +1036,10 @@ fi
 #    the signal cases;
 #  - 52h, 52i: no browser and under a second, so nothing to win, and they swap
 #    the CLONE_PARENT global the signal cases read;
-#  - R, S, X, Z: the mutation proofs of those cases (R is the one forsgren#630
-#    touches), each started alone and collected before the next, below.
-SERIAL_CASES=(52h 52i 52a 52b 52c 52d 52e 52f 53 52g 53d 53g 53h 53i 54a 54b 54c 53e R S X Z)
+#  - R, Rb, S, X, Z: the mutation proofs of those cases (R and Rb wait for a
+#    stalled Chrome, forsgren#630), each started alone and collected before the
+#    next, below.
+SERIAL_CASES=(52h 52i 52a 52b 52c 52d 52e 52f 53 52g 53d 53g 53h 53i 54a 54b 54c 53e R Rb S X Z)
 echo "browser gate self-test: one after the other (SERIAL_CASES): ${SERIAL_CASES[*]}"
 PHASE_START=$SECONDS
 
@@ -1054,10 +1133,13 @@ signal_case() {
     done
   fi
   SIG_CLONE_MADE="$({ clone_names | comm -13 "${tmpd}.clones_before" - || true; } | wc -l | tr -d ' ')"
+  SIG_PIPE_HOLDER="$(chrome_parent "$tmpd")"
   target_pid="$pid"
   if [[ "$target" == "node" ]]; then
     target_pid="$(pgrep -f -- "node .*mjs ${TMP}/slow/site" | head -1)" || target_pid="$pid"
   fi
+  # The stall of proof R (SIG_STALL_CHROME, forsgren#630), see stall_chrome.
+  stall_chrome "$tmpd"
   if [[ "$sig" == "error" ]]; then
     pkill -9 -f -- "--user-data-dir=${tmpd}/browser-gate-" || true
   else
@@ -1073,10 +1155,7 @@ signal_case() {
     kill -9 "$pid" || true
   fi
   wait "$pid" 2>/dev/null && SIG_RC=0 || SIG_RC=$?
-  for _ in $(seq 1 50); do
-    if ! pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-" > /dev/null; then break; fi
-    sleep 0.2
-  done
+  wait_chrome_gone "$tmpd"
   SIG_CHROME="$({ pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-" || true; } | wc -l | tr -d ' ')"
   SIG_PROFILE="$(find "$tmpd" -maxdepth 1 -name 'browser-gate-*' | wc -l | tr -d ' ')"
   SIG_OUT="$(cat "${tmpd}.out")"
@@ -1112,12 +1191,14 @@ closed_verdict() {
     echo "its Chrome was never found by the profile path ${TMP}/sig_<label>/browser-gate-*, so no Chrome count of the case proves anything"
   elif [[ "$SIG_READY" -ne 1 ]]; then
     ready_why
+  elif [[ -n "$(stall_why)" ]]; then
+    stall_why
   elif [[ "$SIG_ENDED" -ne 1 ]]; then
     echo "the gate was still running 20 s after the signal"
   elif [[ "$SIG_RC" != "$1" ]]; then
     echo "expected exit $1, got ${SIG_RC}"
   elif [[ "$SIG_CHROME" -ne 0 ]]; then
-    echo "${SIG_CHROME} Chrome processes of the gate are still alive"
+    chrome_alive_why "$SIG_CHROME"
   elif [[ "$SIG_PROFILE" -ne 0 ]]; then
     echo "the profile folder is still there"
   elif [[ -n "$CLONE_PARENT" && "$SIG_CLONE_MADE" -eq 0 ]]; then
@@ -1804,11 +1885,33 @@ echo "browser gate self-test: the second batch (19 to 21, 55a to 55c, the mutati
 # each one after the other all the same.
 
 # R: no signal handler in the engine (the event name is one no signal sends) ->
-# a SIGTERM kills the engine; Chrome ends with its pipe, the profile stays.
+# a SIGTERM kills the engine; Chrome ends with its pipe, the profile stays. Its
+# Chrome is stalled for 15 s, past v26's fixed 10 s (forsgren#630): a wait that
+# does not follow Chrome's end would see it alive and give the wrong reason.
 mutant_r() {
   if mutant_engine "s/process.on(name, /process.on(name + 'x', /"; then
+    SIG_STALL_CHROME=15
     signal_case mutant_r self TERM env FORSGREN_NODE_ROOT="$REPO_ROOT" node "$MUTANT_ENGINE"
     want_left "mutation proof R: without the handler case 52e leaves the profile" 143 "the profile folder is still there"
+  fi
+}
+
+# Rb (v27, forsgren#630): the bound of the wait for Chrome is a FAIL that names what
+# it waited for. The same mutated engine with a bound of 3 s and a Chrome stalled for
+# 8 s: the reason names the PIDs left, the node whose pipe end closed and the 3 s.
+RB_WANTED='Chrome processes of the gate are still alive 3 s after the gate ended, the other end of their pipe \(node PID [0-9]+\) closed: PIDs [0-9]+'
+mutant_rb() {
+  local why
+  if mutant_engine "s/process.on(name, /process.on(name + 'x', /"; then
+    SIG_STALL_CHROME=8
+    SIG_GONE_BOUND=3
+    signal_case mutant_rb self TERM env FORSGREN_NODE_ROOT="$REPO_ROOT" node "$MUTANT_ENGINE"
+    why="$(closed_verdict 143)"
+    if [[ "$why" =~ $RB_WANTED ]]; then
+      echo "  ok: mutation proof Rb: a Chrome alive past the bound is named with its PIDs, its pipe's node and the 3 s waited"
+    else
+      fail "mutation proof Rb: a Chrome alive past the bound of 3 s should be named with its PIDs, its pipe's node and the seconds, got '${why}'. Output: ${SIG_OUT}"
+    fi
   fi
 }
 
@@ -1820,7 +1923,7 @@ mutant_s() {
   ln -s "${REPO_ROOT}/node_modules" "${wmut}/node_modules"
   if selftest_mutant Scripts/gate_browser.sh "${wmut}/Scripts/gate_browser.sh" 's/if \[\[ -n "[$]NODE_PID" \]\]; then/if false; then/'; then
     signal_case mutant_s self TERM "${wmut}/Scripts/gate_browser.sh"
-    want_left "mutation proof S: without forwarding case 52a leaves Chrome alive" 143 "Chrome processes of the gate are still alive"
+    want_left "mutation proof S: without forwarding case 52a leaves Chrome alive" 143 "Chrome processes of the gate are still alive, their pipe still held by node PID"
   fi
 }
 
@@ -1855,11 +1958,11 @@ mutant_z() {
 }
 
 PHASE_START=$SECONDS
-for proof in r s x z; do
+for proof in r rb s x z; do
   mutant_run "mutant_${proof}"
   mutants_wait
 done
-echo "browser gate self-test: the proofs R, S, X and Z, one after the other: $((SECONDS - PHASE_START)) s"
+echo "browser gate self-test: the proofs R, Rb, S, X and Z, one after the other: $((SECONDS - PHASE_START)) s"
 
 # Every case_ function was started: a case written and never started would pass unseen.
 while IFS= read -r case_fn; do
@@ -1869,4 +1972,4 @@ while IFS= read -r case_fn; do
 done < <(declare -F | awk '$3 ~ /^case_/ {print $3}')
 
 echo "browser gate self-test: ${SECONDS} s in total"
-selftest_end "the browser gate self-test failed" "browser gate: every case holds, twenty-four mutations seen"
+selftest_end "the browser gate self-test failed" "browser gate: every case holds, twenty-five mutations seen"
