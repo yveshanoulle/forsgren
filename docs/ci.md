@@ -60,8 +60,9 @@ jq, languagetool, node; forsgren#591 step 2): it runs the language gate
 installs shellcheck, yamllint, actionlint and zizmor, whose gates all run in
 the `lint` job.
 `quality_2` takes `Scripts/required_tools_quality_2_gates.txt` (go, node, jq),
-`browser_1` takes `Scripts/required_tools_browser_1_gates.txt` (go, node) and
-`browser` takes `Scripts/required_tools_browser_gates.txt` (go, node). Each list
+`browser_1` and `browser_2` take `Scripts/required_tools_browser_1_gates.txt`
+and `Scripts/required_tools_browser_2_gates.txt` (node), and `browser_3` takes
+`Scripts/required_tools_browser_3_gates.txt` (go, node; forsgren#641). Each list
 was read from the scripts of the job's rows in `Scripts/ci_job_groups.txt` and
 the scripts those call. A tool a gate needs and its list lacks is not skipped:
 the gate fails with `command not found`. `Scripts/test_quality_jobs.sh` pins
@@ -79,8 +80,9 @@ never in none. The file names the groups below; the job ids are the keys of
 |---|---|---|---|
 | `quality` (Quality gates) | macOS | `Scripts/required_tools_quality_gates.txt` (gitleaks, go, jq, languagetool, node) | every gate no group names: the language gate, the secret scan, the site build and the POST gates, the long tail of small gates |
 | `quality_2` (Quality gates 2/2) | macOS | `Scripts/required_tools_quality_2_gates.txt` (go, node, jq) | Go tests and Go coverage, golden pages, and the slower self-tests, among them the exit-trap completion behaviour |
-| `browser_1` (Browser gates 1/2) | macOS | `Scripts/required_tools_browser_1_gates.txt` (go, node) | the browser gate self-test and the fixture-site self-test |
-| `browser` (Browser gates) | macOS | `Scripts/required_tools_browser_gates.txt` (go, node) | the browser gate process self-test, the browser gate and the fixture-site gate, with its own site build |
+| `browser_1` (Browser gates 1/3) | macOS | `Scripts/required_tools_browser_1_gates.txt` (node) | the browser gate self-test, shard 1/2 |
+| `browser_2` (Browser gates 2/3) | macOS | `Scripts/required_tools_browser_2_gates.txt` (node) | the browser gate self-test, shard 2/2, and the browser gate process self-test |
+| `browser_3` (Browser gates 3/3) | macOS | `Scripts/required_tools_browser_3_gates.txt` (go, node) | the fixture-site self-test, the browser gate and the fixture-site gate, with its own site build |
 | `lint` (Lint gates) | Linux | `Scripts/required_tools_linux.txt` | actionlint, shellcheck, yamllint, zizmor and Go lint, each with its self-test, and the Go test duplication gate |
 | `workflows` (Workflow gates) | Linux | `Scripts/required_tools_linux_gates.txt` | the gates that read only workflows and scripts, go mod tidy, three Go self-tests and eleven Linux-safe self-tests of the main job |
 | `isolation_1`, `isolation_2` | Linux | `Scripts/required_tools_linux_gates.txt` | the git sandbox isolation self-test, one shard each |
@@ -92,10 +94,13 @@ never in none. The file names the groups below; the job ids are the keys of
 gitleaks) and the language gate (`sandbox-exec`, LanguageTool and its Java), and
 builds the site its POST gates read. `quality_2` holds the exit-trap completion
 behaviour gate, which proves the idiom against bash 3.2, the bash a Mac runs
-scripts with. The two browser jobs open the hosted macOS image's Chrome. Every
+scripts with. The three browser jobs open the hosted macOS image's Chrome. Every
 other gate reads files with bash, awk, sed, grep and jq, or runs Go, and ran
-the same on Linux when it was moved. Quality starts 4 macOS gate jobs together
-(`quality`, `quality_2`, `browser_1`, `browser`), under GitHub's limit of 5.
+the same on Linux when it was moved. Quality starts 5 macOS gate jobs together
+(`quality`, `quality_2`, `browser_1`, `browser_2`, `browser_3`; forsgren#641),
+GitHub's limit of 5: a macOS job of another workflow of the account that
+starts at the same moment waits for a slot, and so does `preview`, which
+starts only after every gate job.
 
 **The tools check is derived.** `Scripts/test_quality_jobs.sh` reads the scripts
 of each job's gates and the `Scripts/*.sh` those call, transitively (the
@@ -116,7 +121,7 @@ of `main` on 2026-10-31 (41201888104, 41206328973, 41208874000, 41211044377,
 41212536251), seconds per part of the Install tools step from the log's line
 times; `(i)` installed, the image lacked it, `(u)` upgraded, the image had it:
 
-| Part | Main job | quality_2 | browser | browser_1 |
+| Part | Main job | quality_2 | browser (now browser_3) | browser_1 |
 |---|---|---|---|---|
 | `brew update` | 16 to 36 (median 30) | 16 to 36 (26) | 18 to 34 (24) | 26 to 33 (30) |
 | go (i) | 5 to 14 (13) | 6 to 16 (11) | 7 to 14 (12) | 10 to 13 (12) |
@@ -278,13 +283,15 @@ gates need nothing of macOS now run on `ubuntu-latest`: `workflows`,
 `summary`, `isolation_1`, `isolation_2` and `report`, with `lint` six Linux
 jobs. Quality then starts 4 macOS gate jobs together (`quality`, `quality_2`,
 `browser_1` and `browser`), one slot under the limit, and the `preview` job,
-the fifth macOS job, starts only after every gate job. The runner pins gate is
+the fifth macOS job, starts only after every gate job (since forsgren#641 the
+browser gates are three jobs, so 5 macOS gate jobs start together, at the
+limit, and `preview` is the sixth). The runner pins gate is
 red on a Linux job back on macOS, a macOS job on Linux, another image, and on
 more than 5 `macos-latest` jobs with no `needs:`. What stays on macOS and why:
 the main job holds the secret scan (Homebrew's gitleaks), the language gate
 (`sandbox-exec`, LanguageTool and its Java) and the site build its POST gates
 read; `quality_2` holds the exit-trap completion behaviour gate, which proves
-the idiom against bash 3.2, the bash a Mac runs scripts with; the two browser
+the idiom against bash 3.2, the bash a Mac runs scripts with; the three browser
 jobs open the hosted image's Chrome. What moved and why it can: the `workflows`
 gates read the workflows and scripts with bash, awk, sed and grep, run the
 steps' scripts against stubs and build forsgren with Go, and the workflows they
@@ -352,29 +359,42 @@ over its rows, details and page count, from that folder, as the artifact
 red, a job that handed over nothing is named and its gates read as unmeasured)
 and the two renderers write the one Quality report to its run page, with the
 status taken from the jobs' results. The `preview` job `needs:` all of them.
-The `browser` job (step 3) runs the browser gate process self-test (the exits,
-forsgren#386), the browser gate
-and the browser gate on the fixture site (its self-test has the `browser_1`
-job since step 7), with the same
-setup (the hosted image's Chrome, puppeteer-core and axe-core from `npm ci`).
-The browser gate reads the built site, so the job runs its PRE rows, builds
-its own site with `Scripts/build_site.sh`, then runs its POST rows, all with
-the job name `browser`.
-The `browser_1` job (forsgren#447) runs the browser gate self-test and, since
-step 7, the browser gate (fixture site) self-test (64 s on average, 101 s at
-most), with the same setup and the job name `browser_1`. The first was 256 s of
-the browser job's 558 s of gates, so the browser job took about 10.6 minutes;
-split, `browser_1` is about 5.6 minutes before step 7 and `browser` about 6.5.
-The delayed-delivery load of forsgren#611 (`browser_gate v7`) adds about 1.5 s
-per page and variant to both browser gates (0.45 s of delivery and the load's
-1 s observation interval; locally the fixture site's 14 pages went from 74 s
-to 95 s and the site's from 74 s to 96 s) and about 50 s to the browser gate
-self-test (176 s locally; the same self-test on the engine before v7, red only
-on its new cases, took 122 s), so the `browser` job grows by about 45 s and
-`browser_1` by about 50 s.
-It builds no site: both self-tests are PRE rows and read no built site (the
-fixture self-test builds the fixture site itself, hence go in its tools list). The order file is unchanged. The report
-job's status takes its result too, and the `preview` job `needs:` it.
+The browser gates run in three jobs (forsgren#641; two since forsgren#447,
+one before). Five green Quality runs of `main` (42352015823 to 42368535167)
+measured, from the log's group times: the browser gate self-test 734 to 799 s
+(its first side-by-side batch 374 to 412 s, the cases of SERIAL_CASES about
+41 s, the second batch with the mutation proofs 273 to 287 s, the proofs R to
+Dh 55 to 62 s), the fixture-site self-test 186 to 201 s, the process self-test
+67 to 105 s, the browser gate 159 to 170 s and the fixture-site gate 105 to
+115 s, and the setup of a job about 70 s. `Browser gates 1/2` (the two slow
+self-tests) took 959 to 1059 s and `Browser gates` (the rest) 381 to 490 s.
+Now:
+
+| Job (name) | Gates | Expected |
+|---|---|---|
+| `browser_1` (Browser gates 1/3) | the browser gate self-test `--shard 1/2` | about 390 s of gates, 7.7 minutes |
+| `browser_2` (Browser gates 2/3) | the browser gate self-test `--shard 2/2`, the process self-test | about 475 s, 9.1 minutes |
+| `browser_3` (Browser gates 3/3) | the fixture-site self-test (PRE), its own site build, the browser gate and the fixture-site gate (POST) | about 490 s, 9.3 minutes |
+
+All the browser work, about 1350 s, plus three setups is about 8.7 minutes per
+job on average, so no split of three jobs gets every job under 8 minutes; this
+one keeps the three within two minutes of each other. The self-test takes
+`--shard N/M` as the git sandbox isolation self-test does: its units (each
+plain case and side-by-side proof, case 8 with 19 to 21 and proof B that read
+its CLS, and the cases of SERIAL_CASES with their proofs as one unit) are dealt
+by `Scripts/lib_isolation_shard.sh` by the seconds of
+`Scripts/browser_gate_selftest_weights.txt`, so every case runs in exactly one
+shard; `--list` prints what a run starts, and `Scripts/test_quality_jobs.sh`
+holds the shards together to every case once. The two shards weigh 786 and 785
+s of the weights file, about 393 s each on the runner's two side-by-side slots.
+`browser_1` and `browser_2` build no site: their rows are PRE rows that read no
+built site. `browser_3` runs its PRE row, builds its own site with
+`Scripts/build_site.sh`, then runs its POST rows, all with the job name
+`browser_3`; the fixture-site self-test and gate build the fixture site
+themselves, hence go in its tools list. The setup is the main job's (the hosted
+image's Chrome, puppeteer-core and axe-core from `npm ci`). The order file is
+unchanged. The report job's status takes the three results, and the `preview`
+job `needs:` all three.
 The `lint` job (forsgren#282) runs actionlint, shellcheck, yamllint and zizmor
 with their self-tests, the lint rows of the order file's static block, with the
 same setup and the job name `lint`, so a lint finding is its own red check on

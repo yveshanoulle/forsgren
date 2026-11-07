@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# canon: test_run_ci_phase v4
+# canon: test_run_ci_phase v5
 # v3 (forsgren#426): the shards case (group rows with arguments) and two mutations; the jobs of the real-order case come from the group file.
 # v4 (forsgren#574): the report_dir, cancel and workflow_paths cases and two mutations.
+# v5 (forsgren#641): workflow_paths reads the number of gate jobs from quality.yml (every job but report and preview) instead of a fixed 9, and two workflow mutations prove it.
 # Scripts/test_run_ci_phase.sh
 #
 # Self-test for Scripts/run_ci_phase.sh, the loop CI runs over the rows of
@@ -559,15 +560,22 @@ SLOW
 
 # The workflow names the folder through the runner, never a fixed path: every
 # job and the report job ask `report-dir`, and every gate job's upload names
-# the per-run folder.
+# the per-run folder. The number of gate jobs is read from the workflow (every
+# job but report and preview, forsgren#641), so a new gate job needs no edit here.
+# gate_job_count <workflow>: its jobs other than report and preview.
+gate_job_count() {
+  awk '/^jobs:/ { on = 1; next } on && /^[^[:space:]#]/ { on = 0 } on && /^  [A-Za-z0-9_-]+:[[:space:]]*$/ { id = $1; sub(/:$/, "", id); if (id != "report" && id != "preview") n++ } END { print n + 0 }' "$1"
+}
 case_workflow_paths() {
-  local wf=".github/workflows/quality.yml" n
+  local wf="${QUALITY_WF:-.github/workflows/quality.yml}" n jobs
   grep -nE '(RUNNER_TEMP\}|runner\.temp \}\})/quality_(rows|details)' "$wf" \
     | sed 's/^/a fixed rows or details path in quality.yml: /' || true
+  jobs="$(gate_job_count "$wf")"
+  [[ "$jobs" -ge 1 ]] || echo "quality.yml has no gate job this case can read"
   n="$(grep -cE 'run_ci_phase\.sh report-dir' "$wf" || true)"
-  [[ "$n" -eq 19 ]] || echo "quality.yml asks the runner for the report folder ${n} times, want 19 (the report job once, each of the 9 gate jobs twice: start and hand-over)"
+  [[ "$n" -eq $((2 * jobs + 1)) ]] || echo "quality.yml asks the runner for the report folder ${n} times, want $((2 * jobs + 1)) (the report job once, each of the ${jobs} gate jobs twice: start and hand-over)"
   n="$(grep -cE 'runner\.temp \}\}/quality_\$\{\{ github\.run_id \}\}_\$\{\{ github\.run_attempt \}\}_\$\{\{ github\.job \}\}/handover$' "$wf" || true)"
-  [[ "$n" -eq 10 ]] || echo "quality.yml names the per-run hand-over folder ${n} times, want 10 (9 uploads and the report job download)"
+  [[ "$n" -eq $((jobs + 1)) ]] || echo "quality.yml names the per-run hand-over folder ${n} times, want $((jobs + 1)) (${jobs} uploads and the report job download)"
   return 0
 }
 
@@ -654,6 +662,32 @@ mutation_proof "a runner that keeps its capture file" \
 mutation_proof "a runner whose report folder ignores the job" \
   $'s/"\\$GITHUB_RUN_ATTEMPT" "\\$GITHUB_JOB"$/"$GITHUB_RUN_ATTEMPT" job/' report_dir \
   "two jobs of one run share a report folder"
+
+# workflow_paths counts against the gate jobs it reads (forsgren#641): a copy of
+# quality.yml with one more gate job that asks for no report folder and hands
+# nothing over, and a copy whose browser_2 job lost its hand-over path, must be
+# named with the counts they break.
+# wf_proof <label> <awk-program> <finding>: case_workflow_paths on the mutated copy.
+wf_proof() {
+  local mutated="${TMP}/quality_$((MUTANT_N += 1)).yml" problems
+  awk "$2" .github/workflows/quality.yml > "$mutated"
+  if cmp -s .github/workflows/quality.yml "$mutated"; then
+    fail "mutation ${1}: the awk changed nothing, so it proves nothing"
+    return 0
+  fi
+  problems="$(QUALITY_WF="$mutated" case_workflow_paths)"
+  if grep -qF -- "$3" <<< "$problems"; then
+    echo "  ok: mutation ${1} is caught by workflow_paths"
+  else
+    fail "mutation ${1}: workflow_paths did not say '${3}'. It said: ${problems:-nothing}"
+  fi
+}
+wf_proof "a gate job that asks for no report folder" \
+  '/^  report:$/ { print "  extra_gate:"; print "    runs-on: ubuntu-latest"; print "    steps:"; print "      - run: true"; print "" } { print }' \
+  "each of the $(( $(gate_job_count .github/workflows/quality.yml) + 1 )) gate jobs twice"
+wf_proof "a gate job whose hand-over names another folder" \
+  '/^  browser_2:$/ { on = 1 } /^  browser_3:$/ { on = 0 } on && /\/handover$/ { sub(/\/handover$/, "/elsewhere") } { print }' \
+  "names the per-run hand-over folder"
 
 COMPLETED=1
 

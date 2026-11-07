@@ -1,0 +1,12 @@
+# Tools the browser_2 job of quality.yml needs (forsgren#641), one per line.
+# Read by Scripts/install_tools.sh, which the job runs with this file in place
+# of Scripts/required_tools.txt; sfl.sh keeps the full list.
+#
+# ONLY what its gates run: the browser gate self-test --shard 2/2
+# (Scripts/test_gate_browser.sh) and the browser gate process self-test
+# (Scripts/test_gate_browser_process.sh), which drive Scripts/browser_gate.mjs
+# with Node. The job builds no site. Chrome comes with the hosted image and
+# puppeteer-core with npm ci. A tool a gate calls but this list lacks fails
+# the gate, never skips it; Scripts/test_quality_jobs.sh is red when a listed
+# gate names a tool of Scripts/required_tools.txt that is not here.
+node

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v29
+# canon: test_gate_browser v30
+# v30 adds (forsgren#641): --shard N/M runs only the cases and proofs that Scripts/lib_isolation_shard.sh deals to shard N of M by the seconds of Scripts/browser_gate_selftest_weights.txt (case 8 with 19 to 21 and proof B, which read the CLS it measures; the cases of SERIAL_CASES with the proofs R, Rb, S, X, Z and Dh, one unit), so a CI can run it in several jobs, every case in exactly one; --list prints the cases and proofs a run would start, one per line, and stops before it needs Chrome; without --shard every case runs, as before; a repository without the library refuses --shard (exit 64)
 # v29 adds (forsgren#636): case 53f, Chrome killed during the launch while a helper of its process group holds its pipe (its command pipe a FIFO nobody writes, so the launch is surely still on), ends the run within 10 s with `FAIL: browser gate: Chrome died during the launch (PID <pid>, exit <code> | signal <signal>)`, no Chrome, no profile (browser_gate v17); mutation proof Dh, the engine not hearing Chrome's process end, still runs 10 s after the kill; moved from the browser gate process self-test (its v4 case 53f and proof D), so the sites test the engine's newest behaviour; a signal case may take a bound of its own (SIG_WAIT_S, 20 s by default), named in its reason; the file names no path that only forsgren has (a comment named the process self-test's path, and a site's script-references gate, which reads comments, found it unresolved)
 # v28 fixes (forsgren#630, step 2): proof S asserts the Chrome the mutation leaves alive, never whether node still held its pipe when the wait began (timing: at load ~6 node had closed it in 2 of 3 runs, and the proof failed with Chrome alive); either branch of the wait ends within 10 s (SIG_GONE_BOUND, as proof Rb sets its bound)
 # v27 fixes (forsgren#630, step 1): a signal case waits for its Chrome to end on the signal itself, not for a fixed 10 s: while the node that holds Chrome's pipe is alive 10 s (SIG_HELD_BOUND), once the pipe's other end is closed up to 60 s (SIG_GONE_BOUND), and a bound hit is named (the PIDs still alive, the node whose pipe end closed, the seconds); proof R runs with its Chrome stalled for 15 s (SIG_STALL_CHROME: stopped before the signal, continued after), which turned v26 red as load ~100 did; proof Rb shows the bound named, proof S that Chrome stays because node still holds its pipe
@@ -179,6 +180,18 @@
 #   Dh. (the process self-test's proof D up to its v4; D here is the baseline
 #      selector) the engine not hearing Chrome's process end during the launch:
 #      case 53f still runs 10 s after the kill (v29).
+# SHARDS (v30, forsgren#641). `--shard N/M` (1 <= N <= M) runs the units dealt to
+# shard N: each plain case and each side-by-side proof is a unit, except 19, 20,
+# 21 and proof B, which follow case 8 (they compare with the CLS it measures);
+# the cases of SERIAL_CASES with their proofs R, Rb, S, X, Z and Dh are one unit,
+# `serial`. The units are dealt as Scripts/lib_isolation_shard.sh deals the
+# isolation self-tests: by their seconds (Scripts/browser_gate_selftest_weights.txt),
+# the heaviest first, each to the shard that weighs least so far, so every case
+# runs in exactly one shard, the shards weigh about the same and a new case lands
+# in one by itself. The phases keep their order in every shard. `--list` prints
+# the cases and proofs the run would start (case_<id>, mutant_<id>, serial_<id>),
+# one per line, and stops before anything needs Chrome; Scripts/test_quality_jobs.sh
+# holds the shards together to every case once. A bad argument is exit 64.
 # These cases and R, Rb, S, X, Z, Dh run one after the other (SERIAL_CASES, v26); every
 # other case and proof runs side by side, see "The plain cases" below. forsgren's
 # own browser gate process self-test (only forsgren has it, so this canon names
@@ -195,6 +208,114 @@ cd "$(dirname "$0")/.." || exit 1
 REPO_ROOT="$(pwd)"
 GATE="${REPO_ROOT}/Scripts/gate_browser.sh"
 ENGINE="${REPO_ROOT}/Scripts/browser_gate.mjs"
+
+usage() {
+  echo "usage: test_gate_browser.sh [--shard N/M] [--list]  (1 <= N <= M)" >&2
+  exit 64
+}
+SHARD_N=""
+SHARD_M=""
+LIST_ONLY=0
+while [[ "$#" -gt 0 ]]; do
+  case "$1" in
+    --shard)
+      [[ "$#" -ge 2 && -z "$SHARD_N" && "$2" =~ ^([1-9][0-9]*)/([1-9][0-9]*)$ ]] || usage
+      SHARD_N="${BASH_REMATCH[1]}"
+      SHARD_M="${BASH_REMATCH[2]}"
+      [[ "$SHARD_N" -le "$SHARD_M" ]] || usage
+      shift 2
+      ;;
+    --list)
+      LIST_ONLY=1
+      shift
+      ;;
+    *) usage ;;
+  esac
+done
+
+# The cases and proofs of each phase, in the order they start. The first batch
+# starts the slow real-setting and two-variant cases first, so it does not end on
+# one of them; 19 to 21 wait for case 8's M and 55a to 55c are defined further
+# down, so they start in the second batch, with the mutation proofs. SERIAL_CASES
+# (see there) and their proofs run one after the other between and after them.
+FIRST_CASES=(8 1 31 32 33 34 30 23 22
+  2 3 4 5 6 7 9 10 11 12 13 14 16 17 18 24a 24b 24c 24d 24e 24f 25
+  26 27 28 29 35a 35b 35c 35d 35e 35f 36a 36b 36c 37 38 38b 40 39a 39b
+  41 42 43 44 45 46 47 48 49a 49b 49c 49d 50 51 54 55 56 57)
+SECOND_CASES=(19 20 21 55a 55b 55c)
+SECOND_PROOFS=(a b c d e f g h i j k kslow l m n o p q t u y)
+SERIAL_CASES=(52h 52i 52a 52b 52c 52d 52e 52f 53 52g 53d 53g 53h 53i 54a 54b 54c 53e 53f)
+SERIAL_PROOFS=(r rb s x z dh)
+# SHARD_FOLLOWERS: "<unit> <the cases and proofs that run in its shard>" (v30).
+SHARD_FOLLOWERS=("case_8 case_19 case_20 case_21 mutant_b")
+
+# is_follower <id>: the id runs in the shard of another unit.
+is_follower() {
+  local entry
+  for entry in "${SHARD_FOLLOWERS[@]}"; do
+    [[ " ${entry#* } " == *" $1 "* ]] && return 0
+  done
+  return 1
+}
+# shard_units: the units, in start order: the side-by-side cases and proofs that
+# follow no other, then serial.
+shard_units() {
+  local id
+  for id in "${FIRST_CASES[@]}" "${SECOND_CASES[@]}"; do
+    is_follower "case_${id}" || echo "case_${id}"
+  done
+  for id in "${SECOND_PROOFS[@]}"; do
+    is_follower "mutant_${id}" || echo "mutant_${id}"
+  done
+  echo serial
+}
+# unit_ids <unit>: the cases and proofs the unit starts.
+unit_ids() {
+  local entry
+  if [[ "$1" == serial ]]; then
+    printf 'serial_%s\n' "${SERIAL_CASES[@]}"
+    printf 'mutant_%s\n' "${SERIAL_PROOFS[@]}"
+    return 0
+  fi
+  echo "$1"
+  for entry in "${SHARD_FOLLOWERS[@]}"; do
+    if [[ "${entry%% *}" == "$1" ]]; then
+      tr ' ' '\n' <<< "${entry#* }"
+    fi
+  done
+}
+# all_ids: every case and proof of the whole run, from the phase lists alone.
+all_ids() {
+  printf 'case_%s\n' "${FIRST_CASES[@]}" "${SECOND_CASES[@]}"
+  printf 'mutant_%s\n' "${SECOND_PROOFS[@]}"
+  printf 'serial_%s\n' "${SERIAL_CASES[@]}"
+  printf 'mutant_%s\n' "${SERIAL_PROOFS[@]}"
+}
+if [[ -n "$SHARD_N" ]]; then
+  if [[ ! -f Scripts/lib_isolation_shard.sh ]]; then
+    echo "test_gate_browser.sh: --shard needs Scripts/lib_isolation_shard.sh, which this repository does not have" >&2
+    exit 64
+  fi
+  # shellcheck source=Scripts/lib_isolation_shard.sh
+  source Scripts/lib_isolation_shard.sh
+  if ! SHARD_DEALT="$(shard_units | shard_assign "$SHARD_N" "$SHARD_M" Scripts/browser_gate_selftest_weights.txt)"; then
+    echo "❌ FAIL: browser gate self-test: the shards cannot be dealt (see the line above)" >&2
+    exit 1
+  fi
+  RUN_IDS="$(while IFS= read -r unit; do
+    if [[ -n "$unit" ]]; then unit_ids "$unit"; fi
+  done <<< "$SHARD_DEALT")"
+else
+  RUN_IDS="$(all_ids)"
+fi
+if [[ "$LIST_ONLY" -eq 1 ]]; then
+  printf '%s\n' "$RUN_IDS" | grep . || true
+  exit 0
+fi
+# runs <id>: this run starts the case or proof.
+runs() {
+  [[ $'\n'"${RUN_IDS}"$'\n' == *$'\n'"$1"$'\n'* ]]
+}
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
@@ -1014,20 +1135,20 @@ case_57() {
   want_said "57b: the finding names the delayed-delivery load" "1 delayed-delivery load (4 pieces 150 ms apart: 0."
 }
 
-# The first batch: every plain case that needs nothing of another case, the slow
-# real-setting and two-variant cases first, so the batch does not end on one of
-# them. 19 to 21 wait for case 8's M; 55a to 55c are defined further down; they
-# run in the second batch, with the mutation proofs.
+# The first batch: every plain case that needs nothing of another case
+# (FIRST_CASES, in its order), those of this shard when it is one.
+if [[ -n "$SHARD_N" ]]; then
+  echo "browser gate self-test: shard ${SHARD_N}/${SHARD_M}: $(grep -c . <<< "$RUN_IDS") of $(all_ids | grep -c .) cases and proofs"
+fi
 PHASE_START=$SECONDS
 mutants_init "$TMP"
-plain_case 8 1 31 32 33 34 30 23 22 \
-  2 3 4 5 6 7 9 10 11 12 13 14 16 17 18 24a 24b 24c 24d 24e 24f 25 \
-  26 27 28 29 35a 35b 35c 35d 35e 35f 36a 36b 36c 37 38 38b 40 39a 39b \
-  41 42 43 44 45 46 47 48 49a 49b 49c 49d 50 51 54 55 56 57
+for id in "${FIRST_CASES[@]}"; do
+  if runs "case_${id}"; then plain_case "$id"; fi
+done
 mutants_wait
 echo "browser gate self-test: the first batch of plain cases, side by side: $((SECONDS - PHASE_START)) s"
 CLS_M="$(cat "$CLS_M_FILE" 2> /dev/null || true)"
-if [[ -z "$CLS_M" ]]; then
+if runs case_8 && [[ -z "$CLS_M" ]]; then
   fail "the shift fixture did not report a CLS value in case 8, so 19 to 21 compare with 0.05"
   CLS_M=0.05
 fi
@@ -1047,11 +1168,13 @@ fi
 #    the CLONE_PARENT global the signal cases read;
 #  - 53f: a kill and timing case (Chrome killed during the launch, the end
 #    timed within 10 s), as 53e;
-#  - R, Rb, S, X, Z, Dh: the mutation proofs of those cases (R and Rb wait for a
-#    stalled Chrome, forsgren#630), each started alone and collected before the
-#    next, below.
-SERIAL_CASES=(52h 52i 52a 52b 52c 52d 52e 52f 53 52g 53d 53g 53h 53i 54a 54b 54c 53e 53f R Rb S X Z Dh)
-echo "browser gate self-test: one after the other (SERIAL_CASES): ${SERIAL_CASES[*]}"
+#  - R, Rb, S, X, Z, Dh (SERIAL_PROOFS): the mutation proofs of those cases (R
+#    and Rb wait for a stalled Chrome, forsgren#630), each started alone and
+#    collected before the next, below.
+# They are one unit of a shard (v30): serial_cases runs them, written inline as
+# before, and the proofs R to Dh run in the same shard.
+serial_cases() {
+echo "browser gate self-test: one after the other (SERIAL_CASES): ${SERIAL_CASES[*]}, then the proofs R Rb S X Z Dh"
 PHASE_START=$SECONDS
 
 # The exits (see the header): the signal and kill cases of the sites' line.
@@ -1628,6 +1751,11 @@ else
   echo "  ok: 53f: Chrome killed during the launch while a helper holds its pipe ends the run within ${HELD_BOUND} s with a FAIL naming it, its PID and its exit status"
 fi
 echo "browser gate self-test: the cases of SERIAL_CASES before the mutation proofs, one after the other: $((SECONDS - PHASE_START)) s"
+}
+# serial is one unit: its first case stands for all of them.
+if runs "serial_${SERIAL_CASES[0]}"; then
+  serial_cases
+fi
 
 # 55a, 55b, 55c (estate issue 629, step 2): a gate that ends non-zero always
 # says why. The red of the first site run ended after 82 warnings in the middle
@@ -1940,9 +2068,11 @@ mutant_y() {
 # The second batch: the plain cases that waited for case 8's M, the exit cases
 # 55a to 55c, and the mutation proofs, side by side.
 PHASE_START=$SECONDS
-plain_case 19 20 21 55a 55b 55c
-for proof in a b c d e f g h i j k kslow l m n o p q t u y; do
-  mutant_run "mutant_${proof}"
+for id in "${SECOND_CASES[@]}"; do
+  if runs "case_${id}"; then plain_case "$id"; fi
+done
+for proof in "${SECOND_PROOFS[@]}"; do
+  if runs "mutant_${proof}"; then mutant_run "mutant_${proof}"; fi
 done
 mutants_wait
 echo "browser gate self-test: the second batch (19 to 21, 55a to 55c, the mutation proofs), side by side: $((SECONDS - PHASE_START)) s"
@@ -2051,18 +2181,29 @@ mutant_dh() {
 }
 
 PHASE_START=$SECONDS
-for proof in r rb s x z dh; do
-  mutant_run "mutant_${proof}"
-  mutants_wait
+for proof in "${SERIAL_PROOFS[@]}"; do
+  if runs "mutant_${proof}"; then
+    mutant_run "mutant_${proof}"
+    mutants_wait
+  fi
 done
 echo "browser gate self-test: the proofs R, Rb, S, X, Z and Dh, one after the other: $((SECONDS - PHASE_START)) s"
 
-# Every case_ function was started: a case written and never started would pass unseen.
+# Every case_ function is in a phase list and, when this run holds it, was
+# started: a case written and never started would pass unseen.
+ALL_IDS="$(all_ids)"
 while IFS= read -r case_fn; do
-  if [[ "$PLAIN_STARTED" != *" ${case_fn#case_} "* ]]; then
+  if [[ $'\n'"${ALL_IDS}"$'\n' != *$'\n'"${case_fn}"$'\n'* ]]; then
+    fail "${case_fn}: a plain case that is defined but in no phase list"
+  elif runs "$case_fn" && [[ "$PLAIN_STARTED" != *" ${case_fn#case_} "* ]]; then
     fail "${case_fn}: a plain case that is defined but never started"
   fi
 done < <(declare -F | awk '$3 ~ /^case_/ {print $3}')
 
 echo "browser gate self-test: ${SECONDS} s in total"
-selftest_end "the browser gate self-test failed" "browser gate: every case holds, twenty-six mutations seen"
+if [[ -n "$SHARD_N" ]]; then
+  selftest_end "the browser gate self-test (shard ${SHARD_N}/${SHARD_M}) failed" \
+    "browser gate (shard ${SHARD_N}/${SHARD_M}): every case of the shard holds, $(grep -c '^mutant_' <<< "$RUN_IDS" || true) mutation proofs seen"
+else
+  selftest_end "the browser gate self-test failed" "browser gate: every case holds, twenty-six mutations seen"
+fi

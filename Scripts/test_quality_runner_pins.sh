@@ -387,10 +387,10 @@ write_jobs() {
 # Pin 6: six macOS jobs starting together are red; five, and a sixth that waits
 # on a needs:, are accepted.
 write_jobs six_macos quality:macos-latest:no quality_2:macos-latest:no browser_1:macos-latest:no \
-  browser:macos-latest:no extra_1:macos-latest:no extra_2:macos-latest:no
+  browser_2:macos-latest:no browser_3:macos-latest:no extra_1:macos-latest:no
 rejects six_macos "starts 6 macos-latest jobs together" "six macOS jobs with no needs:"
 write_jobs five_macos quality:macos-latest:no quality_2:macos-latest:no browser_1:macos-latest:no \
-  browser:macos-latest:no extra_1:macos-latest:no preview:macos-latest:yes lint:ubuntu-latest:no
+  browser_2:macos-latest:no browser_3:macos-latest:no preview:macos-latest:yes lint:ubuntu-latest:no
 verdict="$(judge "${TMP}/five_macos.yml")"
 if [[ -z "$verdict" ]]; then
   echo "  ok: five macOS jobs starting together, a sixth with needs: and a Linux job are accepted"

@@ -26,9 +26,11 @@
 # `isolation_2` the git sandbox isolation self-test in two shards, one each
 # (forsgren#426); the `summary` job the step summary isolation gate
 # (forsgren#425); the `quality_2` job eleven gates of the main job, the Go
-# tests and Go coverage among them (forsgren#447); the `browser_1` job the
-# browser gate self-test and the fixture site self-test, and the `browser` job
-# the other browser gates, with its own site build (forsgren#447); and the
+# tests and Go coverage among them (forsgren#447); the jobs `browser_1` and
+# `browser_2` the browser gate self-test in two shards, one each, and
+# `browser_2` the process self-test too, and the `browser_3` job the browser
+# gate and the fixture-site gate with its self-test and its own site build
+# (forsgren#447, #641); and the
 # `workflows` job the pins of the workflows and the wiring of the gates
 # (forsgren#408), go mod tidy, the Go test duplication and Go vulnerabilities
 # self-tests and eleven Linux-safe tail gates of the main job (forsgren#447).
@@ -43,10 +45,11 @@
 # RUNNERS (forsgren#427, forsgren#447 step 3). GitHub runs at most 5 macOS jobs
 # at once for the account, so the jobs whose gates need no macOS run on
 # ubuntu-latest: `lint`, `workflows`, `summary`, `isolation_1`, `isolation_2`
-# and `report`. The four that start together on macos-latest are `quality`,
-# `quality_2`, `browser_1` and `browser` (the language gate's sandbox-exec and
-# LanguageTool, the secret scan's Homebrew gitleaks, the exit-trap gate's bash
-# 3.2, the browser gates' Chrome); `preview` waits for all of them.
+# and `report`. The five that start together on macos-latest, the limit, are
+# `quality`, `quality_2`, `browser_1`, `browser_2` and `browser_3` (the language
+# gate's sandbox-exec and LanguageTool, the secret scan's Homebrew gitleaks, the
+# exit-trap gate's bash 3.2, the browser gates' Chrome); `preview` waits for
+# all of them.
 # Scripts/test_quality_runner_pins.sh pins each job's image and the count.
 #
 # CHECK-ONLY. Nothing here fixes: gofmt runs as `gofmt -l` (the gofmt row),
@@ -762,17 +765,26 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-  # The browser_1 job (forsgren#447): the browser gate self-test alone, about
-  # 256 s, 46 percent of the browser job's gates (measured in forsgren#447 on
-  # three green Quality runs of main), so neither browser job is over 10
-  # minutes. Scripts/ci_job_groups.txt gives it to this job and
-  # Scripts/run_ci_phase.sh skips it in the others. The same setup as the main
-  # job, step for step: its comments are the main job's; the hosted image's
-  # Chrome is the one the self-test opens, puppeteer-core comes from npm ci.
-  # No site build: it is a PRE row and reads no built site. No secret reaches
-  # it, and it is not secret-class.
+  # The browser jobs (forsgren#641): three jobs of the browser gates, so none
+  # is far longer than the others. Measured on five green Quality runs of main
+  # (42352015823 to 42368535167): the browser gate self-test 734 to 799 s,
+  # the fixture-site self-test 186 to 201 s, the process self-test 67 to 105 s,
+  # the browser gate 159 to 170 s and the fixture-site gate 105 to 115 s, the
+  # setup of a job about 70 s. Before, browser_1 (Browser gates 1/2) ran the
+  # two slow self-tests, 959 to 1059 s, and browser (Browser gates) the rest,
+  # 381 to 490 s.
+  # browser_1 and browser_2: the browser gate self-test in two shards
+  # (Scripts/ci_job_groups.txt: --shard 1/2 and 2/2, dealt by the seconds of
+  # Scripts/browser_gate_selftest_weights.txt, about 390 s each), and browser_2
+  # also the process self-test (forsgren#386); about 460 and 545 s with the
+  # setup. Scripts/ci_job_groups.txt gives them their rows and
+  # Scripts/run_ci_phase.sh skips them in the other jobs. The same setup as the
+  # main job, step for step: its comments are the main job's; the hosted
+  # image's Chrome is the one the self-tests open, puppeteer-core comes from npm
+  # ci. No site build: all are PRE rows that read no built site. No secret
+  # reaches them, and none is secret-class.
   browser_1:
-    name: Browser gates 1/2
+    name: Browser gates 1/3
     runs-on: macos-latest
 
     steps:
@@ -796,7 +808,7 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
-      # Only the tool its one gate runs: node (forsgren#447, step 4).
+      # Only the tool its gates run: node (forsgren#447, step 4; forsgren#641).
       - name: Install tools
         shell: bash
         env:
@@ -824,7 +836,7 @@ jobs:
 
       # The rows Scripts/ci_job_groups.txt gives to this job, in order-file
       # order. A failing gate does not stop the phase, as in the main job.
-      - name: Browser gates 1/2
+      - name: Browser gates 1/3
         shell: bash
         run: |
           set -uo pipefail
@@ -847,20 +859,95 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-  # The browser job (forsgren#259, decision #260): the browser gate process
-  # self-test (forsgren#386), the browser gate, and the browser gate on the
-  # fixture site with its self-test (Scripts/ci_job_groups.txt gives them to
-  # this job, and Scripts/run_ci_phase.sh skips them in the main job), about
-  # 300 s of gates; the browser gate self-test has the browser_1 job
-  # (forsgren#447).
+  browser_2:
+    name: Browser gates 2/3
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up the gate environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
+          toolchain="$(./Scripts/go_toolchain.sh)"
+          echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      # Only the tool its gates run: node (forsgren#447, step 4; forsgren#641).
+      - name: Install tools
+        shell: bash
+        env:
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
+        run: |
+          set -euo pipefail
+          ./Scripts/install_tools.sh Scripts/required_tools_browser_2_gates.txt
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start report
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
+          : > "$rows"
+          rm -rf "$details" && mkdir -p "$details"
+          echo "ROWS=${rows}" >> "$GITHUB_ENV"
+          echo "DETAILS=${details}" >> "$GITHUB_ENV"
+
+      # The rows Scripts/ci_job_groups.txt gives to this job, in order-file
+      # order. A failing gate does not stop the phase, as in the main job.
+      - name: Browser gates 2/3
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" browser_2
+
+      - name: Collect the gate report
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
+
+      - name: Hand over the gate report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: quality-report-browser_2
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
+          retention-days: 1
+          if-no-files-found: error
+
+  # The browser_3 job (forsgren#259, decision #260; `browser`, Browser gates,
+  # up to forsgren#641): the browser gate and the browser gate on the fixture
+  # site with its self-test (Scripts/ci_job_groups.txt gives them to this job,
+  # and Scripts/run_ci_phase.sh skips them in the others), about 490 s of
+  # gates and its site build, about 560 s with the setup.
   # The same setup as the main job, step for step: the hosted image's Chrome is
   # the one the gates open, puppeteer-core and axe-core come from npm ci. The
   # browser gate reads the built site, so this job builds its own (.build/site,
   # 0.3 s) between its PRE and POST rows, exactly as the main job does; the
-  # fixture-site gate renders its own. No secret reaches it, and none of its
-  # gates is secret-class.
-  browser:
-    name: Browser gates
+  # fixture-site gate and its self-test render their own. No secret reaches
+  # it, and none of its gates is secret-class.
+  browser_3:
+    name: Browser gates 3/3
     runs-on: macos-latest
 
     steps:
@@ -893,7 +980,7 @@ jobs:
           HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
         run: |
           set -euo pipefail
-          ./Scripts/install_tools.sh Scripts/required_tools_browser_gates.txt
+          ./Scripts/install_tools.sh Scripts/required_tools_browser_3_gates.txt
 
       - name: Install dependencies
         run: npm ci
@@ -911,14 +998,14 @@ jobs:
           echo "ROWS=${rows}" >> "$GITHUB_ENV"
           echo "DETAILS=${details}" >> "$GITHUB_ENV"
 
-      # The pre rows Scripts/ci_job_groups.txt gives to this job: the process
-      # self-test and the fixture-site self-test.
+      # The pre row Scripts/ci_job_groups.txt gives to this job: the
+      # fixture-site self-test.
       - name: Browser PRE gates
         id: pre
         shell: bash
         run: |
           set -uo pipefail
-          ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" browser
+          ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" browser_3
 
       # This job's own site build, after an ordinary PRE red too.
       - name: Build site
@@ -937,7 +1024,7 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          ./Scripts/run_ci_phase.sh post "$ROWS" "$DETAILS" browser
+          ./Scripts/run_ci_phase.sh post "$ROWS" "$DETAILS" browser_3
 
       - name: Collect the gate report
         if: always()
@@ -951,7 +1038,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
-          name: quality-report-browser
+          name: quality-report-browser_3
           path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
           retention-days: 1
           if-no-files-found: error
@@ -1075,7 +1162,7 @@ jobs:
   # job.
   report:
     name: Quality report
-    needs: [quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser, workflows]
+    needs: [quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows]
     if: always()
     runs-on: ubuntu-latest
 
@@ -1101,7 +1188,8 @@ jobs:
           QS_ISOLATION_2_RESULT: ${{ needs.isolation_2.result }}
           QS_SUMMARY_RESULT: ${{ needs.summary.result }}
           QS_BROWSER_1_RESULT: ${{ needs.browser_1.result }}
-          QS_BROWSER_RESULT: ${{ needs.browser.result }}
+          QS_BROWSER_2_RESULT: ${{ needs.browser_2.result }}
+          QS_BROWSER_3_RESULT: ${{ needs.browser_3.result }}
           QS_WORKFLOWS_RESULT: ${{ needs.workflows.result }}
           QS_PRE_OUTCOME: ${{ needs.quality.outputs.pre }}
           QS_BUILD_OUTCOME: ${{ needs.quality.outputs.build }}
@@ -1120,7 +1208,7 @@ jobs:
           ./Scripts/merge_quality_report.sh merge "$art" "$rows" "$details" || rc=$?
           QS_JOB_STATUS="$(./Scripts/merge_quality_report.sh status \
             "$QS_QUALITY_RESULT" "$QS_QUALITY_2_RESULT" "$QS_LINT_RESULT" "$QS_ISOLATION_1_RESULT" "$QS_ISOLATION_2_RESULT" \
-            "$QS_SUMMARY_RESULT" "$QS_BROWSER_1_RESULT" "$QS_BROWSER_RESULT" "$QS_WORKFLOWS_RESULT")"
+            "$QS_SUMMARY_RESULT" "$QS_BROWSER_1_RESULT" "$QS_BROWSER_2_RESULT" "$QS_BROWSER_3_RESULT" "$QS_WORKFLOWS_RESULT")"
           export QS_JOB_STATUS
           export SITE_PAGE_COUNT_FILE="${art}/quality-report-quality/page-count.log"
           ./Scripts/render_quality_summary.sh "$rows" "$details" >> "$GITHUB_STEP_SUMMARY" || rc=$?
@@ -1129,7 +1217,8 @@ jobs:
           ./Scripts/merge_quality_report.sh verdict \
             "quality=$QS_QUALITY_RESULT" "quality_2=$QS_QUALITY_2_RESULT" "lint=$QS_LINT_RESULT" \
             "isolation_1=$QS_ISOLATION_1_RESULT" "isolation_2=$QS_ISOLATION_2_RESULT" "summary=$QS_SUMMARY_RESULT" \
-            "browser_1=$QS_BROWSER_1_RESULT" "browser=$QS_BROWSER_RESULT" "workflows=$QS_WORKFLOWS_RESULT" || rc=$?
+            "browser_1=$QS_BROWSER_1_RESULT" "browser_2=$QS_BROWSER_2_RESULT" "browser_3=$QS_BROWSER_3_RESULT" \
+            "workflows=$QS_WORKFLOWS_RESULT" || rc=$?
           exit "$rc"
 
   # Starts the preview deploy (forsgren#222), only after every gate job
@@ -1143,7 +1232,8 @@ jobs:
   # workflow_dispatch and requires HTTP 204; any other answer fails the run.
   #
   # needs: every other job (quality, quality_2, lint, isolation_1, isolation_2,
-  # summary, browser_1, browser, workflows and report), no `if: always()`: a failed,
+  # summary, browser_1, browser_2, browser_3, workflows and report), no
+  # `if: always()`: a failed,
   # cancelled or skipped gate job skips this one. The condition keeps it off
   # pull requests, where no secret exists. The secret PREVIEW_DISPATCH_TOKEN
   # (Actions read/write on the preview repository only) reaches this job's one
@@ -1155,7 +1245,7 @@ jobs:
   # Scripts/test_preview_workflow.sh pins this job.
   preview:
     name: Start the preview deploy
-    needs: [quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser, workflows, report]
+    needs: [quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows, report]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: macos-latest
     permissions:

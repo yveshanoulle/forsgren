@@ -469,7 +469,9 @@ Seven PRE gates read the repository's own scripts and files:
   self-tests`; Quality runs the two shards as the jobs `isolation_1` and
   `isolation_2` (forsgren#259, forsgren#426), `FBP.sh` and `sfl.sh` run all. The
   browser gates and their
-  self-tests run in the `browser` job. Its scope self-test, which also proves the Quality single run (each
+  self-tests run in the jobs `browser_1`, `browser_2` and `browser_3`
+  (forsgren#641; the browser gate self-test as `--shard 1/2` and `--shard 2/2`,
+  see browser gate below). Its scope self-test, which also proves the Quality single run (each
   self-test once; a leaking self-test turns it red naming the self-test, the
   single run and the reason), is `Scripts/test_git_sandbox_isolation_scope.sh`.
 - **quality jobs pin** and **merge quality report self-test**
@@ -485,8 +487,11 @@ Seven PRE gates read the repository's own scripts and files:
   The pin is red when an isolation job is missing, off `ubuntu-latest`
   (forsgren#447, step 3, with the summary, workflows and report jobs) or
   without the main job's setup (the lint and browser jobs likewise, the lint
-  job running exactly its PRE rows, and the browser job must run
-  PRE, its own site build, then POST), when a `run_ci_phase.sh` call lacks its job
+  job running exactly its PRE rows, `browser_1` and `browser_2` exactly their
+  PRE rows with no site build, and `browser_3` PRE, its own site build, then
+  POST), when the shards of the browser gate self-test in the group file do not
+  list every case of its `--list` once (forsgren#641), when a gate is in two
+  jobs other than as one shard each, when a `run_ci_phase.sh` call lacks its job
   name, when a step names an isolation or lint gate itself, when the group
   file does not give the two isolation jobs the git sandbox isolation
   self-test, one shard each (`--shard 1/2` and `--shard 2/2`), or the lint job
@@ -752,7 +757,10 @@ The POST gates, on the generated site:
   shapes (a name that is not a double-quoted string, or a `shown` that is not a
   list of them, is exit 2). `Scripts/language_allowlist.txt` keeps names only.
 - **browser gate** (`Scripts/gate_browser.sh`, engine `Scripts/browser_gate.mjs`,
-  self-test `Scripts/test_gate_browser.sh` and, for the exits, `Scripts/test_gate_browser_process.sh`
+  self-test `Scripts/test_gate_browser.sh` (`--shard N/M` since v30, forsgren#641:
+  the cases dealt by the seconds of `Scripts/browser_gate_selftest_weights.txt`
+  through `Scripts/lib_isolation_shard.sh`, every case in exactly one shard;
+  `--list` prints what a run starts) and, for the exits, `Scripts/test_gate_browser_process.sh`
   (forsgren#386, decision #411 A), forsgren#205, the estate's shared
   gate): after the build, every page of `internal/page/required-pages.json` is
   opened from `.build/site`, served on 127.0.0.1, in the installed Chrome

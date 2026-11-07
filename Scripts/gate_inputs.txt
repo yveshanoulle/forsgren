@@ -81,6 +81,8 @@ browser gate self-test|in|package-lock.json
 browser gate self-test|in|internal/page/required-pages.json
 browser gate self-test|in|Scripts/lib_has.sh
 browser gate self-test|in|Scripts/lib_parallel_mutants.sh
+browser gate self-test|in|Scripts/browser_gate_selftest_weights.txt
+browser gate self-test|in|Scripts/lib_isolation_shard.sh
 
 # --- browser gate process self-test --------------------------------------
 # The exits of the browser gate (forsgren#386, decision #411 A): the wrapper, the
@@ -103,6 +105,8 @@ browser gate process self-test|in|Scripts/browser_gate_baseline.txt
 browser gate process self-test|in|Scripts/browser_gate_exceptions.txt
 browser gate process self-test|in|Scripts/browser_gate_variants.txt
 browser gate process self-test|in|Scripts/lib_parallel_mutants.sh
+browser gate process self-test|in|Scripts/browser_gate_selftest_weights.txt
+browser gate process self-test|in|Scripts/lib_isolation_shard.sh
 
 # --- browser gate -------------------------------------------------------
 # It opens the site the build wrote (Scripts/build_site.sh builds ./cmd/forsgren and renders).
@@ -128,6 +132,8 @@ browser gate|in|package.json
 browser gate|in|package-lock.json
 browser gate|in|Scripts/lib_has.sh
 browser gate|in|Scripts/lib_parallel_mutants.sh
+browser gate|in|Scripts/browser_gate_selftest_weights.txt
+browser gate|in|Scripts/lib_isolation_shard.sh
 browser gate|out|*_test.go
 browser gate|out|cmd/**/testdata/
 browser gate|out|internal/**/testdata/
@@ -159,6 +165,8 @@ browser gate (fixture site) self-test|in|package.json
 browser gate (fixture site) self-test|in|package-lock.json
 browser gate (fixture site) self-test|in|Scripts/lib_has.sh
 browser gate (fixture site) self-test|in|Scripts/lib_parallel_mutants.sh
+browser gate (fixture site) self-test|in|Scripts/browser_gate_selftest_weights.txt
+browser gate (fixture site) self-test|in|Scripts/lib_isolation_shard.sh
 browser gate (fixture site) self-test|out|*_test.go
 browser gate (fixture site) self-test|out|cmd/**/testdata/
 browser gate (fixture site) self-test|out|internal/**/testdata/
@@ -189,6 +197,8 @@ browser gate (fixture site)|in|package.json
 browser gate (fixture site)|in|package-lock.json
 browser gate (fixture site)|in|Scripts/lib_has.sh
 browser gate (fixture site)|in|Scripts/lib_parallel_mutants.sh
+browser gate (fixture site)|in|Scripts/browser_gate_selftest_weights.txt
+browser gate (fixture site)|in|Scripts/lib_isolation_shard.sh
 browser gate (fixture site)|out|*_test.go
 browser gate (fixture site)|out|cmd/**/testdata/
 browser gate (fixture site)|out|internal/**/testdata/
@@ -262,7 +272,10 @@ step summary isolation|in|Scripts/linux_tool_pins.txt
 step summary isolation|in|Scripts/required_tools_linux.txt
 step summary isolation|in|Scripts/required_tools_linux_gates.txt
 step summary isolation|in|Scripts/required_tools_browser_1_gates.txt
-step summary isolation|in|Scripts/required_tools_browser_gates.txt
+step summary isolation|in|Scripts/required_tools_browser_2_gates.txt
+step summary isolation|in|Scripts/required_tools_browser_3_gates.txt
+step summary isolation|in|Scripts/browser_gate_selftest_weights.txt
+step summary isolation|in|Scripts/lib_isolation_shard.sh
 step summary isolation|in|Scripts/required_tools_quality_2_gates.txt
 step summary isolation|in|Scripts/required_tools_quality_gates.txt
 step summary isolation|in|Scripts/check_community_files.sh

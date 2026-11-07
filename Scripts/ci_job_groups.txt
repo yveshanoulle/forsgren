@@ -39,21 +39,26 @@ isolation_2|git sandbox isolation self-test|--shard 2/2
 # runs beside the git sandbox self-test and not after it.
 summary|step summary isolation
 #
-# The browser_1 job (forsgren#447): the browser gate self-test, about 256 s,
-# and, since step 7, the fixture site self-test (64 s on average, 101 s at
-# most), so neither browser job is over 10 minutes. Both are PRE rows that read
-# no built site: the job builds none. The fixture self-test builds the fixture
-# site itself (Scripts/build_fixture_site.sh runs go build), so the job lists go.
-browser_1|browser gate self-test
-browser_1|browser gate (fixture site) self-test
+# The three browser jobs (forsgren#447, #641). Measured on five green Quality
+# runs of main before #641: the browser gate self-test 734 to 799 s, the
+# fixture site self-test 186 to 201 s, the process self-test 67 to 105 s, the
+# browser gate 159 to 170 s, the fixture-site gate 105 to 115 s.
+# browser_1 and browser_2: the browser gate self-test in two shards, dealt by
+# Scripts/browser_gate_selftest_weights.txt (about 390 s each), and in
+# browser_2 the process self-test split from it (forsgren#386). All are PRE
+# rows that read no built site: neither job builds one, and both need node only.
+browser_1|browser gate self-test|--shard 1/2
+browser_2|browser gate self-test|--shard 2/2
+browser_2|browser gate process self-test
 #
-# The browser job (forsgren#259, step 3): the process self-test split from the
-# browser gate self-test (forsgren#386), the browser gate and the browser gate
-# on the fixture site (its self-test is in browser_1, above).
-# The job builds its own site between its pre and post rows.
-browser|browser gate process self-test
-browser|browser gate
-browser|browser gate (fixture site)
+# The browser_3 job (forsgren#259, step 3; `browser` up to forsgren#641): the
+# fixture site self-test, the browser gate and the browser gate on the fixture
+# site. The job builds its own site between its pre and post rows; the fixture
+# site and its self-test build theirs (Scripts/build_fixture_site.sh runs go
+# build), so the job lists go and node.
+browser_3|browser gate (fixture site) self-test
+browser_3|browser gate
+browser_3|browser gate (fixture site)
 #
 # The lint job (forsgren#282): the fast static lint gates and their self-tests,
 # so a lint finding is its own red check on the Quality run. The order file is

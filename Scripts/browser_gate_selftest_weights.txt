@@ -1,0 +1,113 @@
+# Scripts/browser_gate_selftest_weights.txt (forsgren#641)
+#
+# Seconds each unit of Scripts/test_gate_browser.sh takes, from the log of
+# Quality run 42368535167 (main, the browser gate self-test 787 s in one job;
+# the four runs before it took 734 to 799 s). Scripts/lib_isolation_shard.sh
+# deals the units of test_gate_browser.sh --shard N/M out by these weights, the
+# heaviest first, each to the shard that weighs least so far, as it deals the
+# isolation self-tests. A unit with no row weighs the default, so a new case
+# needs no row (most cases open Chrome, about 15 s); add one when it is far off.
+#
+# A unit is a case_<id> or mutant_<id> of the side-by-side batches, or serial:
+#  - case_8 weighs its followers too: 19, 20, 21 and proof B compare with the
+#    CLS it measures, so they run in its shard (29 + 25 + 25 + 25 + 23 s);
+#  - serial is the cases of SERIAL_CASES and the proofs R, Rb, S, X, Z and Dh,
+#    run one after the other with nothing beside them: 41 + 62 = 103 s. The
+#    other units share the hosted runner's 2 side-by-side slots
+#    (lib_parallel_mutants.sh: half the CPUs, at least 2), so a unit of n
+#    seconds costs a shard about n / 2; serial weighs 2 x 103.
+#
+# <unit> <seconds>
+default 15
+serial 206
+case_8 127
+mutant_f 47
+mutant_g 46
+mutant_k 42
+case_30 37
+case_33 37
+case_34 37
+case_31 36
+case_32 36
+case_1 29
+case_23 25
+mutant_a 23
+mutant_d 23
+mutant_l 23
+mutant_m 23
+mutant_n 23
+mutant_o 23
+mutant_e 22
+mutant_j 22
+mutant_h 21
+mutant_i 21
+case_38b 20
+case_40 20
+mutant_q 20
+case_10 19
+case_13 19
+case_22 19
+case_55a 19
+mutant_c 19
+mutant_kslow 19
+mutant_p 19
+case_4 18
+case_5 18
+case_11 18
+case_28 18
+case_37 18
+case_38 18
+case_50 18
+case_16 17
+case_26 17
+case_45 17
+case_6 14
+case_9 14
+case_18 14
+case_42 14
+case_43 14
+case_47 14
+case_51 14
+case_2 13
+case_3 13
+case_7 13
+case_17 13
+case_27 13
+case_41 13
+case_46 13
+case_48 13
+case_56 8
+case_44 7
+case_54 7
+case_57 6
+mutant_y 5
+case_55 3
+mutant_t 3
+mutant_u 3
+case_55b 2
+case_12 1
+case_14 1
+case_24a 1
+case_24b 1
+case_24c 1
+case_24d 1
+case_24e 1
+case_24f 1
+case_25 1
+case_29 1
+case_35a 1
+case_35b 1
+case_35c 1
+case_35d 1
+case_35e 1
+case_35f 1
+case_36a 1
+case_36b 1
+case_36c 1
+case_39a 1
+case_39b 1
+case_49a 1
+case_49b 1
+case_49c 1
+case_49d 1
+case_55c 1
