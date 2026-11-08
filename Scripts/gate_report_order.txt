@@ -910,7 +910,7 @@ browser gate inputs self-test|Scripts/test_gate_inputs.sh|pre|
 # from the files a commit changed; a changed file no list names selects every gate
 # (fail-safe), and Quality, SFL_GATE_SELECT_FULL=1, a missing origin/main and a
 # failing git diff or ls-files (fail-closed) select all. This
-# self-test runs it in throwaway repositories, with ten mutation proofs. sfl.sh
+# self-test runs it in throwaway repositories, with fourteen mutation proofs. sfl.sh
 # calls gate_select before each browser row (step 3, the row below).
 browser gate selection self-test|Scripts/test_gate_select.sh|pre|
 #

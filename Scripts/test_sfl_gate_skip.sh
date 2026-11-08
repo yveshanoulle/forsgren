@@ -3,7 +3,7 @@
 #
 # Self-test of sfl.sh skipping an unselected browser row. A row whose label has
 # `in` rows in Scripts/gate_inputs.txt (the four browser rows) is asked
-# gate_select (Scripts/lib_gate_select.sh) before it runs. On `skip: <reason>`
+# gate_select (Scripts/lib_gate_select.sh) before it runs. On `skip: [<code>] <reason>`
 # sfl.sh does not run its script; the step is still counted, it is printed as
 # `⏭ skipped: <label> (<reason>)`, it is a `⏭ skip` row of the step table, and
 # `<label><TAB><reason>` is appended to .build/sfl-skips.log, which `sfl.sh pre`
