@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_run_ci_phase v9
+# canon: test_run_ci_phase v10
+# v10 (forsgren#646 step 2, refactor): the test of run_ci_phase v9; the shard-name mutation follows the row name into read_group_args. No case changed.
 # v9 (forsgren#646, decision #647 A; canon home forsgren): the test of run_ci_phase v8, one for every site. It keeps every case of forsgren's v5 and of the sites' v8 and adds: group row arguments split by read -r -a within a safe character set (unsafe ones red, never expanded, no eval), the default job, post rows in a named job, the group file checks, the build-volume TMPDIR only where Scripts/builds_tmpdir.sh exists (the real script, with the fake Companion, only there), the checked temp file, gate selection only where its library exists, and workflow_paths per gate job read from the workflow (any site's layout).
 # v3 (forsgren#426): the shards case (group rows with arguments) and two mutations; the jobs of the real-order case come from the group file.
 # v4 (forsgren#574): the report_dir, cancel and workflow_paths cases and two mutations.
@@ -61,8 +62,8 @@ fail() { echo "❌ FAIL: $*"; failed=1; }
 [[ -f "$ORDER" ]] || { echo "FAIL: ${ORDER} not found" >&2; exit 1; }
 
 # The runner's canon line must be in its first 40 lines.
-head -40 "$RUNNER" | has -xF '# canon: run_ci_phase v8' \
-  || fail "${RUNNER} has no '# canon: run_ci_phase v8' line in its first 40 lines"
+head -40 "$RUNNER" | has -xF '# canon: run_ci_phase v9' \
+  || fail "${RUNNER} has no '# canon: run_ci_phase v9' line in its first 40 lines"
 
 REAL_RUNNER="$(pwd)/${RUNNER}"
 # shellcheck source=Scripts/lib_tmp.sh
@@ -1039,7 +1040,7 @@ mutation_proof "a runner that drops the arguments of a group row" \
 
 # A shard row keeps the plain label, so a red cannot name its shard.
 mutation_proof "a runner that does not name the shard in the row" \
-  $'s/^      shown="\\$\\{label\\} \\(.*$/      :/' shards
+  $'s/^  shown="\\$\\{1\\} \\(.*$/  :/' shards
 
 # Without the trap the cancel kills the loop and leaves the gate running.
 mutation_proof "a runner without the cancel trap" \

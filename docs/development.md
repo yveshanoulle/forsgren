@@ -189,9 +189,9 @@ browser jobs run, than on the Mac, where FBP runs. So `Scripts/gate_browser.sh`
 and `Scripts/gate_browser_fixture.sh` read `Scripts/browser_gate_baseline.txt`
 and `Scripts/browser_gate_fixture_baseline.txt` on macOS, and the `_linux.txt`
 twins on Linux (`Scripts/lib_browser_baseline.sh`, by `uname -s`; any other
-platform is exit 2). A local FBP is unchanged. The Linux files are filled from
-the widths the first Quality run on `ubuntu-latest` measures (forsgren#642,
-step 2 fills them); a row in either file needs the owner's yes.
+platform is exit 2). A local FBP is unchanged. The Linux files hold the widths
+the first Quality run on `ubuntu-latest` measured (run 42393428814,
+forsgren#642 step 2); a row in either file needs the owner's yes.
 
 **Go is pinned separately.** `brew install go` also upgrades an outdated Go for
 the whole machine, which would be a surprise if forsgren followed it. So

@@ -828,9 +828,8 @@ The POST gates, on the generated site:
   `Scripts/browser_gate_baseline.txt` on Darwin,
   `Scripts/browser_gate_baseline_linux.txt` on Linux, and exit 2 naming any
   other platform, never the macOS file as a guess. The Linux file follows the
-  same rules and is filled from the widths the first Quality run on
-  `ubuntu-latest` measures (forsgren#642, step 2 fills it; that run is red on
-  `Browser gates 3/3` by design). The self-test
+  same rules and holds the widths the first Quality run on `ubuntu-latest`
+  measured (run 42393428814, forsgren#642 step 2). The self-test
   `Scripts/test_gate_browser_baseline.sh` (forsgren only) runs both wrappers
   with `uname` and `node` faked on PATH: Darwin, Linux, another platform and a
   given baseline, with 2 mutation proofs (a wrapper that always reads the macOS

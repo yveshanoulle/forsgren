@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: run_ci_phase v8
+# canon: run_ci_phase v9
+# v9 (forsgren#646 step 2, refactor; no behaviour change): one helper appends to the step summary, read_group_args takes the group row's arguments out of the gate loop, and record picks its mark in one place.
 # v8 (forsgren#646, decision #647 A; canon home forsgren): one runner for every site. It joins the two lines that split after v1: forsgren's v2 to v4 (group row arguments as shards, forsgren#426; the report folder per run and the cancel, forsgren#574; the capture file unlinked at once, forsgren#614) and the sites' v2 to v7 (the build-volume TMPDIR, the job argument, the report folder and cancel, gate selection, the unlinked capture file). New in v8: the arguments are split with `read -r -a` and held to a safe character set, a named job may run post rows, the default job runs the rows no job lists, and the build-volume TMPDIR and gate selection apply only where the repository has their scripts.
 # Scripts/run_ci_phase.sh <pre|post> <rows-file> <details-dir> [<job>]
 # Scripts/run_ci_phase.sh report-dir
@@ -29,17 +30,16 @@
 # and with mutated copies of this runner.
 #
 # Extracted from the workflow rather than written inline in it: a loop in YAML
-# is a loop nothing outside CI ever runs (estate rule after another estate repository's
-# deploy-i18n.yml, 2026-06-11).
+# is a loop nothing outside CI ever runs (estate rule after another estate
+# repository's deploy-i18n.yml, 2026-06-11).
 #
 # THE ONE THING CI DOES THAT sfl DOES NOT: it is check-only, and it checks
 # that it was. sfl may fix (it exports GATE_FIX=1, under which the gates that
 # can heal do, and the change rides into the commit); CI never sets it and
-# must report what the
-# commit CONTAINS, not what it could be fixed into. So after each gate the
-# runner compares `git status --porcelain` with what it was before that gate,
-# and a gate that changed the checked-out tree is a red row, named, even when
-# it exited 0. No gate list is kept for this: any gate that writes is caught.
+# must report what the commit CONTAINS, not what it could be fixed into. So
+# after each gate the runner compares `git status --porcelain` with what it was
+# before that gate, and a gate that changed the checked-out tree is a red row,
+# named, even when it exited 0. No gate list is kept for this: any gate that writes is caught.
 #
 # Per gate: the output captured guarded, so it survives
 # GitHub's `shell: bash` (`bash --noprofile --norc -e -o pipefail`), echoed to
@@ -113,18 +113,19 @@
 #     to its own folder and cannot touch a newer run's. An unset or empty
 #     RUNNER_TEMP, GITHUB_RUN_ID, GITHUB_RUN_ATTEMPT or GITHUB_JOB is exit 64.
 #   - on SIGTERM or SIGINT (the runner's cancel) the loop kills its gate and
-#     everything the gate started, writes no row (its capture file is unlinked at once) and
-#     exits 143 or 130. Each gate therefore runs in the background and the loop
-#     waits for it: bash runs a trap only between commands, never while it
-#     waits on a foreground command.
+#     everything the gate started, writes no row (its capture file is
+#     unlinked at once) and exits 143 or 130. Each gate therefore runs in the
+#     background and the loop waits for it: bash runs a trap only between
+#     commands, never while it waits on a foreground command.
 #
 # GATE SELECTION (estate decision 565, where the repository has the CI gate
 # selection library, lib_ci_gate_select.sh beside this runner): on a push the
 # runner asks the FBP's own selector (that library over the FBP's gate
-# selection library and its gate inputs file) about the push's change set, from CI_GATE_EVENT
-# (github.event_name) and CI_GATE_BASE (github.event.before). A gate it skips
-# is not run: its row is `<label>|⏭ not run (selector: <reason>)`, its details
-# file says so, and the phase counts it as not run, never as passed.
+# selection library and its gate inputs file) about the push's change set,
+# from CI_GATE_EVENT (github.event_name) and CI_GATE_BASE
+# (github.event.before). A gate it skips is not run: its row is
+# `<label>|⏭ not run (selector: <reason>)`, its details file says so, and the
+# phase counts it as not run, never as passed.
 # Everything else runs every gate, and the one place that decides is
 # ci_gate_select_init: an event other than push, a new branch, a force-push, a
 # before this checkout cannot reach, an empty range or any failure to list the
@@ -151,6 +152,19 @@ JOB_GROUPS="Scripts/ci_job_groups.txt"
 usage() {
   echo "usage: run_ci_phase.sh <pre|post> <rows-file> <details-dir> [<job>]" >&2
   exit 64
+}
+
+# step_summary <what> <command> [<argument>...]: appends the command's output to
+# the run page's step summary when GITHUB_STEP_SUMMARY is set. A failed append
+# stops the phase, named: a summary that silently lost <what> would mislead.
+step_summary() {
+  local what="$1"
+  shift
+  [ -n "${GITHUB_STEP_SUMMARY:-}" ] || return 0
+  if ! "$@" >> "$GITHUB_STEP_SUMMARY"; then
+    echo "❌ FAIL: could not append ${what} to the step summary ${GITHUB_STEP_SUMMARY}" >&2
+    exit 1
+  fi
 }
 
 if [ "$#" -eq 1 ] && [ "$1" = "report-dir" ]; then
@@ -207,14 +221,15 @@ tmpdir_summary() {
   [ -z "${BUILDS_TMPDIR_WARNING:-}" ] || printf '  %s\n' "$BUILDS_TMPDIR_WARNING"
   # canon-block: builds-tmpdir v2 end
 }
+# tmpdir_summary_block: the temp folder rows as a block of the step summary.
+tmpdir_summary_block() {
+  printf '**CI %s**\n\n```\n' "$PHASE"
+  tmpdir_summary
+  printf '```\n\n'
+}
 if [ -n "$BUILDS_TMPDIR" ]; then
   tmpdir_summary
-  if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-    if ! { printf '**CI %s**\n\n```\n' "$PHASE"; tmpdir_summary; printf '```\n\n'; } >> "$GITHUB_STEP_SUMMARY"; then
-      echo "❌ FAIL: could not append the temp folder to the step summary ${GITHUB_STEP_SUMMARY}" >&2
-      exit 1
-    fi
-  fi
+  step_summary "the temp folder" tmpdir_summary_block
 fi
 
 if [ ! -f "$ORDER" ]; then
@@ -290,21 +305,16 @@ else
 fi
 if [ -n "$SELECT_NOTE" ]; then
   echo "Gate selection: ${SELECT_NOTE}"
-  if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-    if ! printf '**Gate selection (%s):** %s\n\n' "$PHASE" "$SELECT_NOTE" >> "$GITHUB_STEP_SUMMARY"; then
-      echo "❌ FAIL: could not append the gate selection to the step summary ${GITHUB_STEP_SUMMARY}" >&2
-      exit 1
-    fi
-  fi
+  step_summary "the gate selection" printf '**Gate selection (%s):** %s\n\n' "$PHASE" "$SELECT_NOTE"
 fi
 
 # record <label> <rc> <output> [<mark>]: the row and the details file for one
 # gate. A mark is given only for a gate the selector skipped.
 record() {
   local label="$1" rc="$2" out="$3" mark="${4:-}" slug
-  if [ -n "$mark" ]; then
-    :
-  elif [ "$rc" -eq 0 ]; then mark="✅"; else mark="❌"; fi
+  if [ -z "$mark" ]; then
+    if [ "$rc" -eq 0 ]; then mark="✅"; else mark="❌"; fi
+  fi
   printf '%s|%s\n' "$label" "$mark" >> "$ROWS"
   slug="$(printf '%s' "$label" | tr -c 'A-Za-z0-9' '_')"
   {
@@ -325,6 +335,28 @@ if ! tree_before="$(git status --porcelain 2>&1)"; then
   echo "❌ FAIL: git status failed in ${ROOT} — without it a gate that changes the tree cannot be told apart from one that does not: ${tree_before}" >&2
   exit 1
 fi
+
+# read_group_args <label>: this job's group row arguments for the gate, held
+# to the safe set and then split into the array gate_args by read -r -a, never
+# by eval or an unquoted expansion; refused ones set bad_args instead and leave
+# gate_args empty. Arguments also name the row: shown becomes
+# `<label> (<the words, the first without its leading dashes>)`. The caller
+# resets gate_args, bad_args and shown for each row.
+read_group_args() {
+  local args words
+  args="$(job_args "$1")"
+  case "$args" in
+    *[!A-Za-z0-9_./=\ -]*)
+      bad_args="its arguments '${args}' in ${JOB_GROUPS} hold a character other than letters, digits, _ . / = - and spaces"
+      return 0
+      ;;
+  esac
+  [ -n "$args" ] || return 0
+  read -r -a gate_args <<< "$args"
+  words="${gate_args[*]:-}"
+  [ -n "$words" ] || return 0
+  shown="${1} ($(printf '%s' "$words" | sed 's/^-*//'))"
+}
 
 # kill_descendants <pid>: SIGTERM to every process below <pid>, deepest first.
 kill_descendants() {
@@ -393,22 +425,10 @@ while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:
   fi
 
   ran=$((ran + 1))
-  # The group row's arguments: the safe set, then words by read -r -a.
-  args=""
   bad_args=""
   gate_args=()
   shown="$label"
-  if [ -z "$bad" ]; then
-    args="$(job_args "$label")"
-    case "$args" in
-      *[!A-Za-z0-9_./=\ -]*) bad_args="its arguments '${args}' in ${JOB_GROUPS} hold a character other than letters, digits, _ . / = - and spaces" ;;
-      *) [ -z "$args" ] || read -r -a gate_args <<< "$args" ;;
-    esac
-    words="${gate_args[*]:-}"
-    if [ -z "$bad_args" ] && [ -n "$words" ]; then
-      shown="${label} ($(printf '%s' "$words" | sed 's/^-*//'))"
-    fi
-  fi
+  [ -n "$bad" ] || read_group_args "$label"
   echo "::group::${shown}"
   skip_mark=""
 

@@ -426,10 +426,10 @@ default baseline with `Scripts/lib_browser_baseline.sh` by `uname -s`: Darwin
 `Scripts/browser_gate_baseline_linux.txt` and
 `Scripts/browser_gate_fixture_baseline_linux.txt`, and any other platform stops
 the gate with exit 2, never a guess. Both follow the same rules: an exact match,
-shrink-only, a reason on every row, a row only by a ruling. The Linux files are
-filled from the widths the first Quality run on `ubuntu-latest` measures
-(forsgren#642, step 2 fills them): that run is red on `Browser gates 3/3` by
-design, its FAIL lines naming each Linux width, and the owner rules on the rows.
+shrink-only, a reason on every row, a row only by a ruling. The Linux files hold
+the widths the first Quality run on `ubuntu-latest` measured (run 42393428814,
+forsgren#642 step 2): its FAIL lines named each Linux width, and the owner ruled
+on the rows.
 Its self-test
 `Scripts/test_gate_browser_baseline.sh` runs each wrapper with `uname` and
 `node` faked on PATH.
@@ -819,7 +819,7 @@ Nine PRE gates keep the CI honest:
   rows of the order file (n/a rows included), it may only go up, and a
   self-proof removes one row and requires the count to fall under it.
 - **CI phase runner** (`Scripts/test_run_ci_phase.sh`, the estate canon
-  `test_run_ci_phase v9` of `run_ci_phase v8`, whose canon home is forsgren
+  `test_run_ci_phase v10` of `run_ci_phase v9`, whose canon home is forsgren
   since forsgren#646, decision #647 A):
   runs `Scripts/run_ci_phase.sh` over the real order file with a stub at
   every declared path (each row must run exactly once, in its own phase, in
