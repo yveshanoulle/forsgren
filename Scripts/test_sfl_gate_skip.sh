@@ -16,7 +16,7 @@
 # marks directory outside the tree. Cases:
 #   1. only a docs file changed          -> all four skip, named, logged; the rest runs
 #   2. a file under the gate inputs      -> the two gates run, the two self-tests skip
-#   3. FORSGREN_GATE_SELECT_FULL=1       -> all four run, nothing logged; a stale log is emptied
+#   3. SFL_GATE_SELECT_FULL=1            -> all four run, nothing logged; a stale log is emptied
 #   4. CI (run_ci_phase.sh), docs change -> all four run
 # The optional first argument is the sfl.sh under test (default: the real one).
 #   5. FBP.sh's summary (forsgren#266): the gates the selection skipped, counted and
@@ -108,7 +108,7 @@ INPUTS
 run_sfl() {
   local root="$1" phase="$2"
   shift 2
-  OUT="$(cd "$root" && env -u GITHUB_ACTIONS -u FORSGREN_GATE_SELECT_FULL MARKS="$MARKS" "$@" ./sfl.sh "$phase" 2>&1)" && RC=0 || RC=$?
+  OUT="$(cd "$root" && env -u GITHUB_ACTIONS -u SFL_GATE_SELECT_FULL MARKS="$MARKS" "$@" ./sfl.sh "$phase" 2>&1)" && RC=0 || RC=$?
 }
 
 # run_both <root> [VAR=value...]: pre then post, the marks cleared first.
@@ -132,7 +132,7 @@ check_ran() {
 
 # check_skipped <case> <root> <mark> <label>: not run, named with its reason, logged.
 check_skipped() {
-  local reason="none of the 1 changed files is an input of $4"
+  local reason="[none_changed] none of the 1 changed files is an input of $4"
   if marked "$3"; then fail "$1 ${4} ran although no input of it changed. Output: ${OUT}"; else echo "  ok: $1 ${4} did not run"; fi
   want_said "$1 ${4} is named as skipped, with the reason" "⏭ skipped: ${4} (${reason})"
   if grep -qxF -- "${4}"$'\t'"${reason}" <<< "$(skips_log "$2")"; then
@@ -170,7 +170,7 @@ if skips_log "$root" | has -q "^${BG}"$'\t'; then fail "2. a selected gate is in
 root="$(make_root full)"
 echo 'changed' >> "${root}/docs/note.txt"
 printf 'stale gate\tstale reason\n' > "${root}/.build/sfl-skips.log"
-run_both "$root" FORSGREN_GATE_SELECT_FULL=1
+run_both "$root" SFL_GATE_SELECT_FULL=1
 for pair in "bst|${BST}" "fst|${FST}" "bg|${BG}" "fg|${FG}"; do
   check_ran "3." "${pair%%|*}" "${pair#*|}"
 done
@@ -182,7 +182,7 @@ echo 'changed' >> "${root}/docs/note.txt"
 rm -rf "$MARKS"
 mkdir -p "$MARKS"
 for phase in pre post; do
-  capture env -u GITHUB_ACTIONS -u FORSGREN_GATE_SELECT_FULL MARKS="$MARKS" RUN_CI_PHASE_ROOT="$root" \
+  capture env -u GITHUB_ACTIONS -u SFL_GATE_SELECT_FULL MARKS="$MARKS" RUN_CI_PHASE_ROOT="$root" \
     "${root}/Scripts/run_ci_phase.sh" "$phase" "${TMP}/ci-rows-${phase}" "${TMP}/ci-details-${phase}"
 done
 for pair in "bst|${BST}" "fst|${FST}" "bg|${BG}" "fg|${FG}"; do
@@ -202,15 +202,15 @@ fi
 # Case 5 (forsgren#266): FBP.sh's summary lists the gates sfl skipped by selection, each
 # with its reason, so a skipped gate is never read as a passed one. The stub sfl.sh
 # writes .build/sfl-skips.log; the real FBP.sh prints the summary.
-SKIP_LINES="${BST}"$'\t'"none of the 3 changed files is an input of ${BST}"$'\n'"${BG}"$'\t'"none of the 3 changed files is an input of ${BG}"
+SKIP_LINES="${BST}"$'\t'"[none_changed] none of the 3 changed files is an input of ${BST}"$'\n'"${BG}"$'\t'"[none_changed] none of the 3 changed files is an input of ${BG}"
 fbp_summary() {
   FBP_SANDBOX_SFL_SKIPS="$1" fbp_sandbox_run 3 --no-commit
   OUT="$FBP_SANDBOX_OUT"
 }
 fbp_summary "$SKIP_LINES"
 want_said "5. the FBP summary counts the gates skipped by selection" "gates skipped by selection: 2 (no changed file is an input of them; counted in the skipped totals above)"
-want_said "5. the FBP summary names the first skipped gate with its reason" "  ⏭ skipped: ${BST} (none of the 3 changed files is an input of ${BST})"
-want_said "5. the FBP summary names the second skipped gate with its reason" "  ⏭ skipped: ${BG} (none of the 3 changed files is an input of ${BG})"
+want_said "5. the FBP summary names the first skipped gate with its reason" "  ⏭ skipped: ${BST} ([none_changed] none of the 3 changed files is an input of ${BST})"
+want_said "5. the FBP summary names the second skipped gate with its reason" "  ⏭ skipped: ${BG} ([none_changed] none of the 3 changed files is an input of ${BG})"
 fbp_summary ""
 if grep -qF "skipped by selection" <<< "$OUT"; then fail "5. the FBP summary names skipped gates although sfl skipped none"; else echo "  ok: 5. a run that skipped nothing names nothing"; fi
 
@@ -221,7 +221,7 @@ mutant_root() {
   root="$(make_root "$1")"
   SFL_UNDER_TEST="$real"
 }
-REASON_BST="none of the 1 changed files is an input of ${BST}"
+REASON_BST="[none_changed] none of the 1 changed files is an input of ${BST}"
 if selftest_mutant "$SFL_UNDER_TEST" "${TMP}/mA/sfl.sh" 's/== skip:\* \]\]/== never-a-skip \]\]/'; then
   mutant_root mA "${TMP}/mA/sfl.sh"
   echo 'changed' >> "${root}/docs/note.txt"
@@ -246,7 +246,7 @@ if selftest_mutant "$SFL_UNDER_TEST" "${TMP}/mC/sfl.sh" '/^  : > ".SKIPS_SINK"$/
   mutant_root mC "${TMP}/mC/sfl.sh"
   echo 'changed' >> "${root}/docs/note.txt"
   printf 'stale gate\tstale reason\n' > "${root}/.build/sfl-skips.log"
-  run_both "$root" FORSGREN_GATE_SELECT_FULL=1
+  run_both "$root" SFL_GATE_SELECT_FULL=1
   if skips_log "$root" | has -qF "stale reason"; then
     echo "  ok: mutation proof C: a log pre never empties keeps a stale reason, which case 3 catches"
   else

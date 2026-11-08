@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Scripts/test_gate_select.sh (forsgren#262, step 2 of 3). Not canon: forsgren only.
+# It tests the canon lib_gate_select v2 (forsgren#651, decision #650 C): each answer
+# carries its reason code, `run: [in_row] ...`, and a failing git listing runs every gate.
 #
 # Self-test for gate_select in Scripts/lib_gate_select.sh. The real library runs in
 # a throwaway repository with a made-up list of two gates, alpha (inputs:
@@ -16,15 +18,16 @@
 #    9. a staged change                          -> alpha runs
 #   10. a committed change not yet on origin     -> alpha runs
 #   11. GITHUB_ACTIONS=true, nothing changed     -> run, Quality
-#   12. FORSGREN_GATE_SELECT_FULL=1              -> run, forced
+#   12. SFL_GATE_SELECT_FULL=1                   -> run, forced
 #   13. no origin/main                           -> run, naming why
+#  13b. git ls-files fails (forsgren#651)        -> run, every gate (fail-closed)
 #   14. a label with no list                     -> run, naming why
 #   22. no loop of the library reads a process substitution (forsgren#459); a label with no rows
 #       covers, excludes and greps nothing
 # Mutation proofs (each is wrong BECAUSE of the line mutated; the mutant must no
 # longer say the reason the real library gives):
 #   A. the Quality path removed:            case 11 loses "Quality runs every gate";
-#   B. the forced path removed:             case 12 loses "FORSGREN_GATE_SELECT_FULL=1";
+#   B. the forced path removed:             case 12 loses "SFL_GATE_SELECT_FULL=1";
 #   C. a missing origin/main not handled:   case 13 loses "no origin/main";
 #   D. the fail-safe removed:               case 6 loses "named by no gate's list";
 #   E. the out patterns ignored for a gate: case 4 loses its skip;
@@ -32,6 +35,7 @@
 #   G. a listed directory not covering its files: case 2 loses its run;
 #   M. a process substitution loop back in the library: the pin of case 22 fails;
 #   H. untracked files ignored:             case 8 loses its run;
+#   N. git ls-files not fail-closed:        case 13b loses "list_unreadable";
 #   I. no `none` rows in the list:          case 16a runs because the workflow is named by no list;
 #   J. the Scripts/ closure check removed:  case 21 loses its run for a script in a closure.
 #   K. the codescene-scores.json row removed from the real list: a ledger-only change
@@ -150,134 +154,158 @@ gate_select "$3"
 DRIVER
 # sel <label> [lib]: gate_select of the fixture, in a clean environment.
 sel() {
-  capture env -u GITHUB_ACTIONS -u FORSGREN_GATE_SELECT_FULL -u FORSGREN_GATE_INPUTS bash "${TMP}/drive.sh" "$FX" "${2:-Scripts/lib_gate_select.sh}" "$1"
+  capture env -u GITHUB_ACTIONS -u SFL_GATE_SELECT_FULL -u SFL_GATE_INPUTS bash "${TMP}/drive.sh" "$FX" "${2:-Scripts/lib_gate_select.sh}" "$1"
 }
 
 sel alpha
-want_exit "1a: nothing changed, alpha" 0 "skip: none of the 0 changed files is an input of alpha"
+want_exit "1a: nothing changed, alpha" 0 "skip: [no_changes] none of the 0 changed files is an input of alpha"
 sel beta
-want_exit "1b: nothing changed, beta" 0 "skip: none of the 0 changed files is an input of beta"
+want_exit "1b: nothing changed, beta" 0 "skip: [no_changes] none of the 0 changed files is an input of beta"
 
 echo 'package src // edit' >> "${FX}/src/a.go"
 sel alpha
-want_exit "2a: a file under alpha's directory, alpha" 0 "run: src/a.go is an input of alpha"
+want_exit "2a: a file under alpha's directory, alpha" 0 "run: [in_row] src/a.go is an input of alpha"
 sel beta
-want_exit "2b: the same change, beta" 0 "skip: none of the 1 changed files is an input of beta"
+want_exit "2b: the same change, beta" 0 "skip: [none_changed] none of the 1 changed files is an input of beta"
 reset
 
 echo '# edit' >> "${FX}/Scripts/beta.sh"
 sel beta
-want_exit "3a: beta's script, beta" 0 "run: Scripts/beta.sh is an input of beta"
+want_exit "3a: beta's script, beta" 0 "run: [in_row] Scripts/beta.sh is an input of beta"
 sel alpha
-want_exit "3b: beta's script, alpha" 0 "skip: none of the 1 changed files is an input of alpha"
+want_exit "3b: beta's script, alpha" 0 "skip: [none_changed] none of the 1 changed files is an input of alpha"
 reset
 
 echo 'package src' > "${FX}/src/a_test.go"
 "${G[@]}" -C "$FX" add src/a_test.go
 sel alpha
-want_exit "4a: a _test.go under alpha's directory, alpha" 0 "skip: none of the 1 changed files is an input of alpha"
+want_exit "4a: a _test.go under alpha's directory, alpha" 0 "skip: [none_changed] none of the 1 changed files is an input of alpha"
 sel beta
-want_exit "4b: the same file, beta" 0 "skip: none of the 1 changed files is an input of beta"
+want_exit "4b: the same file, beta" 0 "skip: [none_changed] none of the 1 changed files is an input of beta"
 reset
 
 echo 'package other' > "${FX}/other/x_test.go"
 sel alpha
-want_exit "4c: a _test.go no list covers (excluded, so not unknown), alpha" 0 "skip: none of the 1 changed files is an input of alpha"
+want_exit "4c: a _test.go no list covers (excluded, so not unknown), alpha" 0 "skip: [none_changed] none of the 1 changed files is an input of alpha"
 sel beta
-want_exit "4d: the same file, beta" 0 "skip: none of the 1 changed files is an input of beta"
+want_exit "4d: the same file, beta" 0 "skip: [none_changed] none of the 1 changed files is an input of beta"
 reset
 
 mkdir -p "${FX}/src/sub/testdata"
 echo 'golden' > "${FX}/src/sub/testdata_x"
 echo 'golden' > "${FX}/src/sub/testdata/x.golden"
 sel alpha
-want_exit "5a: testdata and a name that only contains it, alpha" 0 "run: src/sub/testdata_x is an input of alpha"
+want_exit "5a: testdata and a name that only contains it, alpha" 0 "run: [in_row] src/sub/testdata_x is an input of alpha"
 rm -f "${FX}/src/sub/testdata_x"
 sel alpha
-want_exit "5b: a testdata file alone, alpha" 0 "skip: none of the 1 changed files is an input of alpha"
+want_exit "5b: a testdata file alone, alpha" 0 "skip: [none_changed] none of the 1 changed files is an input of alpha"
 sel beta
-want_exit "5c: a testdata file alone, beta" 0 "skip: none of the 1 changed files is an input of beta"
+want_exit "5c: a testdata file alone, beta" 0 "skip: [none_changed] none of the 1 changed files is an input of beta"
 reset
 
 echo 'x' >> "${FX}/other/o.txt"
 sel alpha
-want_exit "6a: a file no list names, alpha" 0 "run: other/o.txt is named by no gate's list, so every gate runs"
+want_exit "6a: a file no list names, alpha" 0 "run: [unknown_file] other/o.txt is named by no gate's list, so every gate runs"
 sel beta
-want_exit "6b: a file no list names, beta" 0 "run: other/o.txt is named by no gate's list, so every gate runs"
+want_exit "6b: a file no list names, beta" 0 "run: [unknown_file] other/o.txt is named by no gate's list, so every gate runs"
 reset
 
 echo 'more' >> "${FX}/NOTES.md"
 sel alpha
-want_exit "7: a markdown file" 0 "skip: none of the 0 changed files is an input of alpha"
+want_exit "7: a markdown file" 0 "skip: [no_changes] none of the 0 changed files is an input of alpha"
 reset
 
 echo 'package src' > "${FX}/src/new.go"
 sel alpha
-want_exit "8: an untracked new file under alpha's directory" 0 "run: src/new.go is an input of alpha"
+want_exit "8: an untracked new file under alpha's directory" 0 "run: [in_row] src/new.go is an input of alpha"
 reset
 
 echo 'package src // staged' >> "${FX}/src/a.go"
 "${G[@]}" -C "$FX" add src/a.go
 sel alpha
-want_exit "9: a staged change" 0 "run: src/a.go is an input of alpha"
+want_exit "9: a staged change" 0 "run: [in_row] src/a.go is an input of alpha"
 reset
 
 echo 'package src // committed' >> "${FX}/src/a.go"
 "${G[@]}" -C "$FX" commit -q -a -m "not yet on origin"
 sel alpha
-want_exit "10: a committed change not yet on origin" 0 "run: src/a.go is an input of alpha"
+want_exit "10: a committed change not yet on origin" 0 "run: [in_row] src/a.go is an input of alpha"
 reset
 
-capture env -u FORSGREN_GATE_SELECT_FULL GITHUB_ACTIONS=true bash "${TMP}/drive.sh" "$FX" Scripts/lib_gate_select.sh alpha
-want_exit "11: GITHUB_ACTIONS=true, nothing changed" 0 "run: full run (Quality runs every gate)"
+capture env -u SFL_GATE_SELECT_FULL GITHUB_ACTIONS=true bash "${TMP}/drive.sh" "$FX" Scripts/lib_gate_select.sh alpha
+want_exit "11: GITHUB_ACTIONS=true, nothing changed" 0 "run: [ci_full] full run (Quality runs every gate)"
 
-capture env -u GITHUB_ACTIONS FORSGREN_GATE_SELECT_FULL=1 bash "${TMP}/drive.sh" "$FX" Scripts/lib_gate_select.sh alpha
-want_exit "12: FORSGREN_GATE_SELECT_FULL=1, nothing changed" 0 "run: full run (FORSGREN_GATE_SELECT_FULL=1)"
+capture env -u GITHUB_ACTIONS SFL_GATE_SELECT_FULL=1 bash "${TMP}/drive.sh" "$FX" Scripts/lib_gate_select.sh alpha
+want_exit "12: SFL_GATE_SELECT_FULL=1, nothing changed" 0 "run: [forced_full] full run (SFL_GATE_SELECT_FULL=1)"
 
 git -C "$FX" update-ref -d refs/remotes/origin/main
 sel alpha
-want_exit "13: no origin/main" 0 "run: full run (no origin/main to compare against)"
+want_exit "13: no origin/main" 0 "run: [list_unreadable] full run (the change set could not be read: no origin/main to compare against, or git failed)"
 git -C "$FX" fetch -q origin
 
+# 13b (forsgren#651, decision #650 C): a failing `git ls-files` is no change set, so
+# every gate runs (fail-closed), never a selection over fewer files. A git on PATH that
+# fails `ls-files` and passes everything else to the real git; beta's input changed, so
+# without the fail-closed line alpha would skip.
+FAKE_BIN="${TMP}/fake_git_bin"
+mkdir -p "$FAKE_BIN"
+REAL_GIT="$(command -v git)"
+cat > "${FAKE_BIN}/git" <<FAKE
+#!/usr/bin/env bash
+for a in "\$@"; do
+  if [[ "\$a" == ls-files ]]; then echo "fake git: ls-files fails" >&2; exit 128; fi
+done
+exec "${REAL_GIT}" "\$@"
+FAKE
+chmod +x "${FAKE_BIN}/git"
+# sel_nolist <label> [lib]: sel, with `git ls-files` failing.
+sel_nolist() {
+  capture env -u GITHUB_ACTIONS -u SFL_GATE_SELECT_FULL -u SFL_GATE_INPUTS PATH="${FAKE_BIN}:${PATH}" bash "${TMP}/drive.sh" "$FX" "${2:-Scripts/lib_gate_select.sh}" "$1"
+}
+echo '# edit' >> "${FX}/Scripts/beta.sh"
+sel_nolist alpha
+want_exit "13b: git ls-files fails, alpha runs (every gate, fail-closed)" 0 "run: [list_unreadable] full run"
+reset
+
 sel gamma
-want_exit "14: a label with no list" 0 "run: gamma has no input list in Scripts/gate_inputs.txt"
+want_exit "14: a label with no list" 0 "run: [no_in_rows] gamma has no input list in Scripts/gate_inputs.txt"
 
 
 # 16-21: the files that are known to be unrelated select nothing.
 echo '# edit' >> "${FX}/.github/workflows/w.yml"
 sel alpha
-want_exit "16a: a workflow only, alpha" 0 "skip: none of the 1 changed files is an input of alpha"
+want_exit "16a: a workflow only, alpha" 0 "skip: [none_changed] none of the 1 changed files is an input of alpha"
 sel beta
-want_exit "16b: a workflow only, beta" 0 "skip: none of the 1 changed files is an input of beta"
+want_exit "16b: a workflow only, beta" 0 "skip: [none_changed] none of the 1 changed files is an input of beta"
 reset
 
 echo 'more' >> "${FX}/docs/guide.txt"
 sel alpha
-want_exit "17: a docs file only" 0 "skip: none of the 1 changed files is an input of alpha"
+want_exit "17: a docs file only" 0 "skip: [none_changed] none of the 1 changed files is an input of alpha"
 reset
 
 echo '# edit' >> "${FX}/Scripts/release_x.sh"
 sel alpha
-want_exit "18: a release script only" 0 "skip: none of the 1 changed files is an input of alpha"
+want_exit "18: a release script only" 0 "skip: [none_changed] none of the 1 changed files is an input of alpha"
 reset
 
 echo '# edit' >> "${FX}/Scripts/check_other.sh"
 sel alpha
-want_exit "19a: a script in no gate's closure, alpha" 0 "skip: none of the 1 changed files is an input of alpha"
+want_exit "19a: a script in no gate's closure, alpha" 0 "skip: [none_changed] none of the 1 changed files is an input of alpha"
 sel beta
-want_exit "19b: a script in no gate's closure, beta" 0 "skip: none of the 1 changed files is an input of beta"
+want_exit "19b: a script in no gate's closure, beta" 0 "skip: [none_changed] none of the 1 changed files is an input of beta"
 reset
 
 echo 'x' > "${FX}/newtop.txt"
 sel alpha
-want_exit "20a: a new top-level file, alpha (fail-safe)" 0 "run: newtop.txt is named by no gate's list, so every gate runs"
+want_exit "20a: a new top-level file, alpha (fail-safe)" 0 "run: [unknown_file] newtop.txt is named by no gate's list, so every gate runs"
 sel beta
-want_exit "20b: a new top-level file, beta (fail-safe)" 0 "run: newtop.txt is named by no gate's list, so every gate runs"
+want_exit "20b: a new top-level file, beta (fail-safe)" 0 "run: [unknown_file] newtop.txt is named by no gate's list, so every gate runs"
 reset
 
 echo '# edit' >> "${FX}/Scripts/helper.sh"
 sel beta
-want_exit "21: a script in alpha's closure that its list forgot (fail-safe)" 0 "run: Scripts/helper.sh is named by no gate's list, so every gate runs"
+want_exit "21: a script in alpha's closure that its list forgot (fail-safe)" 0 "run: [closure] Scripts/helper.sh is named by no gate's list, so every gate runs"
 reset
 
 # 22-24 (forsgren#284): the real list, in the fixture. A commit that changes only
@@ -287,7 +315,7 @@ REAL_INPUTS="${REPO_ROOT}/Scripts/gate_inputs.txt"
 BROWSER_LABELS=("browser gate self-test" "browser gate" "browser gate (fixture site) self-test" "browser gate (fixture site)")
 # sel_real <label> [inputs-file]: gate_select of the fixture over the real list (or another).
 sel_real() {
-  capture env -u GITHUB_ACTIONS -u FORSGREN_GATE_SELECT_FULL FORSGREN_GATE_INPUTS="${2:-$REAL_INPUTS}" bash "${TMP}/drive.sh" "$FX" Scripts/lib_gate_select.sh "$1"
+  capture env -u GITHUB_ACTIONS -u SFL_GATE_SELECT_FULL SFL_GATE_INPUTS="${2:-$REAL_INPUTS}" bash "${TMP}/drive.sh" "$FX" Scripts/lib_gate_select.sh "$1"
 }
 # real_case <case> <file> <want-prefix>: the file alone changed; each browser label says the wanted line.
 real_case() {
@@ -296,9 +324,9 @@ real_case() {
   for label in "${BROWSER_LABELS[@]}"; do
     sel_real "$label"
     if [[ "$3" == skip ]]; then
-      want_exit "$1: only $2 changed, ${label}" 0 "skip: none of the 1 changed files is an input of ${label}"
+      want_exit "$1: only $2 changed, ${label}" 0 "skip: [none_changed] none of the 1 changed files is an input of ${label}"
     else
-      want_exit "$1: only $2 changed, ${label} (fail-safe)" 0 "run: $2 is named by no gate's list, so every gate runs"
+      want_exit "$1: only $2 changed, ${label} (fail-safe)" 0 "run: [unknown_file] $2 is named by no gate's list, so every gate runs"
     fi
   done
   reset
@@ -318,16 +346,16 @@ rw_case() {
   want_exit "$1: only $2 changed, $RW" 0 "$3"
   reset
 }
-rw_case 25 .github/workflows/release.yml "run: .github/workflows/release.yml is an input of $RW"
-rw_case 26 Scripts/test_release_workflow.sh "run: Scripts/test_release_workflow.sh is an input of $RW"
-rw_case 27 Scripts/release_plan.sh "run: Scripts/release_plan.sh is an input of $RW"
-rw_case 28 Scripts/test_release_plan.sh "skip: none of the 1 changed files is an input of $RW"
-rw_case 29 .github/workflows/w.yml "skip: none of the 1 changed files is an input of $RW"
-rw_case 30 sfl.sh "skip: none of the 1 changed files is an input of $RW"
-rw_case 31 other/o.txt "run: other/o.txt is named by no gate's list, so every gate runs"
+rw_case 25 .github/workflows/release.yml "run: [in_row] .github/workflows/release.yml is an input of $RW"
+rw_case 26 Scripts/test_release_workflow.sh "run: [in_row] Scripts/test_release_workflow.sh is an input of $RW"
+rw_case 27 Scripts/release_plan.sh "run: [in_row] Scripts/release_plan.sh is an input of $RW"
+rw_case 28 Scripts/test_release_plan.sh "skip: [none_changed] none of the 1 changed files is an input of $RW"
+rw_case 29 .github/workflows/w.yml "skip: [none_changed] none of the 1 changed files is an input of $RW"
+rw_case 30 sfl.sh "skip: [none_changed] none of the 1 changed files is an input of $RW"
+rw_case 31 other/o.txt "run: [unknown_file] other/o.txt is named by no gate's list, so every gate runs"
 echo "# edit" >> "${FX}/Scripts/release_plan.sh"
-capture env -u FORSGREN_GATE_SELECT_FULL GITHUB_ACTIONS=true FORSGREN_GATE_INPUTS="$REAL_INPUTS" bash "${TMP}/drive.sh" "$FX" Scripts/lib_gate_select.sh "$RW"
-want_exit "32: CI runs the release workflow gate whatever changed" 0 "run: full run (Quality runs every gate)"
+capture env -u SFL_GATE_SELECT_FULL GITHUB_ACTIONS=true SFL_GATE_INPUTS="$REAL_INPUTS" bash "${TMP}/drive.sh" "$FX" Scripts/lib_gate_select.sh "$RW"
+want_exit "32: CI runs the release workflow gate whatever changed" 0 "run: [ci_full] full run (Quality runs every gate)"
 reset
 
 # 33-41 (forsgren#264): the step summary isolation gate, on the real list. It runs for
@@ -348,16 +376,16 @@ si_new() {
   want_exit "$1: only the new $2, $SI" 0 "$4"
   rm -f "${FX}/$2"
 }
-si_case 33 Scripts/lib_summary_writers.sh "run: Scripts/lib_summary_writers.sh is an input of $SI"
-si_case 34 Scripts/release_plan.sh "run: Scripts/release_plan.sh is an input of $SI"
-si_case 35 Scripts/check_other.sh "skip: none of the 1 changed files is an input of $SI"
-si_case 36 docs/guide.txt "skip: none of the 1 changed files is an input of $SI"
-si_new 37 Scripts/zz_new_writer.sh "echo x >> \"\$GITHUB_STEP_SUMMARY\"" "run: Scripts/zz_new_writer.sh says what $SI discovers its inputs by"
-si_new 38 Scripts/zz_quiet.sh 'echo quiet' "skip: none of the 1 changed files is an input of $SI"
-si_case 39 other/o.txt "run: other/o.txt is named by no gate's list, so every gate runs"
+si_case 33 Scripts/lib_summary_writers.sh "run: [in_row] Scripts/lib_summary_writers.sh is an input of $SI"
+si_case 34 Scripts/release_plan.sh "run: [in_row] Scripts/release_plan.sh is an input of $SI"
+si_case 35 Scripts/check_other.sh "skip: [none_changed] none of the 1 changed files is an input of $SI"
+si_case 36 docs/guide.txt "skip: [none_changed] none of the 1 changed files is an input of $SI"
+si_new 37 Scripts/zz_new_writer.sh "echo x >> \"\$GITHUB_STEP_SUMMARY\"" "run: [grep_row] Scripts/zz_new_writer.sh says what $SI discovers its inputs by"
+si_new 38 Scripts/zz_quiet.sh 'echo quiet' "skip: [none_changed] none of the 1 changed files is an input of $SI"
+si_case 39 other/o.txt "run: [unknown_file] other/o.txt is named by no gate's list, so every gate runs"
 echo "# edit" >> "${FX}/Scripts/check_other.sh"
-capture env -u FORSGREN_GATE_SELECT_FULL GITHUB_ACTIONS=true FORSGREN_GATE_INPUTS="$REAL_INPUTS" bash "${TMP}/drive.sh" "$FX" Scripts/lib_gate_select.sh "$SI"
-want_exit "40: CI runs the step summary isolation gate whatever changed" 0 "run: full run (Quality runs every gate)"
+capture env -u SFL_GATE_SELECT_FULL GITHUB_ACTIONS=true SFL_GATE_INPUTS="$REAL_INPUTS" bash "${TMP}/drive.sh" "$FX" Scripts/lib_gate_select.sh "$SI"
+want_exit "40: CI runs the step summary isolation gate whatever changed" 0 "run: [ci_full] full run (Quality runs every gate)"
 reset
 
 # 41-54 (forsgren#402): a Go step that touches the score ledger and the coverage
@@ -375,7 +403,7 @@ skips() {
   shift 3
   for label in "$@"; do
     sel_real "$label"
-    want_exit "$c: ${what}, ${label}" 0 "skip: none of the ${n} changed files is an input of ${label}"
+    want_exit "$c: ${what}, ${label}" 0 "skip: [none_changed] none of the ${n} changed files is an input of ${label}"
   done
 }
 echo '{}' >> "${FX}/${SCORES_FILE}"
@@ -390,7 +418,7 @@ skips 42 "a Go-only step (internal/x.go, ${FLOORS_FILE}, ${SCORES_FILE})" 3 "${S
 # The fixture self-test builds the fixture site from the Go tree (its case 7), so it runs too.
 for label in "browser gate" "browser gate (fixture site)" "browser gate (fixture site) self-test"; do
   sel_real "$label"
-  want_exit "42b: the same Go-only step still runs ${label}, which builds or opens the Go tree site" 0 "run: internal/x.go is an input of ${label}"
+  want_exit "42b: the same Go-only step still runs ${label}, which builds or opens the Go tree site" 0 "run: [in_row] internal/x.go is an input of ${label}"
 done
 reset
 
@@ -399,7 +427,7 @@ own_script() {
   mkdir -p "${FX}/$(dirname "$3")"
   echo '# edit' >> "${FX}/$3"
   sel_real "$2"
-  want_exit "$1: only $3 changed, $2" 0 "run: $3 is an input of $2"
+  want_exit "$1: only $3 changed, $2" 0 "run: [in_row] $3 is an input of $2"
   reset
 }
 own_script 43 "metrics workflow" Scripts/test_metrics_workflow.sh
@@ -430,13 +458,13 @@ for f in "${CMD_GO}.go" "${PGE_GO}.go" "${INST_GO}.go" go.mod go.sum; do
   mkdir -p "${FX}/$(dirname "$f")"
   echo '# edit' >> "${FX}/${f}"
   sel_real "metrics workflow"
-  want_exit "63a: only ${f} changed, metrics workflow" 0 "run: ${f} is an input of metrics workflow"
+  want_exit "63a: only ${f} changed, metrics workflow" 0 "run: [in_row] ${f} is an input of metrics workflow"
   reset
 done
 mkdir -p "${FX}/cmd/forsgren"
 echo '# edit' >> "${FX}/${CMD_GO}_test.go"
 sel_real "metrics workflow"
-want_exit "63b: only ${CMD_GO}_test.go changed, metrics workflow" 0 "skip: none of the 1 changed files is an input of metrics workflow"
+want_exit "63b: only ${CMD_GO}_test.go changed, metrics workflow" 0 "skip: [none_changed] none of the 1 changed files is an input of metrics workflow"
 reset
 # 63c (mutation, forsgren#590): with the metrics workflow's cmd/ row dropped the list
 # skips a change under cmd/forsgren/, so case 63a is a proof, not a pass.
@@ -445,7 +473,7 @@ if cmp -s "$REAL_INPUTS" "${TMP}/no_cmd_row.txt"; then fail "mutation 63c change
 mkdir -p "${FX}/$(dirname "${CMD_GO}")"
 echo '# edit' >> "${FX}/${CMD_GO}.go"
 sel_real "metrics workflow" "${TMP}/no_cmd_row.txt"
-want_exit "63c: mutation, the cmd/ row dropped, ${CMD_GO}.go alone is skipped" 0 "skip: none of the 1 changed files is an input of metrics workflow"
+want_exit "63c: mutation, the cmd/ row dropped, ${CMD_GO}.go alone is skipped" 0 "skip: [none_changed] none of the 1 changed files is an input of metrics workflow"
 reset
 # The floors are not read by the step summary isolation test: its row is gone.
 echo '{}' >> "${FX}/${FLOORS_FILE}"
@@ -459,7 +487,7 @@ mkdir -p "${FX}/install"
 echo 'package install' > "${FX}/${INST_GO}.go"
 for label in "browser gate" "browser gate (fixture site)" "browser gate (fixture site) self-test"; do
   sel_real "$label"
-  want_exit "55a: only ${INST_GO}.go changed, ${label}" 0 "run: ${INST_GO}.go is an input of ${label}"
+  want_exit "55a: only ${INST_GO}.go changed, ${label}" 0 "run: [in_row] ${INST_GO}.go is an input of ${label}"
 done
 skips 55b "only ${INST_GO}.go changed" 1 "browser gate self-test" "release workflow" "${SLOW_NOGO[@]}"
 reset
@@ -503,9 +531,9 @@ if mutant A 's/"[$]{GITHUB_ACTIONS:-}" == "true"/"never" == "true"/'; then
   proof A "Quality runs every gate" "with the Quality path removed, case 11 no longer says Quality runs every gate"
 fi
 
-if mutant B 's/"[$]{FORSGREN_GATE_SELECT_FULL:-}" == "1"/"never" == "1"/'; then
-  capture env -u GITHUB_ACTIONS FORSGREN_GATE_SELECT_FULL=1 bash "${TMP}/drive.sh" "$FX" Scripts/mutant_B.sh alpha
-  proof B "FORSGREN_GATE_SELECT_FULL=1" "with the forced path removed, case 12 no longer says it was forced"
+if mutant B 's/"[$]{SFL_GATE_SELECT_FULL:-}" == "1"/"never" == "1"/'; then
+  capture env -u GITHUB_ACTIONS SFL_GATE_SELECT_FULL=1 bash "${TMP}/drive.sh" "$FX" Scripts/mutant_B.sh alpha
+  proof B "SFL_GATE_SELECT_FULL=1" "with the forced path removed, case 12 no longer says it was forced"
 fi
 
 if mutant C 's/if ! changed="[$](changed_files)"; then/changed=""; if false; then/'; then
@@ -526,28 +554,37 @@ echo 'package src' > "${FX}/src/a_test.go"
 "${G[@]}" -C "$FX" add src/a_test.go
 if mutant E 's/ && ! gate_input_excluded "[$]inputs" "[$]label" "[$]c"; then/; then/'; then
   sel alpha Scripts/mutant_E.sh
-  proof E "skip: none of the 1 changed files is an input of alpha" "with the out patterns ignored for the gate, case 4a no longer skips"
+  proof E "skip: [none_changed] none of the 1 changed files is an input of alpha" "with the out patterns ignored for the gate, case 4a no longer skips"
 fi
 reset
 
 echo 'package other' > "${FX}/other/x_test.go"
 if mutant F 's/ && ! gate_input_excluded "[$]inputs" "" "[$]c"; then/; then/'; then
   sel alpha Scripts/mutant_F.sh
-  proof F "skip: none of the 1 changed files is an input of alpha" "with out files counted as unknown, case 4c runs every gate instead of skipping"
+  proof F "skip: [none_changed] none of the 1 changed files is an input of alpha" "with out files counted as unknown, case 4c runs every gate instead of skipping"
 fi
 reset
 
 echo 'package src // edit' >> "${FX}/src/a.go"
 if mutant G 's/\[\[ "[$]3" == "[$]p"[*] \]\]/false/'; then
   sel alpha Scripts/mutant_G.sh
-  proof G "run: src/a.go is an input of alpha" "with a listed directory not covering its files, case 2a no longer runs"
+  proof G "run: [in_row] src/a.go is an input of alpha" "with a listed directory not covering its files, case 2a no longer runs"
 fi
 reset
 
 echo 'package src' > "${FX}/src/new.go"
-if mutant H 's/; git ls-files --others --exclude-standard;/;/'; then
+if mutant H 's/^  untracked="[$](git ls-files --others --exclude-standard)" || return 1$/  untracked=""/'; then
   sel alpha Scripts/mutant_H.sh
-  proof H "run: src/new.go is an input of alpha" "with untracked files ignored, case 8 no longer runs"
+  proof H "run: [in_row] src/new.go is an input of alpha" "with untracked files ignored, case 8 no longer runs"
+fi
+reset
+
+# N (forsgren#651): without the fail-closed `|| return 1` a failing git ls-files is
+# read as no untracked file, and case 13b selects over fewer files instead of all.
+echo '# edit' >> "${FX}/Scripts/beta.sh"
+if mutant N 's/^  untracked="\([$](git ls-files --others --exclude-standard)\)" || return 1$/  untracked="\1"/'; then
+  sel_nolist alpha Scripts/mutant_N.sh
+  proof N "list_unreadable" "with a failing git ls-files read as no untracked file, case 13b no longer runs every gate"
 fi
 reset
 
@@ -555,15 +592,15 @@ reset
 # I: without the none rows the workflow case runs (a list with the rows removed).
 grep -v '^none|' "${FX}/Scripts/gate_inputs.txt" > "${TMP}/no_none.txt"
 echo '# edit' >> "${FX}/.github/workflows/w.yml"
-capture env -u GITHUB_ACTIONS -u FORSGREN_GATE_SELECT_FULL FORSGREN_GATE_INPUTS="${TMP}/no_none.txt" bash "${TMP}/drive.sh" "$FX" Scripts/lib_gate_select.sh alpha
-proof I "skip: none of the 1 changed files is an input of alpha" "without the none rows, case 16a runs because the workflow is named by no list"
+capture env -u GITHUB_ACTIONS -u SFL_GATE_SELECT_FULL SFL_GATE_INPUTS="${TMP}/no_none.txt" bash "${TMP}/drive.sh" "$FX" Scripts/lib_gate_select.sh alpha
+proof I "skip: [none_changed] none of the 1 changed files is an input of alpha" "without the none rows, case 16a runs because the workflow is named by no list"
 reset
 
 # J: with the Scripts/ closure check removed, a script that IS in a closure is taken for unrelated.
 echo '# edit' >> "${FX}/Scripts/helper.sh"
 if mutant J 's/grep -qxF -- "[$]1" <<< "[$]related"/false/'; then
   sel beta Scripts/mutant_J.sh
-  proof J "run: Scripts/helper.sh is named by no gate's list" "without the closure check, case 21 no longer runs for a script that is in a closure"
+  proof J "run: [closure] Scripts/helper.sh is named by no gate's list" "without the closure check, case 21 no longer runs for a script that is in a closure"
 fi
 reset
 
@@ -575,7 +612,7 @@ grep -vxF "none|out|${SCORES_FILE}" "$REAL_INPUTS" > "${TMP}/no_scores.txt"
 if cmp -s "$REAL_INPUTS" "${TMP}/no_scores.txt"; then fail "mutation K changed nothing: the proof would be vacuous"; fi
 echo '{}' >> "${FX}/${SCORES_FILE}"
 sel_real "browser gate" "${TMP}/no_scores.txt"
-want_exit "mutation proof K: without the ledger row, a ledger-only commit runs the browser gate" 0 "run: ${SCORES_FILE} is named by no gate's list, so every gate runs"
+want_exit "mutation proof K: without the ledger row, a ledger-only commit runs the browser gate" 0 "run: [unknown_file] ${SCORES_FILE} is named by no gate's list, so every gate runs"
 reset
 
 # L (forsgren#264): without the `grep` row the gate's own discovery is not a selector
@@ -584,7 +621,7 @@ grep -v '^step summary isolation|grep|' "$REAL_INPUTS" > "${TMP}/no_grep.txt"
 if cmp -s "$REAL_INPUTS" "${TMP}/no_grep.txt"; then fail "mutation L changed nothing: the proof would be vacuous"; fi
 printf 'echo x >> "$%s"\n' GITHUB_STEP_SUMMARY > "${FX}/Scripts/zz_new_writer.sh"
 sel_real "$SI" "${TMP}/no_grep.txt"
-want_exit "mutation proof L: without the grep row, a new summary writer skips the gate" 0 "skip: none of the 1 changed files is an input of $SI"
+want_exit "mutation proof L: without the grep row, a new summary writer skips the gate" 0 "skip: [none_changed] none of the 1 changed files is an input of $SI"
 rm -f "${FX}/Scripts/zz_new_writer.sh"
 
 # 22 (forsgren#459): the library reads no loop's rows through a process substitution.
@@ -615,4 +652,4 @@ if mutant M 's/done <<< "[$]tokens"/done < <(cat)/'; then
   fi
 fi
 
-selftest_end "the gate select self-test failed" "gate_select: sixty-four cases hold, thirteen mutations seen"
+selftest_end "the gate select self-test failed" "gate_select: sixty-five cases hold, fourteen mutations seen"

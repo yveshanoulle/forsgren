@@ -903,11 +903,13 @@ browser gate (default TBD fixture)|Scripts/gate_browser_fixture_default.sh|post|
 # sits right after the rows it describes and, a pure file check, runs in pre.
 browser gate inputs self-test|Scripts/test_gate_inputs.sh|pre|
 #
-# The selector over that list (forsgren#262, step 2 of 3, not canon: forsgren only).
+# The selector over that list (forsgren#262, step 2 of 3; since forsgren#651 the
+# canon lib_gate_select v2 of the sites, byte for byte; its self-test is forsgren's).
 # Scripts/lib_gate_select.sh holds changed_files, named_files, closure and
-# gate_select <label>, which says `run: <reason>` or `skip: <reason>` from the files
-# a commit changed; a changed file no list names selects every gate (fail-safe), and
-# Quality, FORSGREN_GATE_SELECT_FULL=1 and a missing origin/main select all. This
+# gate_select <label>, which says `run: [<code>] <reason>` or `skip: [<code>] <reason>`
+# from the files a commit changed; a changed file no list names selects every gate
+# (fail-safe), and Quality, SFL_GATE_SELECT_FULL=1, a missing origin/main and a
+# failing git diff or ls-files (fail-closed) select all. This
 # self-test runs it in throwaway repositories, with ten mutation proofs. sfl.sh
 # calls gate_select before each browser row (step 3, the row below).
 browser gate selection self-test|Scripts/test_gate_select.sh|pre|

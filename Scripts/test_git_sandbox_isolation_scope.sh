@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_git_sandbox_isolation_scope v4
+# canon: test_git_sandbox_isolation_scope v5
+# v5 (forsgren#651, decision #650 C): mutation D empties the untracked line of the canon lib_gate_select v2 (`untracked="$(git ls-files --others --exclude-standard)" || return 1`), the one selector form of forsgren and the sites.
 # v4 (forsgren#633): case 25 is red when the weights file is missing or lists none of the self-tests (before, it passed on "0 and 0"); mutations O (file missing) and P (no self-test listed).
 # v3 (forsgren#446): cases 25 to 28 over the real list, case 29 over a fixture where only the weights balance (weights balance the shards within 10 seconds, each self-test once, a new one in one shard, no stale weight row), mutations K (retargeted), M and N.
 # v2 (forsgren#426): cases 20 to 24 and mutations K and L for the --shard argument.
@@ -573,7 +574,7 @@ if mutate 's/"[$]{GITHUB_ACTIONS:-}" == "true"/"never" == "true"/'; then
   restore
 fi
 
-if mutate_lib 's/; git ls-files --others --exclude-standard;/;/'; then
+if mutate_lib 's/^  untracked="[$](git ls-files --others --exclude-standard)" || return 1$/  untracked=""/'; then
   printf '#!/usr/bin/env bash\ngit --version > /dev/null\n' > "${FX}/Scripts/test_e.sh"
   iso
   proof D "isolation: 1 of 4" "with untracked files ignored, case 6 loses the new self-test"

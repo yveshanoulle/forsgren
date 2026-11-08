@@ -455,6 +455,11 @@ step summary isolation|in|Scripts/test_workflow_checkout_pins_mutations.sh
 step summary isolation|in|Scripts/test_workflow_checkout_pins.sh
 step summary isolation|in|Scripts/validate_required_pages.sh
 step summary isolation|in|sfl.sh
+# The canon lib_gate_select v2 (forsgren#651) follows the .awk files a script names,
+# so the markdown helpers of the links gate are in that closure too:
+step summary isolation|in|Scripts/extract_markdown_links.awk
+step summary isolation|in|Scripts/markdown_heading_slugs.awk
+step summary isolation|in|Scripts/strip_markdown_code.awk
 
 # --- metrics workflow (forsgren#402) --------------------------------------
 # Scripts/test_metrics_workflow.sh pins metrics.yml, runs its steps with stubs and

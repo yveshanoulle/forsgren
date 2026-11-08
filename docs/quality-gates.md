@@ -885,10 +885,16 @@ The POST gates, on the generated site:
   never a change for the selector, so it selects nothing.
 
 - **browser gate selection** (`Scripts/lib_gate_select.sh`, self-test
-  `Scripts/test_gate_select.sh`, forsgren#262 step 2 of 3, forsgren only, not
-  canon): `gate_select <label>` prints `run: <reason>` or `skip: <reason>` from the
-  files changed against the merge base with origin/main (committed, staged,
-  unstaged and untracked; markdown is prose) and `Scripts/gate_inputs.txt`. A
+  `Scripts/test_gate_select.sh`, forsgren#262 step 2 of 3; the library is the
+  canon `lib_gate_select v2` of the sites since forsgren#651, decision #650 C, the
+  self-test forsgren's own): `gate_select <label>` prints `run: [<code>] <reason>`
+  or `skip: [<code>] <reason>` (a stable reason code: `ci_full`, `forced_full`,
+  `list_unreadable`, `no_in_rows`, `unknown_file`, `closure`, `in_row`,
+  `grep_row`, `no_changes`, `none_changed`) from the files changed against the
+  merge base with origin/main (committed, staged, unstaged and untracked, both
+  paths of a rename; markdown is prose) and `Scripts/gate_inputs.txt`.
+  Fail-closed: a failing `git diff` or `git ls-files` is no change set, so every
+  gate runs. A
   changed file under one of the gate's inputs, and matching none of its
   exclusions, selects it. FAIL-SAFE: a changed file that no gate's list names,
   neither as an input nor as an excluded pattern, selects every listed gate. Files
@@ -898,12 +904,12 @@ The POST gates, on the generated site:
   forsgren#284) and a file under `Scripts/`
   that is in the closure of no gate's script, so a commit that touches only
   those skips all four; a new top-level file or directory still runs them.
-  `GITHUB_ACTIONS=true` (Quality), `FORSGREN_GATE_SELECT_FULL=1`, a missing
+  `GITHUB_ACTIONS=true` (Quality), `SFL_GATE_SELECT_FULL=1`, a missing
   origin/main and a label no list holds select all. `changed_files`, `named_files`
   and `closure` live there and the git sandbox isolation gate sources them. The
-  self-test runs it in throwaway repositories (fifty-four cases; 22 to 54 on the
-  real list: only `sfl.sh`, only `FBP.sh`, and a file no list names) with eleven
-  mutation proofs, each asserting the reason text.
+  self-test runs it in throwaway repositories (sixty-five cases; 22 to 63 on the
+  real list: only `sfl.sh`, only `FBP.sh`, and a file no list names; 13b a failing
+  `git ls-files`) with fourteen mutation proofs, each asserting the reason text.
 
 - **browser gate skip** (`sfl.sh`, self-test `Scripts/test_sfl_gate_skip.sh`,
   forsgren#262 step 3 of 3, forsgren only, not canon): before a row whose label

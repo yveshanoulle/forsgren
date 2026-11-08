@@ -195,7 +195,7 @@ rm -f "$STOP_SINK"
 
 # forsgren#262, step 3 of 3: GATE SELECTION. A row whose label has `in` rows in
 # Scripts/gate_inputs.txt (the browser rows and the release workflow gate) is asked gate_select
-# (Scripts/lib_gate_select.sh) before it runs. On `skip: <reason>` its script
+# (Scripts/lib_gate_select.sh) before it runs. On `skip: [<code>] <reason>` its script
 # does not run: the step is counted, printed `⏭ skipped: <label> (<reason>)`,
 # a `⏭ skip: no changed file is an input` row of the step table, and `<label><TAB><reason>` is appended to
 # SKIPS_SINK, which pre empties and post appends to (FBP.sh's summary lists it, forsgren#266).

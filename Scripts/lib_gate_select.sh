@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# Scripts/lib_gate_select.sh (forsgren#262, step 2 of 3). Not canon: forsgren only.
+# canon: lib_gate_select v2
+# Scripts/lib_gate_select.sh. The gate selection shared by the sibling sites: the
+# code is the same text in each. changed_files and the reason gate_select gives when
+# it fails are fail-closed: a failing git diff or ls-files is no change set, and a
+# rename lists both its paths.
 #
 # SOURCED, never run. It sets no shell options. The one place that turns the
 # files a commit changed into the gates that need to run:
@@ -8,36 +12,45 @@
 #   closure <file>         a script and everything it names, transitively
 #   gate_input_rows, gate_input_covered, gate_input_excluded
 #                          readers of Scripts/gate_inputs.txt
-#   gate_select <label>    prints `run: <reason>` or `skip: <reason>`, exit 0
+#   gate_select <label>    prints `run: [<code>] <reason>` or `skip: [<code>] <reason>`, exit 0
 #
-# changed_files, named_files and closure were Scripts/test_git_sandbox_isolation.sh's
-# (forsgren#251); it sources them from here now, as Scripts/test_gate_inputs.sh does.
+# Scripts/test_gate_inputs.sh sources named_files and closure from here.
 #
-# No loop here reads a process substitution (forsgren#459): on bash 3.2 that, called hundreds of
+# No loop here reads a process substitution: on bash 3.2 that, called hundreds of
 # times inside a captured pipeline, silently cut the tail of the captured output. A producer is
 # read into a variable first and looped over with `done <<< "$rows"`; an empty row is skipped.
 #
-# gate_select reads Scripts/gate_inputs.txt (FORSGREN_GATE_INPUTS names another file).
+# gate_select reads Scripts/gate_inputs.txt (SFL_GATE_INPUTS names another file).
+# The answer is one line: the word `run:` or `skip:`, then the stable reason code
+# in square brackets, then the reason in words. The code never changes while the
+# words may; a consumer that parses the line reads the word before the first colon
+# and keeps the rest (code included) as the reason it shows. The codes, one per rule:
+#   ci_full, forced_full, list_unreadable, no_in_rows, unknown_file, closure,
+#   in_row, grep_row (all `run`), no_changes, none_changed (both `skip`).
 # The order of its answers:
-#   1. GITHUB_ACTIONS=true            run  (Quality runs every gate)
-#   2. FORSGREN_GATE_SELECT_FULL=1    run  (forced)
-#   3. no origin/main to compare with run  (nothing to compare is not nothing changed)
-#   4. the label has no `in` row      run  (a gate nobody listed is never skipped)
+#   1. GITHUB_ACTIONS=true            run[ci_full]  (Quality runs every gate)
+#   2. SFL_GATE_SELECT_FULL=1         run[forced_full]  (forced)
+#   3. no origin/main to compare with run[list_unreadable]  (nothing to compare is
+#      not nothing changed; a failing diff or file listing is the same)
+#   4. the label has no `in` row      run[no_in_rows]  (a gate nobody listed is never skipped)
 #   5. FAIL-SAFE: a changed file that no label's list names, neither as an `in`
 #      path of any label nor as an `out` pattern of any label, selects every
 #      listed gate, naming the file. What is not known to be irrelevant is
-#      assumed relevant. Known to be irrelevant: a file an `out` row names (the
-#      `none|out|...` rows of the list are the files no gate reads: workflows,
-#      docs, the release scripts, sfl.sh and FBP.sh), and a file under Scripts/ that is in the
-#      closure of no gate's script (gate_unrelated_script).
+#      assumed relevant (unknown_file; closure when it is a Scripts/ file that a
+#      listed gate's script names and the list forgot). Known to be irrelevant: a file an `out` row names (the
+#      `none|out|...` rows of the list are the files no gate reads), and a file
+#      under Scripts/ that is in the closure of no listed gate's script
+#      (gate_unrelated_script).
 #   6a. a changed script of Scripts/ whose text matches a `grep` row of the label
-#      (forsgren#264: the gate finds its inputs by what a file says) run
+#      (a gate that finds its inputs by what a file says) run[grep_row]
 #   6. a changed file under one of the label's `in` paths and matching none of its
-#      `out` patterns          run  (naming the file)
-#   7. otherwise                      skip (saying how many files changed)
-# *_test.go and testdata/ are `out` patterns of the browser gates (forsgren#281):
-# they never select them, and are not unknown either. Markdown never counts as a
-# change (changed_files drops it), as in the isolation gate.
+#      `out` patterns          run[in_row]  (naming the file)
+#   7. otherwise                      skip[no_changes] when no file changed, else
+#      skip[none_changed]  (saying how many files changed)
+# Where a rule says run[code] the answer is `run: [code] <reason>`.
+# An `out` pattern is a glob (`*` within a name, `**/` any depth). Markdown never
+# counts as a change (changed_files drops it): the gates that read markdown have
+# no `in` rows, so they always run.
 
 # named_files <file>: the repository files a script's non-comment lines name,
 # one path per line. A token that looks like a file name is resolved to
@@ -45,7 +58,7 @@
 named_files() {
   local code token tokens
   code="$(grep -v '^[[:space:]]*#' "$1" || true)"
-  tokens="$(grep -oE '[A-Za-z0-9_./-]+[.](sh|mjs|js|py|txt|json|yml|yaml|go)' <<< "$code" | sort -u)"
+  tokens="$(grep -oE '[A-Za-z0-9_./-]+[.](sh|mjs|js|py|awk|txt|json|toml|env|yml|yaml|go)' <<< "$code" | sort -u)"
   while IFS= read -r token; do
     token="${token#./}"
     [[ -z "$token" ]] && continue
@@ -65,7 +78,7 @@ closure() {
   while [[ "$i" -lt "${#queue[@]}" ]]; do
     f="${queue[$i]}"
     i=$((i + 1))
-    case "$f" in *.sh | *.mjs | *.js | *.py) ;; *) continue ;; esac
+    case "$f" in *.sh | *.mjs | *.js | *.py | *.awk) ;; *) continue ;; esac
     names="$(named_files "$f")"
     while IFS= read -r n; do
       [[ -z "$n" ]] && continue
@@ -80,11 +93,16 @@ closure() {
 
 # changed_files: against the merge base with origin/main, the tracked changes
 # (committed, staged and unstaged) and the untracked files git does not ignore.
-# Non-zero when there is no origin/main to compare against. Markdown is prose.
+# Non-zero when there is no origin/main to compare against, or when git cannot
+# list the changes: each command runs on its own, because a `{ a; b; } |` group
+# reports only b's status and would read a failing git diff as "nothing changed".
+# --no-renames lists both the old and the new path of a rename. Markdown is prose.
 changed_files() {
-  local base
+  local base tracked untracked
   base="$(git merge-base HEAD origin/main 2> /dev/null)" || return 1
-  { git diff --name-only "$base" --; git ls-files --others --exclude-standard; } | { grep -v '[.]md$' || true; } | sort -u
+  tracked="$(git diff --no-renames --name-only "$base" --)" || return 1
+  untracked="$(git ls-files --others --exclude-standard)" || return 1
+  printf '%s\n%s\n' "$tracked" "$untracked" | { grep -v '[.]md$' || true; } | { grep -v '^$' || true; } | sort -u
 }
 
 # gate_input_rows <inputs-file> <label> <kind>: the paths of a gate's rows of one kind.
@@ -131,7 +149,7 @@ gate_input_excluded() {
 }
 
 # gate_input_grepped <inputs-file> <label> <path>: the path is a script of Scripts/
-# that exists and whose text matches a `grep` row of the label (forsgren#264). It is
+# that exists and whose text matches a `grep` row of the label. It is
 # for a gate that discovers its inputs by what a file says (the scripts that write
 # the step summary), so a file added tomorrow, in no list yet, still selects it.
 gate_input_grepped() {
@@ -146,13 +164,13 @@ gate_input_grepped() {
 }
 
 # gate_unrelated_script <file>: a file under Scripts/ that is in the closure of no
-# listed gate's script (the scripts come from the order file; FORSGREN_GATE_ORDER
+# listed gate's script (the scripts come from the order file; SFL_GATE_ORDER
 # names another). A script a browser gate reads is in its closure; a new one only
 # becomes read when a closure file changes, which itself selects the gate. A file
 # that is in a closure is not unrelated, even when the list forgot it.
 gate_unrelated_script() {
-  local inputs="${FORSGREN_GATE_INPUTS:-Scripts/gate_inputs.txt}"
-  local order="${FORSGREN_GATE_ORDER:-Scripts/gate_report_order.txt}" label script related="" labels
+  local inputs="${SFL_GATE_INPUTS:-Scripts/gate_inputs.txt}"
+  local order="${SFL_GATE_ORDER:-Scripts/gate_report_order.txt}" label script related="" labels
   [[ "$1" == Scripts/* ]] || return 1
   labels="$(awk -F'|' '/^[[:space:]]*#/ || NF == 0 { next } $2 == "in" { print $1 }' "$inputs" | sort -u)"
   while IFS= read -r label; do
@@ -164,23 +182,23 @@ gate_unrelated_script() {
   return 0
 }
 
-# gate_select <label>: one line, `run: <reason>` or `skip: <reason>`; exit 0.
+# gate_select <label>: one line, `run: [<code>] <reason>` or `skip: [<code>] <reason>`; exit 0.
 gate_select() {
-  local label="$1" inputs="${FORSGREN_GATE_INPUTS:-Scripts/gate_inputs.txt}" changed c n=0
+  local label="$1" inputs="${SFL_GATE_INPUTS:-Scripts/gate_inputs.txt}" changed c n=0
   if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
-    echo "run: full run (Quality runs every gate)"
+    echo "run: [ci_full] full run (Quality runs every gate)"
     return 0
   fi
-  if [[ "${FORSGREN_GATE_SELECT_FULL:-}" == "1" ]]; then
-    echo "run: full run (FORSGREN_GATE_SELECT_FULL=1)"
+  if [[ "${SFL_GATE_SELECT_FULL:-}" == "1" ]]; then
+    echo "run: [forced_full] full run (SFL_GATE_SELECT_FULL=1)"
     return 0
   fi
   if ! changed="$(changed_files)"; then
-    echo "run: full run (no origin/main to compare against)"
+    echo "run: [list_unreadable] full run (the change set could not be read: no origin/main to compare against, or git failed)"
     return 0
   fi
   if [[ -z "$(gate_input_rows "$inputs" "$label" in)" ]]; then
-    echo "run: ${label} has no input list in ${inputs}"
+    echo "run: [no_in_rows] ${label} has no input list in ${inputs}"
     return 0
   fi
   while IFS= read -r c; do
@@ -188,7 +206,11 @@ gate_select() {
     n=$((n + 1))
     if ! gate_input_covered "$inputs" "" "$c" && ! gate_input_excluded "$inputs" "" "$c"; then
       if ! gate_unrelated_script "$c"; then
-        echo "run: ${c} is named by no gate's list, so every gate runs"
+        if [[ "$c" == Scripts/* ]]; then
+          echo "run: [closure] ${c} is named by no gate's list, so every gate runs"
+        else
+          echo "run: [unknown_file] ${c} is named by no gate's list, so every gate runs"
+        fi
         return 0
       fi
     fi
@@ -196,13 +218,17 @@ gate_select() {
   while IFS= read -r c; do
     [[ -z "$c" ]] && continue
     if gate_input_covered "$inputs" "$label" "$c" && ! gate_input_excluded "$inputs" "$label" "$c"; then
-      echo "run: ${c} is an input of ${label}"
+      echo "run: [in_row] ${c} is an input of ${label}"
       return 0
     fi
     if gate_input_grepped "$inputs" "$label" "$c"; then
-      echo "run: ${c} says what ${label} discovers its inputs by"
+      echo "run: [grep_row] ${c} says what ${label} discovers its inputs by"
       return 0
     fi
   done <<< "$changed"
-  echo "skip: none of the ${n} changed files is an input of ${label}"
+  if [[ "$n" -eq 0 ]]; then
+    echo "skip: [no_changes] none of the 0 changed files is an input of ${label}"
+  else
+    echo "skip: [none_changed] none of the ${n} changed files is an input of ${label}"
+  fi
 }
