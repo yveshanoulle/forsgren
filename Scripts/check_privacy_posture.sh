@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# canon: check_privacy_posture v4
-# v4 (forsgren#654, step 2): srcset on img and source (every candidate, parsed the WHATWG way), audio src, track src, embed src and object data are judged under the same host policy, by Scripts/check_privacy_posture_urls.mjs; the checks of v3 are unchanged, and the header now states what a static check cannot see
+# canon: check_privacy_posture v5
+# v5 (forsgren#656): a URL with a user name or password is a finding in every resource attribute and CSS url(), whatever its host, by urlFinding in Scripts/check_privacy_posture_urls.mjs v2; the allow-list, the own hosts and every other check of v4 are unchanged
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
@@ -59,6 +59,14 @@ source Scripts/lib_site_settings.sh
 # Scripts/check_privacy_posture_urls.mjs: the WHATWG srcset algorithm, because a
 # data URL holds commas, and the WHATWG URL parser for the host. A run in which
 # that script cannot finish is exit 2, never a pass.
+#
+# USER INFO. A URL with a user name or password is a finding on every attribute
+# above, on iframe src, on script src, on link href and in a CSS url(), whatever
+# host it names. A browser connects to the host after the @, so
+# https://allowed.example:x@other.example/ loads from other.example: a check that
+# reads the first name after // is misled. Node decides it, by the same WHATWG URL
+# parser, never by splitting on : or @. It changes nothing else: each tag keeps its
+# own host check in this file, and this rule adds only that one finding.
 #
 # THE BOUNDARY OF THIS CHECK. It reads static HTML and CSS. It cannot guarantee
 # that JavaScript will never start a request to a third party: a script can build
@@ -283,11 +291,11 @@ resource_files="$(find "$SITE" -type f \( -name '*.html' -o -name '*.css' \) 2>/
 hits="$(node Scripts/check_privacy_posture_urls.mjs "$own_hosts" "$own_suffixes" <<< "$resource_files")"
 urls_rc=$?
 if [ "$urls_rc" -ne 0 ]; then
-  echo "privacy-posture: Scripts/check_privacy_posture_urls.mjs failed (exit ${urls_rc}), so srcset, audio, track, embed and object were not judged" >&2
+  echo "privacy-posture: Scripts/check_privacy_posture_urls.mjs failed (exit ${urls_rc}), so srcset, audio, track, embed and object were not judged and no URL was checked for a user name or password" >&2
   exit 2
 fi
 [ -n "$hits" ] && report "a resource from another host" \
-  "A srcset candidate, audio, track, embed or object from another host sends every visitor's IP there on page view. Only a double-quoted relative path or an https URL on a host declared own:host|reason in ${EXCEPTIONS} passes (and, in a srcset, a data URL)." "$hits"
+  "A srcset candidate, audio, track, embed or object from another host sends every visitor's IP there on page view. Only a double-quoted relative path or an https URL on a host declared own:host|reason in ${EXCEPTIONS} passes (and, in a srcset, a data URL). A URL with a user name or password is a finding on every resource attribute and in a CSS url(), whatever host it names: a browser connects to the host after the @." "$hits"
 
 hits="$(scan '<(script|link)[^>]+(src|href)="https?://')"
 [ -n "$hits" ] && report "a third-party asset is loaded" \

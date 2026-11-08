@@ -129,8 +129,8 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 86 | FBP build-site page count | `test_fbp_build_pagecount.sh` | pre | required |
 | 87 | FBP aborted run | `test_fbp_aborted.sh` | pre | required |
 | 88 | FBP abort exit | `test_fbp_abort_exit.sh` | pre | required |
-| 89 | privacy-posture self-test | `test_check_privacy_posture.sh` | pre | required, `test_check_privacy_posture v5` |
-| 90 | privacy posture | `check_privacy_posture.sh` | post | required, `check_privacy_posture v4` with `check_privacy_posture_urls v1` |
+| 89 | privacy-posture self-test | `test_check_privacy_posture.sh` | pre | required, `test_check_privacy_posture v6` |
+| 90 | privacy posture | `check_privacy_posture.sh` | post | required, `check_privacy_posture v5` with `check_privacy_posture_urls v2` |
 | 91 | repository-links self-test | `test_check_repo_links.sh` | pre | required |
 | 92 | repository links | `check_repo_links.sh` | post | required |
 | 93 | community-files self-test | `test_check_community_files.sh` | pre | required |

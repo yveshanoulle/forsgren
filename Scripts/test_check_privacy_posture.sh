@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_check_privacy_posture v5
-# v5 (forsgren#654, step 2): the srcset, audio, track, embed and object cases and their proofs, for check_privacy_posture v4 and check_privacy_posture_urls v1
+# canon: test_check_privacy_posture v6
+# v6 (forsgren#656): the user name and password cases of every resource attribute and their proofs, for check_privacy_posture v5 and check_privacy_posture_urls v2
 # Scripts/test_check_privacy_posture.sh
 #
 # Self-test for Scripts/check_privacy_posture.sh, the
@@ -64,6 +64,15 @@
 #      (1x, 200w), data URLs with commas in a candidate, a comma inside
 #      parentheses, no value, data-srcset, a tag that only starts like one
 #  25. the URL script missing                     -> exit 2 (fail closed)
+#  26. a user name or password in every resource attribute (iframe, img, source,
+#      video, audio, track, embed, object, script, link, poster, srcset and CSS
+#      url()), an allowed host before the @ and an allowed host after it
+#                                                 -> red each, naming the rule
+#  27. the same however it is written: letter case, split over lines, quotes,
+#      protocol-relative, character references, CSS escapes -> red each
+#  28. no user-info: URLs with an @ in the path, query or a data URL, an allowed
+#      iframe, a port, a link, a tag never closed, the old quote rules -> green;
+#      an absolute script or url() on an own host stays red, as it was
 # Mutation proofs (a weakened copy of the gate must turn the case green):
 #   A. the blanket rule (any iframe passes when privacy.html exists): case 6
 #   B. the allow-list skipped when its file is missing: case 13
@@ -76,7 +85,8 @@
 #   J. own rows not honoured: the own-host case of 18 turns red
 #   K. a relative path no longer passes: the relative case of 18 turns red
 #   L. a subdomain matched without its dot: the lookalike of 17
-#   M. anything allowed between the host and the path: the userinfo of 17
+#   M. anything allowed between the host and the path, with the URL script's
+#      user-info rule off for img src: the userinfo of 17
 #   N. the media tags read line by line: the split tag of 16
 #   O to T. srcset on img, srcset on source, audio, track, embed, object
 #      dropped from the table of the URL script: case 21 for that one
@@ -95,6 +105,18 @@
 #   AG. the character reference rule dropped: the case of 22
 #   AH. the tag count dropped: the tag never closed of 22
 #   AI. the gate carries on when the URL script fails: case 25
+#   AJ, AK, AL. iframe, script, link dropped from the user-info table: case 26
+#      or 27 for that tag turns green
+#   AM to AR. src and poster of img, video and source dropped from that table:
+#      the finding of case 26 is gone (the media check keeps those red)
+#   AS. CSS url() no longer read: case 27
+#   AT. a user name in a srcset allowed: case 26 turns green
+#   AU. character references not read before the URL is parsed: case 27
+#   AV. CSS escapes not read: case 27
+#   AW. only the https base asked: the scheme-relative case of 27
+#   AX. the host policy applied to the tags of the user-info table: the allowed
+#      iframe of 28 turns red
+#   AY. a tag never closed counted against the user-info tags: case 28 turns red
 
 set -euo pipefail
 
@@ -480,6 +502,84 @@ rm "${R}/Scripts/check_privacy_posture_urls.mjs"
 gate_in "$R" Site
 want_exit "the URL script missing is exit 2, never a pass" 2 "check_privacy_posture_urls.mjs failed"
 
+# userinfo_red <name> <html> [exceptions]: the html's URL is a finding for its
+# user name or password.
+userinfo_red() {
+  gate_in "$(media_root "$1" "$2" "${3-$EXC_OWN}")" Site
+  want_red "${1}: ${2} is red" "a resource from another host"
+  want_said "${1}: the finding names the user name or password" "a user name or password"
+}
+
+EXC_ALLOWED="allowed.example|the host the user-info cases name
+"
+
+# --- 26. a user name or password in every resource attribute
+userinfo_red ui-issue-password '<iframe src="https://allowed.example:x@other.example/"></iframe>' "$EXC_ALLOWED"
+userinfo_red ui-issue-username '<iframe src="https://allowed.example@other.example/"></iframe>' "$EXC_ALLOWED"
+userinfo_red ui-allowed-after '<iframe src="https://user@allowed.example/"></iframe>' "$EXC_ALLOWED"
+n=0
+for ui in 'media.site.example:x@other.example' 'media.site.example@other.example' 'user:secret@media.site.example'; do
+  n=$((n + 1))
+  userinfo_red "ui-${n}-iframe" "<iframe src=\"https://${ui}/e\"></iframe>"
+  userinfo_red "ui-${n}-img" "<img src=\"https://${ui}/a.png\">"
+  userinfo_red "ui-${n}-img-poster" "<img src=\"a.png\" poster=\"https://${ui}/p.jpg\">"
+  userinfo_red "ui-${n}-img-srcset" "<img src=\"a.png\" srcset=\"https://${ui}/a.png 1x\">"
+  userinfo_red "ui-${n}-img-srcset-later" "<img src=\"a.png\" srcset=\"a.png 1x, https://${ui}/b.png 2x\">"
+  userinfo_red "ui-${n}-source" "<video><source src=\"https://${ui}/a.mp4\"></video>"
+  userinfo_red "ui-${n}-source-poster" "<video><source src=\"a.mp4\" poster=\"https://${ui}/p.jpg\"></video>"
+  userinfo_red "ui-${n}-source-srcset" "<picture><source srcset=\"a.webp 1x, https://${ui}/b.webp 2x\"></picture>"
+  userinfo_red "ui-${n}-video" "<video src=\"https://${ui}/a.mp4\"></video>"
+  userinfo_red "ui-${n}-poster" "<video src=\"a.mp4\" poster=\"https://${ui}/p.jpg\"></video>"
+  userinfo_red "ui-${n}-audio" "<audio src=\"https://${ui}/a.mp3\"></audio>"
+  userinfo_red "ui-${n}-track" "<track src=\"https://${ui}/a.vtt\">"
+  userinfo_red "ui-${n}-embed" "<embed src=\"https://${ui}/a.swf\">"
+  userinfo_red "ui-${n}-object" "<object data=\"https://${ui}/a.pdf\"></object>"
+  userinfo_red "ui-${n}-script" "<script src=\"https://${ui}/a.js\"></script>"
+  userinfo_red "ui-${n}-link" "<link rel=\"stylesheet\" href=\"https://${ui}/a.css\">"
+  userinfo_red "ui-${n}-css-url" "<style>a{background:url(\"https://${ui}/a.png\")}</style>"
+done
+R="$(mkroot ui-css-file)"
+printf 'a{background:url(//user@other.example/a.png)}\n' > "${R}/Site/a.css"
+gate_in "$R" Site
+want_red "a user name in a url() of a .css file is red" "a user name or password"
+
+# --- 27. the same, however it is written
+userinfo_red ui-upper '<IFRAME SRC="https://barcamp.io:x@other.example/e"></IFRAME>'
+userinfo_red ui-lines '<iframe
+  title="agenda"
+  src="https://barcamp.io:x@other.example/e"></iframe>'
+userinfo_red ui-tab-in-url "<iframe src=\"https://barcamp.io:x$(printf '\t')@other.example/e\"></iframe>"
+userinfo_red ui-script-single "<script src='https://user@other.example/a.js'></script>"
+userinfo_red ui-script-bare '<script src=https://user@other.example/a.js></script>'
+userinfo_red ui-script-protorel '<script src="//user@other.example/a.js"></script>'
+userinfo_red ui-script-scheme-relative '<script src="https:user@other.example/a.js"></script>'
+userinfo_red ui-link-protorel "<link href='//user@other.example/a.css'>"
+userinfo_red ui-ref-decimal '<iframe src="https://barcamp.io:x&#64;other.example/e"></iframe>'
+userinfo_red ui-ref-hex '<iframe src="https://barcamp.io:x&#x40;other.example/e"></iframe>'
+userinfo_red ui-ref-named '<iframe src="https://barcamp.io:x&commat;other.example/e"></iframe>'
+userinfo_red ui-ref-script '<script src="https&#58;//user@other.example/a.js"></script>'
+userinfo_red ui-css-bare '<style>a{background:url(//user@other.example/a.png)}</style>'
+userinfo_red ui-css-single "<style>a{background:url('//user@other.example/a.png')}</style>"
+userinfo_red ui-css-upper '<style>a{background:URL( "//user@other.example/a.png" )}</style>'
+userinfo_red ui-css-escaped '<style>a{background:url("https\3a //user\40 other.example/a.png")}</style>'
+
+# --- 28. no user-info: nothing else changed
+media_green green-ui-iframe '<iframe src="https://barcamp.io/e"></iframe>'
+media_green green-ui-iframe-port '<iframe src="https://barcamp.io:8443/e"></iframe>'
+media_green green-ui-at-media '<img src="a@b.png"><img src="https://media.site.example/a@2x.png?u=a%40b"><video src="a@1.mp4" poster="p@1.jpg"><source src="s@1.mp4"></video>'
+media_green green-ui-at-srcset '<img src="a.png" srcset="a@1x.png 1x, https://media.site.example/b@2x.png 2x, data:text/plain,a@b 3x">'
+media_green green-ui-at-resources '<audio src="a@b.mp3"></audio><track src="t@1.vtt"><embed src="e@1.swf"><object data="o@1.pdf"></object>'
+media_green green-ui-at-script '<script src="a.js?u=a@b"></script><link rel="stylesheet" href="/x@y.css">'
+media_green green-ui-old-quotes "<script src='a.js'></script><link href=b.css>"
+media_green green-ui-css '<style>a{background:url(a@b.png)}b{background:url("/c@d.png");mask:url(#m)}c{background:url(data:image/svg+xml,a@b)}</style>'
+media_green green-ui-outbound '<a href="https://user@other.example/x">a link is not a resource</a>'
+media_green green-ui-reference '<script src="a.js?x=1&#38;y=2"></script>'
+media_green green-ui-never-closed '<link href="a.css"'
+gate_in "$(media_root red-ui-script-own '<script src="https://media.site.example/a.js"></script>')" Site
+want_red "an absolute script on an own host stays red" "a third-party asset is loaded"
+gate_in "$(media_root red-ui-css-own '<style>a{background:url(https://media.site.example/a.png)}</style>')" Site
+want_red "an absolute url() on an own host stays red" "a stylesheet fetches from another host"
+
 # --- Mutation proofs
 R="$(mkroot mut-blanket)"
 printf '%s\n' "$UNLISTED" >> "${R}/Site/index.html"
@@ -570,12 +670,16 @@ selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
   "a subdomain matched without its dot turns the lookalike green" \
   "the copy without the dot did not turn the lookalike green"
 
+# The URL script finds this user name too, so it is weakened first: the proof is
+# of the media check's own port rule.
 R="$(media_root mut-userinfo '<img src="https://media.site.example:x@other.example/a.png">')"
-selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
-  's/(:\[0-9\]+)?/(:[^\/]*)?/' \
-  "${R}/Site" \
-  "anything allowed between the host and the path turns the userinfo case green" \
-  "the copy without the port rule did not turn the userinfo case green"
+if selftest_mutant "$URLS" "${R}/Scripts/check_privacy_posture_urls.mjs" "s/img: \['src', 'poster'\]/img: ['poster']/"; then
+  selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
+    's/(:\[0-9\]+)?/(:[^\/]*)?/' \
+    "${R}/Site" \
+    "anything allowed between the host and the path turns the userinfo case green" \
+    "the copy without the port rule did not turn the userinfo case green"
+fi
 
 R="$(media_root mut-lines "<img
   src=\"${THIRD}.png\">")"
@@ -584,6 +688,24 @@ selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
   "${R}/Site" \
   "the media tags read line by line turn the split tag green" \
   "the line-by-line copy did not turn the split tag green"
+
+# urls_mutant_unsaid <name> <html> <sed> <ok text>: the gate's own media check
+# keeps the fixture red with or without this script's finding, so the proof is
+# that the finding names the rule, and is gone once the script is weakened.
+urls_mutant_unsaid() {
+  local root
+  root="$(media_root "$1" "$2")"
+  gate_in "$root" Site
+  want_said "mutation proof: $1: the URL script names the rule" "a user name or password"
+  if selftest_mutant "$URLS" "${root}/Scripts/check_privacy_posture_urls.mjs" "$3"; then
+    gate_in "$root" Site
+    if grep -qF "a user name or password" <<< "$OUT"; then
+      fail "mutation proof: $1: the weakened URL script still names the rule. Output: $OUT"
+    else
+      echo "  ok: mutation proof: $4"
+    fi
+  fi
+}
 
 # urls_mutant_green <name> <html> <sed> <ok text>: the fixture is red, and turns
 # green once the URL script is weakened, so it was red BECAUSE of that rule.
@@ -646,7 +768,7 @@ urls_mutant_red mut-res-own '<audio src="https://media.site.example/a.mp3"></aud
 urls_mutant_green mut-res-nodot '<audio src="https://badcdn.site.example/a.mp3"></audio>' \
   "s/host.endsWith(\`.${DOLLAR}{suffix}\`)/host.endsWith(suffix)/" "a subdomain matched without its dot turns the lookalike green"
 urls_mutant_green mut-res-userinfo '<audio src="https://user@media.site.example/a.mp3"></audio>' \
-  "s/first.username !== '' || first.password !== ''/false/" "a URL with a user name allowed turns that case green"
+  "s/url.username !== '' || url.password !== ''/false/" "a URL with a user name allowed turns that case green"
 urls_mutant_green mut-res-protorel '<audio src="//media.site.example/a.mp3"></audio>' \
   's/first.protocol !== second.protocol/false/' "the protocol-relative check dropped turns the own host green"
 urls_mutant_green mut-res-quote '<audio src=https://media.site.example/a.mp3></audio>' \
@@ -656,6 +778,39 @@ urls_mutant_green mut-res-charref '<audio src="https&#58;//other.example/a.mp3">
 urls_mutant_green mut-res-count "<audio src=\"${THIRD}.mp3" \
   's/if (found !== total)/if (false)/' "the tag count dropped turns the tag never closed green"
 
+urls_mutant_green mut-ui-iframe '<iframe src="https://barcamp.io:x@other.example/e"></iframe>' \
+  "s/iframe: \['src'\]/iframe: []/" "iframe dropped from the user-info table turns the allowed name before the @ green"
+urls_mutant_green mut-ui-script "<script src='https://user@other.example/a.js'></script>" \
+  "s/script: \['src'\]/script: []/" "script dropped from the user-info table turns the single-quoted user name green"
+urls_mutant_green mut-ui-link "<link href='//user@other.example/a.css'>" \
+  "s/link: \['href'\]/link: []/" "link dropped from the user-info table turns the protocol-relative user name green"
+urls_mutant_unsaid mut-ui-img-src '<img src="https://user@media.site.example/a.png">' \
+  "s/img: \['src', 'poster'\]/img: ['poster']/" "img src dropped from the user-info table removes its finding"
+urls_mutant_unsaid mut-ui-img-poster '<img src="a.png" poster="https://user@media.site.example/p.jpg">' \
+  "s/img: \['src', 'poster'\]/img: ['src']/" "img poster dropped from the user-info table removes its finding"
+urls_mutant_unsaid mut-ui-video-src '<video src="https://user@media.site.example/a.mp4"></video>' \
+  "s/video: \['src', 'poster'\]/video: ['poster']/" "video src dropped from the user-info table removes its finding"
+urls_mutant_unsaid mut-ui-video-poster '<video src="a.mp4" poster="https://user@media.site.example/p.jpg"></video>' \
+  "s/video: \['src', 'poster'\]/video: ['src']/" "video poster dropped from the user-info table removes its finding"
+urls_mutant_unsaid mut-ui-source-src '<video><source src="https://user@media.site.example/a.mp4"></video>' \
+  "s/source: \['src', 'poster'\]/source: ['poster']/" "source src dropped from the user-info table removes its finding"
+urls_mutant_unsaid mut-ui-source-poster '<video><source src="a.mp4" poster="https://user@media.site.example/p.jpg"></video>' \
+  "s/source: \['src', 'poster'\]/source: ['src']/" "source poster dropped from the user-info table removes its finding"
+urls_mutant_green mut-ui-css '<style>a{background:url(//user@other.example/a.png)}</style>' \
+  's/text.matchAll(CSS_URL)/[]/' "CSS url() no longer read turns its user name green"
+urls_mutant_green mut-ui-srcset '<img src="a.png" srcset="https://user@media.site.example/a.png 1x">' \
+  "s/url.username !== '' || url.password !== ''/false/" "a user name in a srcset candidate allowed turns that case green"
+urls_mutant_green mut-ui-references '<iframe src="https://barcamp.io:x&#64;other.example/e"></iframe>' \
+  's/const value = decodeReferences(raw);/const value = raw;/' "character references not read turn the spelled-out @ green"
+urls_mutant_green mut-ui-css-escapes '<style>a{background:url("https\3a //user\40 other.example/a.png")}</style>' \
+  's/unescapeCss(match/(match/' "CSS escapes not read turn the escaped user name green"
+urls_mutant_green mut-ui-one-base '<script src="https:user@other.example/a.js"></script>' \
+  's/\[BASE_ONE, BASE_TWO\]\.some/[BASE_ONE].some/' "only the https base asked turns the scheme-relative user name green"
+urls_mutant_red mut-ui-host-judged '<iframe src="https://barcamp.io/e"></iframe>' \
+  's/if (!hostJudged) return null;//' "the host policy applied to the user-info tags turns the allowed iframe red"
+urls_mutant_red mut-ui-never-closed '<link href="a.css"' \
+  's/if (tag === null) continue;/if (tag === null) { lines.push(file); continue; }/' "a never-closed user-info tag counted turns the green case red"
+
 R="$(mkroot mut-urls-missing)"
 rm "${R}/Scripts/check_privacy_posture_urls.mjs"
 selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
@@ -664,4 +819,4 @@ selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
   "a copy that carries on when the URL script fails turns case 25 green" \
   "the copy that ignores a failed URL script did not turn case 25 green"
 
-selftest_end "privacy posture gate" "privacy posture gate proven on synthetic sites (iframes by host list, media by own host or relative path, srcset, audio, track, embed and object by the same policy, malformed and missing exceptions red, thirty-five weakened copies caught, links true for a split anchor)"
+selftest_end "privacy posture gate" "privacy posture gate proven on synthetic sites (iframes by host list, media by own host or relative path, srcset, audio, track, embed and object by the same policy, user names and passwords in every resource attribute, malformed and missing exceptions red, fifty-one weakened copies caught, links true for a split anchor)"
