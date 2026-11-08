@@ -6,5 +6,6 @@
 #
 # The site's own media hosts are rows of this file too, apart from the embeds:
 # own:host|reason is that exact host, own:*.host|reason every subdomain of it and
-# not the host itself. An img, video, source or poster passes only as a relative
-# path or as https on such a host. forsgren serves its media from relative paths.
+# not the host itself. An img, video, source, poster, srcset candidate, audio,
+# track, embed or object passes only as a relative path or as https on such a
+# host. forsgren serves its media from relative paths.

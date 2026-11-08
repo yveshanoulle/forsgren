@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_check_privacy_posture v4
-# v4 (forsgren#654): the media cases and their proofs, for check_privacy_posture v3
+# canon: test_check_privacy_posture v5
+# v5 (forsgren#654, step 2): the srcset, audio, track, embed and object cases and their proofs, for check_privacy_posture v4 and check_privacy_posture_urls v1
 # Scripts/test_check_privacy_posture.sh
 #
 # Self-test for Scripts/check_privacy_posture.sh, the
@@ -52,6 +52,18 @@
 #  19. no own host declared: a relative path green, an own host red; the
 #      exceptions file missing: exit 2
 #  20. a malformed or duplicate own row -> exit 2 each, named
+#  21. a planted URL in srcset on img, srcset on source (a later candidate too,
+#      after descriptors and after a data URL), audio, track, embed and object
+#                                                 -> red each, naming the host
+#  22. the same mechanisms however they are written: letter case, split over
+#      lines, unquoted, single quoted, protocol-relative, http, backslashed,
+#      a character reference, a user name, a lookalike host, a tag never closed
+#                                                 -> red each
+#  23. a data URL outside a srcset candidate      -> red
+#  24. what passes: relative paths, own hosts, a declared subdomain, descriptors
+#      (1x, 200w), data URLs with commas in a candidate, a comma inside
+#      parentheses, no value, data-srcset, a tag that only starts like one
+#  25. the URL script missing                     -> exit 2 (fail closed)
 # Mutation proofs (a weakened copy of the gate must turn the case green):
 #   A. the blanket rule (any iframe passes when privacy.html exists): case 6
 #   B. the allow-list skipped when its file is missing: case 13
@@ -66,18 +78,37 @@
 #   L. a subdomain matched without its dot: the lookalike of 17
 #   M. anything allowed between the host and the path: the userinfo of 17
 #   N. the media tags read line by line: the split tag of 16
+#   O to T. srcset on img, srcset on source, audio, track, embed, object
+#      dropped from the table of the URL script: case 21 for that one
+#   U. only a srcset's first candidate judged: the later candidate of 21
+#   V. a srcset split on commas: the data URL with a URL inside it of 24 turns red
+#   W. a trailing comma not ending the candidate: the later candidate of 21
+#   X. parentheses in a descriptor ignored: the comma inside them of 24 turns red
+#   Y. data URLs refused in a srcset: the data URL of 24 turns red
+#   Z. data URLs allowed everywhere: case 23
+#   AA. a relative path no longer passes: the relative case of 24 turns red
+#   AB. own rows not honoured: the own-host case of 24 turns red
+#   AC. a subdomain matched without its dot: the lookalike of 22
+#   AD. a URL with a user name allowed: the user name case of 22
+#   AE. the protocol-relative check dropped: the own host of 22
+#   AF. the quote rule dropped: the unquoted own host of 22
+#   AG. the character reference rule dropped: the case of 22
+#   AH. the tag count dropped: the tag never closed of 22
+#   AI. the gate carries on when the URL script fails: case 25
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
 GATE="$(pwd)/Scripts/check_privacy_posture.sh"
+URLS="$(pwd)/Scripts/check_privacy_posture_urls.mjs"
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
 selftest_begin "privacy posture self-test"
 
 [[ -f "$GATE" ]] || selftest_abort "${GATE} does not exist — the privacy posture has no gate to validate"
+[[ -f "$URLS" ]] || selftest_abort "${URLS} does not exist — the gate has no URL script to call"
 
 DOLLAR='$'
 EXC_OK="# comment
@@ -94,6 +125,7 @@ mkroot() {
   local root="${TMP}/$1"
   mkdir -p "${root}/Scripts" "${root}/Site"
   cp "$GATE" "${root}/Scripts/check_privacy_posture.sh"
+  cp "$URLS" "${root}/Scripts/check_privacy_posture_urls.mjs"
   cp Scripts/lib_site_settings.sh "${root}/Scripts/lib_site_settings.sh"
   printf 'site_dir=Site\nhtml_dupl_target=Site\nhtml_dupl_ceiling_jscpd4=1.0\nrequired_pages_manifest=m.json\n' > "${root}/Scripts/site_settings.txt"
   if [[ "${2-$EXC_OK}" != "-" ]]; then
@@ -372,6 +404,82 @@ own:*.CDN.site.example|two
 gate_in "$R" Site
 want_exit "a duplicate own subdomain row is exit 2" 2 "duplicate host"
 
+# resource_red <name> <html> [text]: the html's resource is a finding, saying
+# the text (by default the planted host).
+resource_red() {
+  gate_in "$(media_root "$1" "$2")" Site
+  want_red "${1}: ${2} is red" "a resource from another host"
+  want_said "${1}: the finding says ${3:-other.example}" "${3:-other.example}"
+}
+
+# --- 21. a planted URL in each newly covered mechanism
+resource_red red-srcset-img "<img src=\"a.png\" srcset=\"${THIRD}.png 1x\">"
+resource_red red-srcset-source "<picture><source srcset=\"${THIRD}.webp\"><img src=\"a.png\"></picture>"
+resource_red red-srcset-img-later "<img src=\"a.png\" srcset=\"a.png 1x, b.png 2x, ${THIRD}.png 3x\">"
+resource_red red-srcset-source-later "<picture><source srcset=\"a.webp 200w, ${THIRD}.webp 400w\"><img src=\"a.png\"></picture>"
+resource_red red-srcset-after-comma "<img src=\"a.png\" srcset=\"a.png, ${THIRD}.png\">"
+resource_red red-srcset-no-space "<img src=\"a.png\" srcset=\"a.png 1x,${THIRD}.png 2x\">"
+resource_red red-srcset-after-data "<img src=\"a.png\" srcset=\"data:image/gif;base64,R0lG,ODlh 1x, ${THIRD}.png 2x\">"
+resource_red red-audio "<audio src=\"${THIRD}.mp3\"></audio>"
+resource_red red-track "<video src=\"a.mp4\"><track src=\"${THIRD}.vtt\"></video>"
+resource_red red-embed "<embed src=\"${THIRD}.swf\">"
+resource_red red-object "<object data=\"${THIRD}.pdf\"></object>"
+
+# --- 22. the same mechanisms, however they are written
+resource_red red-res-upper "<AUDIO SRC=\"${THIRD}.mp3\"></AUDIO>"
+resource_red red-res-upper-srcset "<IMG SRCSET=\"${THIRD}.png 1x\" SRC=\"a.png\">"
+resource_red red-res-lines "<object
+  type=\"application/pdf\"
+  data=\"${THIRD}.pdf\"></object>"
+resource_red red-res-srcset-lines "<img src=\"a.png\" srcset=\"a.png 1x,
+  ${THIRD}.png 2x\">"
+resource_red red-res-unquoted "<audio src=${THIRD}.mp3></audio>"
+resource_red red-res-single "<embed src='${THIRD}.swf'>"
+resource_red red-res-own-unquoted '<audio src=https://media.site.example/a.mp3></audio>' 'not double-quoted'
+resource_red red-res-protorel '<track src="//other.example/a.vtt">' 'protocol-relative'
+resource_red red-res-own-protorel '<audio src="//media.site.example/a.mp3"></audio>' 'protocol-relative'
+resource_red red-res-http-own '<embed src="http://media.site.example/a.swf">' 'not https'
+resource_red red-res-backslash '<object data="\\other.example/a.pdf"></object>' 'protocol-relative'
+resource_red red-res-charref '<audio src="https&#58;//other.example/a.mp3"></audio>' 'character reference'
+resource_red red-res-userinfo '<audio src="https://user@media.site.example/a.mp3"></audio>' 'user name'
+resource_red red-res-suffix '<embed src="https://media.site.example.other.example/a.swf">'
+resource_red red-res-prefix '<object data="https://evilmedia.site.example/a.pdf"></object>' 'evilmedia.site.example'
+resource_red red-res-nodot '<audio src="https://badcdn.site.example/a.mp3"></audio>' 'badcdn.site.example'
+resource_red red-res-apex '<img src="a.png" srcset="https://cdn.site.example/a.png 1x">' 'cdn.site.example'
+resource_red red-res-embed-host '<audio src="https://barcamp.io/a.mp3"></audio>' 'barcamp.io'
+resource_red red-res-twice "<audio src=\"a.mp3\" src=\"${THIRD}.mp3\"></audio>"
+resource_red red-res-never-closed "<audio src=\"${THIRD}.mp3" 'not a complete tag'
+
+# --- 23. a data URL is only for a srcset candidate
+resource_red red-data-audio '<audio src="data:audio/mpeg;base64,AA"></audio>' 'not https'
+resource_red red-data-embed '<embed src="data:text/html,hello">' 'not https'
+resource_red red-data-object '<object data="data:text/html,hello"></object>' 'not https'
+
+# --- 24. what passes
+media_green green-res-relative '<audio src="a.mp3"></audio><track src="/t/a.vtt"><embed src="./a.swf"><object data="../a.pdf"></object>'
+media_green green-res-query '<audio src="a.mp3?x=1&amp;y=2"></audio>'
+media_green green-res-own '<audio src="https://media.site.example/a.mp3"></audio><track src="https://MEDIA.site.example/a.vtt"><embed src="https://media.site.example:8443/a.swf"><object data="https://a.cdn.site.example/a.pdf"></object>'
+media_green green-srcset-relative '<img src="a.png" srcset="a.png, /b.png, ./c.png, ../d.png">'
+media_green green-srcset-descriptors '<img src="a.png" srcset="a.png 1x, b.png 2x, c.png 200w, d.png 1.5x 300w"><picture><source srcset="a.webp 480w, b.webp 960w"></picture>'
+media_green green-srcset-own '<img src="a.png" srcset="https://media.site.example/a.png 1x, https://a.cdn.site.example/b.png 2x">'
+media_green green-srcset-data '<img src="a.png" srcset="data:image/gif;base64,R0lG,ODlh,AAAA 1x, b.png 2x">'
+media_green green-srcset-data-url-inside '<img src="a.png" srcset="data:text/plain,https://other.example/x 1x">'
+media_green green-srcset-data-last '<img src="a.png" srcset="a.png 1x, data:image/gif;base64,R0lG,ODlh">'
+media_green green-srcset-parens '<img src="a.png" srcset="a.png 1x (note, https://other.example/b.png), c.png 2x">'
+media_green green-srcset-newlines '<img src="a.png"
+  srcset="a.png 1x,
+          b.png 2x">'
+media_green green-res-empty '<img src="a.png" srcset=""><audio></audio><track><embed><object></object><audio src></audio>'
+media_green green-res-data-srcset "<img src=\"a.png\" data-srcset=\"${THIRD}.png 1x\"><audio data-src=\"${THIRD}.mp3\"></audio><object data-data=\"${THIRD}.pdf\"></object>"
+media_green green-res-custom-tag "<audio-player src=\"${THIRD}.mp3\"></audio-player><object-view data=\"${THIRD}.pdf\"></object-view>"
+media_green green-res-gt-attr '<audio title="a>b" src="a.mp3"></audio>'
+
+# --- 25. the URL script missing: never a pass
+R="$(mkroot urls-missing)"
+rm "${R}/Scripts/check_privacy_posture_urls.mjs"
+gate_in "$R" Site
+want_exit "the URL script missing is exit 2, never a pass" 2 "check_privacy_posture_urls.mjs failed"
+
 # --- Mutation proofs
 R="$(mkroot mut-blanket)"
 printf '%s\n' "$UNLISTED" >> "${R}/Site/index.html"
@@ -477,4 +585,83 @@ selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
   "the media tags read line by line turn the split tag green" \
   "the line-by-line copy did not turn the split tag green"
 
-selftest_end "privacy posture gate" "privacy posture gate proven on synthetic sites (iframes by host list, media by own host or relative path, malformed and missing exceptions red, fourteen weakened copies caught, links true for a split anchor)"
+# urls_mutant_green <name> <html> <sed> <ok text>: the fixture is red, and turns
+# green once the URL script is weakened, so it was red BECAUSE of that rule.
+urls_mutant_green() {
+  local root
+  root="$(media_root "$1" "$2")"
+  if selftest_mutant "$URLS" "${root}/Scripts/check_privacy_posture_urls.mjs" "$3"; then
+    gate_in "$root" Site
+    if [[ "$RC" -eq 0 ]]; then
+      echo "  ok: mutation proof: $4"
+    else
+      fail "mutation proof: $1: the weakened URL script did not turn the case green (exit $RC). Output: $OUT"
+    fi
+  fi
+}
+
+# urls_mutant_red <name> <html> <sed> <ok text>: the fixture is green, and turns
+# red once the URL script is weakened, so it was green BECAUSE of that rule.
+urls_mutant_red() {
+  local root
+  root="$(media_root "$1" "$2")"
+  if selftest_mutant "$URLS" "${root}/Scripts/check_privacy_posture_urls.mjs" "$3"; then
+    gate_in "$root" Site
+    want_red "mutation proof: $4" "a resource from another host"
+  fi
+}
+
+urls_mutant_green mut-srcset-img "<img src=\"a.png\" srcset=\"${THIRD}.png 1x\">" \
+  "s/img: \['srcset'\]/img: []/" "srcset dropped from img turns the third-party candidate green"
+urls_mutant_green mut-srcset-source "<picture><source srcset=\"${THIRD}.webp\"></picture>" \
+  "s/source: \['srcset'\]/source: []/" "srcset dropped from source turns the third-party candidate green"
+urls_mutant_green mut-audio "<audio src=\"${THIRD}.mp3\"></audio>" \
+  "s/audio: \['src'\]/audio: []/" "audio dropped turns the third-party audio src green"
+urls_mutant_green mut-track "<track src=\"${THIRD}.vtt\">" \
+  "s/track: \['src'\]/track: []/" "track dropped turns the third-party track src green"
+urls_mutant_green mut-embed "<embed src=\"${THIRD}.swf\">" \
+  "s/embed: \['src'\]/embed: []/" "embed dropped turns the third-party embed src green"
+urls_mutant_green mut-object "<object data=\"${THIRD}.pdf\"></object>" \
+  "s/object: \['data'\]/object: []/" "object dropped turns the third-party object data green"
+urls_mutant_green mut-first-only "<img src=\"a.png\" srcset=\"a.png 1x, ${THIRD}.png 2x\">" \
+  's/srcsetCandidateUrls(attribute.value)/srcsetCandidateUrls(attribute.value).slice(0, 1)/' \
+  "judging only the first candidate turns the later candidate green"
+urls_mutant_red mut-naive-split '<img src="a.png" srcset="data:text/plain,https://other.example/x 1x">' \
+  's/srcsetCandidateUrls(attribute.value)/attribute.value.split(",")/' \
+  "a srcset split on commas turns a valid data URL red"
+urls_mutant_green mut-trailing-comma "<img src=\"a.png\" srcset=\"a.png, ${THIRD}.png\">" \
+  "s/if (url.endsWith(',')) {/if (false) {/" \
+  "a trailing comma that does not end the candidate turns the later candidate green"
+urls_mutant_red mut-parens '<img src="a.png" srcset="a.png 1x (note, https://other.example/b.png), c.png 2x">' \
+  "s/} else if (c === '(') {/} else if (false) {/" \
+  "parentheses in a descriptor ignored turn the comma inside them into a candidate boundary"
+urls_mutant_red mut-data-refused '<img src="a.png" srcset="data:image/gif;base64,R0lG,ODlh 1x">' \
+  's/dataAllowed: true/dataAllowed: false/' "data URLs refused in a srcset turn the valid data URL red"
+urls_mutant_green mut-data-everywhere '<embed src="data:text/html,hello">' \
+  's/dataAllowed: false/dataAllowed: true/' "data URLs allowed everywhere turn the embed data URL green"
+urls_mutant_red mut-res-relative '<audio src="a.mp3"></audio>' \
+  's/BASE_TWO.host) return null/BASE_TWO.host) return "refused"/' "a copy that refuses relative paths turns the relative case red"
+urls_mutant_red mut-res-own '<audio src="https://media.site.example/a.mp3"></audio>' \
+  's/own.hosts.has(host)/false/' "a copy that ignores the own rows turns the own-host case red"
+urls_mutant_green mut-res-nodot '<audio src="https://badcdn.site.example/a.mp3"></audio>' \
+  "s/host.endsWith(\`.${DOLLAR}{suffix}\`)/host.endsWith(suffix)/" "a subdomain matched without its dot turns the lookalike green"
+urls_mutant_green mut-res-userinfo '<audio src="https://user@media.site.example/a.mp3"></audio>' \
+  "s/first.username !== '' || first.password !== ''/false/" "a URL with a user name allowed turns that case green"
+urls_mutant_green mut-res-protorel '<audio src="//media.site.example/a.mp3"></audio>' \
+  's/first.protocol !== second.protocol/false/' "the protocol-relative check dropped turns the own host green"
+urls_mutant_green mut-res-quote '<audio src=https://media.site.example/a.mp3></audio>' \
+  "s/attribute.quote !== '\"'/false/" "the quote rule dropped turns the unquoted own host green"
+urls_mutant_green mut-res-charref '<audio src="https&#58;//other.example/a.mp3"></audio>' \
+  "s/if (raw.replaceAll('&amp;', '').includes('&')) return/if (false) return/" "the character reference rule dropped turns that case green"
+urls_mutant_green mut-res-count "<audio src=\"${THIRD}.mp3" \
+  's/if (found !== total)/if (false)/' "the tag count dropped turns the tag never closed green"
+
+R="$(mkroot mut-urls-missing)"
+rm "${R}/Scripts/check_privacy_posture_urls.mjs"
+selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
+  '/urls.mjs failed/{n;s/exit 2/:/;}' \
+  "${R}/Site" \
+  "a copy that carries on when the URL script fails turns case 25 green" \
+  "the copy that ignores a failed URL script did not turn case 25 green"
+
+selftest_end "privacy posture gate" "privacy posture gate proven on synthetic sites (iframes by host list, media by own host or relative path, srcset, audio, track, embed and object by the same policy, malformed and missing exceptions red, thirty-five weakened copies caught, links true for a split anchor)"

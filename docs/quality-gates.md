@@ -630,10 +630,17 @@ The POST gates, on the generated site:
   the exceptions file declares as the site's own (`own:host|reason`, or
   `own:*.host|reason` for its subdomains), a CSS `url()`
   pointing off-site, `document.cookie`, `localStorage` or `sessionStorage`,
-  and a known analytics snippet. A green run lists what the page does load
-  (self-hosted fonts) and the hosts it links to, so the verdict can be read
-  rather than trusted. An outbound link is not a finding: it sends nothing
-  until someone clicks it.
+  and a known analytics snippet. `srcset` on `img` and `source`, `audio`
+  `src`, `track` `src`, `embed` `src` and `object` `data` are held to the same
+  host policy by `Scripts/check_privacy_posture_urls.mjs`: every `srcset`
+  candidate is judged, read by the WHATWG srcset algorithm, because a valid
+  data URL holds commas (a data URL passes in a candidate and nowhere else),
+  and each host is read by Node's WHATWG `URL`. A green run lists what the page
+  does load (self-hosted fonts) and the hosts it links to, so the verdict can
+  be read rather than trusted. An outbound link is not a finding: it sends
+  nothing until someone clicks it. The boundary: this is a static check of the
+  HTML and CSS, and it cannot guarantee that JavaScript will never start a
+  request to a third party. That needs runtime network monitoring.
 - **repository links** (`Scripts/check_repo_links.sh`, forsgren's own): no
   `github.com/<owner>/<repo>` path anywhere in the generated `.html` or
   `.css`, linked or as text. The gate cannot tell a private repository from

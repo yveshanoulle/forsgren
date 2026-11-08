@@ -382,6 +382,7 @@ step summary isolation|in|Scripts/check_markdown_links.sh
 step summary isolation|in|Scripts/check_node_pin.sh
 step summary isolation|in|Scripts/check_pipe_grep_q.sh
 step summary isolation|in|Scripts/check_privacy_posture.sh
+step summary isolation|in|Scripts/check_privacy_posture_urls.mjs
 step summary isolation|in|Scripts/check_private_names.sh
 step summary isolation|in|Scripts/check_repo_links.sh
 step summary isolation|in|Scripts/check_script_references.sh

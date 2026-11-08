@@ -58,7 +58,7 @@ new_root() {
   mkdir -p "${ROOT}/Scripts"
   cp Scripts/gate_htmlhint_starter.sh Scripts/gate_htmlhint.sh \
     Scripts/check_privacy_posture_starter.sh Scripts/check_privacy_posture.sh \
-    Scripts/lib_site_settings.sh Scripts/lib_tmp.sh Scripts/site_settings.txt Scripts/privacy_posture_exceptions.txt \
+    Scripts/check_privacy_posture_urls.mjs Scripts/lib_site_settings.sh Scripts/lib_tmp.sh Scripts/site_settings.txt Scripts/privacy_posture_exceptions.txt \
     "${ROOT}/Scripts/"
   cp .htmlhintrc "$ROOT/"
   ln -s "${REPO_ROOT}/node_modules" "${ROOT}/node_modules"

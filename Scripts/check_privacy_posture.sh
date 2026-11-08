@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# canon: check_privacy_posture v3
-# v3 (forsgren#654): img, video and source tags and their src and poster attributes are judged: only a relative path or a host the exceptions file declares as the site's own (a new row form, own:host|reason) passes; the existing rules and row form are unchanged
+# canon: check_privacy_posture v4
+# v4 (forsgren#654, step 2): srcset on img and source (every candidate, parsed the WHATWG way), audio src, track src, embed src and object data are judged under the same host policy, by Scripts/check_privacy_posture_urls.mjs; the checks of v3 are unchanged, and the header now states what a static check cannot see
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
@@ -49,6 +49,21 @@ source Scripts/lib_site_settings.sh
 # `own:*.host|reason` every subdomain of it and not the host itself, which needs
 # its own row. A file with no own row allows relative paths only; a missing file
 # is exit 2, like any run without its allow-list.
+#
+# RESOURCES. A srcset on an img or source, an audio src, a track src, an embed
+# src and an object data load on page view too, under the same policy: a
+# double-quoted relative path or https on an own host passes. A srcset is a list:
+# every candidate URL is judged, a later one as much as the first, and a data URL
+# in a candidate passes, since it contacts no host (it does not pass anywhere
+# else: an embed or object could run a data: document). Node reads these, in
+# Scripts/check_privacy_posture_urls.mjs: the WHATWG srcset algorithm, because a
+# data URL holds commas, and the WHATWG URL parser for the host. A run in which
+# that script cannot finish is exit 2, never a pass.
+#
+# THE BOUNDARY OF THIS CHECK. It reads static HTML and CSS. It cannot guarantee
+# that JavaScript will never start a request to a third party: a script can build
+# a URL at run time and no static reading sees it. That guarantee needs runtime
+# network monitoring, and this gate does not give it.
 #
 # WHAT IS DELIBERATELY NOT A FINDING: outbound links (ticketing, social
 # platforms). A link transmits nothing until someone clicks it, and then they
@@ -261,6 +276,18 @@ media_unlisted() {
 hits="$(media_unlisted)"
 [ -n "$hits" ] && report "media from another host" \
   "An image, video or poster from another host sends every visitor's IP there on page view. Only a double-quoted relative path or an https URL on a host declared own:host|reason in ${EXCEPTIONS} passes." "$hits"
+
+# The files the URL script reads: all of the site's HTML and CSS, as the scans
+# above. It always runs, so a machine without Node is red on any site.
+resource_files="$(find "$SITE" -type f \( -name '*.html' -o -name '*.css' \) 2>/dev/null | sort)"
+hits="$(node Scripts/check_privacy_posture_urls.mjs "$own_hosts" "$own_suffixes" <<< "$resource_files")"
+urls_rc=$?
+if [ "$urls_rc" -ne 0 ]; then
+  echo "privacy-posture: Scripts/check_privacy_posture_urls.mjs failed (exit ${urls_rc}), so srcset, audio, track, embed and object were not judged" >&2
+  exit 2
+fi
+[ -n "$hits" ] && report "a resource from another host" \
+  "A srcset candidate, audio, track, embed or object from another host sends every visitor's IP there on page view. Only a double-quoted relative path or an https URL on a host declared own:host|reason in ${EXCEPTIONS} passes (and, in a srcset, a data URL)." "$hits"
 
 hits="$(scan '<(script|link)[^>]+(src|href)="https?://')"
 [ -n "$hits" ] && report "a third-party asset is loaded" \
