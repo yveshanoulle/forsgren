@@ -625,7 +625,10 @@ The POST gates, on the generated site:
   same commit as its template.
 - **privacy posture** (`Scripts/check_privacy_posture.sh`, the estate's gate
   from another estate repository): the page collects nothing. Red on a form, an
-  iframe, a script or stylesheet loaded from another host, a CSS `url()`
+  iframe, a script or stylesheet loaded from another host, an `img`, `video`,
+  `source` or `poster` that is neither a relative path nor https on a host
+  the exceptions file declares as the site's own (`own:host|reason`, or
+  `own:*.host|reason` for its subdomains), a CSS `url()`
   pointing off-site, `document.cookie`, `localStorage` or `sessionStorage`,
   and a known analytics snippet. A green run lists what the page does load
   (self-hosted fonts) and the hosts it links to, so the verdict can be read

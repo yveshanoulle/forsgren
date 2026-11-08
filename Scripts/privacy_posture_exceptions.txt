@@ -3,3 +3,8 @@
 # One row per host: host|reason. The reason is required: what the embed is and where
 # it is documented. An iframe from a host not listed here is a finding. A repository
 # with no embed keeps this file with comments only; a missing file is red.
+#
+# The site's own media hosts are rows of this file too, apart from the embeds:
+# own:host|reason is that exact host, own:*.host|reason every subdomain of it and
+# not the host itself. An img, video, source or poster passes only as a relative
+# path or as https on such a host. forsgren serves its media from relative paths.

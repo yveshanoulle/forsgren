@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_check_privacy_posture v3
+# canon: test_check_privacy_posture v4
+# v4 (forsgren#654): the media cases and their proofs, for check_privacy_posture v3
 # Scripts/test_check_privacy_posture.sh
 #
 # Self-test for Scripts/check_privacy_posture.sh, the
@@ -39,6 +40,18 @@
 #      a duplicate host                           -> exit 2 each, named
 #  13. a missing exceptions file                  -> exit 2 (fail closed)
 #  14. an anchor split over lines is a link; "links nowhere" only for none
+#  15. a video src, a source src, an img src and a poster from another host
+#                                                 -> red each
+#  16. the same, in upper case, split over lines, unquoted, single quoted,
+#      protocol-relative, http, backslashed, spelled with a character
+#      reference, behind a > in an earlier attribute -> red each
+#  17. a host that only looks like an own host, a subdomain nobody declared,
+#      an embed host used for media, an own host used for an iframe -> red each
+#  18. an own host on each tag and attribute, a declared subdomain, relative
+#      paths, no src at all, data-src, a tag that only starts like one -> green
+#  19. no own host declared: a relative path green, an own host red; the
+#      exceptions file missing: exit 2
+#  20. a malformed or duplicate own row -> exit 2 each, named
 # Mutation proofs (a weakened copy of the gate must turn the case green):
 #   A. the blanket rule (any iframe passes when privacy.html exists): case 6
 #   B. the allow-list skipped when its file is missing: case 13
@@ -46,6 +59,13 @@
 #   D. the src host matched as a part of a listed host instead of exactly: case 10
 #   E. the HTML read line by line: the split anchor is missed and the INFO
 #      block claims the site links nowhere (case 14)
+#   F, G, H. video, source, img dropped from the tag list: case 15 for that tag
+#   I. poster no longer read: case 15, the poster
+#   J. own rows not honoured: the own-host case of 18 turns red
+#   K. a relative path no longer passes: the relative case of 18 turns red
+#   L. a subdomain matched without its dot: the lookalike of 17
+#   M. anything allowed between the host and the path: the userinfo of 17
+#   N. the media tags read line by line: the split tag of 16
 
 set -euo pipefail
 
@@ -63,6 +83,10 @@ DOLLAR='$'
 EXC_OK="# comment
 barcamp.io|embedded agenda viewer, documented on the privacy page
 "
+EXC_OWN="${EXC_OK}own:media.site.example|the site's own media host
+own:*.cdn.site.example|the site's own media subdomains
+"
+THIRD="https://other.example/a"
 
 # mkroot <name> [exceptions-content | -]: a root with the gate copy, the
 # settings lib and file, an empty Site/, and the exceptions file (none when "-").
@@ -233,6 +257,121 @@ gate_in "$R" Site
 want_green_ok "a site without any outbound link is green"
 want_said "and the report says it links nowhere off itself" "links nowhere off itself"
 
+# media_root <name> <html> [exceptions]: a root declaring the own hosts of
+# EXC_OWN (or the given exceptions), the html appended to its index page.
+media_root() {
+  local root
+  root="$(mkroot "$1" "${3-$EXC_OWN}")"
+  printf '%s\n' "$2" >> "${root}/Site/index.html"
+  echo "$root"
+}
+
+# media_red <name> <html>: the html's media is a finding.
+media_red() {
+  gate_in "$(media_root "$1" "$2")" Site
+  want_red "${1}: ${2} is red" "media from another host"
+}
+
+# media_green <name> <html> [exceptions]: the html's media passes.
+media_green() {
+  gate_in "$(media_root "$1" "$2" "${3-$EXC_OWN}")" Site
+  want_green_ok "${1}: ${2} is green"
+}
+
+# --- 15. media from another host, one case per tag and attribute
+media_red red-video "<video src=\"${THIRD}.mp4\"></video>"
+want_said "the finding names the host" "other.example"
+media_red red-source "<video><source src=\"${THIRD}.mp4\" type=\"video/mp4\"></video>"
+media_red red-img "<img src=\"${THIRD}.png\" alt=\"\">"
+media_red red-poster "<video src=\"a.mp4\" poster=\"${THIRD}.jpg\"></video>"
+
+# --- 16. the same tags, however they are written
+media_red red-upper "<IMG SRC=\"${THIRD}.png\">"
+media_red red-upper-tag "<VIDEO src=\"${THIRD}.mp4\"></VIDEO>"
+media_red red-lines "<img
+  alt=\"\"
+  src=\"${THIRD}.png\">"
+media_red red-unquoted "<img src=${THIRD}.png>"
+media_red red-single "<img src='${THIRD}.png'>"
+media_red red-spaces "<img src = \"${THIRD}.png\">"
+media_red red-leading "<img src=\" ${THIRD}.png\">"
+media_red red-protorel '<img src="//other.example/a.png">'
+media_red red-http-own '<img src="http://media.site.example/a.png">'
+media_red red-backslash '<img src="\\other.example/a.png">'
+media_red red-backslash2 '<img src="/\other.example/a.png">'
+media_red red-charref '<img src="https&#58;//other.example/a.png">'
+media_red red-gt-attr "<img alt=\"a>b\" src=\"${THIRD}.png\">"
+media_red red-scheme '<img src="ftp://media.site.example/a.png">'
+media_red red-twice "<img src=\"a.png\" src=\"${THIRD}.png\">"
+media_green green-upper-rel '<IMG SRC="a.png">'
+media_green green-lines-own '<img
+  src="https://media.site.example/a.png">'
+
+# --- 17. not an own host
+media_red red-apex-of-wild '<img src="https://cdn.site.example/a.png">'
+media_red red-undeclared-sub '<img src="https://www.media.site.example/a.png">'
+media_red red-suffix '<img src="https://media.site.example.other.example/a.png">'
+media_red red-prefix '<img src="https://evilmedia.site.example/a.png">'
+media_red red-nodot '<img src="https://badcdn.site.example/a.png">'
+media_red red-userinfo '<img src="https://media.site.example@other.example/a.png">'
+media_red red-userinfo-port '<img src="https://media.site.example:x@other.example/a.png">'
+media_red red-embed-host '<img src="https://barcamp.io/a.png">'
+R="$(media_root iframe-own '<iframe src="https://media.site.example/e"></iframe>')"
+gate_in "$R" Site
+want_red "an own-host row does not allow an iframe" "an embedded third party"
+
+# --- 18. what passes
+media_green green-own-video '<video src="https://media.site.example/a.mp4"></video>'
+media_green green-own-source '<video><source src="https://media.site.example/a.mp4"></video>'
+media_green green-own-img '<img src="https://MEDIA.site.example/a.png">'
+media_green green-own-poster '<video src="a.mp4" poster="https://media.site.example/p.jpg"></video>'
+media_green green-own-port '<img src="https://media.site.example:8443/a.png">'
+media_green green-sub '<img src="https://a.cdn.site.example/x.png">'
+media_green green-subsub '<img src="https://a.b.cdn.site.example/x.png">'
+media_green green-relative '<img src="a.png"><img src="/m/a.png"><img src="./a.png"><img src="../a.png">'
+media_green green-relative-query '<img src="a.png?x=1&amp;y=2">'
+media_green green-relative-media '<video src="a.mp4" poster="p.jpg"><source src="/b.mp4"></video>'
+media_green green-no-src '<video></video><img alt=""><source srcset="a.webp">'
+media_green green-data-src "<img data-src=\"${THIRD}.png\" src=\"a.png\">"
+media_green green-custom-tag "<video-player src=\"${THIRD}.mp4\"></video-player>"
+R="$(media_root info-own '<img src="https://media.site.example/a.png">')"
+gate_in "$R" Site
+want_said "the report lists the own hosts" "media.site.example"
+want_said "the report marks a subdomain row" "*.cdn.site.example"
+if grep -qF "own:" <<< "$OUT"; then
+  fail "the report prints an own row as an embed. Output: ${OUT}"
+else
+  echo "  ok: an own row is not listed among the embeds"
+fi
+
+# --- 19. no own host declared, no data file
+media_green none-relative '<img src="a.png">' "$EXC_OK"
+gate_in "$(media_root none-own '<img src="https://media.site.example/a.png">' "$EXC_OK")" Site
+want_red "with no own host declared, an absolute media URL is red" "media from another host"
+gate_in "$(media_root none-empty "<img src=\"${THIRD}.png\">" "# nothing declared
+")" Site
+want_red "a comments-only file allows no media host" "media from another host"
+gate_in "$(media_root none-file "<img src=\"${THIRD}.png\">" -)" Site
+want_exit "a missing exceptions file with third-party media is exit 2, never a pass" 2 "exceptions file not found"
+
+# --- 20. malformed own rows
+for row in 'own:media.site.example|' 'own:media.site.example|   ' 'own:|x' 'own:*.|x' 'own:media.site.example' 'own:*media.site.example|x' 'own:a b|x'; do
+  R="$(mkroot "bad-own-${#row}-${row:4:3}" "${row}
+")"
+  gate_in "$R" Site
+  want_exit "the own row '${row}' is exit 2" 2 "malformed row 1"
+done
+R="$(mkroot dup-own "own:media.site.example|one
+own:MEDIA.site.example|two
+")"
+gate_in "$R" Site
+want_exit "a duplicate own host is exit 2" 2 "duplicate host"
+R="$(mkroot dup-own-wild "own:*.cdn.site.example|one
+own:*.CDN.site.example|two
+")"
+gate_in "$R" Site
+want_exit "a duplicate own subdomain row is exit 2" 2 "duplicate host"
+
 # --- Mutation proofs
 R="$(mkroot mut-blanket)"
 printf '%s\n' "$UNLISTED" >> "${R}/Site/index.html"
@@ -276,4 +415,66 @@ if selftest_mutant "$GATE" "${R}/Scripts/check_privacy_posture.sh" 's/^  [|] tr 
   fi
 fi
 
-selftest_end "privacy posture gate" "privacy posture gate proven on synthetic sites (iframes by host list, malformed and missing exceptions red, five weakened copies caught, links true for a split anchor)"
+R="$(media_root mut-video "<video src=\"${THIRD}.mp4\"></video>")"
+selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
+  "s/^MEDIA_TAGS='img|video|source'/MEDIA_TAGS='img|source'/" \
+  "${R}/Site" \
+  "video dropped from the tag list turns the third-party video src green" \
+  "the copy without video did not turn the video case green"
+
+R="$(media_root mut-source "<video><source src=\"${THIRD}.mp4\"></video>")"
+selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
+  "s/^MEDIA_TAGS='img|video|source'/MEDIA_TAGS='img|video'/" \
+  "${R}/Site" \
+  "source dropped from the tag list turns the third-party source src green" \
+  "the copy without source did not turn the source case green"
+
+R="$(media_root mut-img "<img src=\"${THIRD}.png\">")"
+selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
+  "s/^MEDIA_TAGS='img|video|source'/MEDIA_TAGS='video|source'/" \
+  "${R}/Site" \
+  "img dropped from the tag list turns the third-party img src green" \
+  "the copy without img did not turn the img case green"
+
+R="$(media_root mut-poster "<video src=\"a.mp4\" poster=\"${THIRD}.jpg\"></video>")"
+selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
+  's/src|poster)/src)/' \
+  "${R}/Site" \
+  "a copy that does not read poster turns the third-party poster green" \
+  "the copy without poster did not turn the poster case green"
+
+R="$(media_root mut-own '<img src="https://media.site.example/a.png">')"
+if selftest_mutant "$GATE" "${R}/Scripts/check_privacy_posture.sh" "s/^ *own_hosts=\"${DOLLAR}{own_hosts}.*${DOLLAR}/:/"; then
+  gate_in "$R" Site
+  want_red "mutation proof: a copy that ignores the own rows turns the own-host case red" "media from another host"
+fi
+
+R="$(media_root mut-relative '<img src="a.png">')"
+if selftest_mutant "$GATE" "${R}/Scripts/check_privacy_posture.sh" 's/return 0 # a relative path/return 1/'; then
+  gate_in "$R" Site
+  want_red "mutation proof: a copy that refuses relative paths turns the relative case red" "media from another host"
+fi
+
+R="$(media_root mut-nodot '<img src="https://badcdn.site.example/a.png">')"
+selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
+  "s/?\*\"\.${DOLLAR}{suffix}\"/*\"${DOLLAR}{suffix}\"/" \
+  "${R}/Site" \
+  "a subdomain matched without its dot turns the lookalike green" \
+  "the copy without the dot did not turn the lookalike green"
+
+R="$(media_root mut-userinfo '<img src="https://media.site.example:x@other.example/a.png">')"
+selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
+  's/(:\[0-9\]+)?/(:[^\/]*)?/' \
+  "${R}/Site" \
+  "anything allowed between the host and the path turns the userinfo case green" \
+  "the copy without the port rule did not turn the userinfo case green"
+
+R="$(media_root mut-lines "<img
+  src=\"${THIRD}.png\">")"
+selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
+  "s/joined=\"${DOLLAR}(tr .*${DOLLAR}/joined=\"${DOLLAR}(cat \"${DOLLAR}file\")\"/" \
+  "${R}/Site" \
+  "the media tags read line by line turn the split tag green" \
+  "the line-by-line copy did not turn the split tag green"
+
+selftest_end "privacy posture gate" "privacy posture gate proven on synthetic sites (iframes by host list, media by own host or relative path, malformed and missing exceptions red, fourteen weakened copies caught, links true for a split anchor)"

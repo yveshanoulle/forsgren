@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: check_privacy_posture v2
+# canon: check_privacy_posture v3
+# v3 (forsgren#654): img, video and source tags and their src and poster attributes are judged: only a relative path or a host the exceptions file declares as the site's own (a new row form, own:host|reason) passes; the existing rules and row form are unchanged
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
@@ -36,6 +37,19 @@ source Scripts/lib_site_settings.sh
 # Only an exact host with an https double-quoted src is matched; a relative,
 # protocol-relative, unquoted or missing src is a finding.
 #
+# MEDIA. An img, video or source loads on page view just as an iframe does, and
+# so does a poster. Each src and poster of those tags, in any letter case and
+# over any number of lines, is a finding unless it is a double-quoted relative
+# path or an https URL on one of the site's OWN hosts. Unquoted, single-quoted,
+# protocol-relative, backslashed or http values are findings, as they are for an
+# iframe, and so is a value with a character reference other than &amp;. A tag
+# with neither attribute loads nothing by them and is no finding.
+# OWN HOSTS are data, rows of the same exceptions file, kept apart from the
+# embeds so that neither allows the other: `own:host|reason` is that exact host,
+# `own:*.host|reason` every subdomain of it and not the host itself, which needs
+# its own row. A file with no own row allows relative paths only; a missing file
+# is exit 2, like any run without its allow-list.
+#
 # WHAT IS DELIBERATELY NOT A FINDING: outbound links (ticketing, social
 # platforms). A link transmits nothing until someone clicks it, and then they
 # are plainly somewhere else. What matters is what the page loads or stores
@@ -67,10 +81,34 @@ if [ ! -f "$EXCEPTIONS" ]; then
   exit 2
 fi
 allowed_hosts=" "
+own_hosts=" "
+own_suffixes=" "
 n=0
 while IFS= read -r line || [ -n "$line" ]; do
   n=$((n + 1))
   case "$line" in '' | '#'*) continue ;; esac
+  case "$line" in
+    own:*)
+      if ! [[ "$line" =~ ^own:(\*\.)?([A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*)\|[^[:space:]].*$ ]]; then
+        echo "privacy-posture: malformed row ${n} in ${EXCEPTIONS} (want own:host|reason or own:*.host|reason, the reason required): ${line}" >&2
+        exit 2
+      fi
+      wild="${BASH_REMATCH[1]}"
+      host="$(printf '%s' "${BASH_REMATCH[2]}" | tr '[:upper:]' '[:lower:]')"
+      if [ -n "$wild" ]; then
+        case "$own_suffixes" in
+          *" ${host} "*) echo "privacy-posture: duplicate host '*.${host}' (row ${n} of ${EXCEPTIONS})" >&2; exit 2 ;;
+        esac
+        own_suffixes="${own_suffixes}${host} "
+      else
+        case "$own_hosts" in
+          *" ${host} "*) echo "privacy-posture: duplicate host 'own:${host}' (row ${n} of ${EXCEPTIONS})" >&2; exit 2 ;;
+        esac
+        own_hosts="${own_hosts}${host} "
+      fi
+      continue
+      ;;
+  esac
   if ! [[ "$line" =~ ^([A-Za-z0-9.-]+)\|[^[:space:]].*$ ]]; then
     echo "privacy-posture: malformed row ${n} in ${EXCEPTIONS} (want host|reason, the reason required): ${line}" >&2
     exit 2
@@ -131,6 +169,99 @@ hits="$(iframe_unlisted)"
 [ -n "$hits" ] && report "an embedded third party" \
   "An iframe loads from another party on page view, before any click. Allowed only for a host listed with a reason in ${EXCEPTIONS}." "$hits"
 
+# The tags media_unlisted reads, in one place.
+MEDIA_TAGS='img|video|source'
+
+# host_is_own <lower-case host>
+host_is_own() {
+  local suffix
+  case "$own_hosts" in
+    *" $1 "*) return 0 ;;
+  esac
+  for suffix in $own_suffixes; do
+    case "$1" in
+      ?*".${suffix}") return 0 ;;
+    esac
+  done
+  return 1
+}
+
+# media_value_ok <value>: a relative path, or https on an own host. A browser
+# drops white space around and inside a URL and reads a backslash as a slash,
+# so this does too before it decides what is relative.
+media_value_ok() {
+  local value="${1//[[:space:]]/}" re_https='^https://([A-Za-z0-9.-]+)(:[0-9]+)?([/?#].*)?$' re_scheme='^[A-Za-z][A-Za-z0-9+.-]*:'
+  case "${value//&amp;/}" in
+    *'&'*) return 1 ;;
+  esac
+  case "$value" in
+    //* | \\* | /\\*) return 1 ;;
+  esac
+  [[ "$value" =~ $re_scheme ]] || return 0 # a relative path
+  [[ "$value" =~ $re_https ]] || return 1
+  host_is_own "$(printf '%s' "${BASH_REMATCH[1]}" | tr '[:upper:]' '[:lower:]')"
+}
+
+# media_tag_ok <tag>: 0 when every src and poster of the tag passes. It walks
+# the attributes, so data-src, or src="..." inside another attribute's value,
+# is not read as src; an attribute given twice is judged both times.
+media_tag_ok() {
+  local rest name value re_name='^<[A-Za-z]+' re_bare='^[^[:space:]=/>]+'
+  local re_attr='^([^[:space:]=/>]+)[[:space:]]*=[[:space:]]*("[^"]*"|'"'"'[^'"'"']*'"'"'|[^[:space:]>]*)'
+  [[ "$1" =~ $re_name ]] || return 1
+  rest="${1:${#BASH_REMATCH[0]}}"
+  while :; do
+    rest="${rest#"${rest%%[![:space:]/]*}"}"
+    case "$rest" in
+      '' | '>'*) return 0 ;;
+    esac
+    if [[ "$rest" =~ $re_attr ]]; then
+      value="${BASH_REMATCH[2]}"
+      name="$(printf '%s' "${BASH_REMATCH[1]}" | tr '[:upper:]' '[:lower:]')"
+      rest="${rest:${#BASH_REMATCH[0]}}"
+      case "$name" in
+        src|poster)
+          case "$value" in
+            '"'*'"') media_value_ok "${value:1:${#value}-2}" || return 1 ;;
+            *) return 1 ;;
+          esac
+          ;;
+      esac
+    elif [[ "$rest" =~ $re_bare ]]; then
+      rest="${rest:${#BASH_REMATCH[0]}}"
+    else
+      return 1
+    fi
+  done
+}
+
+# media_unlisted: one line per media tag that fails, as `file: tag`. Like the
+# iframes, the tag is read across line breaks and a file with a media tag no
+# complete tag explains is reported whole. The tag pattern knows quotes, so a
+# > inside an attribute value does not end the tag early.
+media_unlisted() {
+  local file joined tags tag total found
+  while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    joined="$(tr '\n\r\t' '   ' < "$file")"
+    tags="$(grep -oiE "<(${MEDIA_TAGS})([[:space:]/]([^>\"']|\"[^\"]*\"|'[^']*')*)?>" <<< "$joined" || true)"
+    total="$(grep -oiE "<(${MEDIA_TAGS})[[:space:]/>]" <<< "$joined" | wc -l | tr -d ' ')"
+    found=0
+    while IFS= read -r tag; do
+      [ -n "$tag" ] || continue
+      found=$((found + 1))
+      media_tag_ok "$tag" || echo "${file}: ${tag}"
+    done <<< "$tags"
+    if [ "$found" -ne "$total" ]; then
+      echo "${file}: a media tag that is not a complete tag"
+    fi
+  done < <(grep -rIilE "<(${MEDIA_TAGS})([[:space:]/>]|\$)" "$SITE" --include='*.html' --include='*.css' 2>/dev/null | sort)
+}
+
+hits="$(media_unlisted)"
+[ -n "$hits" ] && report "media from another host" \
+  "An image, video or poster from another host sends every visitor's IP there on page view. Only a double-quoted relative path or an https URL on a host declared own:host|reason in ${EXCEPTIONS} passes." "$hits"
+
 hits="$(scan '<(script|link)[^>]+(src|href)="https?://')"
 [ -n "$hits" ] && report "a third-party asset is loaded" \
   "A script or stylesheet from another host sends every visitor's IP there on page view. Self-host it, as the fonts in this repo are." "$hits"
@@ -178,7 +309,14 @@ echo "  embeds  hosts allowed by ${EXCEPTIONS}:"
 if [ "$allowed_hosts" = " " ]; then
   echo "            (none)"
 else
-  grep -vE '^(#|$)' "$EXCEPTIONS" | sed 's/^/            /'
+  grep -vE '^(#|$|own:)' "$EXCEPTIONS" | sed 's/^/            /'
+fi
+
+echo "  media   the site's own hosts, from ${EXCEPTIONS} (anything else must be a relative path):"
+if [ "$own_hosts$own_suffixes" = "  " ]; then
+  echo "            (none)"
+else
+  grep -E '^own:' "$EXCEPTIONS" | sed -E 's/^own:/            /'
 fi
 
 echo "  links   outbound destinations visitors can choose to follow:"
