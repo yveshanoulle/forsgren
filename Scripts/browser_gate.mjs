@@ -1,4 +1,5 @@
-// canon: browser_gate v19
+// canon: browser_gate v20
+// v20 (forsgren#649): one helper, orTimeout, races a promise against a timer wherever the engine waited for something or a time limit (the paint wait, Chrome's stderr, Chrome's exit after a launch error, a folder removal, the launch at a signal, the browser's close); every limit, every outcome and every message is as in v19, and each timer is now cleared however the race ends, so none keeps node alive after a rejection either. The findings, the baseline format and the exit statuses are unchanged.
 // v19 (forsgren#642): a launch whose own error comes before Chrome's 'exit' still names the death: on Linux the closed pipe of a dying Chrome is read first and puppeteer.launch rejects with TargetCloseError, so v18 printed that error and neither the death nor Chrome's stderr; the engine now gives Chrome's process LAUNCH_EXIT_SETTLE_MS (2 s) to be seen ending and names it as v17 and v18 do, with the launch's own error after Chrome's lines. A code-sign clone folder is the same folder at removal only with the same inode and the same birth time: a file system that hands a freed inode out again (ext4) gave a folder replaced after the launch the old number, and it was removed. The findings, the baseline format and the exit statuses are unchanged.
 // v18 (forsgren#642): a Chrome that dies during the launch is named with its own last lines on stderr (up to 20, kept from its spawn), or with the words that it wrote none: on Linux Chrome ends itself on a singleton socket path too long (LOG(FATAL) "Socket path too long") and is seen as SIGABRT, and the reason was only on its stderr, which nobody read. The findings, the baseline format and the exit statuses are unchanged.
 // v17 (forsgren#630, step 2): a Chrome that dies during the launch ends the run at once, whoever holds its pipe: the engine keeps the process puppeteer spawns for its executable and races the launch with that process's own 'exit', so a helper or a wrapper's child holding a copy of the pipe no longer keeps the launch (and the run) waiting; the FAIL names it, `FAIL: browser gate: Chrome died during the launch (PID <pid>, exit <code> | signal <signal>)`, exit 2, and Chrome's process group is ended and the profile removed as on every way out. The findings, the baseline format and the exit statuses are unchanged.
@@ -497,6 +498,20 @@ const OBSERVE_SHIFTS = `
 `;
 
 // One page's findings. `used` collects the exception rows that matched.
+// The work, or a time limit, whichever comes first (v20): the work's value or
+// its rejection, or, once ms passed, timedOut (undefined when not given). The
+// timer is cleared however the race ends, so it never keeps node alive. Every
+// race of the engine against a timer goes through it; none rejects on the timer.
+async function orTimeout(work, ms, timedOut) {
+  let timer;
+  const late = new Promise((resolve) => { timer = setTimeout(resolve, ms, timedOut); });
+  try {
+    return await Promise.race([work, late]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 class PageCheck {
   constructor(page, origin, variant, pagePath, exceptions, baseline) {
     this.page = page;
@@ -674,10 +689,7 @@ class PageCheck {
     const deadline = Date.now() + DELIVERY_PAINT_CAP_MS;
     while (Date.now() < deadline) {
       try {
-        const state = await Promise.race([
-          this.page.evaluate(paintState, previousOrigin),
-          new Promise((resolve) => setTimeout(resolve, deadline - Date.now(), 'cap')),
-        ]);
+        const state = await orTimeout(this.page.evaluate(paintState, previousOrigin), deadline - Date.now(), 'cap');
         if (state !== 'previous') return;
       } catch {
         // The document was being replaced; ask again.
@@ -818,9 +830,7 @@ function stderrTail(child) {
     child.stderr.once('close', resolve);
   });
   return async () => {
-    let timer;
-    await Promise.race([closed, new Promise((resolve) => { timer = setTimeout(resolve, STDERR_SETTLE_MS); })]);
-    clearTimeout(timer);
+    await orTimeout(closed, STDERR_SETTLE_MS);
     return text.split('\n').map((line) => line.trimEnd()).filter(Boolean).slice(-STDERR_TAIL_LINES);
   };
 }
@@ -860,15 +870,11 @@ function launchOrDeath(launching, death) {
   death.catch(() => { deathFirst = true; });
   const failed = launching.catch(async (error) => {
     if (deathFirst || !live.chrome) throw error;
-    let timer;
-    const settled = new Promise((resolve) => { timer = setTimeout(resolve, LAUNCH_EXIT_SETTLE_MS); });
     try {
-      await Promise.race([death, settled]);
+      await orTimeout(death, LAUNCH_EXIT_SETTLE_MS);
     } catch (died) {
       died.launchError = error;
       throw died;
-    } finally {
-      clearTimeout(timer);
     }
     throw error;
   });
@@ -956,12 +962,9 @@ async function endChromeGroup(pgid) {
 // named when it runs out. A failed removal rejects: it is never a warning.
 const REMOVE_TIMEOUT_MS = 3000;
 async function removeFolder(folder, what) {
-  let timer;
-  const late = new Promise((resolve) => { timer = setTimeout(() => resolve('late'), REMOVE_TIMEOUT_MS); });
   const removed = fs.promises.rm(folder, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }).then(() => 'removed');
   removed.catch(() => {});
-  const result = await Promise.race([removed, late]);
-  clearTimeout(timer);
+  const result = await orTimeout(removed, REMOVE_TIMEOUT_MS, 'late');
   if (result === 'late') throw new Error(`${what} ${folder} not removed within ${REMOVE_TIMEOUT_MS / 1000} s`);
 }
 
@@ -1067,12 +1070,9 @@ function cloneOf(browser) {
 // pipe another process still holds.
 async function launched() {
   if (!live.launching) return null;
-  let timer;
-  const late = new Promise((resolve) => { timer = setTimeout(() => resolve(null), 30000); });
-  const died = live.launchDeath ? live.launchDeath.catch(() => null) : late;
-  const browser = await Promise.race([live.launching.catch(() => null), died, late]);
-  clearTimeout(timer);
-  return browser;
+  const launch = live.launching.catch(() => null);
+  const ended = live.launchDeath ? Promise.race([launch, live.launchDeath.catch(() => null)]) : launch;
+  return orTimeout(ended, 30000, null);
 }
 
 function release() {
@@ -1087,11 +1087,7 @@ function release() {
       // only waits for its timeout, longer on a loaded machine.
       const ended = !browser.connected || (child && (child.exitCode !== null || child.signalCode !== null));
       if (!ended) {
-        let timer;
-        const closed = browser.close().catch(() => {});
-        const late = new Promise((resolve) => { timer = setTimeout(resolve, CLOSE_TIMEOUT_MS); });
-        await Promise.race([closed, late]);
-        clearTimeout(timer);
+        await orTimeout(browser.close().catch(() => {}), CLOSE_TIMEOUT_MS);
       }
       if (child && child.pid) await endChromeGroup(child.pid);
     } else if (live.chrome?.pid) {

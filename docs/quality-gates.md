@@ -776,7 +776,7 @@ The POST gates, on the generated site:
   be wider than the window, nor any table wider than the box it sits in
   (scrollWidth above clientWidth), each finding naming the page, the width and
   the overflow in pixels; one rule for every page with a table (the engine
-  `browser_gate v19`, decisions #365, #380, #410 and #611, forsgren#620, estate issue 629, forsgren#630, forsgren#642; the CLS stays measured at 1280x800 alone).
+  `browser_gate v20`, decisions #365, #380, #410 and #611, forsgren#620, estate issue 629, forsgren#630, forsgren#642, forsgren#649; the CLS stays measured at 1280x800 alone).
   v4 = v3 plus the CLS interval from the load (default 1000 ms, no second read
   after axe) and the sideways measurement without scrollbar room (forsgren#377);
   the baseline format is unchanged, no migration.
