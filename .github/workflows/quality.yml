@@ -73,7 +73,9 @@ on:
   # is thrown away after it, and a fork's pull_request run gets a read-only
   # token and no secrets.
   # Scripts/check_workflow_triggers.sh is red on a pull-request trigger in
-  # any workflow with a job it cannot prove GitHub-hosted, and
+  # any workflow with a job it cannot prove GitHub-hosted (on pull_request,
+  # unless that job carries an accepted job-level guard against a fork's pull
+  # request; no job here needs one), and
   # Scripts/test_quality_runner_pins.sh pins each job to its hosted image
   # (macos-latest, or ubuntu-latest for the Linux jobs).
   push:

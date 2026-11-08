@@ -863,8 +863,22 @@ Nine PRE gates keep the CI honest:
   (`ubuntu-*`, `windows-*`, `macos-*`); the `self-hosted` label, a custom
   label, a list, a runner group, an expression such as `${{ matrix.os }}`
   and a reusable-workflow job are all judged as self-hosted, because the
-  gate cannot prove otherwise. Red as well on a workflow whose `on:` it
-  cannot read, and on a run that found no workflow file. It reads the YAML
+  gate cannot prove otherwise. Since `check_workflow_triggers` v3
+  (forsgren#645) such a job is allowed on `pull_request`, and on no other
+  pull-request event, when its own job-level `if:` is an accepted guard: an
+  expression false for a fork's pull request because it establishes that the
+  head repository is this one, built from
+  `github.event.pull_request.head.repo.full_name == github.repository` alone,
+  `github.event_name != 'pull_request' ||` that comparison, or either joined
+  to other conditions with `&&` (the exact grammar is in the script's
+  header). A step-level `if:` or a `needs:` dependency is no guard; a
+  reusable workflow is inspected when it is local and rejected when it is
+  remote, unless the calling job is guarded; an inverted, weaker, misspelled
+  or ambiguous expression, or a side of `||` that can be true for a fork, is
+  red, naming the job. A guarded job needs no exception row. No forsgren job
+  needs a guard: every one runs on a GitHub-hosted image. Red as well on a
+  workflow whose `on:` it cannot read, and on a run that found no workflow
+  file. It reads the YAML
   with awk, not a YAML library: PyYAML is a Python module, not a command,
   so nothing here installs it, and a parser that depends on it would stop
   gating on the first machine without it.

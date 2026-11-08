@@ -28,7 +28,9 @@
 #     read-only token and no secrets;
 #   - a GitHub-hosted runner, never a self-hosted one:
 #     Scripts/check_workflow_triggers.sh is red on a pull-request trigger
-#     with any job it cannot prove GitHub-hosted;
+#     with any job it cannot prove GitHub-hosted, unless (on pull_request
+#     only) that job carries an accepted job-level guard against a fork's
+#     pull request;
 #   - the pull request's code is never checked out. The commits are read
 #     through the API, and the one file checked out is Scripts/check_dco.sh
 #     at the BASE commit, so a pull request cannot change the check that

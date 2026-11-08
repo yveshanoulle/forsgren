@@ -156,8 +156,8 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 152 | dependabot config | `test_dependabot_config.sh` | pre | required; forsgren's own (forsgren#86): `.github/dependabot.yml` has `gomod`, `github-actions` and `npm` (forsgren#605) at `/`, a cron schedule, a commit-message prefix, groups, a cooldown and a comment per choice; 4 mutations (comments, cooldown, groups, npm) |
 | 111 | npm lockfile sync self-test | `test_check_npm_lock_sync.sh` | pre | required, `test_check_npm_lock_sync v1` |
 | 112 | npm lockfile sync | `check_npm_lock_sync.sh` | pre | required, `check_npm_lock_sync v1` |
-| 113 | workflow-triggers self-test | `test_check_workflow_triggers.sh` | pre | required, `test_check_workflow_triggers v1` |
-| 114 | workflow triggers | `check_workflow_triggers.sh` | pre | required, `check_workflow_triggers v2` |
+| 113 | workflow-triggers self-test | `test_check_workflow_triggers.sh` | pre | required, `test_check_workflow_triggers v3` (forsgren#645: the job-level guard's red-first cases, the accepted and unsafe guard forms, needs:, steps-only and reusable workflows, 9 v3 mutation proofs each asserting its reason) |
+| 114 | workflow triggers | `check_workflow_triggers.sh` | pre | required, `check_workflow_triggers v3` (forsgren#645: on `pull_request` a job off GitHub-hosted runners is allowed behind an accepted job-level guard against a fork's pull request, no exception row; the grammar is in the script's header) |
 | 115 | DCO sign-off self-test | `test_check_dco.sh` | pre | required |
 | 116 | metrics workflow | `test_metrics_workflow.sh` | pre | required |
 | 117 | auto-update workflow | `test_auto_update_workflow.sh` | pre | required |

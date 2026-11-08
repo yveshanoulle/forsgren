@@ -65,7 +65,9 @@ cd "$(dirname "$0")/.."
 # did not port while Quality ran on a self-hosted runner. The runner pin is
 # what keeps pin 3 safe: Scripts/check_workflow_triggers.sh would also turn
 # red on a pull_request trigger with a job off GitHub-hosted runners, over
-# every workflow, but this check names the one runner Quality must have, so a
+# every workflow (unless the job carries an accepted job-level guard against a
+# fork's pull request, check_workflow_triggers v3), but this check names the
+# one runner Quality must have, so a
 # swap to another hosted image (or back to a self-hosted one) is a decision
 # made here first.
 #
