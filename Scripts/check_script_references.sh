@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: check_script_references v3
+# canon: check_script_references v4
+# v4 (forsgren#653): the FORWARD check no longer reads the frozen history ledger, a file named SHIPPED.md in any letter case and any folder: an old entry truly names a script as it was then, and must not be rewritten when that script later moves. Every other .md file stays scanned.
 # v3 (forsgren#646): an OPTIONAL script, one a shared script uses only where a repository has it, is not a broken reference where it is absent: every scanned file that names it tests that very path for existence on a code line, and no file of the repository holds it in any letter case.
 # Scripts/check_script_references.sh [repo-root]
 #
@@ -12,7 +13,9 @@
 #            GitHub path filters do not). Scanned: .sh, .py, .yml, .yaml, the
 #            order and tool files (.txt) and the docs (.md), comments
 #            included: a dangling path in a comment or a doc is the "we will
-#            forget later" this catches now. A path that names ANOTHER
+#            forget later" this catches now. Not scanned: SHIPPED.md, in any
+#            letter case and any folder (v4), the frozen history whose old
+#            entries name scripts as they were. A path that names ANOTHER
 #            repository's script says so with that repository as its first
 #            component and is skipped; a bare Scripts path is this repository's
 #            own. Fixture files (test_*) are not scanned forward: they name
@@ -70,6 +73,7 @@ STANDALONE_DIR="Scripts/standalone"
 scanned="$(find . -type f \( -name '*.sh' -o -name '*.py' -o -name '*.yml' -o -name '*.yaml' -o -name '*.txt' -o -name '*.md' \) \
   -not -path './.git/*' -not -path './.claude/*' -not -path '*/__pycache__/*' -not -path '*/node_modules/*' \
   -not -path './.build/*' -not -path '*/venv/*' -not -path '*/site-packages/*' \
+  -not -iname 'SHIPPED.md' \
   2>/dev/null | sort)"
 
 # Callers for the reverse check: every scanned file except prose, with

@@ -379,7 +379,10 @@ Seven PRE gates read the repository's own scripts and files:
 - **script references** (`Scripts/check_script_references.sh`, another estate repository's
   guard): red when a script, workflow, order or tool file, or doc names a
   `Scripts/` path that does not exist, checked case-sensitively, so a path
-  that macOS forgives but GitHub does not is caught too. Red as well on a
+  that macOS forgives but GitHub does not is caught too. A file named
+  `SHIPPED.md`, in any letter case and any folder, is not read for this:
+  it is frozen history, whose old entries name scripts as they were
+  (forsgren#653). Red as well on a
   script that nothing calls: no script, workflow or order-file row mentions
   it, and CLAUDE.md does not list it as run by hand. Red on a run that
   scanned no file or found no `Scripts/` path at all. Another repository's

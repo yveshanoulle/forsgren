@@ -840,7 +840,7 @@ Nine PRE gates keep the CI honest:
   `CI_GATE_EVENT`, so every gate runs and nothing is said), and against
   weakened copies of the runner. The runner names the build-volume script
   only behind an existence test of that path, which `check_script_references
-  v3` accepts as an optional script (forsgren#646).
+  v4` accepts as an optional script (forsgren#646).
 - **quality trigger scope** (`Scripts/test_quality_trigger_scope.sh`, the
   sites' shared canon, forsgren#240): the workflow has no `paths` or
   `paths-ignore` filter, or a `paths` filter that holds every glob the gates

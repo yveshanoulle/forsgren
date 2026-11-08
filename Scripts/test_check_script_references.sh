@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_check_script_references v4
+# canon: test_check_script_references v5
+# v5 (forsgren#653): fixtures 36-38 (the frozen history ledger is not read forward, any other document is) and mutation proofs K-M.
 # v4 (forsgren#646): fixtures 31-35 (an optional script behind an existence test) and mutation proofs G-J.
 # Scripts/test_check_script_references.sh
 #
@@ -17,12 +18,15 @@
 #   31-35 an optional script: green behind an existence test of that path in
 #   every file that names it, red when a doc names it too, when the test names
 #   another path, when the test is only a comment, and for a wrong-case
-#   spelling behind a test.
+#   spelling behind a test, 36-38 the frozen history ledger: a dangling path
+#   in it is green, in a lower-case one in a subfolder too, and in a document
+#   with a similar name red.
 # Mutation proofs (weakened copies of the gate): A forward resolution always
 # true, B no zero-files check, C no flatness check, D the exit status
 # swallowed, E comments ignored, F the reverse check off, G the optional rule
 # off, H one guarding file enough, I the letter-case check off, J a test in a
-# comment taken. Each fixture that is
+# comment taken, K the ledger scanned again, L the ledger matched in one letter
+# case only, M the exclusion widened to similar names. Each fixture that is
 # red must turn green (or lose its reason) under the mutation that removes
 # the check it names.
 set -uo pipefail
@@ -341,6 +345,44 @@ run_check "$CHECK_ABS" "$optcase"
 grep -qF 'UNRESOLVED REFERENCE: scripts/used.sh' <<<"$OUT" \
   || fail "the optional-case case is red for another reason. Output: $OUT"
 
+# --- Fixtures 36-38: the frozen history ledger is not read forward (v4) ---
+# An old entry names a script as it was then. It is true history and must not
+# be rewritten, so deleting that script later must not turn the gate red. Any
+# other document stays scanned: a dangling path there is still a finding.
+ledger_caller='#!/usr/bin/env bash
+bash Scripts/used.sh
+'
+ledger_entry='Shipped: moved the check into Scripts/retired_long_ago.sh.
+'
+
+# 36: a dangling path in the ledger at the root -> must PASS
+ledger="$tmproot/ledger-root"
+make_tree "$ledger"
+printf '%s' "$ledger_caller" > "$ledger/caller.sh"
+printf '%s' "$ledger_entry" > "$ledger/SHIPPED.md"
+run_check "$CHECK_ABS" "$ledger"
+[ "$RC" -eq 0 ] || fail "a dangling Scripts path in the frozen history ledger was red. Output: $OUT"
+
+# 37: the same in a lower-case ledger in a subfolder -> must PASS
+ledgerlow="$tmproot/ledger-lower-subfolder"
+make_tree "$ledgerlow"
+mkdir -p "$ledgerlow/archive/old"
+printf '%s' "$ledger_caller" > "$ledgerlow/caller.sh"
+printf '%s' "$ledger_entry" > "$ledgerlow/archive/old/shipped.md"
+run_check "$CHECK_ABS" "$ledgerlow"
+[ "$RC" -eq 0 ] || fail "a dangling Scripts path in a lower-case ledger in a subfolder was red. Output: $OUT"
+
+# 38: the same path in another document, its name close to the ledger's -> must FAIL, naming it
+ledgerdoc="$tmproot/ledger-other-doc"
+make_tree "$ledgerdoc"
+mkdir -p "$ledgerdoc/docs"
+printf '%s' "$ledger_caller" > "$ledgerdoc/caller.sh"
+printf '%s' "$ledger_entry" > "$ledgerdoc/docs/SHIPPED_notes.md"
+run_check "$CHECK_ABS" "$ledgerdoc"
+[ "$RC" -ne 0 ] || fail "a dangling Scripts path in another document was green"
+grep -qF 'UNRESOLVED REFERENCE: Scripts/retired_long_ago.sh' <<<"$OUT" \
+  || fail "the other-document case is red for another reason. Output: $OUT"
+
 # --- Mutation proofs: each red above is red BECAUSE of the check it names ---
 # mutant <name> <sed-expression> — a copy of the gate with one line replaced;
 # a sed that changes nothing proves nothing, so that is a failure too.
@@ -463,5 +505,30 @@ mutant optional-comment-test "s/grep -vE '^\[\[:space:\]\]\*#' \"\\\$f\"/cat \"\
 run_check "$MUTANT" "$optcomment"
 [ "$RC" -eq 0 ] \
   || fail "mutation proof J: a gate that reads a commented test is still red on fixture 34 (exit $RC) — red for another reason. Output: $OUT"
+
+# K: the ledger scanned again. Then fixture 36 is red, naming the path, so
+# fixture 36 is green because of the exclusion.
+mutant ledger-scanned "/^  -not -iname 'SHIPPED\.md' \\\\\$/d"
+run_check "$MUTANT" "$ledger"
+[ "$RC" -ne 0 ] \
+  || fail "mutation proof K: a gate that scans the ledger is green on fixture 36 — the exclusion is not what makes it green. Output: $OUT"
+grep -qF 'UNRESOLVED REFERENCE: Scripts/retired_long_ago.sh' <<<"$OUT" \
+  || fail "mutation proof K: a gate that scans the ledger does not name the path on fixture 36. Output: $OUT"
+
+# L: the ledger matched in one letter case only. Then fixture 37 is red, naming
+# the path, so fixture 37 is green because the match ignores letter case.
+mutant ledger-one-case "s/^  -not -iname 'SHIPPED\.md' /  -not -name 'SHIPPED.md' /"
+run_check "$MUTANT" "$ledgerlow"
+[ "$RC" -ne 0 ] \
+  || fail "mutation proof L: a gate matching the ledger in one letter case is green on fixture 37 — the case-insensitive match is not what makes it green. Output: $OUT"
+grep -qF 'UNRESOLVED REFERENCE: Scripts/retired_long_ago.sh' <<<"$OUT" \
+  || fail "mutation proof L: a gate matching the ledger in one letter case does not name the path on fixture 37. Output: $OUT"
+
+# M: the exclusion widened to similar names. Then fixture 38 is green, so
+# fixture 38 is red because only the ledger's exact name is left out.
+mutant ledger-widened "s/^  -not -iname 'SHIPPED\.md' /  -not -iname 'SHIPPED*.md' /"
+run_check "$MUTANT" "$ledgerdoc"
+[ "$RC" -eq 0 ] \
+  || fail "mutation proof M: a gate leaving out similar names is still red on fixture 38 (exit $RC) — red for another reason. Output: $OUT"
 
 echo "✅ test_check_script_references: PASS"

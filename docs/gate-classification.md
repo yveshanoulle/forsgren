@@ -142,8 +142,8 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 97b | pipe into grep -q | `check_pipe_grep_q.sh` | pre | required; forsgren's own (forsgren#428, found by #425): red when a script at the root or in `Scripts/` pipes a producer into `grep -q` (any flag cluster with q, `--quiet`); under pipefail grep leaving at its first match can kill the producer with SIGPIPE and a present pattern reads as missing. The cure is `has` from `Scripts/lib_has.sh` |
 | 98 | markdown-links self-test | `test_check_markdown_links.sh` | pre | required, `test_check_markdown_links v2` |
 | 99 | markdown links | `check_markdown_links.sh` | pre | required, `check_markdown_links v2` |
-| 100 | script references self-test | `test_check_script_references.sh` | pre | required, `test_check_script_references v4` (forsgren#646: fixtures 31-35 for an optional script behind an existence test, mutation proofs G-J) |
-| 101 | script references | `check_script_references.sh` | pre | required, `check_script_references v3` (forsgren#646: an absent script is accepted as optional only when every scanned file that names it tests that same path on a code line and no file holds it in another letter case) |
+| 100 | script references self-test | `test_check_script_references.sh` | pre | required, `test_check_script_references v5` (forsgren#646: fixtures 31-35 for an optional script behind an existence test, mutation proofs G-J; forsgren#653: fixtures 36-38 for the frozen history ledger, mutation proofs K-M) |
+| 101 | script references | `check_script_references.sh` | pre | required, `check_script_references v4` (forsgren#646: an absent script is accepted as optional only when every scanned file that names it tests that same path on a code line and no file holds it in another letter case; forsgren#653: the forward check no longer reads `SHIPPED.md`, in any letter case and any folder) |
 | 102 | Node pin self-test | `test_node_pin.sh` | pre | required, `test_node_pin v1` |
 | 103 | Node pin gate self-test | `test_check_node_pin.sh` | pre | required, `test_check_node_pin v1` |
 | 104 | Node pin | `check_node_pin.sh` | pre | required, `check_node_pin v1` |
