@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v32
+# canon: test_gate_browser v33
+# v33 (forsgren#660, the owner's ruling, option A): the real-Chrome signal cases run with Chrome's code-sign clone off (--disable-features=MacAppCodeSignClone, merged into the one --disable-features Chrome is given, through the wrapper chrome_no_clone.sh) and the engine looks at an empty folder of the case, so they no longer read the folder every Chrome on the machine shares: a clone folder of anyone else cannot change their verdict. closed_verdict asserts instead that the clone is off for this Chrome: its own command line has one --disable-features naming the feature and no --enable-features naming it, and the installed Chrome still knows the feature; a missing, overridden or unknown flag is a reason, never a return to the shared folder. Case 53g keeps its clone assertions on a parent of the test; 53h and 53i are unchanged; case 53j pins the check
 # v32 (forsgren#642): case 54b says why its replaced folder is a new one on Linux too: ext4 hands the freed inode of the removed folder to the new one, so the engine compares the birth time as well (browser_gate v19); on the first Linux run the folder was taken for the identified one and removed (Quality run 42406819133)
 # v31 (forsgren#642): a signal case's TMPDIR is a folder of its own straight under the temp root (mktemp), its side files under TMP: on Linux Chrome's singleton socket lies in the profile, and under TMP/sig_<label> its path passed the 107 characters of a Unix socket, so Chrome aborted (SIGABRT) during the launch; proof S copies the libraries the wrapper sources, read from it
 # v30 adds (forsgren#641): --shard N/M runs only the cases and proofs that Scripts/lib_isolation_shard.sh deals to shard N of M by the seconds of Scripts/browser_gate_selftest_weights.txt (case 8 with 19 to 21 and proof B, which read the CLS it measures; the cases of SERIAL_CASES with the proofs R, Rb, S, X, Z and Dh, one unit), so a CI can run it in several jobs, every case in exactly one; --list prints the cases and proofs a run would start, one per line, and stops before it needs Chrome; without --shard every case runs, as before; a repository without the library refuses --shard (exit 64)
@@ -158,8 +159,11 @@
 #  53g (estate issue 617). Nothing ties a code-sign clone folder to its Chrome,
 #      so a second folder appearing during the launch (another Chrome's) makes
 #      the gate keep both and say so; the other folder is untouched (macOS only;
-#      elsewhere there is no such folder). Every other case here asserts that
-#      the gate's own folder is gone, or kept with the reason said.
+#      elsewhere there is no such folder), on a parent of the test (v33). The
+#      other real-Chrome cases run with the clone off and assert that it is off.
+#  53j (forsgren#660). The check that the clone is off, without a browser: a
+#      missing, repeated or overridden flag and a feature this Chrome does not
+#      know each give a reason, and closed_verdict is red on it
 #  53h, 53i (site issue 61). Who owns a clone folder, decided on a folder and a
 #      process listing of the test (FORSGREN_GATE_CLONE_PARENT and
 #      FORSGREN_GATE_PS_LISTING of browser_gate v12)
@@ -246,7 +250,7 @@ FIRST_CASES=(8 1 31 32 33 34 30 23 22
   41 42 43 44 45 46 47 48 49a 49b 49c 49d 50 51 54 55 56 57)
 SECOND_CASES=(19 20 21 55a 55b 55c)
 SECOND_PROOFS=(a b c d e f g h i j k kslow l m n o p q t u y)
-SERIAL_CASES=(52h 52i 52a 52b 52c 52d 52e 52f 53 52g 53d 53g 53h 53i 54a 54b 54c 53e 53f)
+SERIAL_CASES=(52h 52i 53j 52a 52b 52c 52d 52e 52f 53 52g 53d 53g 53h 53i 54a 54b 54c 53e 53f)
 SERIAL_PROOFS=(r rb s x z dh)
 # SHARD_FOLLOWERS: "<unit> <the cases and proofs that run in its shard>" (v30).
 SHARD_FOLLOWERS=("case_8 case_19 case_20 case_21 mutant_b")
@@ -1159,15 +1163,14 @@ fi
 # other case of this self-test running, after the first batch and before the
 # second (forsgren#632). Each has its reason:
 #  - 52a to 52g, 53, 53d, 54a to 54c: they signal or kill processes found by a
-#    pattern and count the Chromes and the code-sign clone folders that appear on
-#    the whole machine while they run (signal_case): a Chrome of a side-by-side
-#    case would be counted as theirs, or make the gate rightly keep a folder;
+#    pattern and count the Chromes that appear while they run (signal_case): a
+#    Chrome of a side-by-side case would be counted as theirs;
 #  - 53e: a kill and timing case (a loaded machine is simulated by its seam, and
 #    "at once" is timed): other cases would load the machine for real;
 #  - 53g, 53h, 53i: they share the clone folder listing and SEAM_* globals with
 #    the signal cases;
-#  - 52h, 52i: no browser and under a second, so nothing to win, and they swap
-#    the CLONE_PARENT global the signal cases read;
+#  - 52h, 52i, 53j: no browser and under a second, so nothing to win, and they
+#    swap the CLONE_PARENT and SIG_ globals the signal cases read;
 #  - 53f: a kill and timing case (Chrome killed during the launch, the end
 #    timed within 10 s), as 53e;
 #  - R, Rb, S, X, Z, Dh (SERIAL_PROOFS): the mutation proofs of those cases (R
@@ -1194,12 +1197,20 @@ for n in 1 2 3 4 5 6 7 8 9 10; do printf 'look%s|scheme:light\n' "$n" >> "${TMP}
 # the Chrome (error, held), then waits for the end, up to SIG_WAIT_S seconds
 # (20 by default; SIG_WAITED, v29). Sets SIG_UP (1 when its Chrome
 # was found by its profile path before the signal), SIG_RC, SIG_CHROME
-# (alive), SIG_PROFILE (folders left), SIG_ENDED and SIG_OUT, and on macOS
-# the code-sign clone folders (a killed Chrome leaves its own): SIG_CLONE_MADE
-# (new folders seen once the Chrome is up), SIG_CLONE_LEFT (new folders still
-# there at the end) and SIG_CLONE_CONCURRENT (Chrome processes of anyone else
-# that started meanwhile; their folders cannot be told from ours). The case
-# removes the folders left when nobody else's Chrome started meanwhile.
+# (alive), SIG_PROFILE (folders left), SIG_ENDED and SIG_OUT, SIG_CLONE_OFF_WHY
+# (see the clone below), and for a case that sets CLONE_PARENT to a folder of the
+# test (53g) the clone folders there: SIG_CLONE_MADE (new folders seen once the
+# Chrome is up), SIG_CLONE_LEFT (new folders still there at the end) and
+# SIG_CLONE_CONCURRENT (Chrome processes of anyone else that started meanwhile).
+# The case removes the folders left when nobody else's Chrome started meanwhile.
+#
+# The code-sign clone (forsgren#660). On macOS every Chrome makes a clone of its
+# app in one folder per user, and nothing moves that folder: not TMPDIR, HOME or
+# any switch (seen on Chrome 157). So a case that lists it also sees the clones of
+# every other Chrome on the machine. The real-Chrome cases therefore run with the
+# clone off, through CHROME_UNDER_TEST, and the engine's clone parent is an empty
+# folder of the case: nothing here reads the shared folder. The removal of a clone
+# is proved on a folder of the test (53g, 53h, 53i, 54a to 54c, proof X).
 #
 # A renderer of the profile shows that Chrome is up, not that the engine's
 # launch is over: Chrome opens its first tab while puppeteer.launch is still
@@ -1214,9 +1225,79 @@ for n in 1 2 3 4 5 6 7 8 9 10; do printf 'look%s|scheme:light\n' "$n" >> "${TMP}
 # Chrome opens no page and never hears puppeteer, so the launch is still on.
 SIG_WAIT_READY=0
 CLONE_PARENT=""
-if [[ "$(uname)" == "Darwin" ]]; then
-  CLONE_PARENT="$(dirname "$(getconf DARWIN_USER_TEMP_DIR)")/X/com.google.Chrome.code_sign_clone"
+CLONE_FEATURE=MacAppCodeSignClone
+REAL_CHROME="${FORSGREN_CHROME:-}"
+if [[ -z "$REAL_CHROME" ]]; then
+  for candidate in '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' /usr/bin/google-chrome /usr/bin/google-chrome-stable /usr/bin/chromium /usr/bin/chromium-browser; do
+    if [[ -x "$candidate" ]]; then REAL_CHROME="$candidate"; break; fi
+  done
 fi
+# CHROME_UNDER_TEST: the real Chrome with the feature added to the one
+# --disable-features it gets (puppeteer passes one, and of several the last wins).
+CHROME_UNDER_TEST="${TMP}/chrome_no_clone.sh"
+cat > "$CHROME_UNDER_TEST" << EOF
+#!/usr/bin/env bash
+args=()
+features=""
+for arg in "\$@"; do
+  case "\$arg" in
+    --disable-features=*) features="\${features:+\${features},}\${arg#--disable-features=}" ;;
+    *) args+=("\$arg") ;;
+  esac
+done
+exec "${REAL_CHROME}" \${args[@]+"\${args[@]}"} "--disable-features=\${features:+\${features},}${CLONE_FEATURE}"
+EOF
+chmod +x "$CHROME_UNDER_TEST"
+# clone_feature_why <chrome>: "" when this Chrome knows the feature, else why not.
+# A feature Chrome renamed or dropped would be ignored without a word. Chrome makes
+# the clone on macOS only, so there is nothing to know elsewhere.
+clone_feature_why() {
+  local name framework found
+  if [[ "$(uname)" != "Darwin" ]]; then return 0; fi
+  name="$(basename "$1")"
+  framework="$(dirname "$(dirname "$1")")/Frameworks/${name} Framework.framework/Versions/Current/${name} Framework"
+  if [[ ! -f "$framework" ]]; then
+    echo "the framework of the Chrome under test was not found at ${framework}, so its code-sign clone cannot be shown to be off"
+    return 0
+  fi
+  found="$(grep -a -c -F -- "$CLONE_FEATURE" "$framework" || true)"
+  if [[ "$found" -eq 0 ]]; then
+    echo "the Chrome under test does not know the feature ${CLONE_FEATURE}, so the switch would not turn its code-sign clone off"
+  fi
+}
+CLONE_FEATURE_WHY="$(clone_feature_why "$REAL_CHROME")"
+# clone_flag_why <command line of Chrome's main process>: "" when it turns the
+# clone off, else why it does not.
+clone_flag_why() {
+  local words word count=0 value="" enabled=""
+  if [[ -z "$1" ]]; then
+    echo "the command line of its Chrome was not found, so its code-sign clone cannot be shown to be off"
+    return 0
+  fi
+  read -r -a words <<< "$1"
+  for word in "${words[@]}"; do
+    case "$word" in
+      --disable-features=*) count=$((count + 1)); value="${word#--disable-features=}" ;;
+      --enable-features=*) enabled="${enabled},${word#--enable-features=}" ;;
+    esac
+  done
+  if [[ "$count" -eq 0 ]]; then
+    echo "its Chrome runs without --disable-features, so its code-sign clone is not off"
+  elif [[ "$count" -gt 1 ]]; then
+    echo "its Chrome has ${count} --disable-features switches and the last one wins, so its code-sign clone may not be off"
+  elif [[ ",${value}," != *",${CLONE_FEATURE},"* ]]; then
+    echo "the --disable-features of its Chrome does not name ${CLONE_FEATURE}, so its code-sign clone is not off"
+  elif [[ "${enabled}," == *",${CLONE_FEATURE},"* ]]; then
+    echo "the --enable-features of its Chrome names ${CLONE_FEATURE}, so its code-sign clone is not off"
+  fi
+}
+# chrome_command_line <tmpd>: the command line of the case's main Chrome process,
+# empty when it is gone: the one the engine talks to, so the one with the pipe
+# switch. Not a shell or perl of a test's wrapper, which may carry the same
+# arguments before its exec.
+chrome_command_line() {
+  { ps -A -ww -o command= || true; } | { grep -F -e "--user-data-dir=${1}/browser-gate-" || true; } | { grep -F -e ' --remote-debugging-pipe' || true; } | { grep -v -F -e ' --type=' || true; } | { grep -v -E '^[^ ]*(bash|perl|sh) ' || true; } | awk 'NR == 1'
+}
 clone_names() {
   # A glob, so a folder that vanishes while listing cannot fail the listing.
   local d
@@ -1263,7 +1344,9 @@ signal_case() {
   clone_names > "${side}.clones_before"
   other_chromes "$tmpd" > "${side}.others_before"
   rm -f "${side}.ready"
-  TMPDIR="$tmpd" FORSGREN_TEST_READY_MARK="${side}.ready" perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' "$@" "${TMP}/slow/site" "${TMP}/slow/manifest.json" "${TMP}/slow/exceptions.txt" "${TMP}/slow/baseline.txt" "${TMP}/slow/variants.txt" > "${side}.out" 2>&1 &
+  mkdir -p "${side}.no_clones"
+  # A case's own `env FORSGREN_CHROME=` or `FORSGREN_GATE_CLONE_PARENT=` comes after these and wins.
+  TMPDIR="$tmpd" FORSGREN_TEST_READY_MARK="${side}.ready" FORSGREN_CHROME="$CHROME_UNDER_TEST" FORSGREN_GATE_CLONE_PARENT="${side}.no_clones" perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' "$@" "${TMP}/slow/site" "${TMP}/slow/manifest.json" "${TMP}/slow/exceptions.txt" "${TMP}/slow/baseline.txt" "${TMP}/slow/variants.txt" > "${side}.out" 2>&1 &
   pid=$!
   SIG_UP=0
   for _ in $(seq 1 150); do
@@ -1286,6 +1369,8 @@ signal_case() {
     done
   fi
   SIG_CLONE_MADE="$({ clone_names | comm -13 "${side}.clones_before" - || true; } | wc -l | tr -d ' ')"
+  # While Chrome is up: what its own process was started with, past every wrapper.
+  SIG_CLONE_OFF_WHY="$(clone_flag_why "$(chrome_command_line "$tmpd")")"
   SIG_PIPE_HOLDER="$(chrome_parent "$tmpd")"
   target_pid="$pid"
   if [[ "$target" == "node" ]]; then
@@ -1321,7 +1406,7 @@ signal_case() {
   if [[ "$SIG_CLONE_LEFT" -ne 0 && "$SIG_CLONE_CONCURRENT" -eq 0 ]]; then
     remove_new_clones "${side}.clones_before"
   fi
-  rm -rf "$tmpd" "${side}.clones_before" "${side}.others_before" "${side}.ready"
+  rm -rf "$tmpd" "${side}.clones_before" "${side}.others_before" "${side}.ready" "${side}.no_clones"
 }
 
 # ready_why: the reason the last signal_case proves nothing because its seam
@@ -1343,6 +1428,10 @@ ready_why() {
 closed_verdict() {
   if [[ "$SIG_UP" -ne 1 ]]; then
     echo "its Chrome was never found by the profile path ${TMPDIR:-/tmp}/sig_<label>.XXXXXX/browser-gate-*, so no Chrome count of the case proves anything"
+  elif [[ -n "$CLONE_FEATURE_WHY" ]]; then
+    echo "$CLONE_FEATURE_WHY"
+  elif [[ -n "$SIG_CLONE_OFF_WHY" ]]; then
+    echo "$SIG_CLONE_OFF_WHY"
   elif [[ "$SIG_READY" -ne 1 ]]; then
     ready_why
   elif [[ -n "$(stall_why)" ]]; then
@@ -1356,12 +1445,12 @@ closed_verdict() {
   elif [[ "$SIG_PROFILE" -ne 0 ]]; then
     echo "the profile folder is still there"
   elif [[ -n "$CLONE_PARENT" && "$SIG_CLONE_MADE" -eq 0 ]]; then
+    # Only a case with a parent of the test (53g); never the shared folder.
     echo "no code-sign clone folder appeared for its Chrome, so its removal is not proved"
   elif [[ -n "$CLONE_PARENT" && "$SIG_CLONE_LEFT" -ne 0 && "$SIG_OUT" != *"left for the nightly cleanup"* ]]; then
-    # Site issue 61: what a real Chrome case can own. Another Chrome on the
-    # machine may have made the folder, so a kept folder is fine when the gate
-    # said so; one left without a word is not. That the gate removes its own
-    # clone folder is proved by cases 53h and 53i on a folder of the test.
+    # A kept folder is fine when the gate said so; one left without a word is
+    # not. That the gate removes its own clone folder is proved by cases 53h and
+    # 53i on a folder of the test.
     echo "the code-sign clone folder of its Chrome is left without a word"
   fi
 }
@@ -1422,6 +1511,50 @@ else
 fi
 CLONE_PARENT="$REAL_CLONE_PARENT"
 
+# 53j (forsgren#660): the check that the clone is off, without a browser. A flag
+# that is missing, repeated or overridden, and a feature this Chrome does not know,
+# each give a reason, and closed_verdict is red on it whatever else went well: a
+# case can never pass by going back to the shared folder.
+PUPPETEER_LINE="/a/Chrome --enable-features=PdfOopif --host-resolver-rules=MAP * ~NOTFOUND --user-data-dir=/t/browser-gate-x"
+FEATURES_OFF="Translate,${CLONE_FEATURE},IsolateSandboxedIframes"
+FAKE_APP="${TMP}/fake_app/Contents"
+mkdir -p "${FAKE_APP}/MacOS" "${FAKE_APP}/Frameworks/Fake Framework.framework/Versions/Current"
+FAKE_FRAMEWORK="${FAKE_APP}/Frameworks/Fake Framework.framework/Versions/Current/Fake Framework"
+printf 'some\0bytes\0kNothing\0' > "$FAKE_FRAMEWORK"
+why_unknown="$(clone_feature_why "${FAKE_APP}/MacOS/Fake")"
+printf 'some\0bytes\0k%s\0' "$CLONE_FEATURE" > "$FAKE_FRAMEWORK"
+why_known="$(clone_feature_why "${FAKE_APP}/MacOS/Fake")"
+why_absent="$(clone_feature_why "${FAKE_APP}/MacOS/Absent")"
+SIG_UP=1
+SIG_CLONE_OFF_WHY="$(clone_flag_why "${PUPPETEER_LINE} --disable-features=Translate")"
+verdict_flag="$(closed_verdict 2)"
+SIG_CLONE_OFF_WHY=""
+SAVED_FEATURE_WHY="$CLONE_FEATURE_WHY"
+CLONE_FEATURE_WHY="not known"
+verdict_feature="$(closed_verdict 2)"
+CLONE_FEATURE_WHY="$SAVED_FEATURE_WHY"
+if [[ -n "$(clone_flag_why "${PUPPETEER_LINE} --disable-features=${FEATURES_OFF}")" ]]; then
+  fail "53j: a single --disable-features naming the feature was not taken as off: $(clone_flag_why "${PUPPETEER_LINE} --disable-features=${FEATURES_OFF}")"
+elif [[ "$(clone_flag_why "$PUPPETEER_LINE")" != *"without --disable-features"* ]]; then
+  fail "53j: a Chrome without the switch was not named"
+elif [[ "$(clone_flag_why "${PUPPETEER_LINE} --disable-features=${FEATURES_OFF} --disable-features=Translate")" != *"the last one wins"* ]]; then
+  fail "53j: a second --disable-features, which overrides the first, was not named"
+elif [[ "$(clone_flag_why "${PUPPETEER_LINE} --disable-features=${CLONE_FEATURE}Rename")" != *"does not name"* ]]; then
+  fail "53j: a --disable-features with only a longer name was taken for the feature"
+elif [[ "$(clone_flag_why "${PUPPETEER_LINE} --disable-features=${FEATURES_OFF} --enable-features=${CLONE_FEATURE}")" != *"--enable-features of its Chrome names"* ]]; then
+  fail "53j: an --enable-features naming the feature was not named"
+elif [[ "$(clone_flag_why "")" != *"was not found"* ]]; then
+  fail "53j: a Chrome whose command line was not found was not named"
+elif [[ "$(uname)" == "Darwin" && ( "$why_unknown" != *"does not know"* || -n "$why_known" || "$why_absent" != *"was not found"* ) ]]; then
+  fail "53j: the feature check said '${why_unknown}' for a framework without the name, '${why_known}' for one with it, '${why_absent}' for none"
+elif [[ "$verdict_flag" != *"does not name"* ]]; then
+  fail "53j: closed_verdict did not go red on a flag that does not name the feature (got '${verdict_flag}')"
+elif [[ "$verdict_feature" != "not known" ]]; then
+  fail "53j: closed_verdict did not go red on a feature Chrome does not know (got '${verdict_feature}')"
+else
+  echo "  ok: 53j: a missing, repeated or overridden flag and an unknown feature each fail closed_verdict"
+fi
+
 signal_case term_wrapper self TERM "$GATE"
 want_closed "52a: SIGTERM to the wrapper closes Chrome, removes the profile, exits 143" 143
 signal_case term_node node TERM "$GATE"
@@ -1451,15 +1584,11 @@ want_closed "53: Chrome killed mid-run is an error (exit 2) and leaves no Chrome
 # not end it; only ending Chrome's process group does. The case is red unless
 # the gate ends the group, removes the folder when nothing writes any more, and
 # (53d) sees Chrome gone although the helper still holds the pipe.
-REAL_CHROME=""
-for candidate in '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' /usr/bin/google-chrome /usr/bin/google-chrome-stable /usr/bin/chromium /usr/bin/chromium-browser; do
-  if [[ -x "$candidate" ]]; then REAL_CHROME="$candidate"; break; fi
-done
 SLOW_CHROME="${TMP}/chrome_with_helper.sh"
 cat > "$SLOW_CHROME" << EOF
 #!/usr/bin/env bash
 bash -c 'while :; do mkdir -p "\$0/late"; sleep 0.1; done' "\$HOME" &
-exec "${REAL_CHROME}" "\$@"
+exec "${CHROME_UNDER_TEST}" "\$@"
 EOF
 chmod +x "$SLOW_CHROME"
 signal_case helper_term self TERM env FORSGREN_CHROME="$SLOW_CHROME" "$GATE"
@@ -1482,20 +1611,24 @@ want_closed "53d: Chrome killed mid-run while a helper holds the pipe and writes
 # launch (the thin wrapper below makes it, as another Chrome starting at the same
 # time would, and a process of the test holds a file in it open). The gate cannot
 # tell which of the two new folders is its own, so it keeps both and says so;
-# the other one is untouched. macOS only.
-if [[ -n "$CLONE_PARENT" ]]; then
+# the other one is untouched. macOS only. Both folders are made by the wrapper in
+# a parent of the test (v33, forsgren#660), where the real Chrome's clone is off.
+if [[ "$(uname)" == "Darwin" ]]; then
+  CLONE_PARENT="${TMP}/foreign_clones"
+  mkdir -p "$CLONE_PARENT"
   FOREIGN="${CLONE_PARENT}/code_sign_clone.foreign$$"
   FOREIGN_CHROME="${TMP}/chrome_with_foreign_clone.sh"
   cat > "$FOREIGN_CHROME" << EOF
 #!/usr/bin/env bash
+mkdir -p "${CLONE_PARENT}/code_sign_clone.own$$/Google Chrome.app.bundle"
 mkdir -p "${FOREIGN}/Google Chrome.app.bundle"
 echo held > "${FOREIGN}/Google Chrome.app.bundle/held"
 perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' sleep 300 < "${FOREIGN}/Google Chrome.app.bundle/held" 3<&- 4<&- > /dev/null 2>&1 &
 echo \$! > "${TMP}/foreign_holder.pid"
-exec "${REAL_CHROME}" "\$@"
+exec "${CHROME_UNDER_TEST}" "\$@"
 EOF
   chmod +x "$FOREIGN_CHROME"
-  signal_case foreign_clone self error env FORSGREN_CHROME="$FOREIGN_CHROME" "$GATE"
+  signal_case foreign_clone self error env FORSGREN_CHROME="$FOREIGN_CHROME" FORSGREN_GATE_CLONE_PARENT="$CLONE_PARENT" "$GATE"
   FOREIGN_HOLDER="$(cat "${TMP}/foreign_holder.pid" 2> /dev/null || echo 0)"
   if [[ "$SIG_UP" -ne 1 ]]; then
     fail "53g: its Chrome never came up, so the case proves nothing. Output: ${SIG_OUT}"
@@ -1515,13 +1648,14 @@ EOF
   want_closed "53g: the same run, judged as a closed run: no Chrome, no profile, the folders kept with the stated reason" 2
   if [[ "$FOREIGN_HOLDER" -gt 0 ]]; then kill "$FOREIGN_HOLDER" || true; fi
   rm -rf "$FOREIGN"
+  CLONE_PARENT=""
 fi
 
 # 53h, 53i (site issue 61): who owns a clone folder, decided on a folder and a
 # process listing of the test (FORSGREN_GATE_CLONE_PARENT, FORSGREN_GATE_PS_LISTING),
 # so that no other Chrome on the machine can change the verdict. The fake Chrome
 # makes the folder in the test's parent as the launch starts, then runs the real
-# one (which makes its own folder where the gate does not look).
+# one (whose clone is off, v33).
 # clone_seam_case <name> <listing text, may be empty>: sets SEAM_PARENT,
 # SEAM_FOLDER; the last signal_case is the killed-Chrome run of the gate (or of
 # the engine in $SEAM_CMD).
@@ -1540,7 +1674,7 @@ clone_seam_case() {
 #!/usr/bin/env bash
 mkdir -p "${SEAM_FOLDER}/Google Chrome.app.bundle"
 ${SEAM_EXTRA}
-exec "${REAL_CHROME}" "\$@"
+exec "${CHROME_UNDER_TEST}" "\$@"
 EOF
   chmod +x "$chrome"
   signal_case "seam_${1}" self "$SEAM_SIG" env FORSGREN_CHROME="$chrome" FORSGREN_GATE_CLONE_PARENT="$SEAM_PARENT" FORSGREN_GATE_PS_LISTING="$listing" ${SEAM_ENV[@]+"${SEAM_ENV[@]}"} "${SEAM_CMD[@]}"
@@ -1733,7 +1867,7 @@ cat > "$HELD_CHROME" << EOF
 #!/usr/bin/env bash
 bash -c 'while :; do mkdir -p "\$0/late"; sleep 0.1; done' "\$HOME" &
 echo \$! >> "${HOLDER_PIDS}"
-exec "${REAL_CHROME}" "\$@" --no-startup-window 3<> "${DEAF_FIFO}"
+exec "${CHROME_UNDER_TEST}" "\$@" --no-startup-window 3<> "${DEAF_FIFO}"
 EOF
 chmod +x "$HELD_CHROME"
 HELD_FAIL='FAIL: browser gate: Chrome died during the launch \(PID [0-9]+, (exit [0-9]+|signal SIG[A-Z0-9]+)\)'
