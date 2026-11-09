@@ -989,9 +989,6 @@ static block self-test|Scripts/test_sfl_static_block.sh|pre|
 # self-test runs in pre; the check itself runs in that job only.
 commit messages self-test|Scripts/test_check_commit_messages.sh|pre|
 #
-# The temporary forwarder of the old build script name (estate issue 610).
-FBP forwarder self-test|Scripts/test_fullbuildandpush_forwarder.sh|pre|
-#
 # The privacy pages belong to a site that needs privacy pages: another estate repository
 # serves a privacy policy, and its check_privacy_pages.sh pins that
 # policy's content (language, title, approved date, binding-version

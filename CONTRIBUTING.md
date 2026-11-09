@@ -190,7 +190,6 @@ run report shows how many checks each of them ran.
 - git sandbox guard self-test (`Scripts/test_git_sandbox_guard.sh`, pre)
 - static block self-test (`Scripts/test_sfl_static_block.sh`, pre)
 - commit messages self-test (`Scripts/test_check_commit_messages.sh`, pre)
-- FBP forwarder self-test (`Scripts/test_fullbuildandpush_forwarder.sh`, pre)
 <!-- gate-list:end -->
 
 ## Adding a number or a term to the pages
