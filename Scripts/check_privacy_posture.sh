@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: check_privacy_posture v6
+# canon: check_privacy_posture v7
+# v7 (forsgren#658): every URL is read by the one parser of Scripts/check_privacy_posture_urls.mjs v4; the allow-list of iframe, the own hosts of media and the refusal of every absolute script, link and CSS url() are unchanged and stay separate from the parsing. Corrections: a script, link or CSS url() is now judged however it is written (single-quoted, unquoted, any letter case, over several lines, protocol-relative, with backslashes, a character reference or CSS escape, a > in a quoted value before it); an iframe has every src judged, not the last one in the text. Now green where a browser agrees: an iframe's src attribute in upper case or right after a quote, and a media tag with a stray = before an attribute. An iframe or a media URL that a browser cannot parse is now a finding
 # v6 (forsgren#659): CSS @import in style elements and .css files, input type=image and SVG href and xlink:href are held to the own-host policy by Scripts/check_privacy_posture_urls.mjs v3; an @import or a style element it cannot read is a finding; every check of v5 is unchanged
 # v5 (forsgren#656): a URL with a user name or password is a finding in every resource attribute and CSS url(), whatever its host, by urlFinding in Scripts/check_privacy_posture_urls.mjs v2; the allow-list, the own hosts and every other check of v4 are unchanged
 set -uo pipefail
@@ -36,14 +37,18 @@ source Scripts/lib_site_settings.sh
 # file with comments only. The file is read on every run and its absence is red:
 # a gate that skips its allow-list when the file is gone has no allow-list.
 # Only an exact host with an https double-quoted src is matched; a relative,
-# protocol-relative, unquoted or missing src is a finding.
+# protocol-relative, unquoted or missing src is a finding, as is a host written in
+# any way other than plainly (a backslash, a percent-encoded name, an upper-case
+# scheme). Every src of the tag is judged, as Node reads it, so a second src or a
+# src inside another value cannot pass in place of the first.
 #
 # MEDIA. An img, video or source loads on page view just as an iframe does, and
 # so does a poster. Each src and poster of those tags, in any letter case and
 # over any number of lines, is a finding unless it is a double-quoted relative
 # path or an https URL on one of the site's OWN hosts. Unquoted, single-quoted,
 # protocol-relative, backslashed or http values are findings, as they are for an
-# iframe, and so is a value with a character reference other than &amp;. A tag
+# iframe, and so is a value with a character reference other than &amp;. Node reads
+# these too, by the same parser. A tag
 # with neither attribute loads nothing by them and is no finding.
 # OWN HOSTS are data, rows of the same exceptions file, kept apart from the
 # embeds so that neither allows the other: `own:host|reason` is that exact host,
@@ -61,13 +66,18 @@ source Scripts/lib_site_settings.sh
 # data URL holds commas, and the WHATWG URL parser for the host. A run in which
 # that script cannot finish is exit 2, never a pass.
 #
+# THE ONE PARSER. Every URL of an iframe, img, video, source, poster, script, link
+# and CSS url() is read by Node's URL parser, in Scripts/check_privacy_posture_urls.mjs,
+# as a browser reads it. The parser identifies and normalises; each kind's policy
+# is its own, there, and this file only reports what comes back.
+#
 # USER INFO. A URL with a user name or password is a finding on every attribute
 # above, on iframe src, on script src, on link href and in a CSS url(), whatever
 # host it names. A browser connects to the host after the @, so
 # https://allowed.example:x@other.example/ loads from other.example: a check that
 # reads the first name after // is misled. Node decides it, by the same WHATWG URL
-# parser, never by splitting on : or @. It changes nothing else: each tag keeps its
-# own host check in this file, and this rule adds only that one finding.
+# parser, never by splitting on : or @. It changes nothing else: this rule adds
+# only that one finding.
 #
 # IMPORTS, INPUTS, SVG. A CSS @import in a style element or a .css file, the src
 # of an input of type image and the href or xlink:href of an SVG element load on
@@ -173,146 +183,38 @@ hits="$(scan '<form[[:space:]>]')"
 [ -n "$hits" ] && report "a form collects input" \
   "A form makes this site a collector. The n/a in gate_report_order.txt says it is not." "$hits"
 
-# iframe_unlisted: one line per iframe tag whose src host is not allowed, as
-# `file: tag`. The tag is read across line breaks (the src is often on the line
-# after `<iframe`), and a file with an `<iframe` that no complete tag explains is
-# reported whole.
-iframe_unlisted() {
-  local file tags tag host total found
-  while IFS= read -r file; do
-    [ -n "$file" ] || continue
-    tags="$(tr '\n\r' '  ' < "$file" | grep -oiE '<iframe[^>]*>' || true)"
-    total="$(grep -oi '<iframe' "$file" | wc -l | tr -d ' ')"
-    found=0
-    while IFS= read -r tag; do
-      [ -n "$tag" ] || continue
-      found=$((found + 1))
-      host="$(printf '%s' "$tag" | sed -nE 's#.*[[:space:]]src[[:space:]]*=[[:space:]]*"https://([A-Za-z0-9.-]+)([/:?#"].*)?$#\1#p' | tr '[:upper:]' '[:lower:]')"
-      case "$allowed_hosts" in
-        *" ${host:-none} "*) [ -n "$host" ] && continue ;;
-      esac
-      echo "${file}: ${tag}"
-    done <<< "$tags"
-    if [ "$found" -ne "$total" ]; then
-      echo "${file}: an <iframe that is not a complete tag"
-    fi
-  done < <(grep -rIil '<iframe' "$SITE" --include='*.html' --include='*.css' 2>/dev/null | sort)
-}
-
-hits="$(iframe_unlisted)"
-[ -n "$hits" ] && report "an embedded third party" \
-  "An iframe loads from another party on page view, before any click. Allowed only for a host listed with a reason in ${EXCEPTIONS}." "$hits"
-
-# The tags media_unlisted reads, in one place.
-MEDIA_TAGS='img|video|source'
-
-# host_is_own <lower-case host>
-host_is_own() {
-  local suffix
-  case "$own_hosts" in
-    *" $1 "*) return 0 ;;
-  esac
-  for suffix in $own_suffixes; do
-    case "$1" in
-      ?*".${suffix}") return 0 ;;
-    esac
-  done
-  return 1
-}
-
-# media_value_ok <value>: a relative path, or https on an own host. A browser
-# drops white space around and inside a URL and reads a backslash as a slash,
-# so this does too before it decides what is relative.
-media_value_ok() {
-  local value="${1//[[:space:]]/}" re_https='^https://([A-Za-z0-9.-]+)(:[0-9]+)?([/?#].*)?$' re_scheme='^[A-Za-z][A-Za-z0-9+.-]*:'
-  case "${value//&amp;/}" in
-    *'&'*) return 1 ;;
-  esac
-  case "$value" in
-    //* | \\* | /\\*) return 1 ;;
-  esac
-  [[ "$value" =~ $re_scheme ]] || return 0 # a relative path
-  [[ "$value" =~ $re_https ]] || return 1
-  host_is_own "$(printf '%s' "${BASH_REMATCH[1]}" | tr '[:upper:]' '[:lower:]')"
-}
-
-# media_tag_ok <tag>: 0 when every src and poster of the tag passes. It walks
-# the attributes, so data-src, or src="..." inside another attribute's value,
-# is not read as src; an attribute given twice is judged both times.
-media_tag_ok() {
-  local rest name value re_name='^<[A-Za-z]+' re_bare='^[^[:space:]=/>]+'
-  local re_attr='^([^[:space:]=/>]+)[[:space:]]*=[[:space:]]*("[^"]*"|'"'"'[^'"'"']*'"'"'|[^[:space:]>]*)'
-  [[ "$1" =~ $re_name ]] || return 1
-  rest="${1:${#BASH_REMATCH[0]}}"
-  while :; do
-    rest="${rest#"${rest%%[![:space:]/]*}"}"
-    case "$rest" in
-      '' | '>'*) return 0 ;;
-    esac
-    if [[ "$rest" =~ $re_attr ]]; then
-      value="${BASH_REMATCH[2]}"
-      name="$(printf '%s' "${BASH_REMATCH[1]}" | tr '[:upper:]' '[:lower:]')"
-      rest="${rest:${#BASH_REMATCH[0]}}"
-      case "$name" in
-        src|poster)
-          case "$value" in
-            '"'*'"') media_value_ok "${value:1:${#value}-2}" || return 1 ;;
-            *) return 1 ;;
-          esac
-          ;;
-      esac
-    elif [[ "$rest" =~ $re_bare ]]; then
-      rest="${rest:${#BASH_REMATCH[0]}}"
-    else
-      return 1
-    fi
-  done
-}
-
-# media_unlisted: one line per media tag that fails, as `file: tag`. Like the
-# iframes, the tag is read across line breaks and a file with a media tag no
-# complete tag explains is reported whole. The tag pattern knows quotes, so a
-# > inside an attribute value does not end the tag early.
-media_unlisted() {
-  local file joined tags tag total found
-  while IFS= read -r file; do
-    [ -n "$file" ] || continue
-    joined="$(tr '\n\r\t' '   ' < "$file")"
-    tags="$(grep -oiE "<(${MEDIA_TAGS})([[:space:]/]([^>\"']|\"[^\"]*\"|'[^']*')*)?>" <<< "$joined" || true)"
-    total="$(grep -oiE "<(${MEDIA_TAGS})[[:space:]/>]" <<< "$joined" | wc -l | tr -d ' ')"
-    found=0
-    while IFS= read -r tag; do
-      [ -n "$tag" ] || continue
-      found=$((found + 1))
-      media_tag_ok "$tag" || echo "${file}: ${tag}"
-    done <<< "$tags"
-    if [ "$found" -ne "$total" ]; then
-      echo "${file}: a media tag that is not a complete tag"
-    fi
-  done < <(grep -rIilE "<(${MEDIA_TAGS})([[:space:]/>]|\$)" "$SITE" --include='*.html' --include='*.css' 2>/dev/null | sort)
-}
-
-hits="$(media_unlisted)"
-[ -n "$hits" ] && report "media from another host" \
-  "An image, video or poster from another host sends every visitor's IP there on page view. Only a double-quoted relative path or an https URL on a host declared own:host|reason in ${EXCEPTIONS} passes." "$hits"
-
 # The files the URL script reads: all of the site's HTML and CSS, as the scans
 # above. It always runs, so a machine without Node is red on any site.
 resource_files="$(find "$SITE" -type f \( -name '*.html' -o -name '*.css' \) 2>/dev/null | sort)"
-hits="$(node Scripts/check_privacy_posture_urls.mjs "$own_hosts" "$own_suffixes" <<< "$resource_files")"
+url_hits="$(node Scripts/check_privacy_posture_urls.mjs "$own_hosts" "$own_suffixes" "$allowed_hosts" <<< "$resource_files")"
 urls_rc=$?
 if [ "$urls_rc" -ne 0 ]; then
-  echo "privacy-posture: Scripts/check_privacy_posture_urls.mjs failed (exit ${urls_rc}), so srcset, audio, track, embed, object, @import, image inputs and SVG references were not judged and no URL was checked for a user name or password" >&2
+  echo "privacy-posture: Scripts/check_privacy_posture_urls.mjs failed (exit ${urls_rc}), so no iframe, media, srcset, audio, track, embed, object, script, link, CSS url(), @import, image input or SVG reference was judged and no URL was checked for a user name or password" >&2
   exit 2
 fi
+
+# url_findings <kind>: the URL script's lines of that kind.
+url_findings() {
+  sed -n "s/^${1}|//p" <<< "$url_hits"
+}
+
+hits="$(url_findings iframe)"
+[ -n "$hits" ] && report "an embedded third party" \
+  "An iframe loads from another party on page view, before any click. Allowed only for a host listed with a reason in ${EXCEPTIONS}." "$hits"
+
+hits="$(url_findings media)"
+[ -n "$hits" ] && report "media from another host" \
+  "An image, video or poster from another host sends every visitor's IP there on page view. Only a double-quoted relative path or an https URL on a host declared own:host|reason in ${EXCEPTIONS} passes." "$hits"
+
+hits="$(url_findings resource)"
 [ -n "$hits" ] && report "a resource from another host" \
   "A srcset candidate, audio, track, embed, object, CSS @import, image input or SVG href from another host sends every visitor's IP there on page view. Only a double-quoted relative path or an https URL on a host declared own:host|reason in ${EXCEPTIONS} passes (and, in a srcset, a data URL). A URL with a user name or password is a finding on every resource attribute and in a CSS url(), whatever host it names: a browser connects to the host after the @." "$hits"
 
-hits="$(scan '<(script|link)[^>]+(src|href)="https?://')"
+hits="$(url_findings asset)"
 [ -n "$hits" ] && report "a third-party asset is loaded" \
   "A script or stylesheet from another host sends every visitor's IP there on page view. Self-host it, as the fonts in this repo are." "$hits"
 
-hits="$(scan 'url\([\"'"'"']?https?://')"
+hits="$(url_findings style)"
 [ -n "$hits" ] && report "a stylesheet fetches from another host" \
   "An @font-face or background url() pointing off-site transmits on render." "$hits"
 

@@ -625,12 +625,16 @@ The POST gates, on the generated site:
   same commit as its template.
 - **privacy posture** (`Scripts/check_privacy_posture.sh`, the estate's gate
   from another estate repository): the page collects nothing. Red on a form, an
-  iframe, a script or stylesheet loaded from another host, an `img`, `video`,
+  iframe from a host the exceptions file does not list, a script or stylesheet
+  with an absolute URL (an own host included), an `img`, `video`,
   `source` or `poster` that is neither a relative path nor https on a host
   the exceptions file declares as the site's own (`own:host|reason`, or
   `own:*.host|reason` for its subdomains), a CSS `url()`
-  pointing off-site, `document.cookie`, `localStorage` or `sessionStorage`,
-  and a known analytics snippet. `srcset` on `img` and `source`, `audio`
+  pointing at a host of its own, `document.cookie`, `localStorage` or `sessionStorage`,
+  and a known analytics snippet. Every one of those URLs is read by one parser,
+  `readUrl` in `Scripts/check_privacy_posture_urls.mjs`, Node's WHATWG `URL`,
+  so the gate sees what a browser sees; each kind keeps its own policy, applied
+  to that reading (forsgren#658). `srcset` on `img` and `source`, `audio`
   `src`, `track` `src`, `embed` `src` and `object` `data` are held to the same
   host policy by `Scripts/check_privacy_posture_urls.mjs`: every `srcset`
   candidate is judged, read by the WHATWG srcset algorithm, because a valid

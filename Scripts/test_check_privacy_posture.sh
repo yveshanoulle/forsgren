@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_check_privacy_posture v7
+# canon: test_check_privacy_posture v8
+# v8 (forsgren#658): every URL of an iframe, img, video, source, poster, script, link and CSS url() is read by the shared parser of check_privacy_posture_urls v4; the browser-reading matrix, the preserved quoting and incomplete-tag rules, the documented corrections and a proof per tag that the parser decides, for check_privacy_posture v7
 # v7 (forsgren#659): the CSS @import, input type=image and SVG href cases and their proofs, for check_privacy_posture v6 and check_privacy_posture_urls v3
 # v6 (forsgren#656): the user name and password cases of every resource attribute and their proofs, for check_privacy_posture v5 and check_privacy_posture_urls v2
 # Scripts/test_check_privacy_posture.sh
@@ -85,6 +86,16 @@
 #      every URL rule -> red each; relative, own host, no src, another type -> green
 #  33. href and xlink:href on every SVG element that takes one -> red each;
 #      #symbol-id, relative, own host, an SVG <a>, another attribute -> green
+#  34. iframe read as a browser reads it: letter case of the host, ports, a query
+#      -> green on a listed host; user-info after it, protocol-relative, backslash,
+#      percent-encoded, a character reference, a trailing dot -> red; its quote
+#      rules, a > in a quoted value, a tag never closed, kept -> red each
+#  35. img, video, source, poster: the same browser reading against the own hosts
+#  36. script and link: any absolute URL is red, own host included, however it is
+#      written; relative, data: and another scheme stay green
+#  37. CSS url(): the same; the plain url(https://own-host/...) of an @import stays
+#      red and the quoted @import of that host stays green
+#  38. the documented behaviour changes, each pinned (see the v7 note of the gate)
 # Mutation proofs (a weakened copy of the gate must turn the case green):
 #   A. the blanket rule (any iframe passes when privacy.html exists): case 6
 #   B. the allow-list skipped when its file is missing: case 13
@@ -97,8 +108,8 @@
 #   J. own rows not honoured: the own-host case of 18 turns red
 #   K. a relative path no longer passes: the relative case of 18 turns red
 #   L. a subdomain matched without its dot: the lookalike of 17
-#   M. anything allowed between the host and the path, with the URL script's
-#      user-info rule off for img src: the userinfo of 17
+#   M. the host read from the text before the first : / @ instead of from the
+#      parser, with the plain-spelling and user-info rules off: the userinfo of 17
 #   N. the media tags read line by line: the split tag of 16
 #   O to T. srcset on img, srcset on source, audio, track, embed, object
 #      dropped from the table of the URL script: case 21 for that one
@@ -143,6 +154,15 @@
 #   BP, BQ, BR. image, use, feImage dropped: case 33 for that one
 #   BS, BT. href, xlink:href no longer read: case 33
 #   BU. a local reference no longer passing: the fragment of 33 turns red
+#   BV to CC. the parser made to answer for iframe, img, video, source, poster,
+#      script, link and CSS url(): each red case turns green, so the parser's
+#      reading is what decides it
+#   CD to CJ. iframe, script, link, CSS url() dropped from their reading: case 36,
+#      37 or 34 for that one
+#   CK to CP. the parser's host, the plain spelling, the protocol-relative reading
+#      and the character references: the cases that hang on each
+#   CQ to CT. the quote and incomplete-tag rules of iframe and media dropped, the
+#      partial reading of a script tag never closed dropped
 
 set -euo pipefail
 
@@ -790,11 +810,145 @@ media_green green-svg-data-href "<svg><use href=\"#a\" data-href=\"${THIRD}.svg\
 media_green green-svg-other-prefix "<svg><use href=\"#a\" other:href=\"${THIRD}.svg\"/></svg>"
 media_green green-svg-custom-tag "<use-thing href=\"${THIRD}\"></use-thing><image-view href=\"${THIRD}\"></image-view>"
 
+# iframe_red <name> <html> [why]: the iframe is a finding of its own kind.
+iframe_red() {
+  gate_in "$(media_root "$1" "$2")" Site
+  want_red "${1}: ${2} is red" "an embedded third party"
+  if [[ -n "${3:-}" ]]; then want_said "${1}: the finding says ${3}" "$3"; fi
+}
+
+# asset_red <name> <html>: a script or link with an absolute URL.
+asset_red() {
+  gate_in "$(media_root "$1" "$2")" Site
+  want_red "${1}: ${2} is red" "a third-party asset is loaded"
+}
+
+# css_url_red <name> <css>: an absolute CSS url(), in a style element and a .css file.
+css_url_red() {
+  local root
+  gate_in "$(media_root "$1" "<style>$2</style>")" Site
+  want_red "${1}: ${2} is red" "a stylesheet fetches from another host"
+  root="$(mkroot "${1}-file" "$EXC_OWN")"
+  printf '%s\n' "$2" > "${root}/Site/a.css"
+  gate_in "$root" Site
+  want_red "${1}: in a .css file: ${2} is red" "a stylesheet fetches from another host"
+}
+
+# --- 34. iframe, read as a browser reads the URL
+media_green green-iframe-case '<iframe src="https://BARCAMP.io/e"></iframe>'
+media_green green-iframe-port '<iframe src="https://barcamp.io:8443/e"></iframe>'
+media_green green-iframe-no-path '<iframe src="https://barcamp.io"></iframe>'
+media_green green-iframe-query '<iframe src="https://barcamp.io?x=1&y=2#f"></iframe>'
+media_green green-iframe-gt-after '<iframe src="https://barcamp.io/e" title="a>b"></iframe>'
+iframe_red red-iframe-backslash-at '<iframe src="https://barcamp.io\@other.example/e"></iframe>'
+iframe_red red-iframe-backslashes '<iframe src="https:\\barcamp.io/e"></iframe>'
+iframe_red red-iframe-backslash-path '<iframe src="https://barcamp.io\e"></iframe>'
+iframe_red red-iframe-protorel '<iframe src="//barcamp.io/e"></iframe>'
+iframe_red red-iframe-backslash-protorel '<iframe src="\\barcamp.io/e"></iframe>'
+iframe_red red-iframe-encoded '<iframe src="https://barcamp%2eio/e"></iframe>'
+iframe_red red-iframe-encoded-other '<iframe src="https://other%2eexample/e"></iframe>'
+iframe_red red-iframe-reference '<iframe src="https&#58;//barcamp.io/e"></iframe>'
+iframe_red red-iframe-trailing-dot '<iframe src="https://barcamp.io./e"></iframe>'
+iframe_red red-iframe-upper-scheme '<iframe src="HTTPS://barcamp.io/e"></iframe>'
+iframe_red red-iframe-http '<iframe src="http://barcamp.io/e"></iframe>'
+iframe_red red-iframe-bad-port '<iframe src="https://barcamp.io:99999/e"></iframe>'
+iframe_red red-iframe-single "<iframe src='https://barcamp.io/e'></iframe>"
+iframe_red red-iframe-gt-before '<iframe title="a>b" src="https://barcamp.io/e"></iframe>'
+iframe_red red-iframe-never-closed '<iframe src="https://barcamp.io/e"' 'not a complete tag'
+iframe_red red-iframe-end-of-file '<iframe' 'not a complete tag'
+iframe_red red-iframe-no-value '<iframe src></iframe>'
+iframe_red red-iframe-longer-name '<iframe-thing src="https://other.example/e"></iframe-thing>'
+userinfo_red ui-iframe-on-listed '<iframe src="https://user@barcamp.io/e"></iframe>'
+
+# --- 35. img, video, source and poster, read the same way
+n=0
+for form in 'img src' 'video src' 'source src' 'video poster'; do
+  n=$((n + 1))
+  tag="${form% *}"
+  attr="${form#* }"
+  media_green "green-m${n}-case" "<${tag} ${attr}=\"https://MEDIA.Site.Example/a.png\">"
+  media_green "green-m${n}-port" "<${tag} ${attr}=\"https://media.site.example:8443/a.png\">"
+  media_green "green-m${n}-spaces" "<${tag} ${attr}=\" https://media.site.example/a.png \">"
+  media_red "red-m${n}-other-case" "<${tag} ${attr}=\"https://OTHER.example/a.png\">"
+  media_red "red-m${n}-other-port" "<${tag} ${attr}=\"https://other.example:8443/a.png\">"
+  media_red "red-m${n}-protorel" "<${tag} ${attr}=\"//media.site.example/a.png\">"
+  media_red "red-m${n}-backslash-relative" "<${tag} ${attr}=\"\\a.png\">"
+  media_red "red-m${n}-backslashes" "<${tag} ${attr}=\"https:\\\\media.site.example/a.png\">"
+  media_red "red-m${n}-backslash-path" "<${tag} ${attr}=\"https://media.site.example\\a.png\">"
+  media_red "red-m${n}-backslash-at" "<${tag} ${attr}=\"https://media.site.example\\@other.example/a.png\">"
+  media_red "red-m${n}-encoded" "<${tag} ${attr}=\"https://media%2esite.example/a.png\">"
+  media_red "red-m${n}-encoded-other" "<${tag} ${attr}=\"https://other%2eexample/a.png\">"
+  media_red "red-m${n}-upper-scheme" "<${tag} ${attr}=\"HTTPS://media.site.example/a.png\">"
+  media_red "red-m${n}-http" "<${tag} ${attr}=\"http://media.site.example/a.png\">"
+  media_red "red-m${n}-reference" "<${tag} ${attr}=\"https&#58;//media.site.example/a.png\">"
+  media_red "red-m${n}-spaced-scheme" "<${tag} ${attr}=\"ht tps://other.example/a.png\">"
+  media_red "red-m${n}-single" "<${tag} ${attr}='a.png'>"
+  media_red "red-m${n}-unquoted" "<${tag} ${attr}=a.png>"
+done
+media_red red-media-stray-quote '<img alt=a" src="b.png">'
+media_red red-media-never-closed '<img src="a.png"'
+media_green green-media-gt-in-value '<img alt="a>b" src="a.png">'
+
+# --- 36. script and link: every absolute URL is red, an own host included
+n=0
+i=0
+for form in 'script src' 'link href'; do
+  n=$((n + 1))
+  tag="${form% *}"
+  attr="${form#* }"
+  upper_tag="$(printf '%s' "$tag" | tr '[:lower:]' '[:upper:]')"
+  upper_attr="$(printf '%s' "$attr" | tr '[:lower:]' '[:upper:]')"
+  for url in 'https://media.site.example/a' 'https://OTHER.example/a' 'https://other.example:8443/a' 'HTTP://other.example/a' '//other.example/a' '\\other.example/a' '/\other.example/a' 'https:\\other.example/a' 'https://other%2eexample/a' 'https&#58;//other.example/a' 'https:other.example/a' 'https://[/a'; do
+    i=$((i + 1))
+    asset_red "red-a${n}-${i}" "<${tag} ${attr}=\"${url}\"></${tag}>"
+  done
+  asset_red "red-a${n}-single" "<${tag} ${attr}='https://other.example/a'></${tag}>"
+  asset_red "red-a${n}-unquoted" "<${tag} ${attr}=https://other.example/a></${tag}>"
+  asset_red "red-a${n}-upper-tag" "<${upper_tag} ${upper_attr}=\"https://other.example/a\"></${tag}>"
+  asset_red "red-a${n}-lines" "<${tag}
+  ${attr}=\"https://other.example/a\"></${tag}>"
+  asset_red "red-a${n}-gt-before" "<${tag} title=\"a>b\" ${attr}=\"https://other.example/a\"></${tag}>"
+  asset_red "red-a${n}-never-closed" "<${tag} ${attr}=\"https://other.example/a\""
+  asset_red "red-a${n}-never-closed-quote" "<${tag} ${attr}=\"https://other.example/a"
+  media_green "green-a${n}-relative" "<${tag} ${attr}=\"/a?x=1&y=2\"></${tag}><${tag} ${attr}=\"./b\"></${tag}>"
+  media_green "green-a${n}-other-scheme" "<${tag} ${attr}=\"data:text/plain,a\"></${tag}><${tag} ${attr}=\"ftp://other.example/a\"></${tag}>"
+done
+
+# --- 37. CSS url(): every absolute URL is red; the @import rule of the older shell
+for url in 'https://media.site.example/a' 'https://OTHER.example/a' 'https://other.example:8443/a' 'HTTP://other.example/a' '//other.example/a' '\\\\other.example/a' 'https://other%2eexample/a'; do
+  i=$((i + 1))
+  css_url_red "red-css-${i}" "a{background:url(\"${url}\")}"
+done
+css_url_red red-css-bare 'a{background:url(https://other.example/a.png)}'
+css_url_red red-css-single "a{background:url('https://other.example/a.png')}"
+css_url_red red-css-upper-url 'a{background:URL(https://media.site.example/a.png)}'
+css_url_red red-css-space 'a{background:url(  https://media.site.example/a.png )}'
+css_url_red red-css-escaped 'a{background:url(https\3a //media.site.example/a.png)}'
+css_url_red red-css-never-closed 'a{background:url("https://other.example/a.png'
+css_url_red red-css-longer-name 'a{background:myurl(https://other.example/a.png)}'
+css_green green-css-relative 'a{background:url(a.png)}b{background:url("/c.png")}d{mask:url(#m)}e{background:url(data:image/png,AA)}'
+gate_in "$(media_root red-import-own-url '<style>@import url(https://media.site.example/a.css);</style>')" Site
+want_red "the older rule stands: a plain @import url() on an own host stays red" "a stylesheet fetches from another host"
+gate_in "$(media_root red-import-own-url-upper '<style>@import URL(https://media.site.example/a.css);</style>')" Site
+want_red "the same @import url() however it is spelled is red too" "a stylesheet fetches from another host"
+media_green green-import-own-quoted '<style>@import "https://media.site.example/a.css";</style>'
+
+# --- 38. the documented behaviour changes
+iframe_red red-iframe-duplicate-src '<iframe src="https://other.example/e" src="https://barcamp.io/e"></iframe>'
+iframe_red red-iframe-src-in-other-value "<iframe src=\"https://other.example/e\" title=' src=\"https://barcamp.io/e'></iframe>"
+media_green green-iframe-upper-src-attr '<iframe SRC="https://barcamp.io/e"></iframe>'
+media_green green-iframe-no-space-before-src '<iframe title="a"src="https://barcamp.io/e"></iframe>'
+media_green green-media-bare-equals '<img = src="a.png">'
+asset_red red-asset-data-src '<script data-src="https://other.example/a.js"></script>'
+asset_red red-asset-wrong-attribute '<script href="https://other.example/a.js"></script><link src="https://other.example/a.css">'
+asset_red red-asset-longer-name '<scripty src="https://other.example/a.js"></scripty>'
+asset_red red-asset-single-own "<script src='https://media.site.example/a.js'></script>"
+
 # --- Mutation proofs
 R="$(mkroot mut-blanket)"
 printf '%s\n' "$UNLISTED" >> "${R}/Site/index.html"
 selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
-  "s|^hits=\"${DOLLAR}(iframe_unlisted)\"${DOLLAR}|&; [ -f \"${DOLLAR}SITE/privacy.html\" ] \\&\\& hits=\"\"|" \
+  "s|^hits=\"${DOLLAR}(url_findings iframe)\"${DOLLAR}|&; [ -f \"${DOLLAR}SITE/privacy.html\" ] \\&\\& hits=\"\"|" \
   "${R}/Site" \
   "the blanket rule (any iframe passes when privacy.html exists) turns case 6 green, so it is red BECAUSE of the host list" \
   "the blanket copy did not turn case 6 green"
@@ -814,14 +968,6 @@ selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
   "a copy that does not require the reason turns the row-without-reason case green" \
   "the copy without the reason requirement did not turn the case green"
 
-R="$(mkroot mut-substring)"
-printf '<iframe src="https://camp.io/e"></iframe>\n' >> "${R}/Site/index.html"
-selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
-  "s/\" ${DOLLAR}{host:-none} \"/\"${DOLLAR}{host:-none}\"/" \
-  "${R}/Site" \
-  "a match of the src host as a part of a listed host turns the lookalike case green" \
-  "the substring-match copy did not turn the lookalike case green"
-
 R="$(mkroot mut-splitlink)"
 printf '<a class="store"\n   href="https://store.example/app/1">App</a>\n' > "${R}/Site/index.html"
 if selftest_mutant "$GATE" "${R}/Scripts/check_privacy_posture.sh" 's/^  [|] tr .*$/  | cat \\/'; then
@@ -833,71 +979,11 @@ if selftest_mutant "$GATE" "${R}/Scripts/check_privacy_posture.sh" 's/^  [|] tr 
   fi
 fi
 
-R="$(media_root mut-video "<video src=\"${THIRD}.mp4\"></video>")"
-selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
-  "s/^MEDIA_TAGS='img|video|source'/MEDIA_TAGS='img|source'/" \
-  "${R}/Site" \
-  "video dropped from the tag list turns the third-party video src green" \
-  "the copy without video did not turn the video case green"
-
-R="$(media_root mut-source "<video><source src=\"${THIRD}.mp4\"></video>")"
-selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
-  "s/^MEDIA_TAGS='img|video|source'/MEDIA_TAGS='img|video'/" \
-  "${R}/Site" \
-  "source dropped from the tag list turns the third-party source src green" \
-  "the copy without source did not turn the source case green"
-
-R="$(media_root mut-img "<img src=\"${THIRD}.png\">")"
-selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
-  "s/^MEDIA_TAGS='img|video|source'/MEDIA_TAGS='video|source'/" \
-  "${R}/Site" \
-  "img dropped from the tag list turns the third-party img src green" \
-  "the copy without img did not turn the img case green"
-
-R="$(media_root mut-poster "<video src=\"a.mp4\" poster=\"${THIRD}.jpg\"></video>")"
-selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
-  's/src|poster)/src)/' \
-  "${R}/Site" \
-  "a copy that does not read poster turns the third-party poster green" \
-  "the copy without poster did not turn the poster case green"
-
 R="$(media_root mut-own '<img src="https://media.site.example/a.png">')"
 if selftest_mutant "$GATE" "${R}/Scripts/check_privacy_posture.sh" "s/^ *own_hosts=\"${DOLLAR}{own_hosts}.*${DOLLAR}/:/"; then
   gate_in "$R" Site
   want_red "mutation proof: a copy that ignores the own rows turns the own-host case red" "media from another host"
 fi
-
-R="$(media_root mut-relative '<img src="a.png">')"
-if selftest_mutant "$GATE" "${R}/Scripts/check_privacy_posture.sh" 's/return 0 # a relative path/return 1/'; then
-  gate_in "$R" Site
-  want_red "mutation proof: a copy that refuses relative paths turns the relative case red" "media from another host"
-fi
-
-R="$(media_root mut-nodot '<img src="https://badcdn.site.example/a.png">')"
-selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
-  "s/?\*\"\.${DOLLAR}{suffix}\"/*\"${DOLLAR}{suffix}\"/" \
-  "${R}/Site" \
-  "a subdomain matched without its dot turns the lookalike green" \
-  "the copy without the dot did not turn the lookalike green"
-
-# The URL script finds this user name too, so it is weakened first: the proof is
-# of the media check's own port rule.
-R="$(media_root mut-userinfo '<img src="https://media.site.example:x@other.example/a.png">')"
-if selftest_mutant "$URLS" "${R}/Scripts/check_privacy_posture_urls.mjs" "s/img: \['src', 'poster'\]/img: ['poster']/"; then
-  selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
-    's/(:\[0-9\]+)?/(:[^\/]*)?/' \
-    "${R}/Site" \
-    "anything allowed between the host and the path turns the userinfo case green" \
-    "the copy without the port rule did not turn the userinfo case green"
-fi
-
-R="$(media_root mut-lines "<img
-  src=\"${THIRD}.png\">")"
-selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
-  "s/joined=\"${DOLLAR}(tr .*${DOLLAR}/joined=\"${DOLLAR}(cat \"${DOLLAR}file\")\"/" \
-  "${R}/Site" \
-  "the media tags read line by line turn the split tag green" \
-  "the line-by-line copy did not turn the split tag green"
 
 # urls_mutant_unsaid <name> <html> <sed> <ok text>: the gate's own media check
 # keeps the fixture red with or without this script's finding, so the proof is
@@ -932,16 +1018,89 @@ urls_mutant_green() {
   fi
 }
 
-# urls_mutant_red <name> <html> <sed> <ok text>: the fixture is green, and turns
-# red once the URL script is weakened, so it was green BECAUSE of that rule.
+# urls_mutant_red <name> <html> <sed> <ok text> [finding]: the fixture is green,
+# and turns red once the URL script is weakened, so it was green BECAUSE of that
+# rule. [finding] is the heading the gate reports it under.
 urls_mutant_red() {
   local root
   root="$(media_root "$1" "$2")"
   if selftest_mutant "$URLS" "${root}/Scripts/check_privacy_posture_urls.mjs" "$3"; then
     gate_in "$root" Site
-    want_red "mutation proof: $4" "a resource from another host"
+    want_red "mutation proof: $4" "${5:-a resource from another host}"
   fi
 }
+
+# parser_answers <name> <html> <reading> <ok text>: the fixture is red, and turns
+# green when the shared parser is made to answer <reading> for every URL, so the
+# parser's reading of the URL is what decides it.
+parser_answers() {
+  urls_mutant_green "$1" "$2" "s|^function readUrl(raw) {|function readUrl(raw) { if (raw.includes('other.example')) return ${3};|" "$4"
+}
+
+READ_AS_RELATIVE="{ kind: 'relative', userInfo: false, reference: false, plain: true }"
+READ_AS_LISTED="{ kind: 'absolute', protocol: 'https:', hostname: 'barcamp.io', userInfo: false, reference: false, plain: true }"
+
+parser_answers mut-parser-iframe '<iframe src="https://other.example/e"></iframe>' "$READ_AS_LISTED" "the parser's reading decides an iframe"
+parser_answers mut-parser-img "<img src=\"${THIRD}.png\">" "$READ_AS_RELATIVE" "the parser's reading decides an img src"
+parser_answers mut-parser-video "<video src=\"${THIRD}.mp4\"></video>" "$READ_AS_RELATIVE" "the parser's reading decides a video src"
+parser_answers mut-parser-source "<video><source src=\"${THIRD}.mp4\"></video>" "$READ_AS_RELATIVE" "the parser's reading decides a source src"
+parser_answers mut-parser-poster "<video src=\"a.mp4\" poster=\"${THIRD}.jpg\"></video>" "$READ_AS_RELATIVE" "the parser's reading decides a poster"
+parser_answers mut-parser-script "<script src=\"${THIRD}.js\"></script>" "$READ_AS_RELATIVE" "the parser's reading decides a script src"
+parser_answers mut-parser-link "<link rel=\"stylesheet\" href=\"${THIRD}.css\">" "$READ_AS_RELATIVE" "the parser's reading decides a link href"
+parser_answers mut-parser-css "<style>a{background:url(${THIRD}.png)}</style>" "$READ_AS_RELATIVE" "the parser's reading decides a CSS url()"
+
+urls_mutant_green mut-iframe-dropped '<iframe src="https://other.example/e"></iframe>' \
+  's/\.\.\.tagged(.iframe., iframeFindings(file, text, own)),//' "iframe no longer read turns the third-party iframe green"
+urls_mutant_green mut-script-dropped "<script src=\"${THIRD}.js\"></script>" \
+  "s/<(script|link)/<(link)/" "script dropped from the absolute-URL check turns the third-party script green"
+urls_mutant_green mut-link-dropped "<link href=\"${THIRD}.css\">" \
+  "s/<(script|link)/<(script)/" "link dropped from the absolute-URL check turns the third-party link green"
+urls_mutant_green mut-css-dropped "<style>a{background:url(${THIRD}.png)}</style>" \
+  's/\.\.\.tagged(.style., stylesheetFindings(file, text)),//' "CSS url() no longer judged turns the third-party url() green"
+urls_mutant_green mut-substring '<iframe src="https://camp.io/e"></iframe>' \
+  's/own.allowed.has(read.hostname)/[...own.allowed].some((host) => host.includes(read.hostname))/' \
+  "a match of the src host as a part of a listed host turns the lookalike case green"
+urls_mutant_green mut-video "<video src=\"${THIRD}.mp4\"></video>" \
+  "s/MEDIA_TAGS = 'img|video|source'/MEDIA_TAGS = 'img|source'/" "video dropped from the tag list turns the third-party video src green"
+urls_mutant_green mut-source "<video><source src=\"${THIRD}.mp4\"></video>" \
+  "s/MEDIA_TAGS = 'img|video|source'/MEDIA_TAGS = 'img|video'/" "source dropped from the tag list turns the third-party source src green"
+urls_mutant_green mut-img "<img src=\"${THIRD}.png\">" \
+  "s/MEDIA_TAGS = 'img|video|source'/MEDIA_TAGS = 'video|source'/" "img dropped from the tag list turns the third-party img src green"
+urls_mutant_green mut-poster "<video src=\"a.mp4\" poster=\"${THIRD}.jpg\"></video>" \
+  "s/MEDIA_ATTRIBUTES = \['src', 'poster'\]/MEDIA_ATTRIBUTES = ['src']/" "poster no longer read turns the third-party poster green"
+urls_mutant_green mut-lines "<img
+  src=\"${THIRD}.png\">" \
+  "s/TAG_WHITESPACE = .*/TAG_WHITESPACE = ' ';/" "the media tags read line by line turn the split tag green"
+urls_mutant_red mut-relative '<img src="a.png">' \
+  "s/if (read.kind === 'relative') return/if (false) return/" "a copy that refuses relative paths turns the relative case red" "media from another host"
+urls_mutant_green mut-nodot '<img src="https://badcdn.site.example/a.png">' \
+  "s/host.endsWith(\`.${DOLLAR}{suffix}\`)/host.endsWith(suffix)/" "a subdomain matched without its dot turns the lookalike green"
+urls_mutant_green mut-host-from-text '<img src="https://media.site.example:x@other.example/a.png">' \
+  "s/hostname: first.hostname/hostname: raw.replace(\/^https:..([^:\/@]*).*\/s, '\$1')/;s/plain: kind/plain: true || kind/;s/img: \['src', 'poster'\]/img: ['poster']/" \
+  "the host read from the text before the : instead of from the parser turns the user-info case green"
+urls_mutant_red mut-host-case '<iframe src="https://BARCAMP.io/e"></iframe>' \
+  "s/hostname: first.hostname/hostname: raw.replace(\/^https:..([^:\/@]*).*\/s, '\$1')/" \
+  "a host not lower-cased by the parser turns the mixed-case listed iframe red" "an embedded third party"
+urls_mutant_green mut-plain-media '<img src="https:\\media.site.example/a.png">' \
+  's/plain: kind/plain: true || kind/' "the plain spelling not asked turns the backslashed own host green"
+urls_mutant_green mut-plain-iframe '<iframe src="https:\\barcamp.io/e"></iframe>' \
+  's/plain: kind/plain: true || kind/' "the plain spelling not asked turns the backslashed listed iframe green"
+urls_mutant_green mut-script-protorel '<script src="//other.example/a.js"></script>' \
+  "s/return 'protocol-relative';/return 'relative';/" "a protocol-relative URL read as relative turns the script green"
+urls_mutant_green mut-script-reference '<script src="https&#58;//other.example/a.js"></script>' \
+  's/const value = decodeReferences(raw);/const value = raw;/' "character references not read turn the spelled-out script URL green"
+urls_mutant_green mut-quote-media "<img src='a.png'>" \
+  "s/attribute.quote !== '\"'/false/" "the quote rule dropped turns the single-quoted img green"
+urls_mutant_green mut-quote-iframe "<iframe src='https://barcamp.io/e'></iframe>" \
+  "s/attribute.quote !== '\"'/false/" "the quote rule dropped turns the single-quoted iframe green"
+urls_mutant_green mut-count-media '<img src="a.png"' \
+  's/if (found !== total)/if (false)/' "the media tag count dropped turns the tag never closed green"
+urls_mutant_green mut-count-iframe '<iframe src="https://barcamp.io/e"' \
+  's/if (found !== total)/if (false)/' "the iframe tag count dropped turns the tag never closed green"
+urls_mutant_green mut-gt-iframe '<iframe title="a>b" src="https://barcamp.io/e"></iframe>' \
+  's/const IFRAME_TAG = .*/const IFRAME_TAG = \/<iframe(?:[^>"]|"[^"]*")*>\/gi;/' "an iframe tag read past a > inside a quoted value turns that case green"
+urls_mutant_green mut-asset-never-closed "<link href=\"${THIRD}.css\"" \
+  's/of tag.attributes/of (tag.complete ? tag.attributes : [])/' "a link tag never closed no longer read turns it green"
 
 urls_mutant_green mut-srcset-img "<img src=\"a.png\" srcset=\"${THIRD}.png 1x\">" \
   "s/img: \['srcset'\]/img: []/" "srcset dropped from img turns the third-party candidate green"
@@ -972,7 +1131,7 @@ urls_mutant_red mut-data-refused '<img src="a.png" srcset="data:image/gif;base64
 urls_mutant_green mut-data-everywhere '<embed src="data:text/html,hello">' \
   's/dataAllowed: false/dataAllowed: true/' "data URLs allowed everywhere turn the embed data URL green"
 urls_mutant_red mut-res-relative '<audio src="a.mp3"></audio>' \
-  's/BASE_TWO.host) return null/BASE_TWO.host) return "refused"/' "a copy that refuses relative paths turns the relative case red"
+  "s/if (read.kind === 'relative') return/if (false) return/" "a copy that refuses relative paths turns the relative case red"
 urls_mutant_red mut-res-own '<audio src="https://media.site.example/a.mp3"></audio>' \
   's/own.hosts.has(host)/false/' "a copy that ignores the own rows turns the own-host case red"
 urls_mutant_green mut-res-nodot '<audio src="https://badcdn.site.example/a.mp3"></audio>' \
@@ -983,17 +1142,17 @@ urls_mutant_green mut-res-protorel '<audio src="//media.site.example/a.mp3"></au
   's/first.protocol !== second.protocol/false/' "the protocol-relative check dropped turns the own host green"
 urls_mutant_green mut-res-quote '<audio src=https://media.site.example/a.mp3></audio>' \
   "s/attribute.quote !== '\"'/false/" "the quote rule dropped turns the unquoted own host green"
-urls_mutant_green mut-res-charref '<audio src="https&#58;//other.example/a.mp3"></audio>' \
-  "s/if (raw.replaceAll('&amp;', '').includes('&')) return/if (false) return/" "the character reference rule dropped turns that case green"
+urls_mutant_green mut-res-charref '<audio src="https&#58;//media.site.example/a.mp3"></audio>' \
+  "s/if (read.reference) return/if (false) return/" "the character reference rule dropped turns that case green"
 urls_mutant_green mut-res-count "<audio src=\"${THIRD}.mp3" \
   's/if (found !== total)/if (false)/' "the tag count dropped turns the tag never closed green"
 
-urls_mutant_green mut-ui-iframe '<iframe src="https://barcamp.io:x@other.example/e"></iframe>' \
-  "s/iframe: \['src'\]/iframe: []/" "iframe dropped from the user-info table turns the allowed name before the @ green"
-urls_mutant_green mut-ui-script "<script src='https://user@other.example/a.js'></script>" \
-  "s/script: \['src'\]/script: []/" "script dropped from the user-info table turns the single-quoted user name green"
-urls_mutant_green mut-ui-link "<link href='//user@other.example/a.css'>" \
-  "s/link: \['href'\]/link: []/" "link dropped from the user-info table turns the protocol-relative user name green"
+urls_mutant_unsaid mut-ui-iframe '<iframe src="https://user@barcamp.io/e"></iframe>' \
+  "s/iframe: \['src'\]/iframe: []/" "iframe dropped from the user-info table removes its finding"
+urls_mutant_unsaid mut-ui-script "<script src='https://user@other.example/a.js'></script>" \
+  "s/script: \['src'\]/script: []/" "script dropped from the user-info table removes its finding"
+urls_mutant_unsaid mut-ui-link "<link href='//user@other.example/a.css'>" \
+  "s/link: \['href'\]/link: []/" "link dropped from the user-info table removes its finding"
 urls_mutant_unsaid mut-ui-img-src '<img src="https://user@media.site.example/a.png">' \
   "s/img: \['src', 'poster'\]/img: ['poster']/" "img src dropped from the user-info table removes its finding"
 urls_mutant_unsaid mut-ui-img-poster '<img src="a.png" poster="https://user@media.site.example/p.jpg">' \
@@ -1010,16 +1169,16 @@ urls_mutant_green mut-ui-css '<style>a{background:url(//user@other.example/a.png
   's/text.matchAll(CSS_URL)/[]/' "CSS url() no longer read turns its user name green"
 urls_mutant_green mut-ui-srcset '<img src="a.png" srcset="https://user@media.site.example/a.png 1x">' \
   "s/url.username !== '' || url.password !== ''/false/" "a user name in a srcset candidate allowed turns that case green"
-urls_mutant_green mut-ui-references '<iframe src="https://barcamp.io:x&#64;other.example/e"></iframe>' \
-  's/const value = decodeReferences(raw);/const value = raw;/' "character references not read turn the spelled-out @ green"
+urls_mutant_unsaid mut-ui-references '<iframe src="https://barcamp.io:x&#64;other.example/e"></iframe>' \
+  's/const value = decodeReferences(raw);/const value = raw;/' "character references not read remove the finding of the spelled-out @"
 urls_mutant_green mut-ui-css-escapes '<style>a{background:url("https\3a //user\40 other.example/a.png")}</style>' \
   's/unescapeCss(match/(match/' "CSS escapes not read turn the escaped user name green"
-urls_mutant_green mut-ui-one-base '<script src="https:user@other.example/a.js"></script>' \
-  's/\[BASE_ONE, BASE_TWO\]\.some/[BASE_ONE].some/' "only the https base asked turns the scheme-relative user name green"
+urls_mutant_unsaid mut-ui-one-base '<script src="https:user@other.example/a.js"></script>' \
+  's/\[first, second\]\.some/[first].some/' "only the https base asked removes the finding of the scheme-relative user name"
 urls_mutant_red mut-ui-host-judged '<iframe src="https://barcamp.io/e"></iframe>' \
   's/if (!hostJudged) return null;//' "the host policy applied to the user-info tags turns the allowed iframe red"
 urls_mutant_red mut-ui-never-closed '<link href="a.css"' \
-  's/if (tag === null) continue;/if (tag === null) { lines.push(file); continue; }/' "a never-closed user-info tag counted turns the green case red"
+  's/if (!tag.complete) continue;/if (!tag.complete) { lines.push(file); continue; }/' "a never-closed user-info tag counted turns the green case red"
 
 R="$(mkroot mut-import-css-file "$EXC_OWN")"
 printf '@import "%s.css";\n' "$THIRD" > "${R}/Site/a.css"
@@ -1041,7 +1200,7 @@ urls_mutant_green mut-import-keyword "<style>@\\69mport \"${THIRD}.css\";</style
   's/value: unescapeCss(found\[0\])/value: found[0]/' "escapes in a CSS name not read turn the escaped @import green"
 urls_mutant_green mut-import-value '<style>@import "https\3a //other.example/a.css";</style>' \
   's/text: unescapeCss(found\[1\])/text: found[1]/' "escapes in a CSS string not read turn the escaped URL green"
-urls_mutant_green mut-import-bare-value '<style>@import url(https\3a\2f\2fother.example/a.css);</style>' \
+urls_mutant_green mut-import-bare-value '<style>@import url(data\3atext/css,a{});</style>' \
   's/url: unescapeCss(found\[0\])/url: found[0]/' "escapes in a bare url() not read turn the escaped URL green"
 urls_mutant_green mut-import-unreadable '<style>@import a.css;</style>' \
   's/if (item.url === null) {/if (item.url === null) continue; if (false) {/' "an @import nothing can read skipped turns that case green"
@@ -1072,7 +1231,7 @@ urls_mutant_green mut-svg-href "<svg><use href=\"${THIRD}.svg#a\"/></svg>" \
 urls_mutant_green mut-svg-xlink "<svg><use xlink:href=\"${THIRD}.svg#a\"/></svg>" \
   "s/\['href', 'xlink:href'\]/['href']/" "xlink:href no longer read turns the third-party use green"
 urls_mutant_red mut-svg-fragment '<svg><use href="#symbol-id"/></svg>' \
-  's/BASE_TWO.host) return null/BASE_TWO.host) return "refused"/' "a local reference no longer passing turns the fragment red"
+  "s/if (read.kind === 'relative') return/if (false) return/" "a local reference no longer passing turns the fragment red"
 
 R="$(mkroot mut-urls-missing)"
 rm "${R}/Scripts/check_privacy_posture_urls.mjs"
@@ -1082,4 +1241,4 @@ selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
   "a copy that carries on when the URL script fails turns case 25 green" \
   "the copy that ignores a failed URL script did not turn case 25 green"
 
-selftest_end "privacy posture gate" "privacy posture gate proven on synthetic sites (iframes by host list, media by own host or relative path, srcset, audio, track, embed, object, CSS @import, image inputs and SVG references by the same policy, user names and passwords in every resource attribute, malformed and missing exceptions red, seventy-three weakened copies caught, links true for a split anchor)"
+selftest_end "privacy posture gate" "privacy posture gate proven on synthetic sites (iframes by host list, media by own host or relative path, srcset, audio, track, embed, object, CSS @import, image inputs and SVG references by the same policy, user names and passwords in every resource attribute, malformed and missing exceptions red, one hundred and seven weakened copies caught, links true for a split anchor)"

@@ -1,4 +1,5 @@
-// canon: check_privacy_posture_urls v3
+// canon: check_privacy_posture_urls v4
+// v4 (forsgren#658): the one parser readUrl reads every URL of an iframe, img, video, source, poster, script, link and CSS url(), and each kind keeps its own policy here, so the gate's shell no longer reads a URL; the behaviour changes are listed in the v7 note of Scripts/check_privacy_posture.sh
 // v3 (forsgren#659): CSS @import in style elements and .css files, input type=image and SVG href and xlink:href go through urlFinding; an @import or a style element it cannot read is a finding
 // v2 (forsgren#656): a URL with a user name or password is a finding in every resource attribute and CSS url(), whatever its host, read by the built-in WHATWG URL through the one function urlFinding; the host policy of each tag is unchanged
 // Scripts/check_privacy_posture_urls.mjs
@@ -13,14 +14,16 @@
 // the WHATWG URL parser, which Node has built in and shell does not.
 //
 // WHAT IT READS. Standard input: one file path per line. Its two arguments: the
-// site's own exact hosts and its own subdomain suffixes, each a space-separated
-// list in lower case, from the own: rows the gate has already validated.
-// `node Scripts/check_privacy_posture_urls.mjs "<hosts>" "<suffixes>" < files`
+// site's own exact hosts, its own subdomain suffixes and the hosts an iframe may
+// load, each a space-separated list in lower case, from the rows the gate has
+// already validated.
+// `node Scripts/check_privacy_posture_urls.mjs "<hosts>" "<suffixes>" "<iframe hosts>" < files`
 //
-// WHAT IT PRINTS. One line per finding on standard output, `file: tag (why:
-// url)`, or `file: a resource tag that is not a complete tag`. No findings, no
-// output. Exit 0 whether or not it found anything; any other exit means it did
-// not finish, and the gate turns that into its own exit 2.
+// WHAT IT PRINTS. One line per finding on standard output, `kind|file: tag (why:
+// url)`, or `kind|file: ...is not a complete tag`. The kind is iframe, media,
+// asset, style or resource, the heading the gate reports it under. No findings,
+// no output. Exit 0 whether or not it found anything; any other exit means it
+// did not finish, and the gate turns that into its own exit 2.
 //
 // THE TAGS. A tag is read as the HTML tokenizer reads one: any letter case,
 // over any number of lines, attribute by attribute, so data-srcset is not read
@@ -40,15 +43,33 @@
 // THESE ARE THE MECHANISMS IT KNOWS. Reading them closes the gaps they were, and
 // proves nothing about a mechanism this script does not read.
 //
-// ONE URL RULE. Every attribute goes through urlFinding. For the tags of JUDGED
-// it is the whole policy. For the tags of USER_INFO_ONLY and for CSS url() it
-// is the user-info rule alone: the host policy of those stays in the gate's
-// shell checks, which differ from this one (an iframe has its own allow-list, a
-// script or stylesheet may not be absolute at all), and neither their verdict
-// nor what they accept moves here. A browser connects to the host after the @,
-// so an allowed name before it proves nothing, and a shell pattern that stops
-// at the first : never sees that. These are read in a pass of their own that
-// adds no other finding: no quote rule, no count of incomplete tags.
+// ONE URL PARSER, A POLICY PER KIND. readUrl is the only code that interprets a
+// URL: it identifies and normalises, by the WHATWG URL parser a browser uses, and
+// decides nothing. Each kind then applies its own policy to that reading:
+//   JUDGED and media (img, video, source src and poster): hostFinding, a relative
+//     path or https on an own host; media also needs the plain spelling;
+//   iframe: iframeFindings, https on a host of the iframe allow-list only, always
+//     absolute, never an own host by that alone;
+//   script, link and CSS url(): absoluteFinding, every absolute http or https URL
+//     is a finding, an own host included; a relative path, a data URL or another
+//     scheme contacts nothing the rule is about.
+// A URL with a user name or password is a finding on every one of them, by the
+// pass of USER_INFO_ONLY: a browser connects to the host after the @, so an allowed
+// name before it proves nothing, and text before the first : never shows that.
+// That pass adds no other finding: no quote rule, no count of incomplete tags.
+//
+// WHAT THE PLAIN SPELLING KEEPS. The media and iframe checks refuse a URL that is
+// not written out as https://host, with a port and a path if any, even when a
+// browser would normalise it to an allowed host: a backslash, a percent-encoded
+// host, an upper-case scheme. The parser says so (reading.plain); the caller
+// decides whether it matters, and those two say it does. They were findings
+// before this script read them, and stay so.
+//
+// THE TAGS OF EACH KIND. Each keeps how it has always been read, so the quoting
+// and the incomplete-tag rules did not change: an iframe tag ends at its first >,
+// whatever a quote says; a media tag knows its quotes, and a file with a media
+// tag it cannot close is a finding; a script or link is read as far as it goes,
+// so one that never closes is still judged.
 
 import { readFileSync } from 'node:fs';
 
@@ -90,7 +111,7 @@ const USER_INFO_ONLY = {
 };
 
 // A CSS url(), in any letter case, with its three spellings of the value.
-const CSS_URL = /\burl\(\s*(?:"([^"]*)"|'([^']*)'|([^\s)'"]*))/gi;
+const CSS_URL = /url\(\s*(?:"([^"]*)"?|'([^']*)'?|([^\s)'"]*))/gi;
 
 // The named character references that can spell what ends or splits a URL's
 // authority. A letter or digit spelled as a reference is read by the numeric
@@ -100,6 +121,28 @@ const URL_REFERENCES = {
 };
 
 const TAG_DELIMITER = '[\\t\\n\\f\\r />]';
+
+const TAG_WHITESPACE = ' \\t\\n\\r\\f\\v';
+
+// The tags and attributes of the media policy, read with their quotes.
+const MEDIA_TAGS = 'img|video|source';
+const MEDIA_ATTRIBUTES = ['src', 'poster'];
+const MEDIA_TAG = new RegExp(`<(${MEDIA_TAGS})(?:[${TAG_WHITESPACE}/](?:[^>"']|"[^"]*"|'[^']*')*)?>`, 'gi');
+const MEDIA_OPENING = new RegExp(`<(?:${MEDIA_TAGS})[${TAG_WHITESPACE}/>]`, 'gi');
+
+// An iframe tag ends at its first >, as it always has: a > inside a quoted value
+// stops the tag short and the src after it is not seen, which is a finding.
+const IFRAME_NAME_LENGTH = '<iframe'.length;
+const IFRAME_TAG = /<iframe[^>]*>/gi;
+const IFRAME_OPENING = /<iframe/gi;
+
+// Any attribute of a script or link whose name ends in src or href: a longer name
+// such as data-src was always read as one, and that is the safe side.
+const ASSET_ATTRIBUTE = /(?:src|href)$/;
+const ASSET_OPENING = /<(script|link)/gi;
+
+// The spelling the media and iframe checks accept for an absolute URL.
+const PLAIN_HTTPS = /^https:\/\/[A-Za-z0-9.-]+(?::[0-9]+)?(?:[/?#].*)?$/s;
 
 const STYLE_TAG = { style: [] };
 const STYLE_END = /<\/style[\t\n\f\r />]/gi;
@@ -134,13 +177,14 @@ const isWhitespace = (c) => ASCII_WHITESPACE.has(c);
 const SHOWN_CHARS = 200;
 
 function main() {
-  if (process.argv.length !== 4) {
-    console.error('check_privacy_posture_urls.mjs: want two arguments, the own hosts and the own subdomain suffixes');
+  if (process.argv.length !== 5) {
+    console.error('check_privacy_posture_urls.mjs: want three arguments, the own hosts, the own subdomain suffixes and the iframe hosts');
     process.exit(2);
   }
   const own = {
     hosts: new Set(words(process.argv[2])),
     suffixes: words(process.argv[3]),
+    allowed: new Set(words(process.argv[4])),
   };
   const files = readFileSync(0, 'utf8').split('\n').filter((line) => line !== '');
   const lines = files.flatMap((file) => fileFindings(file, readFileSync(file, 'utf8'), own));
@@ -153,7 +197,110 @@ function words(list) {
 
 function fileFindings(file, text, own) {
   const imports = file.endsWith('.css') ? cssFindings(file, text, own) : styleFindings(file, text, own);
-  return [...new Set([...judgedFindings(file, text, own), ...userInfoFindings(file, text, own), ...imports])];
+  return [...new Set([
+    ...tagged('iframe', iframeFindings(file, text, own)),
+    ...tagged('media', mediaFindings(file, text, own)),
+    ...tagged('asset', assetFindings(file, text)),
+    ...tagged('style', stylesheetFindings(file, text)),
+    ...tagged('resource', [...judgedFindings(file, text, own), ...userInfoFindings(file, text, own), ...imports]),
+  ])];
+}
+
+function tagged(kind, lines) {
+  return lines.map((line) => `${kind}|${line}`);
+}
+
+function iframeFindings(file, text, own) {
+  const tags = [...text.matchAll(IFRAME_TAG)];
+  const lines = tags.flatMap((tag) => {
+    const sources = readAttributes(tag[0], IFRAME_NAME_LENGTH).attributes.filter((attribute) => attribute.name === 'src');
+    const shown = shownText(tag[0], 0, tag[0].length);
+    if (sources.length === 0) return [`${file}: ${shown} (no src)`];
+    return sources.map((source) => iframeSrcFinding(source, own)).filter((why) => why !== null).map((why) => `${file}: ${shown} (${why})`);
+  });
+  const found = tags.length;
+  const total = (text.match(IFRAME_OPENING) ?? []).length;
+  if (found !== total) lines.push(`${file}: an <iframe that is not a complete tag`);
+  return lines;
+}
+
+// iframeSrcFinding <attribute> <own>: every src is judged, so a duplicate cannot
+// hide another host. Only https on a host of the iframe list, spelled plainly.
+function iframeSrcFinding(attribute, own) {
+  if (attribute.quote !== '"') return `src is not double-quoted: ${attribute.value}`;
+  const read = readUrl(attribute.value);
+  if (read.kind !== 'absolute' || read.protocol !== 'https:' || !read.plain) {
+    return `src is not a plainly written https URL: ${attribute.value.slice(0, SHOWN_CHARS)}`;
+  }
+  return own.allowed.has(read.hostname) ? null : `host ${read.hostname} is not on the iframe allow-list`;
+}
+
+function mediaFindings(file, text, own) {
+  const tags = [...text.matchAll(MEDIA_TAG)];
+  const lines = tags.flatMap((tag) => mediaTagFindings(tag, own).map((why) => `${file}: ${shownText(tag[0], 0, tag[0].length)} (${why})`));
+  const found = tags.length;
+  const total = (text.match(MEDIA_OPENING) ?? []).length;
+  if (found !== total) lines.push(`${file}: a media tag that is not a complete tag`);
+  return lines;
+}
+
+// mediaTagFindings <tag> <own>: its src and poster are double-quoted and read after
+// the white space a browser would drop from them is gone, or are a finding.
+function mediaTagFindings(tag, own) {
+  const findings = [];
+  for (const attribute of readAttributes(tag[0], 1 + tag[1].length).attributes) {
+    if (!MEDIA_ATTRIBUTES.includes(attribute.name) || attribute.value === null) continue;
+    if (attribute.quote !== '"') {
+      findings.push(`${attribute.name} is not double-quoted: ${attribute.value}`);
+    } else {
+      const compact = attribute.value.replace(/[ \t\n\r\f\v]/g, '');
+      addFinding(findings, attribute.value, hostFinding(readUrl(compact), own, { dataAllowed: false, plainRequired: true }));
+    }
+  }
+  return findings;
+}
+
+// assetFindings <file> <text>: a script or link is read as far as it goes, so one
+// that never closes is still judged, and every absolute URL on it is a finding.
+function assetFindings(file, text) {
+  const lines = [];
+  for (const match of text.matchAll(ASSET_OPENING)) {
+    const tag = readAttributes(text, match.index + match[0].length);
+    for (const attribute of tag.attributes) {
+      if (attribute.value === null || !ASSET_ATTRIBUTE.test(attribute.name)) continue;
+      const why = absoluteFinding(attribute.value);
+      if (why !== null) lines.push(`${file}: ${shownText(text, match.index, tag.end)} (${why}: ${attribute.value.slice(0, SHOWN_CHARS)})`);
+    }
+  }
+  return lines;
+}
+
+// stylesheetFindings <file> <text>: every CSS url() anywhere in the text, under the
+// same rule as a script or link.
+function stylesheetFindings(file, text) {
+  return cssUrls(text).flatMap((item) => {
+    const why = absoluteFinding(item.url);
+    return why === null ? [] : [`${file}: ${shownText(text, item.start, item.end)} (${why}: ${item.url.slice(0, SHOWN_CHARS)})`];
+  });
+}
+
+// absoluteFinding <raw>: the policy of script, link and CSS url(): any http or
+// https URL with a host of its own, own hosts included. What the parser refuses or
+// cannot place on one host is a finding: it fails closed.
+function absoluteFinding(raw) {
+  const read = readUrl(raw);
+  if (read.kind === 'relative') return null;
+  if (read.kind === 'absolute' && read.protocol !== 'http:' && read.protocol !== 'https:') return null;
+  return 'an absolute URL';
+}
+
+// cssUrls <text>: the value of every CSS url() of the text, read as a browser reads it.
+function cssUrls(text) {
+  return [...text.matchAll(CSS_URL)].map((match) => ({
+    url: unescapeCss(match[1] ?? match[2] ?? match[3]),
+    start: match.index,
+    end: match.index + match[0].length,
+  }));
 }
 
 function tagOpening(table) {
@@ -171,7 +318,7 @@ function judgedFindings(file, text, own) {
   let found = 0;
   for (let match = open.exec(text); match !== null; match = open.exec(text)) {
     const tag = readAttributes(text, open.lastIndex);
-    if (tag === null) break;
+    if (!tag.complete) break;
     found += 1;
     open.lastIndex = tag.end;
     const shown = shownText(text, match.index, tag.end);
@@ -195,7 +342,7 @@ function userInfoFindings(file, text, own) {
   const open = tagOpening(USER_INFO_ONLY);
   for (let match = open.exec(text); match !== null; match = open.exec(text)) {
     const tag = readAttributes(text, open.lastIndex);
-    if (tag === null) continue;
+    if (!tag.complete) continue;
     const names = USER_INFO_ONLY[match[1].toLowerCase()];
     for (const attribute of tag.attributes) {
       if (names.includes(attribute.name) && attribute.value !== null) {
@@ -203,8 +350,8 @@ function userInfoFindings(file, text, own) {
       }
     }
   }
-  for (const match of text.matchAll(CSS_URL)) {
-    judge(unescapeCss(match[1] ?? match[2] ?? match[3]), shownText(text, match.index, match.index + match[0].length));
+  for (const item of cssUrls(text)) {
+    judge(item.url, shownText(text, item.start, item.end));
   }
   return lines;
 }
@@ -218,7 +365,7 @@ function styleFindings(file, text, own) {
   const open = tagOpening(STYLE_TAG);
   for (let match = open.exec(text); match !== null; match = open.exec(text)) {
     const tag = readAttributes(text, open.lastIndex);
-    if (tag === null) {
+    if (!tag.complete) {
       lines.push(`${file}: a resource tag that is not a complete tag`);
       continue;
     }
@@ -387,15 +534,18 @@ function skipWhile(text, from, test) {
 
 // readAttributes <text> <from>: the tag's attributes from just after its name,
 // as the HTML tokenizer's attribute states read them, and where the tag ends.
-// Null when the text ends inside the tag. A name with no = has no value.
+// complete is false when the text ends inside the tag; attributes then holds what
+// was read, a value whose quote never closes running to the end of the text. A
+// name with no = has no value.
 function readAttributes(text, from) {
   const attributes = [];
   const skip = (pos, test) => skipWhile(text, pos, test);
+  const incomplete = () => ({ attributes, end: text.length, complete: false });
   let pos = from;
   for (;;) {
     pos = skip(pos, (c) => isWhitespace(c) || c === '/');
-    if (pos >= text.length) return null;
-    if (text[pos] === '>') return { attributes, end: pos + 1 };
+    if (pos >= text.length) return incomplete();
+    if (text[pos] === '>') return { attributes, end: pos + 1, complete: true };
     const nameEnd = skip(pos + 1, (c) => !isWhitespace(c) && c !== '/' && c !== '>' && c !== '=');
     const name = text.slice(pos, nameEnd).toLowerCase();
     pos = skip(nameEnd, isWhitespace);
@@ -404,11 +554,14 @@ function readAttributes(text, from) {
       continue;
     }
     pos = skip(pos + 1, isWhitespace);
-    if (pos >= text.length) return null;
+    if (pos >= text.length) return incomplete();
     const quote = text[pos];
     if (quote === '"' || quote === "'") {
       const close = text.indexOf(quote, pos + 1);
-      if (close < 0) return null;
+      if (close < 0) {
+        attributes.push({ name, value: text.slice(pos + 1), quote });
+        return incomplete();
+      }
       attributes.push({ name, value: text.slice(pos + 1, close), quote });
       pos = close + 1;
     } else {
@@ -490,48 +643,70 @@ function afterDescriptors(input, from) {
 
 // urlFinding <value> <own> <{dataAllowed, hostJudged}>: null when the value is
 // fine, else the reason. A URL with a user name or password is a finding first,
-// whatever its host. With hostJudged false that is all it asks. Otherwise the
-// same policy as the gate's media_value_ok: a relative path, or https on an own
-// host; a protocol-relative, http or other-scheme URL or a character reference
-// other than &amp; is a finding. Hosts are read by the WHATWG URL parser, as a
-// browser reads them. A data URL contacts no host, and only a srcset candidate
-// may be one: an embed or object could run a data: document, and that document
-// could load anything.
+// whatever its host. With hostJudged false that is all it asks. Otherwise it is
+// hostFinding.
 function urlFinding(raw, own, { dataAllowed, hostJudged = true }) {
-  if (hasUserInfo(raw)) return 'a URL with a user name or password';
+  const read = readUrl(raw);
+  if (read.userInfo) return 'a URL with a user name or password';
   if (!hostJudged) return null;
-  if (raw.replaceAll('&amp;', '').includes('&')) return 'a character reference other than &amp;';
-  const value = raw.replaceAll('&amp;', '&');
-  let first;
-  let second;
-  try {
-    first = new URL(value, BASE_ONE.href);
-    second = new URL(value, BASE_TWO.href);
-  } catch {
-    return 'not a URL a browser can read';
-  }
-  if (first.hostname === BASE_ONE.host && second.hostname === BASE_TWO.host) return null;
-  if (first.protocol !== second.protocol) return 'a protocol-relative URL';
-  if (first.protocol === 'data:' && dataAllowed) return null;
-  if (first.protocol !== 'https:') return `not https (${first.protocol})`;
-  return hostIsOwn(first.hostname, own) ? null : `host ${first.hostname} is not an own host`;
+  return hostFinding(read, own, { dataAllowed });
 }
 
-// hasUserInfo <raw>: does the WHATWG URL parser, as a browser reads the value,
-// find a user name or password in it? Character references are read first, as
-// the HTML parser does before any URL is parsed. Both bases are asked because
-// `https:user@host` is a relative path on an https page and a user name on an
-// http one. A value the parser refuses fetches nothing and has no user-info.
-function hasUserInfo(raw) {
+// hostFinding <reading> <own> <{dataAllowed, plainRequired}>: the own-host policy:
+// a relative path, or https on an own host; a protocol-relative, http or
+// other-scheme URL or a character reference other than &amp; is a finding. A data
+// URL contacts no host, and only a srcset candidate may be one: an embed or object
+// could run a data: document, and that document could load anything. plainRequired
+// is the media policy: a URL a browser would normalise is a finding too.
+function hostFinding(read, own, { dataAllowed, plainRequired = false }) {
+  if (read.reference) return 'a character reference other than &amp;';
+  if (read.kind === 'invalid') return 'not a URL a browser can read';
+  const plainOr = (why) => (why === null && plainRequired && !read.plain ? 'not written as a plain URL' : why);
+  if (read.kind === 'relative') return plainOr(null);
+  if (read.kind === 'protocol-relative') return 'a protocol-relative URL';
+  if (read.protocol === 'data:' && dataAllowed) return null;
+  if (read.protocol !== 'https:') return `not https (${read.protocol})`;
+  return plainOr(hostIsOwn(read.hostname, own) ? null : `host ${read.hostname} is not an own host`);
+}
+
+// readUrl <raw>: what a browser makes of a URL an attribute or stylesheet holds:
+// `{kind, userInfo, reference, plain, protocol, hostname}`. Only this function
+// interprets a URL: it reports and decides nothing, and every caller applies its
+// own policy to the answer. Character references are read first, as the HTML
+// parser does before any URL is parsed, and the WHATWG URL parser then gives the
+// normalised host. Both bases are asked because `https:user@host` is a relative
+// path on an https page and a user name on an http one, and a protocol-relative
+// URL takes its scheme from the page.
+//   kind      relative, protocol-relative, absolute, or invalid when a browser cannot parse it
+//   userInfo  a user name or password on either base
+//   reference a character reference other than &amp; was written
+//   plain     written out as https://host, or as a relative path with no leading backslash
+function readUrl(raw) {
   const value = decodeReferences(raw);
-  return [BASE_ONE, BASE_TWO].some((base) => {
-    try {
-      const url = new URL(value, base.href);
-      return url.username !== '' || url.password !== '';
-    } catch {
-      return false;
-    }
-  });
+  const [first, second] = [BASE_ONE, BASE_TWO].map((base) => parseOn(value, base));
+  const kind = urlKind(first, second);
+  const reading = {
+    kind,
+    userInfo: [first, second].some((url) => url !== null && (url.username !== '' || url.password !== '')),
+    reference: raw.replaceAll('&amp;', '').includes('&'),
+    plain: kind === 'relative' ? !raw.startsWith('\\') : PLAIN_HTTPS.test(raw),
+  };
+  return kind === 'invalid' ? reading : { ...reading, protocol: first.protocol, hostname: first.hostname };
+}
+
+function parseOn(value, base) {
+  try {
+    return new URL(value, base.href);
+  } catch {
+    return null;
+  }
+}
+
+function urlKind(first, second) {
+  if (first === null || second === null) return 'invalid';
+  if (first.hostname === BASE_ONE.host && second.hostname === BASE_TWO.host) return 'relative';
+  if (first.protocol !== second.protocol) return 'protocol-relative';
+  return 'absolute';
 }
 
 // decodeReferences <value>: numeric character references and URL_REFERENCES
