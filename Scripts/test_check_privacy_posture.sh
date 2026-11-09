@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_check_privacy_posture v6
+# canon: test_check_privacy_posture v7
+# v7 (forsgren#659): the CSS @import, input type=image and SVG href cases and their proofs, for check_privacy_posture v6 and check_privacy_posture_urls v3
 # v6 (forsgren#656): the user name and password cases of every resource attribute and their proofs, for check_privacy_posture v5 and check_privacy_posture_urls v2
 # Scripts/test_check_privacy_posture.sh
 #
@@ -73,6 +74,17 @@
 #  28. no user-info: URLs with an @ in the path, query or a data URL, an allowed
 #      iframe, a port, a link, a tag never closed, the old quote rules -> green;
 #      an absolute script or url() on an own host stays red, as it was
+#  29. CSS @import from another host, in a style element and in a .css file:
+#      quoted, url() in each spelling, letter case, comments, white space,
+#      escapes, protocol-relative, http, a user name, a data URL -> red each
+#  30. an @import nothing can read, a style element never closed, markup or a
+#      character reference inside a style element -> red each (fail closed)
+#  31. what passes: relative paths, an own host, an @import in a comment or a
+#      string, a longer name, text outside a style element, an ampersand
+#  32. input type=image: letter case, a reference in the type, src first, quotes,
+#      every URL rule -> red each; relative, own host, no src, another type -> green
+#  33. href and xlink:href on every SVG element that takes one -> red each;
+#      #symbol-id, relative, own host, an SVG <a>, another attribute -> green
 # Mutation proofs (a weakened copy of the gate must turn the case green):
 #   A. the blanket rule (any iframe passes when privacy.html exists): case 6
 #   B. the allow-list skipped when its file is missing: case 13
@@ -117,6 +129,20 @@
 #   AX. the host policy applied to the tags of the user-info table: the allowed
 #      iframe of 28 turns red
 #   AY. a tag never closed counted against the user-info tags: case 28 turns red
+#   AZ, BA. .css files, style elements no longer read for @import: case 29
+#   BB, BC. CSS comments, CSS strings no longer skipped: case 31 turns red
+#   BD, BE, BF. escapes not read in a name, a string, a bare url(): case 29
+#   BG. an @import nothing can read skipped: case 30
+#   BH. a url() token not read whole: the stray quote of 29 hides the import
+#   BI. an ampersand of CSS read as a reference: case 31 turns red
+#   BJ. a reference allowed in a style element: case 30
+#   BK. a style element read past: the opening in a comment of 30 hides the next
+#   BL. input dropped from the table: case 32
+#   BM, BN. the type read with its case, without its references: case 32
+#   BO. every input read whatever its type: case 32 turns red
+#   BP, BQ, BR. image, use, feImage dropped: case 33 for that one
+#   BS, BT. href, xlink:href no longer read: case 33
+#   BU. a local reference no longer passing: the fragment of 33 turns red
 
 set -euo pipefail
 
@@ -580,6 +606,190 @@ want_red "an absolute script on an own host stays red" "a third-party asset is l
 gate_in "$(media_root red-ui-css-own '<style>a{background:url(https://media.site.example/a.png)}</style>')" Site
 want_red "an absolute url() on an own host stays red" "a stylesheet fetches from another host"
 
+# css_red <name> <css> [text]: the CSS is a finding in a <style> element and in
+# a .css file, each saying the text (by default the planted host).
+css_red() {
+  local root
+  resource_red "$1" "<style>$2</style>" "${3:-other.example}"
+  root="$(mkroot "${1}-file" "$EXC_OWN")"
+  printf '%s\n' "$2" > "${root}/Site/a.css"
+  gate_in "$root" Site
+  want_red "${1}: in a .css file: ${2} is red" "a resource from another host"
+  want_said "${1}: in a .css file: the finding says ${3:-other.example}" "${3:-other.example}"
+}
+
+# css_green <name> <css>: the CSS passes in a <style> element and in a .css file.
+css_green() {
+  local root
+  media_green "$1" "<style>$2</style>"
+  root="$(mkroot "${1}-file" "$EXC_OWN")"
+  printf '%s\n' "$2" > "${root}/Site/a.css"
+  gate_in "$root" Site
+  want_green_ok "${1}: in a .css file: ${2} is green"
+}
+
+IMPORT_UNREADABLE='an @import whose URL cannot be read'
+
+# --- 29. CSS @import from another host, every way of writing the URL
+css_red red-import-double "@import \"${THIRD}.css\";"
+css_red red-import-single "@import '${THIRD}.css';"
+css_red red-import-url-bare "@import url(${THIRD}.css);"
+css_red red-import-url-double "@import url(\"${THIRD}.css\");"
+css_red red-import-url-single "@import url('${THIRD}.css');"
+css_red red-import-url-spaces "@import url(  \"${THIRD}.css\"  );"
+css_red red-import-url-spaces-bare "@import url(  ${THIRD}.css  );"
+css_red red-import-upper "@IMPORT URL(\"${THIRD}.css\");"
+css_red red-import-no-space "@import\"${THIRD}.css\";"
+css_red red-import-lines "@import
+  \"${THIRD}.css\"
+  ;"
+css_red red-import-comment "@import/* a */\"${THIRD}.css\";"
+css_red red-import-comment-after-url "@import url(\"${THIRD}.css\"/* b */);"
+css_red red-import-media "@import \"${THIRD}.css\" screen and (min-width: 1px);"
+css_red red-import-layer "@import url(${THIRD}.css) layer(a) supports(display: grid);"
+css_red red-import-after-rule "a{color:red}@import \"${THIRD}.css\";"
+css_red red-import-second "@import \"a.css\";@import \"${THIRD}.css\";"
+css_red red-import-escaped-keyword "@\\69mport \"${THIRD}.css\";"
+css_red red-import-escaped-url-name "@import u\\72l(${THIRD}.css);"
+css_red red-import-escaped-colon '@import "https\3a //other.example/a.css";'
+css_red red-import-escaped-bare '@import url(https\3a\2f\2fother.example/a.css);'
+css_red red-import-escaped-char '@import "https:\/\/other.example/a.css";'
+css_red red-import-continuation '@import "https://oth\
+er.example/a.css";'
+css_red red-import-backslashes '@import "\\\\other.example/a.css";' 'protocol-relative'
+css_red red-import-protorel '@import "//other.example/a.css";' 'protocol-relative'
+css_red red-import-own-protorel '@import "//media.site.example/a.css";' 'protocol-relative'
+css_red red-import-http-own '@import "http://media.site.example/a.css";' 'not https'
+css_red red-import-scheme '@import "ftp://media.site.example/a.css";' 'not https'
+css_red red-import-data '@import "data:text/css,a{}";' 'not https'
+css_red red-import-userinfo '@import "https://media.site.example:x@other.example/a.css";' 'a user name or password'
+css_red red-import-userinfo-escaped '@import "https://user\40 media.site.example/a.css";' 'a user name or password'
+css_red red-import-suffix '@import "https://media.site.example.other.example/a.css";'
+css_red red-import-after-bad-url "a{background:url(x'y)}@import \"${THIRD}.css\";"
+css_red red-import-after-bad-url-paren "a{background:url(x y)}@import \"${THIRD}.css\";"
+gate_in "$(media_root red-import-url-own '<style>@import url(https://media.site.example/a.css);</style>')" Site
+want_red "an absolute @import url() on an own host stays red, as every absolute url() is" "a stylesheet fetches from another host"
+
+# --- 30. an @import nothing can read is a finding, never skipped
+css_red red-import-no-url '@import;' "$IMPORT_UNREADABLE"
+css_red red-import-end '@import' "$IMPORT_UNREADABLE"
+css_red red-import-bare-word '@import a.css;' "$IMPORT_UNREADABLE"
+css_red red-import-url-space '@import url (a.css);' "$IMPORT_UNREADABLE"
+css_red red-import-url-comment '@import url/* a */(a.css);' "$IMPORT_UNREADABLE"
+css_red red-import-comment-in-url "@import url(/* not a comment */\"${THIRD}.css\");" "$IMPORT_UNREADABLE"
+css_red red-import-other-function '@import src("a.css");' "$IMPORT_UNREADABLE"
+css_red red-import-two-strings '@import url("a.css" "b.css");' "$IMPORT_UNREADABLE"
+css_red red-import-url-modifier '@import url("a.css" crossorigin);' "$IMPORT_UNREADABLE"
+css_red red-import-bare-space '@import url(a b.css);' "$IMPORT_UNREADABLE"
+css_red red-import-bare-quote '@import url(a"b.css);' "$IMPORT_UNREADABLE"
+css_red red-import-bare-paren '@import url(a(b.css);' "$IMPORT_UNREADABLE"
+css_red red-import-bare-newline '@import url(a\
+b.css);' "$IMPORT_UNREADABLE"
+css_red red-import-unclosed-url '@import url(a.css' "$IMPORT_UNREADABLE"
+css_red red-import-unclosed-string '@import "a.css' "$IMPORT_UNREADABLE"
+css_red red-import-newline-string '@import "a
+.css";' "$IMPORT_UNREADABLE"
+resource_red red-style-never-closed '<style media="a' 'not a complete tag'
+resource_red red-style-reference "<svg><style>&#64;import \"${THIRD}.css\";</style></svg>" 'inside a style element'
+resource_red red-style-named-reference "<svg><style>@import \"https&colon;//other.example/a.css\";</style></svg>" 'inside a style element'
+resource_red red-style-quot "<svg><style>a{content:\"&quot}@import \"${THIRD}.css\";b{content:\"&quot}</style></svg>" 'inside a style element'
+resource_red red-style-comment "<svg><style><!-- /* --> @import \"${THIRD}.css\";</style></svg>" 'inside a style element'
+resource_red red-style-markup "<svg><style>@im<b></b>port \"${THIRD}.css\";</style></svg>" 'inside a style element'
+resource_red red-style-after-style-in-comment "<!-- <style>/* --><style>@import \"${THIRD}.css\";</style>"
+
+# --- 31. what an @import passes, and what only looks like one
+css_green green-import-relative '@import "a.css";@import '"'"'/b.css'"'"';@import url(c.css);@import url("./d.css");@import url( '"'"'../e.css'"'"' );'
+css_green green-import-own '@import "https://media.site.example/a.css";@import "https://a.cdn.site.example/b.css";'
+css_green green-import-media '@import "a.css" screen and (min-width: 1px);@import url(b.css) layer(a);'
+css_green green-import-escaped-url-name '@import u\72l(a.css);'
+css_green green-import-escaped-value '@import "a\62.css";@import url(a\ b.css);'
+css_green green-import-comment-between '@import/* a */"a.css"/* b */;'
+css_green green-import-amp '@import "a.css?x=1&y=2";@import url(b.css?x=1&y=2);'
+css_green green-import-at '@import "a@2x.css";'
+css_green green-import-in-comment "/* @import \"${THIRD}.css\"; */a{color:red}"
+css_green green-import-unclosed-comment "a{color:red}/* @import \"${THIRD}.css\";"
+css_green green-import-in-string "a{content:\"@import '${THIRD}.css';\"}b{content:'@import \"${THIRD}.css\";'}"
+css_green green-import-in-string-quote "a{content:\"\\\"@import '${THIRD}.css'\"}"
+css_green green-import-in-url 'a{background:url(a@import.png)}'
+css_green green-import-longer-name "@importance \"${THIRD}.css\";"
+css_green green-import-escaped-at "\\40 import \"${THIRD}.css\";"
+css_green green-import-other-at '@charset "utf-8";@font-face{font-family:x;src:url(a.woff2)}@media screen{a{color:red}}'
+media_green green-import-outside-style "<p>@import \"${THIRD}.css\";</p><img src=\"a.png\" alt=\"@import '${THIRD}.css';\">"
+media_green green-import-style-tag-like "<style-sheet>@import \"${THIRD}.css\";</style-sheet>"
+media_green green-style-nesting '<style>a{&:hover{color:red}&.b{color:blue}}</style>'
+media_green green-style-less-than '<style>@media (width<600px){a{content:"<"}}</style>'
+media_green green-style-amp-entity '<style>@import "a.css?x=1&amp;y=2";</style>'
+media_green green-style-after-close "<style>a{}</style><p>@import \"${THIRD}.css\";</p>"
+R="$(media_root green-css-file-reference '')"
+printf '@import "a&#46;css";\na{content:"<b>"}\n' > "${R}/Site/a.css"
+gate_in "$R" Site
+want_green_ok "a .css file is CSS, not HTML: a reference and markup in it mean nothing"
+
+# --- 32. input type=image, however it is written
+resource_red red-input "<input type=\"image\" src=\"${THIRD}.png\" alt=\"go\">"
+resource_red red-input-upper "<input type=\"IMAGE\" src=\"${THIRD}.png\">"
+resource_red red-input-mixed "<INPUT TYPE=\"ImAgE\" SRC=\"${THIRD}.png\">"
+resource_red red-input-bare-type "<input type=image src=\"${THIRD}.png\">"
+resource_red red-input-single-type "<input type='image' src=\"${THIRD}.png\">"
+resource_red red-input-reference-type "<input type=\"&#105;mage\" src=\"${THIRD}.png\">"
+resource_red red-input-src-first "<input src=\"${THIRD}.png\" type=\"image\">"
+resource_red red-input-lines "<input
+  type=\"image\"
+  src=\"${THIRD}.png\">"
+resource_red red-input-self-closed "<input type=\"image\" src=\"${THIRD}.png\"/>"
+resource_red red-input-gt-attr "<input alt=\"a>b\" type=\"image\" src=\"${THIRD}.png\">"
+resource_red red-input-twice "<input type=\"image\" src=\"a.png\" src=\"${THIRD}.png\">"
+resource_red red-input-unquoted "<input type=\"image\" src=${THIRD}.png>"
+resource_red red-input-single-src "<input type=\"image\" src='${THIRD}.png'>"
+resource_red red-input-own-unquoted '<input type="image" src=https://media.site.example/a.png>' 'not double-quoted'
+resource_red red-input-protorel '<input type="image" src="//other.example/a.png">' 'protocol-relative'
+resource_red red-input-http-own '<input type="image" src="http://media.site.example/a.png">' 'not https'
+resource_red red-input-backslash '<input type="image" src="\\other.example/a.png">' 'protocol-relative'
+resource_red red-input-reference '<input type="image" src="https&#58;//other.example/a.png">' 'character reference'
+resource_red red-input-userinfo '<input type="image" src="https://media.site.example:x@other.example/a.png">' 'a user name or password'
+resource_red red-input-data '<input type="image" src="data:image/gif;base64,R0lG">' 'not https'
+resource_red red-input-broken-url '<input type="image" src="https://[/a.png">' 'not a URL a browser can read'
+resource_red red-input-never-closed "<input type=\"image\" src=\"${THIRD}.png" 'not a complete tag'
+media_green green-input-relative '<input type="image" src="a.png" alt="go"><input type="IMAGE" src="/b.png"><input type=image src="./c.png">'
+media_green green-input-own '<input type="image" src="https://media.site.example/a.png"><input type="image" src="https://a.cdn.site.example/b.png">'
+media_green green-input-no-src '<input type="image"><input type="image" src>'
+media_green green-input-other-type "<input src=\"${THIRD}.png\"><input type=\"text\" src=\"${THIRD}.png\"><input type src=\"${THIRD}.png\">"
+media_green green-input-spaced-type "<input type=\" image\" src=\"${THIRD}.png\">"
+media_green green-input-data-src "<input type=\"image\" src=\"a.png\" data-src=\"${THIRD}.png\">"
+media_green green-input-custom-tag "<input-image type=\"image\" src=\"${THIRD}.png\"></input-image>"
+
+# --- 33. SVG href and xlink:href, on every SVG element that takes one but <a>
+for tag in image use feImage script linearGradient radialGradient pattern filter textPath tref altGlyph glyphRef cursor font-face-uri color-profile mpath animate animateMotion animateColor animateTransform set discard hatch; do
+  resource_red "red-svg-href-${tag}" "<svg><${tag} href=\"${THIRD}.svg#a\"/></svg>"
+  resource_red "red-svg-xlink-${tag}" "<svg><${tag} xlink:href=\"${THIRD}.svg#a\"/></svg>"
+done
+resource_red red-svg-upper "<svg><USE HREF=\"${THIRD}.svg#a\"/></svg>"
+resource_red red-svg-xlink-upper "<svg><Image XLINK:HREF=\"${THIRD}.png\"/></svg>"
+resource_red red-svg-lines "<svg><use
+  x=\"0\"
+  href=\"${THIRD}.svg#a\"/></svg>"
+resource_red red-svg-twice "<svg><use href=\"#a\" xlink:href=\"${THIRD}.svg#a\"/></svg>"
+resource_red red-svg-unquoted "<svg><use href=${THIRD}.svg#a></use></svg>"
+resource_red red-svg-single "<svg><image xlink:href='${THIRD}.png'/></svg>"
+resource_red red-svg-own-unquoted '<svg><use href=https://media.site.example/a.svg#a></use></svg>' 'not double-quoted'
+resource_red red-svg-protorel '<svg><use href="//other.example/a.svg#a"/></svg>' 'protocol-relative'
+resource_red red-svg-http-own '<svg><image href="http://media.site.example/a.png"/></svg>' 'not https'
+resource_red red-svg-backslash '<svg><image href="\\other.example/a.png"/></svg>' 'protocol-relative'
+resource_red red-svg-reference '<svg><use href="https&#58;//other.example/a.svg#a"/></svg>' 'character reference'
+resource_red red-svg-reference-fragment '<svg><use href="&#35;a"/></svg>' 'character reference'
+resource_red red-svg-userinfo '<svg><image xlink:href="https://media.site.example@other.example/a.png"/></svg>' 'a user name or password'
+resource_red red-svg-data '<svg><image href="data:image/png;base64,AA"/></svg>' 'not https'
+resource_red red-svg-broken-url '<svg><use href="https://[/a.svg#a"/></svg>' 'not a URL a browser can read'
+resource_red red-svg-never-closed "<svg><use href=\"${THIRD}.svg#a" 'not a complete tag'
+media_green green-svg-fragment '<svg><use href="#symbol-id"/><use xlink:href="#symbol-id"/><linearGradient href="#g"/><image href="#i"/><animate xlink:href="#a"/><textPath href="#p"></textPath></svg>'
+media_green green-svg-relative '<svg><use href="sprite.svg#a"/><use xlink:href="/sprite.svg#a"/><image href="./a.png"/><image xlink:href="../a.png"/></svg>'
+media_green green-svg-own '<svg><use href="https://media.site.example/a.svg#a"/><image xlink:href="https://a.cdn.site.example/b.png"/></svg>'
+media_green green-svg-no-value '<svg><use/><use href/><image></image></svg>'
+media_green green-svg-link "<svg><a href=\"${THIRD}\"><text>a</text></a><a xlink:href=\"${THIRD}\"><text>b</text></a></svg>"
+media_green green-svg-data-href "<svg><use href=\"#a\" data-href=\"${THIRD}.svg\"/></svg>"
+media_green green-svg-other-prefix "<svg><use href=\"#a\" other:href=\"${THIRD}.svg\"/></svg>"
+media_green green-svg-custom-tag "<use-thing href=\"${THIRD}\"></use-thing><image-view href=\"${THIRD}\"></image-view>"
+
 # --- Mutation proofs
 R="$(mkroot mut-blanket)"
 printf '%s\n' "$UNLISTED" >> "${R}/Site/index.html"
@@ -811,6 +1021,59 @@ urls_mutant_red mut-ui-host-judged '<iframe src="https://barcamp.io/e"></iframe>
 urls_mutant_red mut-ui-never-closed '<link href="a.css"' \
   's/if (tag === null) continue;/if (tag === null) { lines.push(file); continue; }/' "a never-closed user-info tag counted turns the green case red"
 
+R="$(mkroot mut-import-css-file "$EXC_OWN")"
+printf '@import "%s.css";\n' "$THIRD" > "${R}/Site/a.css"
+if selftest_mutant "$URLS" "${R}/Scripts/check_privacy_posture_urls.mjs" "s/file.endsWith('.css')/false/"; then
+  gate_in "$R" Site
+  if [[ "$RC" -eq 0 ]]; then
+    echo "  ok: mutation proof: a .css file no longer read for @import turns its third-party import green"
+  else
+    fail "mutation proof: mut-import-css-file: the weakened URL script did not turn the case green (exit $RC). Output: $OUT"
+  fi
+fi
+urls_mutant_green mut-import-style "<style>@import \"${THIRD}.css\";</style>" \
+  's/const open = tagOpening(STYLE_TAG);/return lines;/' "a style element no longer read turns its third-party import green"
+urls_mutant_red mut-import-comment "<style>/* @import \"${THIRD}.css\"; */</style>" \
+  's/!css.startsWith(CSS_COMMENT_OPEN, pos)/true/' "CSS comments no longer skipped turn a commented import red"
+urls_mutant_red mut-import-string "<style>a{content:\"@import '${THIRD}.css';\"}</style>" \
+  's/pos = cssString(css, pos).end;/pos += 1;/' "CSS strings no longer skipped turn a quoted import red"
+urls_mutant_green mut-import-keyword "<style>@\\69mport \"${THIRD}.css\";</style>" \
+  's/value: unescapeCss(found\[0\])/value: found[0]/' "escapes in a CSS name not read turn the escaped @import green"
+urls_mutant_green mut-import-value '<style>@import "https\3a //other.example/a.css";</style>' \
+  's/text: unescapeCss(found\[1\])/text: found[1]/' "escapes in a CSS string not read turn the escaped URL green"
+urls_mutant_green mut-import-bare-value '<style>@import url(https\3a\2f\2fother.example/a.css);</style>' \
+  's/url: unescapeCss(found\[0\])/url: found[0]/' "escapes in a bare url() not read turn the escaped URL green"
+urls_mutant_green mut-import-unreadable '<style>@import a.css;</style>' \
+  's/if (item.url === null) {/if (item.url === null) continue; if (false) {/' "an @import nothing can read skipped turns that case green"
+urls_mutant_green mut-import-bad-url "<style>a{background:url(x'y)}@import \"${THIRD}.css\";</style>" \
+  's/pos = isCssUrl(css, name) ? cssUrlValue(css, name.end + 1).end : name.end;/pos = name.end;/' "a url() token no longer read whole lets a stray quote hide the next import"
+urls_mutant_red mut-import-amp '<style>@import "a.css?x=1&y=2";</style>' \
+  "s/item.url.replaceAll('&', '\&amp;')/item.url/" "an ampersand of CSS read as a character reference turns the plain query red"
+urls_mutant_green mut-style-markup "<svg><style>&#64;import \"${THIRD}.css\";</style></svg>" \
+  's/if (STYLE_NOT_CSS.test(body))/if (false)/' "a reference inside a style element allowed turns the spelled-out import green"
+urls_mutant_green mut-style-overlap "<!-- <style>/* --><style>@import \"${THIRD}.css\";</style>" \
+  's/const body = text.slice(tag.end, styleEnd(text, tag.end));/open.lastIndex = text.length; const body = text.slice(tag.end, styleEnd(text, tag.end));/' "a style element read past lets an earlier opening hide the next one"
+urls_mutant_green mut-input "<input type=\"image\" src=\"${THIRD}.png\">" \
+  "s/input: \['src'\]/input: []/" "input dropped turns the third-party image input green"
+urls_mutant_green mut-input-case "<input type=\"IMAGE\" src=\"${THIRD}.png\">" \
+  's/decodeReferences(attribute.value).toLowerCase()/decodeReferences(attribute.value)/' "the type read with its letter case turns the upper-case type green"
+urls_mutant_green mut-input-reference "<input type=\"&#105;mage\" src=\"${THIRD}.png\">" \
+  's/decodeReferences(attribute.value).toLowerCase()/attribute.value.toLowerCase()/' "references in the type not read turn the spelled-out type green"
+urls_mutant_red mut-input-any-type "<input type=\"text\" src=\"${THIRD}.png\">" \
+  's/if (READ_WHEN\[tagName\]?.(attributes) === false) return findings;//' "every input read turns a text input with a src red"
+urls_mutant_green mut-svg-image "<svg><image href=\"${THIRD}.png\"/></svg>" \
+  "s/'image', //" "image dropped turns the third-party image green"
+urls_mutant_green mut-svg-use "<svg><use href=\"${THIRD}.svg#a\"/></svg>" \
+  "s/'use', //" "use dropped turns the third-party use green"
+urls_mutant_green mut-svg-feimage "<svg><feImage href=\"${THIRD}.png\"/></svg>" \
+  "s/'feimage', //" "feImage dropped turns the third-party feImage green"
+urls_mutant_green mut-svg-href "<svg><use href=\"${THIRD}.svg#a\"/></svg>" \
+  "s/\['href', 'xlink:href'\]/['xlink:href']/" "href no longer read turns the third-party use green"
+urls_mutant_green mut-svg-xlink "<svg><use xlink:href=\"${THIRD}.svg#a\"/></svg>" \
+  "s/\['href', 'xlink:href'\]/['href']/" "xlink:href no longer read turns the third-party use green"
+urls_mutant_red mut-svg-fragment '<svg><use href="#symbol-id"/></svg>' \
+  's/BASE_TWO.host) return null/BASE_TWO.host) return "refused"/' "a local reference no longer passing turns the fragment red"
+
 R="$(mkroot mut-urls-missing)"
 rm "${R}/Scripts/check_privacy_posture_urls.mjs"
 selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
@@ -819,4 +1082,4 @@ selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
   "a copy that carries on when the URL script fails turns case 25 green" \
   "the copy that ignores a failed URL script did not turn case 25 green"
 
-selftest_end "privacy posture gate" "privacy posture gate proven on synthetic sites (iframes by host list, media by own host or relative path, srcset, audio, track, embed and object by the same policy, user names and passwords in every resource attribute, malformed and missing exceptions red, fifty-one weakened copies caught, links true for a split anchor)"
+selftest_end "privacy posture gate" "privacy posture gate proven on synthetic sites (iframes by host list, media by own host or relative path, srcset, audio, track, embed, object, CSS @import, image inputs and SVG references by the same policy, user names and passwords in every resource attribute, malformed and missing exceptions red, seventy-three weakened copies caught, links true for a split anchor)"

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: check_privacy_posture v5
+# canon: check_privacy_posture v6
+# v6 (forsgren#659): CSS @import in style elements and .css files, input type=image and SVG href and xlink:href are held to the own-host policy by Scripts/check_privacy_posture_urls.mjs v3; an @import or a style element it cannot read is a finding; every check of v5 is unchanged
 # v5 (forsgren#656): a URL with a user name or password is a finding in every resource attribute and CSS url(), whatever its host, by urlFinding in Scripts/check_privacy_posture_urls.mjs v2; the allow-list, the own hosts and every other check of v4 are unchanged
 set -uo pipefail
 
@@ -67,6 +68,16 @@ source Scripts/lib_site_settings.sh
 # reads the first name after // is misled. Node decides it, by the same WHATWG URL
 # parser, never by splitting on : or @. It changes nothing else: each tag keeps its
 # own host check in this file, and this rule adds only that one finding.
+#
+# IMPORTS, INPUTS, SVG. A CSS @import in a style element or a .css file, the src
+# of an input of type image and the href or xlink:href of an SVG element load on
+# page view too, under the same policy, and Node reads them. A local reference
+# such as #symbol-id is relative and passes. An @import whose URL cannot be read,
+# or a style element holding markup or a character reference, is a finding, since
+# an inline SVG reads those differently: it fails closed rather than skip it.
+#
+# THE MECHANISMS LISTED ABOVE ARE THE ONES IT READS. They close identified gaps;
+# they do not prove that no other loading mechanism can reach another host.
 #
 # THE BOUNDARY OF THIS CHECK. It reads static HTML and CSS. It cannot guarantee
 # that JavaScript will never start a request to a third party: a script can build
@@ -291,11 +302,11 @@ resource_files="$(find "$SITE" -type f \( -name '*.html' -o -name '*.css' \) 2>/
 hits="$(node Scripts/check_privacy_posture_urls.mjs "$own_hosts" "$own_suffixes" <<< "$resource_files")"
 urls_rc=$?
 if [ "$urls_rc" -ne 0 ]; then
-  echo "privacy-posture: Scripts/check_privacy_posture_urls.mjs failed (exit ${urls_rc}), so srcset, audio, track, embed and object were not judged and no URL was checked for a user name or password" >&2
+  echo "privacy-posture: Scripts/check_privacy_posture_urls.mjs failed (exit ${urls_rc}), so srcset, audio, track, embed, object, @import, image inputs and SVG references were not judged and no URL was checked for a user name or password" >&2
   exit 2
 fi
 [ -n "$hits" ] && report "a resource from another host" \
-  "A srcset candidate, audio, track, embed or object from another host sends every visitor's IP there on page view. Only a double-quoted relative path or an https URL on a host declared own:host|reason in ${EXCEPTIONS} passes (and, in a srcset, a data URL). A URL with a user name or password is a finding on every resource attribute and in a CSS url(), whatever host it names: a browser connects to the host after the @." "$hits"
+  "A srcset candidate, audio, track, embed, object, CSS @import, image input or SVG href from another host sends every visitor's IP there on page view. Only a double-quoted relative path or an https URL on a host declared own:host|reason in ${EXCEPTIONS} passes (and, in a srcset, a data URL). A URL with a user name or password is a finding on every resource attribute and in a CSS url(), whatever host it names: a browser connects to the host after the @." "$hits"
 
 hits="$(scan '<(script|link)[^>]+(src|href)="https?://')"
 [ -n "$hits" ] && report "a third-party asset is loaded" \

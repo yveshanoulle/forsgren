@@ -639,7 +639,13 @@ The POST gates, on the generated site:
   password is a finding in every resource attribute, including `iframe`,
   `script` and `link`, and in a CSS `url()`, whatever host it names, because
   a browser connects to the host after the `@`: one rule, `urlFinding`, with
-  no exceptions and each tag's host check unchanged. A green run lists what the page
+  no exceptions and each tag's host check unchanged. A CSS `@import`, in a
+  `style` element or a `.css` file, an `input` of type `image` and the `href` or
+  legacy `xlink:href` of an SVG element are held to that host policy too; a
+  local `#fragment` passes, and an `@import` the script cannot read, or a
+  `style` element holding markup or a character reference, is a finding. These
+  close identified gaps and do not prove that no other loading mechanism exists.
+  A green run lists what the page
   does load (self-hosted fonts) and the hosts it links to, so the verdict can
   be read rather than trusted. An outbound link is not a finding: it sends
   nothing until someone clicks it. The boundary: this is a static check of the

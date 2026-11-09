@@ -1,4 +1,5 @@
-// canon: check_privacy_posture_urls v2
+// canon: check_privacy_posture_urls v3
+// v3 (forsgren#659): CSS @import in style elements and .css files, input type=image and SVG href and xlink:href go through urlFinding; an @import or a style element it cannot read is a finding
 // v2 (forsgren#656): a URL with a user name or password is a finding in every resource attribute and CSS url(), whatever its host, read by the built-in WHATWG URL through the one function urlFinding; the host policy of each tag is unchanged
 // Scripts/check_privacy_posture_urls.mjs
 //
@@ -28,6 +29,17 @@
 // included, and a file with more tag openings than complete tags is a finding:
 // it fails closed rather than guessing.
 //
+// WHAT ELSE. A tag whose attribute fetches only under a condition names it in
+// READ_WHEN: an input fetches its src only when its type is image. The SVG
+// elements of SVG_HREF_TAGS are judged on href and on the legacy xlink:href, so
+// a local #fragment passes and another host does not; an <a> is a link, and an
+// outbound link is no finding. An @import is read in a .css file and inside a
+// style element, by the CSS tokenizer's rules below: cssImports only identifies
+// the URLs, and cssFindings, its caller, applies the policy.
+//
+// THESE ARE THE MECHANISMS IT KNOWS. Reading them closes the gaps they were, and
+// proves nothing about a mechanism this script does not read.
+//
 // ONE URL RULE. Every attribute goes through urlFinding. For the tags of JUDGED
 // it is the whole policy. For the tags of USER_INFO_ONLY and for CSS url() it
 // is the user-info rule alone: the host policy of those stays in the gate's
@@ -42,6 +54,15 @@ import { readFileSync } from 'node:fs';
 
 // The tags this script judges in full and the attribute that fetches on each.
 // The src of img and source stays with the gate's own media check.
+const SVG_HREF = ['href', 'xlink:href'];
+
+// The SVG elements with a reference attribute, lower case as the tags are read.
+const SVG_HREF_TAGS = [
+  'image', 'use', 'feimage', 'script', 'lineargradient', 'radialgradient', 'pattern', 'filter', 'textpath', 'tref',
+  'altglyph', 'glyphref', 'cursor', 'font-face-uri', 'color-profile', 'mpath', 'animate', 'animatemotion',
+  'animatecolor', 'animatetransform', 'set', 'discard', 'hatch',
+];
+
 const JUDGED = {
   img: ['srcset'],
   source: ['srcset'],
@@ -49,7 +70,12 @@ const JUDGED = {
   track: ['src'],
   embed: ['src'],
   object: ['data'],
+  input: ['src'],
+  ...Object.fromEntries(SVG_HREF_TAGS.map((tag) => [tag, SVG_HREF])),
 };
+
+// The tags of JUDGED that fetch only when their attributes say so.
+const READ_WHEN = { input: isImageInput };
 
 // The attributes whose host policy is the gate's own shell check: only the
 // user-info rule is applied to them here. img, video and source list src and
@@ -74,6 +100,29 @@ const URL_REFERENCES = {
 };
 
 const TAG_DELIMITER = '[\\t\\n\\f\\r />]';
+
+const STYLE_TAG = { style: [] };
+const STYLE_END = /<\/style[\t\n\f\r />]/gi;
+
+// What makes a style element's text mean something else inside an inline SVG,
+// where the HTML parser reads markup and character references that it does not
+// read in a plain style element. The two readings can disagree on what is CSS,
+// so such a text is a finding: tags, comments, numeric references, named ones
+// other than &amp;, and &quot, which needs no semicolon.
+const STYLE_NOT_CSS = /<[a-z!?/]|&(?:#|quot|(?!amp;)[a-z][a-z0-9]*;)/i;
+
+// The tokens of CSS Syntax this script needs, each anchored at a position. A
+// name holds escapes; a string's closing quote is left out so that a string
+// that never closes can be told from one that does; a bare url() value may hold
+// no quote, parenthesis, white space or control character.
+const CSS_COMMENT_OPEN = '/*';
+const CSS_NAME = /(?:[-\w\u{80}-\u{10ffff}]|\\[0-9a-f]{1,6}(?:\r\n|[ \t\n\f\r])?|\\[^0-9a-f\n\f\r])+/iuy;
+const CSS_STRING = {
+  '"': /"((?:[^"\\\n\f\r]|\\\r\n|\\[\s\S])*)/y,
+  "'": /'((?:[^'\\\n\f\r]|\\\r\n|\\[\s\S])*)/y,
+};
+const CSS_BARE_URL = /(?:[^"'()\\ \t\n\f\r\x00-\x08\x0b\x0e-\x1f\x7f]|\\[^\n\f\r])*/y;
+const CSS_BAD_URL_REST = /(?:[^)\\]|\\[\s\S])*\)?/y;
 
 // Two bases that differ in scheme and host: what resolves onto each of them is
 // relative, and what takes its scheme from them is scheme-relative.
@@ -103,7 +152,8 @@ function words(list) {
 }
 
 function fileFindings(file, text, own) {
-  return [...judgedFindings(file, text, own), ...userInfoFindings(file, text, own)];
+  const imports = file.endsWith('.css') ? cssFindings(file, text, own) : styleFindings(file, text, own);
+  return [...new Set([...judgedFindings(file, text, own), ...userInfoFindings(file, text, own), ...imports])];
 }
 
 function tagOpening(table) {
@@ -159,15 +209,180 @@ function userInfoFindings(file, text, own) {
   return lines;
 }
 
+// styleFindings <file> <text> <own>: the @import rules of every style element of
+// an HTML file. The text of an element runs to its end tag, or to the end of the
+// file. It never moves past an element it read, so an opening inside a comment
+// cannot hide the next one; the findings of both are the same line, kept once.
+function styleFindings(file, text, own) {
+  const lines = [];
+  const open = tagOpening(STYLE_TAG);
+  for (let match = open.exec(text); match !== null; match = open.exec(text)) {
+    const tag = readAttributes(text, open.lastIndex);
+    if (tag === null) {
+      lines.push(`${file}: a resource tag that is not a complete tag`);
+      continue;
+    }
+    const body = text.slice(tag.end, styleEnd(text, tag.end));
+    if (STYLE_NOT_CSS.test(body)) {
+      lines.push(`${file}: ${shownText(text, match.index, tag.end)} (markup or a character reference inside a style element)`);
+    }
+    lines.push(...cssFindings(file, body, own));
+  }
+  return lines;
+}
+
+function styleEnd(text, from) {
+  STYLE_END.lastIndex = from;
+  const end = STYLE_END.exec(text);
+  return end === null ? text.length : end.index;
+}
+
+// cssFindings <file> <css> <own>: the policy over the URLs cssImports found. An
+// @import with no URL it could read is a finding: it fails closed. CSS has no
+// character references, so an ampersand is written as &amp; for urlFinding,
+// which reads values as an attribute holds them.
+function cssFindings(file, css, own) {
+  const lines = [];
+  for (const item of cssImports(css)) {
+    const shown = shownText(css, item.start, item.end);
+    if (item.url === null) {
+      lines.push(`${file}: ${shown} (an @import whose URL cannot be read)`);
+      continue;
+    }
+    const why = urlFinding(item.url.replaceAll('&', '&amp;'), own, { dataAllowed: false });
+    if (why !== null) lines.push(`${file}: ${shown} (${why}: ${item.url.slice(0, SHOWN_CHARS)})`);
+  }
+  return lines;
+}
+
+// cssImports <css>: every @import of the text as `{start, end, url}`, the url
+// read from its quoted string or url(), or null when it cannot be read. It walks
+// the text as the CSS tokenizer does, so an @import inside a comment or a string
+// is not one, and a stray quote in a url() does not swallow the rule after it.
+// An @import where CSS would ignore it, after a rule or inside a block, is still
+// reported: that is the safe side.
+function cssImports(css) {
+  const imports = [];
+  let pos = cssSkipFiller(css, 0);
+  while (pos < css.length) {
+    if (isCssQuote(css[pos])) {
+      pos = cssString(css, pos).end;
+    } else if (css[pos] === '@') {
+      pos = afterAtRule(css, pos, imports);
+    } else {
+      const name = cssName(css, pos);
+      if (name === null) {
+        pos += 1;
+      } else {
+        pos = isCssUrl(css, name) ? cssUrlValue(css, name.end + 1).end : name.end;
+      }
+    }
+    pos = cssSkipFiller(css, pos);
+  }
+  return imports;
+}
+
+// afterAtRule <css> <at> <imports>: where to go on after the @ at that position,
+// adding to imports when it opens an @import.
+function afterAtRule(css, at, imports) {
+  const name = cssName(css, at + 1);
+  if (name === null) return at + 1;
+  if (name.value.toLowerCase() !== 'import') return name.end;
+  const item = readImport(css, at, name.end);
+  imports.push(item);
+  return item.end;
+}
+
+// readImport <css> <start> <from>: the URL after an @import's name: a string, or
+// url( directly after its name. Anything else, src() among it, has no URL here.
+function readImport(css, start, from) {
+  const pos = cssSkipFiller(css, from);
+  if (isCssQuote(css[pos])) {
+    const string = cssString(css, pos);
+    return { start, end: string.end, url: string.text };
+  }
+  const name = cssName(css, pos);
+  if (name !== null && isCssUrl(css, name)) {
+    const value = cssUrlValue(css, name.end + 1);
+    return { start, end: value.end, url: value.url };
+  }
+  return { start, end: name === null ? pos : name.end, url: null };
+}
+
+function isCssQuote(c) {
+  return c === '"' || c === "'";
+}
+
+function isCssUrl(css, name) {
+  return name.value.toLowerCase() === 'url' && css[name.end] === '(';
+}
+
+function matchAt(pattern, css, pos) {
+  pattern.lastIndex = pos;
+  return pattern.exec(css);
+}
+
+// cssSkipFiller <css> <from>: past white space and comments. A comment that
+// never closes runs to the end of the text, as it does in a browser.
+function cssSkipFiller(css, from) {
+  let pos = from;
+  for (;;) {
+    pos = skipWhile(css, pos, isWhitespace);
+    if (!css.startsWith(CSS_COMMENT_OPEN, pos)) return pos;
+    const close = css.indexOf('*/', pos + CSS_COMMENT_OPEN.length);
+    if (close < 0) return css.length;
+    pos = close + 2;
+  }
+}
+
+function cssName(css, pos) {
+  const found = matchAt(CSS_NAME, css, pos);
+  return found === null ? null : { value: unescapeCss(found[0]), end: pos + found[0].length };
+}
+
+// cssString <css> <from>: the string opening at from. Its text is null when a
+// raw newline or the end of the text comes before the closing quote.
+function cssString(css, from) {
+  const found = matchAt(CSS_STRING[css[from]], css, from);
+  const end = from + found[0].length;
+  return css[end] === css[from] ? { text: unescapeCss(found[1]), end: end + 1 } : { text: null, end };
+}
+
+// cssUrlValue <css> <from>: the value of a url( whose parenthesis ended at from.
+// Quoted, it is a function, so comments may follow the string and only the
+// closing parenthesis may end it. Bare, it is one token: comments are not read in
+// it, and what it cannot hold makes it unreadable (url null) up to its parenthesis.
+function cssUrlValue(css, from) {
+  const pos = skipWhile(css, from, isWhitespace);
+  if (isCssQuote(css[pos])) {
+    const string = cssString(css, pos);
+    const after = cssSkipFiller(css, string.end);
+    return css[after] === ')' && string.text !== null ? { url: string.text, end: after + 1 } : { url: null, end: after };
+  }
+  const found = matchAt(CSS_BARE_URL, css, pos);
+  const after = skipWhile(css, pos + found[0].length, isWhitespace);
+  if (css[after] === ')') return { url: unescapeCss(found[0]), end: after + 1 };
+  return { url: null, end: after + matchAt(CSS_BAD_URL_REST, css, after)[0].length };
+}
+
 // unescapeCss <value>: the value with CSS escapes read, as a browser reads them
-// before it fetches: a hex escape and the one space that may end it, or a
-// backslash and the character after it.
+// before it fetches: an escaped newline is nothing, a hex escape takes the one
+// white space that may end it (U+FFFD for what is no code point), and any other
+// backslash is the character after it.
 function unescapeCss(value) {
-  return value.replace(/\\([0-9a-fA-F]{1,6})\s?|\\(.)/g, (whole, hex, char) => {
+  return value.replace(/\\(?:\r\n|[\n\f\r])|\\([0-9a-fA-F]{1,6})(?:\r\n|[ \t\n\f\r])?|\\([\s\S])/gu, (whole, hex, char) => {
     if (char !== undefined) return char;
+    if (hex === undefined) return '';
     const code = parseInt(hex, 16);
-    return code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+    const invalid = code === 0 || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff);
+    return invalid ? '�' : String.fromCodePoint(code);
   });
+}
+
+function skipWhile(text, from, test) {
+  let at = from;
+  while (at < text.length && test(text[at])) at += 1;
+  return at;
 }
 
 // readAttributes <text> <from>: the tag's attributes from just after its name,
@@ -175,11 +390,7 @@ function unescapeCss(value) {
 // Null when the text ends inside the tag. A name with no = has no value.
 function readAttributes(text, from) {
   const attributes = [];
-  const skip = (pos, test) => {
-    let at = pos;
-    while (at < text.length && test(text[at])) at += 1;
-    return at;
-  };
+  const skip = (pos, test) => skipWhile(text, pos, test);
   let pos = from;
   for (;;) {
     pos = skip(pos, (c) => isWhitespace(c) || c === '/');
@@ -208,8 +419,14 @@ function readAttributes(text, from) {
   }
 }
 
+function isImageInput(attributes) {
+  return attributes.some((attribute) => attribute.name === 'type' && attribute.value !== null
+    && decodeReferences(attribute.value).toLowerCase() === 'image');
+}
+
 function tagFindings(tagName, attributes, own) {
   const findings = [];
+  if (READ_WHEN[tagName]?.(attributes) === false) return findings;
   for (const attribute of attributes) {
     if (!JUDGED[tagName].includes(attribute.name) || attribute.value === null) continue;
     if (attribute.quote !== '"') {
