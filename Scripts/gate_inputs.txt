@@ -276,6 +276,7 @@ step summary isolation|in|Scripts/browser_gate.mjs
 step summary isolation|in|Scripts/build_site.sh
 step summary isolation|in|Scripts/check_shellcheck.sh
 step summary isolation|in|Scripts/ci_job_groups.txt
+step summary isolation|in|Scripts/dependabot_merge_policy.sh
 step summary isolation|in|Scripts/dispatch_preview.sh
 step summary isolation|in|Scripts/gate_browser.sh
 step summary isolation|in|Scripts/gate_inputs.txt
@@ -328,6 +329,7 @@ step summary isolation|in|Scripts/required_tools.txt
 step summary isolation|in|Scripts/run_ci_phase.sh
 step summary isolation|in|Scripts/shellcheck_exclusions.txt
 step summary isolation|in|Scripts/site_settings.txt
+step summary isolation|in|Scripts/test_dependabot_merge_policy.sh
 step summary isolation|in|Scripts/test_gate_browser.sh
 step summary isolation|in|Scripts/lib_gate_browser_selftest.sh
 step summary isolation|in|Scripts/test_gate_wiring.sh
@@ -353,6 +355,8 @@ step summary isolation|in|Scripts/lib_parallel_mutants.sh
 step summary isolation|in|.actionlint.yaml
 step summary isolation|in|.github/workflows/dco.yml
 step summary isolation|in|.github/workflows/starter_page.yml
+step summary isolation|in|.github/workflows/dependabot_merge.yml
+step summary isolation|in|.github/workflows/dependabot_merge_token_check.yml
 step summary isolation|in|.github/workflows/token_expiry_probe.yml
 step summary isolation|in|.github/zizmor.yml
 step summary isolation|in|.golangci.yml
@@ -391,6 +395,7 @@ step summary isolation|in|Scripts/check_yamllint.sh
 step summary isolation|in|Scripts/check_zizmor.sh
 step summary isolation|in|Scripts/dco_pr_commits.sh
 step summary isolation|in|Scripts/dco_push_check.sh
+step summary isolation|in|Scripts/dependabot_pr_comment.sh
 step summary isolation|in|Scripts/dco_push_commits.sh
 step summary isolation|in|Scripts/ensure_private_names_file.sh
 step summary isolation|in|Scripts/fbp_agent_friend.sh
@@ -564,6 +569,7 @@ gate wiring|in|.github/workflows/quality.yml
 gate wiring|in|.github/workflows/release.yml
 gate wiring|in|.github/workflows/starter_page.yml
 gate wiring|in|.github/workflows/token_expiry_probe.yml
+gate wiring|in|.github/workflows/dependabot_merge.yml
 gate wiring|in|.actionlint.yaml
 gate wiring|in|.yamllint.yml
 gate wiring|in|FBP.sh

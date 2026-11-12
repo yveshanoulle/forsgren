@@ -933,6 +933,48 @@ Nine PRE gates keep the CI honest:
   a failed curl or an unreadable header is an `error:` line, never a skip, and
   turns the run red with a `❌` line naming the secret after the artifact is
   uploaded. The self-test uses a stub curl and pins the workflow.
+- **Dependabot merge policy** (`Scripts/test_dependabot_merge_policy.sh` and
+  `Scripts/test_dependabot_pr_comment.sh`, forsgren's own, forsgren#664 step
+  1, dry-run: nothing merges): `dependabot_merge.yml` starts on
+  `workflow_run` when Quality or DCO completes, and its one job runs only
+  for a run of event `pull_request` on a `dependabot/` branch of this
+  repository (a fork's branch never qualifies), on `ubuntu-latest`, with
+  `contents: read`, `pull-requests: write`, `actions: read` and
+  `checks: read`, one concurrency group per branch. It checks out the
+  default branch only, without credentials, never the pull request's code,
+  and runs `Scripts/dependabot_merge_policy.sh`, which reads the GitHub API
+  only and is ELIGIBLE only when every condition holds: opened by
+  `dependabot[bot]` from a `dependabot/<ecosystem>/` branch of this
+  repository (a head repository that is another one, or deleted, blocks),
+  its head still the commit the run was for; every dependency of the head commit's
+  `updated-dependencies` block allowed by `.github/dependabot-merge.conf`
+  (GitHub Actions patch and minor, npm development patch; a group only if
+  every member is; Go modules, the Go toolchain, Docker and every major stay
+  manual); every workflow the config expects (Quality and DCO, the two that
+  run on pull requests) completed with success for the current head commit,
+  file and name both matching, the latest run deciding; open, mergeable,
+  clean; not behind the default branch. Any API error or answer it cannot
+  read is NOT ELIGIBLE, with the reason. The record goes to the step summary
+  and to one pull-request comment that `Scripts/dependabot_pr_comment.sh`
+  updates in place (a hidden marker, `github-actions[bot]`'s own comment
+  only). The repository variable `DEPENDABOT_AUTOMERGE` is the kill switch:
+  `off` logs only, `dry-run` or unset comments "would merge" or "would not
+  merge", `on` does the same for now and says merging is not enabled in this
+  step. zizmor's `dangerous-triggers` audit flags every `workflow_run`, so
+  the `workflow_run:` line carries the one inline ignore of that rule, held
+  by the self-test to these safeguards: the default branch checked out only,
+  without credentials, no artifact downloaded, no cache, no secret read, and
+  the policy checking again the author, the head repository, the branch and
+  the head commit. It is not `auto_update.yml`, the reusable workflow installations call
+  for their own pin. The self-tests use a stub gh, pin the workflow and the
+  config (every workflow on `pull_request` must be expected), and prove each
+  rule with a mutant. `dependabot_merge_token_check.yml`, started by hand
+  only (`workflow_dispatch`, `contents: read`, `ubuntu-latest`), checks the
+  Actions secret `DEPENDABOT_MERGE_TOKEN` that the merge of step 2 needs
+  without printing it: set or not, its length, the `github_pat_` prefix, and
+  `gh api repos/<this repository> --jq .permissions.push` with the token; a
+  missing token, a refused read or no write access is red. The same
+  self-test pins it.
 - **release workflow** (`Scripts/test_release_workflow.sh`, forsgren's own,
   forsgren#221): `release.yml` releases patch, minor or major in one run,
   started by hand or through the API (`workflow_dispatch` only, the input

@@ -1,0 +1,127 @@
+# .github/workflows/dependabot_merge.yml
+#
+# The Dependabot merge policy for this repository's own Dependabot pull
+# requests (forsgren#664), step 1: the policy in dry-run. Nothing merges.
+# When Quality or DCO completes for a Dependabot pull request, this runs
+# Scripts/dependabot_merge_policy.sh on that pull request and records the
+# decision in the step summary and in one pull-request comment, updated in
+# place by Scripts/dependabot_pr_comment.sh. The merge, with its own token,
+# is step 2.
+#
+# Not to be confused with auto_update.yml, the reusable workflow an
+# installation calls to bump its own forsgren pin: this file serves this
+# repository alone, and has no workflow_call trigger.
+#
+# Security:
+#   - workflow_run, never pull_request_target: it runs this repository's
+#     default-branch copy of this file and of the scripts, never the pull
+#     request's; the checkout is the default branch only, without
+#     credentials, and the policy reads the GitHub API only;
+#   - the job runs only for a run of event pull_request whose head branch is
+#     dependabot/* in this repository (a fork's branch never qualifies);
+#   - the token can comment on pull requests and read the rest, nothing more;
+#   - every value from the event reaches the shell through env:, never as an
+#     expression inside run:.
+#
+# zizmor's dangerous-triggers audit flags every workflow_run trigger, so the
+# workflow_run line carries the one inline ignore of that rule (on that line,
+# not above it: a later risky trigger is still reported). The exception holds
+# only while all of these stay true, and Scripts/test_dependabot_merge_policy.sh
+# pins each: the job checks out the default branch only, with
+# persist-credentials: false; it downloads no artifact and uses no cache; it
+# reads no secret (in this step: the job token only); and the policy itself
+# checks again the author, the head repository, the dependabot/ branch and
+# that the pull request's head is still the commit the run was for.
+#
+# Kill switch, the repository variable DEPENDABOT_AUTOMERGE: off = log only,
+# no comment; dry-run or unset = comment "would merge" or "would not merge";
+# on = the same as dry-run for now, with "merging is not enabled in this
+# step". The expected workflows are listed in .github/dependabot-merge.conf,
+# and Scripts/test_dependabot_merge_policy.sh holds the list below to it.
+name: Dependabot merge
+
+on:
+  workflow_run:  # zizmor: ignore[dangerous-triggers]
+    workflows: [Quality, DCO]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+  checks: read
+
+# One decision at a time per Dependabot branch (one pull request each); a
+# newer completion waits for the running one, never cancels it.
+concurrency:
+  group: dependabot-merge-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  policy:
+    name: Merge policy (dry-run)
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      startsWith(github.event.workflow_run.head_branch, 'dependabot/') &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out the default branch (never the pull request)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Find the pull request of the run's head commit
+        id: pr
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          numbers="$(gh api "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA/pulls" \
+            --jq "[.[] | select(.state == \"open\" and .head.sha == \"$HEAD_SHA\" and .user.login == \"dependabot[bot]\") | .number] | join(\" \")")"
+          read -ra found <<<"$numbers"
+          if [ "${#found[@]}" -ne 1 ]; then
+            echo "No single open Dependabot pull request has head $HEAD_SHA (found: ${numbers:-none}); nothing to decide." |
+              tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "number=${found[0]}" >>"$GITHUB_OUTPUT"
+
+      - name: Apply the merge policy (dry-run)
+        if: steps.pr.outputs.number != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.pr.outputs.number }}
+          MODE: ${{ vars.DEPENDABOT_AUTOMERGE }}
+          DEPENDABOT_MERGE_EXPECTED_HEAD: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          case "${MODE:-dry-run}" in
+            off)
+              echo "DEPENDABOT_AUTOMERGE is off: no decision, no comment for #$PR." | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+              ;;
+            dry-run) note="" ;;
+            on) note="DEPENDABOT_AUTOMERGE is on, but merging is not enabled in this step: dry run only." ;;
+            *) note="DEPENDABOT_AUTOMERGE has the unknown value '$MODE': treated as dry-run." ;;
+          esac
+          record="$RUNNER_TEMP/dependabot-merge-record.md"
+          if ./Scripts/dependabot_merge_policy.sh "$PR" >"$record"; then
+            verdict="dry run: would merge"
+          else
+            verdict="dry run: would not merge"
+          fi
+          {
+            echo "**$verdict**"
+            [ -z "$note" ] || printf '\n%s\n' "$note"
+            echo
+            cat "$record"
+            echo
+            echo "Workflow run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } >"$RUNNER_TEMP/dependabot-merge-comment.md"
+          cat "$RUNNER_TEMP/dependabot-merge-comment.md"
+          ./Scripts/dependabot_pr_comment.sh "$PR" "$RUNNER_TEMP/dependabot-merge-comment.md"

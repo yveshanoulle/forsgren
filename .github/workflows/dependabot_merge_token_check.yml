@@ -1,0 +1,58 @@
+# .github/workflows/dependabot_merge_token_check.yml
+#
+# Checks the Actions secret DEPENDABOT_MERGE_TOKEN (forsgren#664) without
+# ever printing it: that it is set, its expiry date (GitHub's
+# github-authentication-token-expiration header), its length, whether it has the
+# fine-grained token prefix github_pat_, and whether it can write to this
+# repository (`gh api repos/<this repository> --jq .permissions.push`), which
+# the merge of step 2 needs. Started by hand only; it reads the GitHub API
+# with the token and changes nothing. A missing token, a refused read or no
+# write access turns the run red with a ❌ line.
+#
+# Triggers: workflow_dispatch, nothing else. contents: read; the token
+# reaches the step through env: only, never as an expression inside run:.
+# Runs on GitHub's hosted ubuntu-latest. Scripts/test_dependabot_merge_policy.sh
+# pins this file.
+name: Dependabot merge token check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check the merge token
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check the merge token
+        shell: bash
+        env:
+          MERGE_TOKEN: ${{ secrets.DEPENDABOT_MERGE_TOKEN }}
+        run: |
+          length="${#MERGE_TOKEN}"
+          if [ "$length" -eq 0 ]; then
+            echo "❌ DEPENDABOT_MERGE_TOKEN is not set or empty" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          case "$MERGE_TOKEN" in
+            github_pat_*) prefix="github_pat_ (fine-grained token)" ;;
+            *) prefix="not github_pat_ (not a fine-grained token)" ;;
+          esac
+          if ! push="$(GH_TOKEN="$MERGE_TOKEN" gh api "repos/$GITHUB_REPOSITORY" --jq '.permissions.push' 2>&1)"; then
+            echo "❌ the token cannot read this repository: $push" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          expires="$(GH_TOKEN="$MERGE_TOKEN" gh api -i "repos/$GITHUB_REPOSITORY" 2>/dev/null |
+            tr -d '\r' | sed -n 's/^[Gg]ithub-[Aa]uthentication-[Tt]oken-[Ee]xpiration: //p' | head -1)"
+          {
+            echo "expires: ${expires:-not reported (a token without expiry, or the header is missing)}"
+            echo "length: $length characters"
+            echo "prefix: $prefix"
+            echo "can write to $GITHUB_REPOSITORY: $push"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "$push" = "true" ] || { echo "❌ the token has no write access here" | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; }
+          echo "✅ merge token usable here" | tee -a "$GITHUB_STEP_SUMMARY"

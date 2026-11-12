@@ -717,6 +717,14 @@ workflow node pin|Scripts/test_workflow_node_pin.sh|pre|
 # workflow pins, the files Dependabot's pull requests change.
 dependabot config|Scripts/test_dependabot_config.sh|pre|
 #
+# The Dependabot merge policy (forsgren#664, step 1, dry-run): the policy that
+# .github/workflows/dependabot_merge.yml runs on this repository's own
+# Dependabot pull requests, fail closed, and the one pull-request comment it
+# keeps. Not gates: the workflow runs the two scripts; these self-tests prove
+# them and pin the workflow and .github/dependabot-merge.conf.
+dependabot merge policy self-test|Scripts/test_dependabot_merge_policy.sh|pre|
+dependabot pull-request comment self-test|Scripts/test_dependabot_pr_comment.sh|pre|
+#
 # The lockfile must describe the manifest (forsgren#2, ladder step 1): the
 # root entry of package-lock.json against package.json, offline, so a drift
 # is red in PRE and not only at CI's `npm ci`. forsgren's own, not ported yet.

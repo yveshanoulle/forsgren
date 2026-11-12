@@ -198,11 +198,11 @@ fi
 # (forsgren#269), and up to 167 for the temp helper self-test, the bare mktemp
 # self-test and the bare mktemp gate (forsgren#612), and up to 168 for the tmp
 # failure stops self-test (forsgren#615), and up to 169 for the local hook
-# self-test (forsgren#290), and up to 170 for the FBP forwarder self-test (forsgren#627), and up to 171 for the TBD tables browser self-test (forsgren#626), and up to 173 for the default TBD fixture self-test and gate (forsgren#626), and up to 174 for the browser gate baseline choice self-test (forsgren#642), and down to 173 when the FBP forwarder self-test went with the forwarder it tested.
+# self-test (forsgren#290), and up to 170 for the FBP forwarder self-test (forsgren#627), and up to 171 for the TBD tables browser self-test (forsgren#626), and up to 173 for the default TBD fixture self-test and gate (forsgren#626), and up to 174 for the browser gate baseline choice self-test (forsgren#642), and down to 173 when the FBP forwarder self-test went with the forwarder it tested, and up to 175 for the Dependabot merge policy and pull-request comment self-tests (forsgren#664).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=173
+MIN_GATES=175
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -683,6 +683,17 @@ the Lint gates job would have no way to install a tool"
       runs_script ".github/workflows/token_expiry_probe.yml" "$base" \
         || fail "${base} is the step of the token expiry probe and its workflow never invokes it — no token would be probed"
       require_fixture "$base" "the token expiry probe would be unproven"
+      order_names "test_${base}" \
+        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
+      ;;
+
+    # THE DEPENDABOT MERGE POLICY (forsgren#664), not gates: the merge workflow
+    # runs both on this repository's own Dependabot pull requests; their
+    # self-tests, order-file rows, also pin that workflow and its config.
+    dependabot_merge_policy.sh|dependabot_pr_comment.sh)
+      runs_script ".github/workflows/dependabot_merge.yml" "$base" \
+        || fail "${base} is a step of the Dependabot merge workflow and it never invokes it — no Dependabot pull request would be judged"
+      require_fixture "$base" "the Dependabot merge policy would be unproven"
       order_names "test_${base}" \
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
       ;;
