@@ -1,12 +1,14 @@
 # .github/workflows/dependabot_merge.yml
 #
 # The Dependabot merge policy for this repository's own Dependabot pull
-# requests (forsgren#664), step 1: the policy in dry-run. Nothing merges.
-# When Quality or DCO completes for a Dependabot pull request, this runs
+# requests (forsgren#664), step 2: the policy and the merge. When Quality or
+# DCO completes for a Dependabot pull request, this runs
 # Scripts/dependabot_merge_policy.sh on that pull request and records the
 # decision in the step summary and in one pull-request comment, updated in
-# place by Scripts/dependabot_pr_comment.sh. The merge, with its own token,
-# is step 2.
+# place by Scripts/dependabot_pr_comment.sh. With the switch on, an ELIGIBLE
+# pull request is then squash-merged at exactly the head commit the policy
+# checked (--match-head-commit), and the result is added to the step summary
+# and to the same comment.
 #
 # Not to be confused with auto_update.yml, the reusable workflow an
 # installation calls to bump its own forsgren pin: this file serves this
@@ -19,7 +21,14 @@
 #     credentials, and the policy reads the GitHub API only;
 #   - the job runs only for a run of event pull_request whose head branch is
 #     dependabot/* in this repository (a fork's branch never qualifies);
-#   - the token can comment on pull requests and read the rest, nothing more;
+#   - the job token can comment on pull requests and read the rest, nothing
+#     more;
+#   - the secret DEPENDABOT_MERGE_TOKEN is read in one step only, the merge,
+#     and that step runs only when the policy said ELIGIBLE and
+#     DEPENDABOT_AUTOMERGE is exactly on; every other step is secret-free.
+#     The merge uses that token, not the job token, so main's push workflows
+#     run on the merge commit; without it the merge step fails and never
+#     falls back to the job token;
 #   - every value from the event reaches the shell through env:, never as an
 #     expression inside run:.
 #
@@ -28,16 +37,19 @@
 # not above it: a later risky trigger is still reported). The exception holds
 # only while all of these stay true, and Scripts/test_dependabot_merge_policy.sh
 # pins each: the job checks out the default branch only, with
-# persist-credentials: false; it downloads no artifact and uses no cache; it
-# reads no secret (in this step: the job token only); and the policy itself
-# checks again the author, the head repository, the dependabot/ branch and
-# that the pull request's head is still the commit the run was for.
+# persist-credentials: false; it downloads no artifact and uses no cache; the
+# one secret is read in the merge step alone, gated by the policy's ELIGIBLE
+# and the switch on, and that step merges only the head commit the policy
+# checked; and the policy itself checks again the author, the head
+# repository, the dependabot/ branch and that the pull request's head is
+# still the commit the run was for.
 #
 # Kill switch, the repository variable DEPENDABOT_AUTOMERGE: off = log only,
-# no comment; dry-run or unset = comment "would merge" or "would not merge";
-# on = the same as dry-run for now, with "merging is not enabled in this
-# step". The expected workflows are listed in .github/dependabot-merge.conf,
-# and Scripts/test_dependabot_merge_policy.sh holds the list below to it.
+# no comment; on = comment "eligible: merging" or "not eligible: no merge"
+# and merge when ELIGIBLE; unset, dry-run or any other value = comment
+# "would merge" or "would not merge", merge nothing. The expected workflows
+# are listed in .github/dependabot-merge.conf, and
+# Scripts/test_dependabot_merge_policy.sh holds the list below to it.
 name: Dependabot merge
 
 on:
@@ -59,7 +71,7 @@ concurrency:
 
 jobs:
   policy:
-    name: Merge policy (dry-run)
+    name: Merge policy
     if: >-
       github.event.workflow_run.event == 'pull_request' &&
       startsWith(github.event.workflow_run.head_branch, 'dependabot/') &&
@@ -91,7 +103,8 @@ jobs:
           fi
           echo "number=${found[0]}" >>"$GITHUB_OUTPUT"
 
-      - name: Apply the merge policy (dry-run)
+      - name: Apply the merge policy
+        id: policy
         if: steps.pr.outputs.number != ''
         shell: bash
         env:
@@ -105,15 +118,36 @@ jobs:
               echo "DEPENDABOT_AUTOMERGE is off: no decision, no comment for #$PR." | tee -a "$GITHUB_STEP_SUMMARY"
               exit 0
               ;;
-            dry-run) note="" ;;
-            on) note="DEPENDABOT_AUTOMERGE is on, but merging is not enabled in this step: dry run only." ;;
-            *) note="DEPENDABOT_AUTOMERGE has the unknown value '$MODE': treated as dry-run." ;;
+            on)
+              yes="eligible: merging"
+              no="not eligible: no merge"
+              note=""
+              ;;
+            dry-run)
+              yes="dry run: would merge"
+              no="dry run: would not merge"
+              note=""
+              ;;
+            *)
+              yes="dry run: would merge"
+              no="dry run: would not merge"
+              note="DEPENDABOT_AUTOMERGE has the unknown value '$MODE': treated as dry-run."
+              ;;
           esac
           record="$RUNNER_TEMP/dependabot-merge-record.md"
           if ./Scripts/dependabot_merge_policy.sh "$PR" >"$record"; then
-            verdict="dry run: would merge"
+            # The head commit the policy checked: the merge step merges exactly that commit or nothing.
+            head_sha="$(sed -n 's/^- Head commit: \([0-9a-f]\{40\}\)$/\1/p' "$record")"
+            if [ -n "$head_sha" ]; then
+              verdict="$yes"
+              echo "eligible=true" >>"$GITHUB_OUTPUT"
+              echo "head_sha=$head_sha" >>"$GITHUB_OUTPUT"
+            else
+              verdict="$no"
+              note="The record names no head commit: nothing to merge."
+            fi
           else
-            verdict="dry run: would not merge"
+            verdict="$no"
           fi
           {
             echo "**$verdict**"
@@ -125,3 +159,54 @@ jobs:
           } >"$RUNNER_TEMP/dependabot-merge-comment.md"
           cat "$RUNNER_TEMP/dependabot-merge-comment.md"
           ./Scripts/dependabot_pr_comment.sh "$PR" "$RUNNER_TEMP/dependabot-merge-comment.md"
+
+      # The only step that reads a secret; it runs only when the policy said
+      # ELIGIBLE and the switch is exactly on.
+      - name: Merge the pull request
+        id: merge
+        if: steps.policy.outputs.eligible == 'true' && vars.DEPENDABOT_AUTOMERGE == 'on'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.DEPENDABOT_MERGE_TOKEN }}
+          PR: ${{ steps.pr.outputs.number }}
+          HEAD_SHA: ${{ steps.policy.outputs.head_sha }}
+        run: |
+          result="$RUNNER_TEMP/dependabot-merge-result.md"
+          if [ -z "$GH_TOKEN" ]; then
+            echo "❌ DEPENDABOT_MERGE_TOKEN is not set or empty: #$PR is not merged (never with the job token)." |
+              tee "$result" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if out="$(gh pr merge "$PR" -R "$GITHUB_REPOSITORY" --squash --match-head-commit "$HEAD_SHA" 2>&1)"; then
+            echo "✅ merged #$PR at $HEAD_SHA (squash)." | tee "$result" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          {
+            echo "❌ GitHub refused to merge #$PR at $HEAD_SHA:"
+            echo
+            echo '```'
+            echo "$out"
+            echo '```'
+          } | tee "$result" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit 1
+
+      # Adds the merge result (merged, or refused with gh's message) to the
+      # same pull-request comment, with the job token.
+      - name: Record the merge result
+        if: ${{ !cancelled() && (steps.merge.outcome == 'success' || steps.merge.outcome == 'failure') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          comment="$RUNNER_TEMP/dependabot-merge-comment.md"
+          result="$RUNNER_TEMP/dependabot-merge-result.md"
+          [ -s "$result" ] || echo "❌ the merge step left no result." >"$result"
+          {
+            echo
+            echo "Merge:"
+            echo
+            cat "$result"
+          } >>"$comment"
+          cat "$comment"
+          ./Scripts/dependabot_pr_comment.sh "$PR" "$comment"

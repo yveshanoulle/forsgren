@@ -5,9 +5,9 @@
 # github-authentication-token-expiration header), its length, whether it has the
 # fine-grained token prefix github_pat_, and whether it can write to this
 # repository (`gh api repos/<this repository> --jq .permissions.push`), which
-# the merge of step 2 needs. Started by hand only; it reads the GitHub API
-# with the token and changes nothing. A missing token, a refused read or no
-# write access turns the run red with a ❌ line.
+# the merge step of dependabot_merge.yml needs. Started by hand only; it
+# reads the GitHub API with the token and changes nothing. A missing token, a
+# refused read or no write access turns the run red with a ❌ line.
 #
 # Triggers: workflow_dispatch, nothing else. contents: read; the token
 # reaches the step through env: only, never as an expression inside run:.

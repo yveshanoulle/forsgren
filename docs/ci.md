@@ -934,8 +934,8 @@ Nine PRE gates keep the CI honest:
   turns the run red with a `❌` line naming the secret after the artifact is
   uploaded. The self-test uses a stub curl and pins the workflow.
 - **Dependabot merge policy** (`Scripts/test_dependabot_merge_policy.sh` and
-  `Scripts/test_dependabot_pr_comment.sh`, forsgren's own, forsgren#664 step
-  1, dry-run: nothing merges): `dependabot_merge.yml` starts on
+  `Scripts/test_dependabot_pr_comment.sh`, forsgren's own, forsgren#664,
+  the policy and the merge): `dependabot_merge.yml` starts on
   `workflow_run` when Quality or DCO completes, and its one job runs only
   for a run of event `pull_request` on a `dependabot/` branch of this
   repository (a fork's branch never qualifies), on `ubuntu-latest`, with
@@ -957,20 +957,35 @@ Nine PRE gates keep the CI honest:
   read is NOT ELIGIBLE, with the reason. The record goes to the step summary
   and to one pull-request comment that `Scripts/dependabot_pr_comment.sh`
   updates in place (a hidden marker, `github-actions[bot]`'s own comment
-  only). The repository variable `DEPENDABOT_AUTOMERGE` is the kill switch:
-  `off` logs only, `dry-run` or unset comments "would merge" or "would not
-  merge", `on` does the same for now and says merging is not enabled in this
-  step. zizmor's `dangerous-triggers` audit flags every `workflow_run`, so
-  the `workflow_run:` line carries the one inline ignore of that rule, held
-  by the self-test to these safeguards: the default branch checked out only,
-  without credentials, no artifact downloaded, no cache, no secret read, and
-  the policy checking again the author, the head repository, the branch and
-  the head commit. It is not `auto_update.yml`, the reusable workflow installations call
-  for their own pin. The self-tests use a stub gh, pin the workflow and the
-  config (every workflow on `pull_request` must be expected), and prove each
-  rule with a mutant. `dependabot_merge_token_check.yml`, started by hand
+  only). The policy step writes `eligible=true` and `head_sha=` (the head
+  commit the record names) to its outputs only after the policy exits 0.
+  The repository variable `DEPENDABOT_AUTOMERGE` is the kill switch: `off`
+  logs only, `on` comments "eligible: merging" or "not eligible: no merge"
+  and merges, and `dry-run`, unset or any other value comments "would
+  merge" or "would not merge" and merges nothing. The merge step runs only
+  when the policy said eligible and the switch is exactly `on`; it is the
+  one step that reads a secret, `DEPENDABOT_MERGE_TOKEN` as `GH_TOKEN`, and
+  runs `gh pr merge --squash --match-head-commit` at the head commit the
+  policy checked, so a pull request that moved since is refused. The token,
+  not the job token, makes main's push workflows run on the merge commit;
+  an empty token fails the step with a `❌` line and never falls back to
+  the job token, and a refusal fails it with gh's message. The result goes
+  to the step summary, and a record step (job token) adds it to the same
+  pull-request comment. zizmor's `dangerous-triggers` audit flags every
+  `workflow_run`, so the `workflow_run:` line carries the one inline ignore
+  of that rule, held by the self-test to these safeguards: the default
+  branch checked out only, without credentials, no artifact downloaded, no
+  cache, the one secret read in the merge step alone under both conditions,
+  and the policy checking again the author, the head repository, the branch
+  and the head commit. It is not `auto_update.yml`, the reusable workflow
+  installations call for their own pin. The self-tests use a stub gh, pin
+  the workflow and the config (every workflow on `pull_request` must be
+  expected), and prove each rule with a mutant (among them: the `on` or the
+  eligible condition dropped, `--match-head-commit` dropped, the job token
+  swapped in or added as a fallback, the empty-token check disabled).
+  `dependabot_merge_token_check.yml`, started by hand
   only (`workflow_dispatch`, `contents: read`, `ubuntu-latest`), checks the
-  Actions secret `DEPENDABOT_MERGE_TOKEN` that the merge of step 2 needs
+  Actions secret `DEPENDABOT_MERGE_TOKEN` that the merge step needs
   without printing it: set or not, its length, the `github_pat_` prefix, and
   `gh api repos/<this repository> --jq .permissions.push` with the token; a
   missing token, a refused read or no write access is red. The same

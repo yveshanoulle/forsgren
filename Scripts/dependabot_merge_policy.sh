@@ -2,10 +2,10 @@
 # Scripts/dependabot_merge_policy.sh <pull request number>   (forsgren#664)
 #
 # Decides whether a Dependabot pull request of this repository may merge on
-# its own (step 1: the policy, run in dry-run by
-# .github/workflows/dependabot_merge.yml; nothing merges). Fail closed: every
-# condition below must hold, and any GitHub API error or answer it cannot
-# read is NOT ELIGIBLE, with the reason.
+# its own (run by .github/workflows/dependabot_merge.yml, whose merge step
+# merges an ELIGIBLE one only when DEPENDABOT_AUTOMERGE is on). Fail
+# closed: every condition below must hold, and any GitHub API error or answer
+# it cannot read is NOT ELIGIBLE, with the reason.
 #   - the pull request was opened by dependabot[bot], from a branch
 #     dependabot/<ecosystem>/... of this repository (a head repository that
 #     is another one, or unknown because it was deleted, blocks), and its
