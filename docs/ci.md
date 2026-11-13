@@ -1002,9 +1002,19 @@ Nine PRE gates keep the CI honest:
   only (`workflow_dispatch`, `contents: read`, `ubuntu-latest`), checks the
   Actions secret `DEPENDABOT_MERGE_TOKEN` that the merge step needs
   without printing it: set or not, its length, the `github_pat_` prefix, and
-  `gh api repos/<this repository> --jq .permissions.push` with the token; a
-  missing token, a refused read or no write access is red. The same
-  self-test pins it.
+  `gh api repos/<this repository> --jq .permissions.push` with the token,
+  shown as the token owner's role: for a fine-grained token that field
+  answers the owner's role, not the token's own permissions (forsgren#670).
+  The token needs two repository permissions, Contents: Read and write and
+  Pull requests: Read and write; the check then does, read-only, the GraphQL
+  read `gh pr merge` does (the newest pull request's commits), so a token
+  without Pull requests access is red with a `❌` line naming Pull requests:
+  Read and write and the GraphQL error. Neither write can be tested without
+  writing, so the summary asks to check both in the token's settings. A
+  missing token, a refused read, an owner without write access, a refused
+  pull request read or no pull request to read is red. The same self-test
+  pins it and runs its `run:` block against a fake gh: allowed is green,
+  refused and no pull request are red, each proven with a mutant.
 - **release workflow** (`Scripts/test_release_workflow.sh`, forsgren's own,
   forsgren#221): `release.yml` releases patch, minor or major in one run,
   started by hand or through the API (`workflow_dispatch` only, the input

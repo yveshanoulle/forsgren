@@ -1,13 +1,20 @@
 # .github/workflows/dependabot_merge_token_check.yml
 #
-# Checks the Actions secret DEPENDABOT_MERGE_TOKEN (forsgren#664) without
-# ever printing it: that it is set, its expiry date (GitHub's
-# github-authentication-token-expiration header), its length, whether it has the
-# fine-grained token prefix github_pat_, and whether it can write to this
-# repository (`gh api repos/<this repository> --jq .permissions.push`), which
-# the merge step of dependabot_merge.yml needs. Started by hand only; it
-# reads the GitHub API with the token and changes nothing. A missing token, a
-# refused read or no write access turns the run red with a ❌ line.
+# Checks the Actions secret DEPENDABOT_MERGE_TOKEN (forsgren#664), which the
+# merge step of dependabot_merge.yml needs, without ever printing it: that it
+# is set, its expiry date (GitHub's github-authentication-token-expiration
+# header), its length and whether it has the fine-grained token prefix
+# github_pat_. The fine-grained token needs two repository permissions:
+# Contents: Read and write and Pull requests: Read and write (forsgren#670).
+# `gh api repos/<this repository> --jq .permissions.push` answers the token
+# owner's role on the repository, not the token's own permissions, so it is
+# shown as the owner's role only. The token's own Pull requests access is read
+# the way gh pr merge reads it: a GraphQL query for the commits of the newest
+# pull request. Neither write can be tested without writing, so the summary
+# asks to check both in the token's settings. Started by hand only; it reads
+# the GitHub API with the token and changes nothing. A missing token, a
+# refused read, an owner without write access, a refused pull request read or
+# no pull request to read turns the run red with a ❌ line.
 #
 # Triggers: workflow_dispatch, nothing else. contents: read; the token
 # reaches the step through env: only, never as an expression inside run:.
@@ -52,7 +59,23 @@ jobs:
             echo "expires: ${expires:-not reported (a token without expiry, or the header is missing)}"
             echo "length: $length characters"
             echo "prefix: $prefix"
-            echo "can write to $GITHUB_REPOSITORY: $push"
+            echo "owner can write to $GITHUB_REPOSITORY: $push (permissions.push answers the token owner's role, not the fine-grained token's own permissions)"
           } | tee -a "$GITHUB_STEP_SUMMARY"
-          [ "$push" = "true" ] || { echo "❌ the token has no write access here" | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; }
-          echo "✅ merge token usable here" | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "$push" = "true" ] || { echo "❌ the token's owner has no write access here, so the token cannot have it either" | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; }
+          query="query(\$owner: String!, \$name: String!) { repository(owner: \$owner, name: \$name) { pullRequests(last: 1) { nodes { number commits(last: 1) { nodes { commit { oid } } } } } } }"
+          owner="${GITHUB_REPOSITORY%/*}"
+          name="${GITHUB_REPOSITORY#*/}"
+          graphql_err="$(mktemp "$RUNNER_TEMP/graphql-err.XXXXXX")"
+          if ! pr="$(GH_TOKEN="$MERGE_TOKEN" gh api graphql -f query="$query" -f owner="$owner" -f name="$name" --jq '.data.repository.pullRequests.nodes[0].number // empty' 2>"$graphql_err")"; then
+            error="$(tr -s '\n' ' ' <"$graphql_err" | sed 's/ $//')"
+            echo "❌ the token cannot read a pull request's commits as gh pr merge does, so it lacks Pull requests: Read and write: $error" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [ -z "$pr" ]; then
+            echo "❌ this repository has no pull request to read, so the Pull requests permission cannot be proven: run the check again once one exists" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          {
+            echo "✅ the token can read the commits of pull request #$pr, as gh pr merge does (Pull requests access)"
+            echo "not tested (it would need a write): Contents: Read and write and the write half of Pull requests: Read and write; check both in the token's settings"
+          } | tee -a "$GITHUB_STEP_SUMMARY"

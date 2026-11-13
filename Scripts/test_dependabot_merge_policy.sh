@@ -48,16 +48,31 @@
 #  11. the merge token check (.github/workflows/dependabot_merge_token_check.yml):
 #      workflow_dispatch only, contents: read alone, DEPENDABOT_MERGE_TOKEN
 #      through env: and no other secret, never printed or traced, its length,
-#      prefix and push permission reported, no API write, ubuntu-latest
+#      prefix and push permission reported, no REST write, GraphQL only as a
+#      query (no -X, --method or --input, no mutation), ubuntu-latest;
+#      forsgren#670: its run: block runs with a fake gh, and the GraphQL read
+#      gh pr merge does (a pull request's commits) allowed is green with its
+#      ✅ line, refused or with no pull request to read red with its ❌ line,
+#      the permissions.push line naming the owner's role and never calling
+#      the token usable
 # Mutation proofs: copies of the policy with one condition weakened (a check
 # not completed with success taken as green, every update allowed, a head
 # behind main taken as fresh, any author, any head repository, any branch
 # prefix, a head that moved, a state other than clean, a failed
 # read that does not block, the oldest run deciding) must each turn a red case
+<<<<<<< Updated upstream
 # green; copies of the caller (among them: a write permission, another
 # trigger, the zizmor ignore moved or doubled, steps of its own, a call of a
 # branch, the switch forced on, secrets: inherit) and of the token check
 # with one rule broken must each be judged red.
+=======
+# green; copies of the merge workflow (among them: the on or the eligible
+# condition dropped, --match-head-commit dropped, the job token swapped in or
+# added as a fallback, the empty-token check disabled) and of the token check
+# with one rule broken must each be judged red; copies of the token check's
+# step that go on after a refused GraphQL read or take no pull request as
+# proof must each be judged wrong when run.
+>>>>>>> Stashed changes
 
 set -euo pipefail
 
@@ -437,7 +452,9 @@ judge_token_check() {
   grep -qF "GH_TOKEN=\"${D}MERGE_TOKEN\" gh api \"repos/${D}GITHUB_REPOSITORY\" --jq '.permissions.push'" "$f" || echo "it does not ask GitHub whether the token can write here"
   grep -qF 'github_pat_*)' "$f" || echo "it does not report the github_pat_ prefix"
   grep -qF "length=\"${D}{#MERGE_TOKEN}\"" "$f" || echo "it does not report the length"
-  ! grep -qE 'gh api .*-X|--method|-f |-F ' "$f" || echo "it writes through the API"
+  ! grep -E 'gh api ' "$f" | grep -v 'gh api graphql ' | has -qE ' -X|--method| -f | -F |--input' || echo "it writes through the API"
+  ! grep -E 'gh api graphql ' "$f" | has -qE ' -X|--method|--input' || echo "it sends GraphQL other than a query"
+  ! grep -qiE 'mutation' "$f" || echo "it sends a GraphQL mutation (a write)"
   ! grep -E '^[[:space:]]+runs-on:' "$f" | has -qvE 'runs-on: ubuntu-latest$' || echo "a job runs elsewhere than on GitHub's hosted ubuntu-latest"
 }
 TOKEN_WF=".github/workflows/dependabot_merge_token_check.yml"
@@ -465,6 +482,116 @@ token_mutant push 's/^  workflow_dispatch:$/  push:\
   workflow_dispatch:/' "a push trigger"
 token_mutant write 's/^  contents: read$/  contents: write/' "a write permission"
 token_mutant xtrace "s/length=\"${D}{#MERGE_TOKEN}\"/set -x; &/" "a command trace"
+token_mutant mutation "s/\"query(/\"mutation(/" "a GraphQL mutation in place of the read"
+token_mutant restwrite "s/gh api \"repos\\/\\${D}GITHUB_REPOSITORY\" --jq/gh api -X PATCH \"repos\\/${D}GITHUB_REPOSITORY\" --jq/" "a REST write"
+token_mutant graphqlinput "s/gh api graphql -f query=/gh api graphql --input body.json -f query=/" "GraphQL sent from a file"
+
+# 11 the step itself (forsgren#670): its run: block is cut out of the
+# workflow and run as GitHub runs it (bash -eo pipefail), with a fake gh first
+# on PATH. permissions.push answers the token owner's role, so only the
+# GraphQL read gh pr merge does (a pull request's commits) shows whether the
+# token itself has Pull requests access.
+REFUSED='GraphQL: Resource not accessible by personal access token (repository.pullRequest.commits.nodes.0)'
+mkdir -p "${TMP}/tokbin"
+cat > "${TMP}/tokbin/gh" << 'FAKE'
+#!/usr/bin/env bash
+# The fake gh: answers the reads of the token check from fixtures, applies
+# --jq with jq, refuses anything else.
+echo "$*" >> "$FAKE_GH_LOG"
+jq_expr="."
+args=("$@")
+for i in "${!args[@]}"; do [ "${args[$i]}" != --jq ] || jq_expr="${args[$((i + 1))]}"; done
+case "$1 $2" in
+  "api repos/owner/repo") echo '{"permissions": {"push": true}}' | jq -r "$jq_expr"; exit 0 ;;
+  "api -i")
+    [ "$3" = repos/owner/repo ] || { echo "fake gh: unexpected path $3" >&2; exit 64; }
+    printf 'HTTP/2.0 200 OK\r\nGithub-Authentication-Token-Expiration: 2027-01-01 00:00:00 UTC\r\n\r\n{}\n'
+    exit 0
+    ;;
+  "api graphql")
+    case "$*" in *"pullRequests(last: 1)"*"commits(last: 1)"*) ;; *) echo "fake gh: not a read of a pull request's commits: $*" >&2; exit 64 ;; esac
+    case "$*" in *"owner=owner"*"name=repo"*) ;; *) echo "fake gh: not this repository: $*" >&2; exit 64 ;; esac
+    case "$FAKE_GH_GRAPHQL" in
+      refused)
+        echo '{"data": {"repository": {"pullRequests": {"nodes": [{"number": 41, "commits": {"nodes": [null]}}]}}}}' | jq -r "$jq_expr"
+        echo "GraphQL: Resource not accessible by personal access token (repository.pullRequest.commits.nodes.0)" >&2
+        exit 1
+        ;;
+      none) echo '{"data": {"repository": {"pullRequests": {"nodes": []}}}}' | jq -r "$jq_expr"; exit 0 ;;
+      allowed)
+        echo '{"data": {"repository": {"pullRequests": {"nodes": [{"number": 41, "commits": {"nodes": [{"commit": {"oid": "cccccccc"}}]}}]}}}}' | jq -r "$jq_expr"
+        exit 0
+        ;;
+    esac
+    ;;
+esac
+echo "fake gh: unexpected call: $*" >&2
+exit 64
+FAKE
+chmod +x "${TMP}/tokbin/gh"
+
+# run_block <workflow>: the step's run: block, its 10-space indent removed.
+run_block() { awk '/^        run: \|$/{on=1; next} on && /^$/{print ""; next} on && /^          /{print substr($0, 11); next} on{exit}' "$1"; }
+
+# run_check <workflow> <graphql answer>: runs the block; sets RUN_RC and
+# RUN_OUT (its output, then its step summary).
+run_check() {
+  local box
+  box="$(mktemp -d "${TMP}/run.XXXXXX")"
+  run_block "$1" > "$box/step.sh"
+  RUN_RC=0
+  (
+    cd "$box" && PATH="${TMP}/tokbin:${PATH}" FAKE_GH_LOG="$box/calls.log" FAKE_GH_GRAPHQL="$2" \
+      MERGE_TOKEN=github_pat_fake GITHUB_REPOSITORY=owner/repo RUNNER_TEMP="$box" GITHUB_STEP_SUMMARY="$box/summary.md" \
+      bash --noprofile --norc -eo pipefail "$box/step.sh"
+  ) > "$box/out" 2>&1 || RUN_RC=$?
+  RUN_OUT="$(cat "$box/out")
+--- summary ---
+$(cat "$box/summary.md" 2> /dev/null || true)"
+}
+
+# run_has <text>: RUN_OUT holds the line twice, in the output and in the step
+# summary (tee writes both).
+run_has() { [[ "$(grep -cxF -- "$1" <<< "$RUN_OUT" || true)" -ge 2 ]]; }
+
+# judge_run <workflow>: one line per case the step gets wrong.
+judge_run() {
+  run_check "$1" allowed
+  [[ "$RUN_RC" -eq 0 ]] || echo "allowed: the step went red (exit ${RUN_RC}): ${RUN_OUT}"
+  run_has "✅ the token can read the commits of pull request #41, as gh pr merge does (Pull requests access)" ||
+    echo "allowed: no ✅ line for the pull request read: ${RUN_OUT}"
+  ! grep -qF "merge token usable here" <<< "$RUN_OUT" || echo "allowed: it still calls the token usable from permissions.push"
+  grep -qF "the token owner's role, not the fine-grained token's own permissions" <<< "$RUN_OUT" ||
+    echo "allowed: the permissions.push line does not say it is the owner's role"
+  run_check "$1" refused
+  [[ "$RUN_RC" -ne 0 ]] || echo "refused: the step stayed green"
+  run_has "❌ the token cannot read a pull request's commits as gh pr merge does, so it lacks Pull requests: Read and write: ${REFUSED}" ||
+    echo "refused: no ❌ line naming Pull requests: Read and write and the GraphQL error: ${RUN_OUT}"
+  ! grep -qF "✅" <<< "$RUN_OUT" || echo "refused: a ✅ line next to the refusal"
+  run_check "$1" none
+  [[ "$RUN_RC" -ne 0 ]] || echo "no pull request: the step stayed green"
+  run_has "❌ this repository has no pull request to read, so the Pull requests permission cannot be proven: run the check again once one exists" ||
+    echo "no pull request: no ❌ line saying nothing could be proven: ${RUN_OUT}"
+}
+findings="$(judge_run "$TOKEN_WF")"
+if [[ -z "$findings" ]]; then echo "  ok: 11. the token check's step: a readable pull request is green, a refused read or no pull request is red"; else fail "11. the token check's step: ${findings}"; fi
+
+# run_mutant <name> <sed> <what>: a broken copy of the step must be judged
+# wrong when run.
+run_mutant() {
+  local m="${TMP}/runmut/$1.yml"
+  mkdir -p "${TMP}/runmut"
+  sed "$2" "$TOKEN_WF" > "$m"
+  if cmp -s "$TOKEN_WF" "$m"; then
+    fail "mutation proof: the token check step mutation $2 changed nothing: the proof would be vacuous"
+  elif [[ -n "$(judge_run "$m")" ]]; then
+    echo "  ok: mutation proof: $3 is caught"
+  else
+    fail "mutation proof: $3 is not caught"
+  fi
+}
+run_mutant ignored "/gh api graphql/,${D}s/exit 1${D}/true/" "a token check that goes on after a refused GraphQL read"
+run_mutant nopr "/no pull request to read/,${D}s/exit 1${D}/true/" "no pull request taken as proof of the token's access"
 
 # Mutation proofs: the policy. Each mutant runs on a case the real policy
 # judges red; the mutant must call it eligible, so that case catches it.
