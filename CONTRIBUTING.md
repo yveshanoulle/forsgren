@@ -267,7 +267,7 @@ Signed-off-by: Name <email>
 
 `git commit -s` adds that line for you, from your `user.name` and
 `user.email`. `./FBP.sh` signs off for you: every commit it makes, the
-`*** RED ****` one included, is a `git commit --signoff`. A pull request with a commit that is not signed off is not
+`*** RED ****` one included, ends in that line as its last paragraph. A pull request with a commit that is not signed off is not
 merged until it is.
 
 ### What the DCO check enforces

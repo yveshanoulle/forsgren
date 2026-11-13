@@ -46,10 +46,14 @@ only.
 `./FBP.sh --no-push "<message>"` runs the same and commits, but does not push;
 it is for changes that only touch FBP.sh, sfl.sh, local-only scripts or their
 self-tests. It cannot be combined with `--no-commit`.
-Every commit it makes, green or `*** RED ****`, is signed off
-(`git commit --signoff`): git adds a `Signed-off-by:` trailer for the
-committer identity, yours from `user.name` and `user.email`, or
-agent-Friend's under `Scripts/fbp_agent_friend.sh`. That is the Developer
+Every commit it makes, green or `*** RED ****`, is signed off: FBP.sh
+builds the message itself, the `*** RED ****` subject and a blank line for
+a red run, your message unchanged, a blank line and a `Signed-off-by:`
+trailer for the committer identity as the last paragraph, yours from
+`user.name` and `user.email`, or agent-Friend's under
+`Scripts/fbp_agent_friend.sh`, and commits it verbatim (forsgren#671:
+`git commit --signoff` puts the trailer above a message that starts with
+`#`, such as an issue number). That is the Developer
 Certificate of Origin sign-off the DCO check on pull requests and on every
 push to `main` asks for (see [CI](ci.md) and
 [CONTRIBUTING.md](../CONTRIBUTING.md)).
@@ -388,8 +392,9 @@ broken runner cannot report green:
   `Scripts/test_fbp_build_pagecount.sh`): the real `FBP.sh`, run in a
   throwaway repository with stub gates, prints its message, reaches PRE,
   blocks a secret-class commit with the right hint, signs off its green and
-  `*** RED ****` commits as the identity that ran it (a commit that then
-  passes `Scripts/check_dco.sh`), refuses a message that names a private
+  `*** RED ****` commits as the identity that ran it, the trailer the last
+  paragraph also for a message that starts with `#` (forsgren#671; a
+  commit that then passes `Scripts/check_dco.sh`), refuses a message that names a private
   name before any gate runs, hands the message to the private-names gate on
   stdin (`--message -`), never prints back an argument that starts like a
   flag, and fails the build row

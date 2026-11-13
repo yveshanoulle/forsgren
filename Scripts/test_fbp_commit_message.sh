@@ -374,10 +374,34 @@ fi
 #      it                                             -> green
 #   c. a run with a PRE red, under the sandbox's own identity -> its
 #      *** RED **** commit is signed off too
+#   d. that RED commit, fed to Scripts/check_dco.sh       -> green
 # These runs commit in the sandbox (no --no-commit); it has no remote, so
 # the push after a green commit fails, and the cases read the commit, not
-# the exit status. Mutation proof: a FBP.sh with --signoff removed must
+# the exit status. Mutation proof: a FBP.sh that adds no trailer must
 # fail case a and case b, each with its own reason.
+#
+# forsgren#671: "signed off" means the trailer's POSITION, not only its
+# presence: it is the last line of the message's final paragraph, which is
+# not the subject paragraph (where Scripts/check_dco.sh reads it), and
+# git interpret-trailers --parse reads it as a trailer (trailer_position_reason).
+# The RED commits 71f54826 and 80115245 had it between the RED subject and
+# the message: FBP.sh's `git commit --signoff -m "*** RED ****" -m "$msg"`
+# with a message that starts with '#' (an issue number, "#670 (1/1): ..."),
+# and git's --signoff takes trailing lines that start with core.commentChar
+# as comment lines and puts the trailer above them. interpret-trailers
+# skips those lines the same way, so its reading alone passes such a commit;
+# the final-paragraph check is what catches it.
+#   e. the failing shape, a RED run with one long line that starts with '#'
+#      -> RED subject, blank line, the message unchanged, blank line,
+#         the trailer; signed off where the DCO check reads it; DCO green
+#   f. a green run with a message of a subject and a body paragraph that
+#      starts with '#'                                -> the same, without
+#         the RED subject
+#   g. a RED run with that message                    -> the same
+#   h. a green run whose message already ends in that exact trailer
+#                                                     -> the trailer once
+# Mutation proof: a FBP.sh that commits a RED run the old way, with
+# --signoff and two -m, must fail case e's position and DCO checks.
 # ---------------------------------------------------------------------------
 FRIEND_NAME="Friend Example"
 FRIEND_EMAIL="friend@example.org"
@@ -401,15 +425,76 @@ dco_verdict() {
   DCO_OUT="$("${ROOT}/Scripts/check_dco.sh" "$input" 2>&1)" || DCO_RC=$?
 }
 
+# final_paragraph — reads a message on stdin and prints its final paragraph:
+# the lines after the last blank line, trailing blank lines and CRs dropped,
+# as Scripts/check_dco.sh reads the trailer block; nothing for a message of
+# one paragraph, whose only paragraph is the subject.
+final_paragraph() {
+  awk '
+    { sub(/\r$/, ""); line[NR] = $0 }
+    END {
+      n = NR
+      while (n > 0 && line[n] ~ /^[ \t]*$/) n--
+      start = n
+      while (start > 1 && line[start - 1] !~ /^[ \t]*$/) start--
+      if (start <= 1) exit
+      for (i = start; i <= n; i++) print line[i]
+    }'
+}
+
+# trailer_position_reason <message> <trailer> — forsgren#671: prints why
+# <trailer> is not where a trailer belongs in <message>; nothing when it is
+# the last line of the final paragraph and git interpret-trailers --parse
+# lists it.
+trailer_position_reason() {
+  local last
+  last="$(final_paragraph <<< "$1")"
+  if [ -z "$last" ]; then
+    echo "the message is one paragraph, so it has no trailer block"
+  elif [ "$(tail -n 1 <<< "$last")" != "$2" ]; then
+    echo "the final paragraph does not end in '$2', so the trailer is not where Scripts/check_dco.sh reads it; the final paragraph is: ${last}"
+  elif ! git interpret-trailers --parse <<< "$1" | has -Fx -- "$2"; then
+    echo "git interpret-trailers --parse does not read '$2' as a trailer"
+  fi
+}
+
 # signed_off_case <label> <signoff-line> — case a or c on the last run: the
-# run committed, and the commit message's last line is <signoff-line>.
+# run committed, and <signoff-line> is the last line of the commit message's
+# final paragraph, a trailer by git's reading (forsgren#671).
 signed_off_case() {
+  local reason
   if [ -z "$COMMIT_SHA" ]; then
     fail "$1: the run made no commit, so there is no sign-off to check. Output: ${OUT}"
-  elif [ "$(tail -n 1 <<< "$COMMIT_MSG")" = "$2" ]; then
+    return
+  fi
+  reason="$(trailer_position_reason "$COMMIT_MSG" "$2")"
+  if [ -z "$reason" ]; then
     echo "  ok: $1"
   else
-    fail "$1: the commit does not end in '$2' — FBP.sh commits without a DCO sign-off, and the pull-request DCO check would reject it. Message: ${COMMIT_MSG}"
+    fail "$1: ${reason} — FBP.sh commits without a DCO sign-off in its place, and the DCO check would reject it. Message: ${COMMIT_MSG}"
+  fi
+}
+
+# dco_case <label> — the last run's commit passes Scripts/check_dco.sh.
+dco_case() {
+  [ -n "$COMMIT_SHA" ] || return 0
+  dco_verdict || return 0
+  if [ "$DCO_RC" -eq 0 ] && grep -Fq "every one signed off" <<< "$DCO_OUT"; then
+    echo "  ok: $1"
+  else
+    fail "$1: the commit FBP.sh made fails the DCO check (exit ${DCO_RC}): ${DCO_OUT}"
+  fi
+}
+
+# exact_message_case <label> <want> — forsgren#671: the last run's commit
+# message is <want>, byte for byte: the given message unchanged between the
+# RED subject (if any) and the trailer.
+exact_message_case() {
+  [ -n "$COMMIT_SHA" ] || return 0
+  if [ "$COMMIT_MSG" = "$2" ]; then
+    echo "  ok: $1"
+  else
+    fail "$1: the commit message is not the RED subject (for a red run), a blank line, the message unchanged, a blank line and the trailer. Want: ${2} Got: ${COMMIT_MSG}"
   fi
 }
 
@@ -431,31 +516,128 @@ if FBP_SANDBOX_SFL_PRE_RC=1 FBP_SANDBOX_SFL_PRE_OUTPUT=$'Errors:\n  gofmt ❌\n'
     fail "5.c. the PRE red did not make a *** RED **** commit, so its sign-off is not what is checked here. Message: ${COMMIT_MSG}. Output: ${OUT}"
   else
     signed_off_case "5.c. a *** RED **** commit is signed off too" "Signed-off-by: t <t@t.t>"
+    dco_case "5.d. the *** RED **** commit FBP.sh made passes the DCO check"
   fi
 fi
 
+# forsgren#671: FBP.sh builds the message itself and takes the trailer from
+# one line, SIGNOFF="$(fbp_signoff_trailer)"; the mutant empties it (until
+# forsgren#671 this proof removed --signoff from git commit).
 if ! fbp_sandbox_new_dir; then
   fail "mutation proof (sign-off): mktemp -d gave no directory, so case 5 was not seen failing"
 else
   signoff_mutant="${FBP_SANDBOX_NEW_DIR}/FBP.sh"
-  sed 's/git commit --signoff /git commit /' "$FBP_SANDBOX_FBP" > "$signoff_mutant"
+  # The sed script is FBP.sh source text, read from a quoted here-doc so
+  # nothing in it is expanded here.
+  signoff_sed="$(cat <<'SED'
+s/^\( *\)SIGNOFF="\$(fbp_signoff_trailer)"$/\1SIGNOFF=""/
+SED
+)"
+  sed "$signoff_sed" "$FBP_SANDBOX_FBP" > "$signoff_mutant"
   chmod +x "$signoff_mutant"
   if cmp -s "$FBP_SANDBOX_FBP" "$signoff_mutant"; then
-    fail "mutation proof (sign-off): removing --signoff changed nothing in ${FBP_SANDBOX_FBP} — FBP.sh has no 'git commit --signoff ' to remove, so this proof proves nothing"
+    fail "mutation proof (sign-off): emptying the trailer changed nothing in ${FBP_SANDBOX_FBP} — FBP.sh has no line 'SIGNOFF=\"\$(fbp_signoff_trailer)\"', so this proof proves nothing"
   elif FBP_SANDBOX_FBP_OVERRIDE="$signoff_mutant" FBP_SANDBOX_GIT_NAME="$FRIEND_NAME" FBP_SANDBOX_GIT_EMAIL="$FRIEND_EMAIL" \
       run_fbp "5.a: a green commit"; then
     if [ -z "$COMMIT_SHA" ]; then
-      fail "mutation proof (sign-off): the FBP.sh without --signoff made no commit, so nothing was seen failing. Output: ${OUT}"
+      fail "mutation proof (sign-off): the FBP.sh without the trailer made no commit, so nothing was seen failing. Output: ${OUT}"
     elif grep -Fq "Signed-off-by:" <<< "$COMMIT_MSG"; then
-      fail "mutation proof (sign-off): a FBP.sh without --signoff still made a signed-off commit — the sign-off comes from somewhere else, so case 5 does not prove FBP.sh adds it. Message: ${COMMIT_MSG}"
+      fail "mutation proof (sign-off): a FBP.sh without the trailer still made a signed-off commit — the sign-off comes from somewhere else, so case 5 does not prove FBP.sh adds it. Message: ${COMMIT_MSG}"
     else
-      echo "  ok: mutation proof: without --signoff, FBP.sh's commit carries no Signed-off-by, so case 5.a is green because FBP.sh signs off"
+      echo "  ok: mutation proof: without the trailer, FBP.sh's commit carries no Signed-off-by, so case 5.a is green because FBP.sh signs off"
       if dco_verdict; then
         if [ "$DCO_RC" -ne 0 ] && grep -Fq "has no Signed-off-by trailer" <<< "$DCO_OUT"; then
           echo "  ok: mutation proof: the DCO check rejects that commit for its missing Signed-off-by trailer"
         else
           fail "mutation proof (sign-off): the DCO check did not reject the unsigned commit for its missing trailer (exit ${DCO_RC}): ${DCO_OUT}"
         fi
+      fi
+    fi
+  fi
+fi
+
+# forsgren#671, cases e to h: messages shaped like the ones of the RED
+# commits the DCO check refused. Made-up text; FRIEND_SIGNOFF is the trailer.
+RED_PRE=$'*** RED ****\n\n'
+LONG_MSG="#5 (1/1): red+green, a long subject line shaped like the RED commits the DCO check refused: it starts with an issue number, so with a hash, and runs on well past seventy-two characters, with commas, parentheses (like these), colons and a list of words"
+BODY_MSG="#5 (1/2): a subject that starts with an issue number"$'\n\n'"#4 and #3 open this body paragraph, so its first line starts with a hash,"$'\n'"#2 opens its second line"
+
+# friend_run <label> <message> [red] — runs FBP.sh under FRIEND_* with
+# <message>, a PRE red when the third argument is red. Returns 1 when the run
+# had no sandbox or a RED run made no RED commit (failing the fixture then).
+friend_run() {
+  if [ "${3:-}" = red ]; then
+    FBP_SANDBOX_SFL_PRE_RC=1 FBP_SANDBOX_SFL_PRE_OUTPUT=$'Errors:\n  gofmt ❌\n' \
+      FBP_SANDBOX_GIT_NAME="$FRIEND_NAME" FBP_SANDBOX_GIT_EMAIL="$FRIEND_EMAIL" \
+      run_fbp "$2" || return 1
+    if [ "$(head -n 1 <<< "$COMMIT_MSG")" != "*** RED ****" ]; then
+      fail "$1: the PRE red did not make a *** RED **** commit. Message: ${COMMIT_MSG}. Output: ${OUT}"
+      return 1
+    fi
+  else
+    FBP_SANDBOX_GIT_NAME="$FRIEND_NAME" FBP_SANDBOX_GIT_EMAIL="$FRIEND_EMAIL" \
+      run_fbp "$2" || return 1
+  fi
+}
+
+if friend_run "5.e" "$LONG_MSG" red; then
+  signed_off_case "5.e. a RED commit of a long message that starts with '#' has its trailer as the final paragraph" "$FRIEND_SIGNOFF"
+  exact_message_case "5.e. that RED commit is the RED subject, the message unchanged, then the trailer" "${RED_PRE}${LONG_MSG}"$'\n\n'"${FRIEND_SIGNOFF}"
+  dco_case "5.e. that RED commit passes the DCO check"
+fi
+
+if friend_run "5.f" "$BODY_MSG"; then
+  signed_off_case "5.f. a green commit whose body paragraph starts with '#' has its trailer as the final paragraph" "$FRIEND_SIGNOFF"
+  exact_message_case "5.f. that green commit is the message unchanged, then the trailer" "${BODY_MSG}"$'\n\n'"${FRIEND_SIGNOFF}"
+  dco_case "5.f. that green commit passes the DCO check"
+fi
+
+if friend_run "5.g" "$BODY_MSG" red; then
+  signed_off_case "5.g. a RED commit of that message has its trailer as the final paragraph" "$FRIEND_SIGNOFF"
+  exact_message_case "5.g. that RED commit is the RED subject, the message unchanged, then the trailer" "${RED_PRE}${BODY_MSG}"$'\n\n'"${FRIEND_SIGNOFF}"
+  dco_case "5.g. that RED commit passes the DCO check"
+fi
+
+if friend_run "5.h" "5.h: a message signed off by hand"$'\n\n'"$FRIEND_SIGNOFF"; then
+  exact_message_case "5.h. a message that already ends in the trailer gets it once" "5.h: a message signed off by hand"$'\n\n'"${FRIEND_SIGNOFF}"
+fi
+
+# Mutation proof (forsgren#671): the old construction of the RED commit,
+# `git commit --signoff -m "*** RED ****" -m "$COMMIT_MSG"`, in place of
+# FBP.sh's one commit line, on case e's run. Case e's position check and the
+# DCO check must both reject that commit.
+if ! fbp_sandbox_new_dir; then
+  fail "mutation proof (trailer position): mktemp -d gave no directory, so case 5.e was not seen failing"
+else
+  position_mutant="${FBP_SANDBOX_NEW_DIR}/FBP.sh"
+  # The sed script is FBP.sh source text, read from a quoted here-doc so
+  # nothing in it is expanded here.
+  position_sed="$(cat <<'SED'
+s/^\( *\)git commit --cleanup=verbatim -m "\$COMMIT_TEXT"$/\1git commit --signoff -m "*** RED ****" -m "$COMMIT_MSG"/
+SED
+)"
+  sed "$position_sed" "$FBP_SANDBOX_FBP" > "$position_mutant"
+  chmod +x "$position_mutant"
+  if cmp -s "$FBP_SANDBOX_FBP" "$position_mutant"; then
+    fail "mutation proof (trailer position): putting back the old git commit changed nothing in ${FBP_SANDBOX_FBP} — FBP.sh has no line 'git commit --cleanup=verbatim -m \"\$COMMIT_TEXT\"', so this proof proves nothing"
+  elif FBP_SANDBOX_FBP_OVERRIDE="$position_mutant" friend_run "mutation proof (trailer position)" "$LONG_MSG" red; then
+    position_reason="$(trailer_position_reason "$COMMIT_MSG" "$FRIEND_SIGNOFF")"
+    case "$position_reason" in
+      *"final paragraph does not end in"*)
+        echo "  ok: mutation proof: the old --signoff construction puts the trailer above a message that starts with '#', and the position check rejects it"
+        ;;
+      "")
+        fail "mutation proof (trailer position): the old --signoff construction passed the position check — case 5.e does not catch the commits the DCO check refused. Message: ${COMMIT_MSG}"
+        ;;
+      *)
+        fail "mutation proof (trailer position): the old construction failed the position check, but not for the final paragraph: ${position_reason}"
+        ;;
+    esac
+    if dco_verdict; then
+      if [ "$DCO_RC" -ne 0 ] && grep -Fq "has no Signed-off-by trailer" <<< "$DCO_OUT"; then
+        echo "  ok: mutation proof: the DCO check rejects that RED commit for its missing trailer"
+      else
+        fail "mutation proof (trailer position): the DCO check did not reject the old construction's RED commit (exit ${DCO_RC}): ${DCO_OUT}"
       fi
     fi
   fi
@@ -731,4 +913,4 @@ if [ "$failed" -ne 0 ]; then
   exit 1
 fi
 
-echo "OK: FBP.sh summary shows the guarded Commit: block, its blocked-commit message names the secret-class row that failed, its green and RED commits carry a DCO sign-off from the identity that ran it and pass the DCO check, and Scripts/lib_fbp_sandbox.sh stops when it cannot create a sandbox"
+echo "OK: FBP.sh summary shows the guarded Commit: block, its blocked-commit message names the secret-class row that failed, its green and RED commits carry a DCO sign-off from the identity that ran it as their final paragraph and pass the DCO check, and Scripts/lib_fbp_sandbox.sh stops when it cannot create a sandbox"

@@ -110,8 +110,10 @@ fi
 # list. The message goes in on stdin, never as an argument and never through a
 # file an interrupt could leave behind (forsgren#54), and the gate's FAIL line
 # never holds the name or the message. FBP.sh adds only
-# fixed text of its own to the message ('*** RED ****'), so this one check of
-# the given message is also the check of what `git commit` receives. With no
+# fixed text of its own to the message ('*** RED ****') and the committer's
+# Signed-off-by trailer (forsgren#671; `git commit --signoff` added the same
+# before), so this one check of the given message is also the check of what
+# `git commit` receives. With no
 # list the check passes; --no-commit with no message has nothing to check.
 if [ -n "$COMMIT_MSG" ]; then
   if ! printf '%s\n' "$COMMIT_MSG" | ./Scripts/check_private_names.sh --message -; then
@@ -669,6 +671,44 @@ else
   fi
 fi
 
+# fbp_signoff_trailer — prints `Signed-off-by: <name> <email>` of the
+# committer identity, as `git commit --signoff` takes it (git var reads
+# GIT_COMMITTER_NAME/EMAIL, which Scripts/fbp_agent_friend.sh exports, before
+# user.name/user.email). Fails, naming why, when git gives no such identity.
+fbp_signoff_trailer() {
+  local ident pattern='^(.+ <[^<>]*>) [0-9]+ [-+][0-9]{4}$'
+  ident="$(git var GIT_COMMITTER_IDENT)" || return 1
+  if ! [[ "$ident" =~ $pattern ]]; then
+    echo "❌ ERROR: git var GIT_COMMITTER_IDENT gave no '<name> <email> <time> <zone>' line, so the commit cannot be signed off" >&2
+    return 1
+  fi
+  printf 'Signed-off-by: %s' "${BASH_REMATCH[1]}"
+}
+
+# fbp_commit_message <subject> <message> <trailer> — forsgren#671: prints
+# the commit message: <subject> and a blank line when <subject> is not empty
+# (the RED subject), <message> unchanged but for trailing newlines, a blank
+# line and <trailer> as the last paragraph, unless <message> already ends in
+# that exact trailer outside its first paragraph. Built here, not with
+# `git commit --signoff -m ... -m ...`: --signoff treats trailing lines that
+# start with core.commentChar ('#', as in "#670 (1/1): ...") as comment
+# lines and puts the trailer above them, where the DCO check reads no
+# trailer (the RED commits 71f54826 and 80115245).
+fbp_commit_message() {
+  local message="$2" trailer="$3"
+  while [[ "$message" == *$'\n' ]]; do
+    message="${message%$'\n'}"
+  done
+  if [ -n "$1" ]; then
+    message="${1}"$'\n\n'"${message}"
+  fi
+  case "$message" in
+    *$'\n\n'"$trailer" | *$'\n\n'*$'\n'"$trailer") ;;
+    *) message="${message}"$'\n\n'"${trailer}" ;;
+  esac
+  printf '%s' "$message"
+}
+
 echo
 echo "================================"
 echo "  Step 4/4: git add / commit / push"
@@ -703,16 +743,21 @@ else
       # contributions under the Developer Certificate of Origin
       # (CONTRIBUTING.md), and the DCO check on pull requests and on every
       # push to main (Scripts/check_dco.sh, forsgren#81) wants a
-      # Signed-off-by trailer from the author.
-      # git writes it from the committer identity: whoever runs FBP.sh, or
-      # agent-Friend under Scripts/fbp_agent_friend.sh. The RED commit too,
-      # since it is pushed later, under its green successor.
+      # Signed-off-by trailer from the author in the message's last
+      # paragraph. The trailer is the committer identity's: whoever runs
+      # FBP.sh, or agent-Friend under Scripts/fbp_agent_friend.sh. The RED
+      # commit too, since it is pushed later, under its green successor.
+      # forsgren#671: FBP.sh builds the whole message (fbp_commit_message)
+      # and commits it verbatim, so no commit.cleanup setting strips a line
+      # that starts with '#'.
       # Scripts/test_fbp_commit_message.sh, case 5, pins both.
+      SIGNOFF="$(fbp_signoff_trailer)"
       if $FAILED; then
-        git commit --signoff -m "*** RED ****" -m "$COMMIT_MSG"
+        COMMIT_TEXT="$(fbp_commit_message "*** RED ****" "$COMMIT_MSG" "$SIGNOFF")"
       else
-        git commit --signoff -m "$COMMIT_MSG"
+        COMMIT_TEXT="$(fbp_commit_message "" "$COMMIT_MSG" "$SIGNOFF")"
       fi
+      git commit --cleanup=verbatim -m "$COMMIT_TEXT"
 
       COMMIT_DONE=true
     fi
