@@ -23,8 +23,7 @@ projects:
   - name: Acme Shop
     repositories:
       - name: acme/api                          # owner/name on GitHub
-      - name: acme/ios-app
-        deployment: workflow=testflight.yml
+      - name: acme/ios-app                      # the default, environment=production: App Store releases (see ios-releases.md)
   - name: Acme Tools
     repositories:
       - name: acme/cli
@@ -618,6 +617,10 @@ them. For `workflow=`, look at the Actions tab; for `release`, run
 When a workflow only hands the change to a system outside GitHub (a CD tool,
 a mobile pipeline), see [Hand-off pipelines](hand-off-pipelines.md): where
 the boundary lies, and three ways to give forsgren the records.
+
+For an iOS app, see [iOS releases](ios-releases.md): how to record each
+App Store release as a production deployment on the commit it was built
+from, and keep TestFlight uploads out of the numbers.
 
 ### A setting that is not accepted
 

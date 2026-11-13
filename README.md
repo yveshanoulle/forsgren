@@ -105,6 +105,7 @@ Every `forsgren.config.yml` key is described in [docs/configuration.md](docs/con
 - [Dictionary](docs/dictionary.md): what each term and each number on the pages means, and where it comes from.
 - [Data files](docs/data-files.md): how forsgren gets its data, the `data/*.csv` formats, and collecting deployments.
 - [Hand-off pipelines](docs/hand-off-pipelines.md): measuring deployments when a workflow only hands off to a system outside GitHub (a CD tool, a mobile pipeline).
+- [iOS releases](docs/ios-releases.md): recording an iOS app's App Store releases as production deployments, with TestFlight uploads kept out.
 - [Updating and releases](docs/updating-and-releases.md): the setup issue, auto-update, Dependabot and installing a new version.
 - [Agents](agent-installer.md): three files a coding agent follows with you, installing ([agent-installer.md](agent-installer.md)), upgrading, including new settings ([agent-upgrade.md](agent-upgrade.md)), and deleting an installation ([agent-delete.md](agent-delete.md)).
 - [Development](docs/development.md): working on forsgren, the tools and their pins, the data guard.

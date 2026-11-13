@@ -568,7 +568,7 @@ projects:
       - name: acme/api
         deployment: environment=production
       - name: acme/ios-app
-        deployment: workflow=testflight.yml
+        deployment: environment=production   # App Store releases (see docs/ios-releases.md)
   - name: Acme Tools
     repositories:
       - name: acme/cli

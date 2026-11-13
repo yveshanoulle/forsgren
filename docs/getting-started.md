@@ -94,4 +94,5 @@ The maintainer then runs `./FBP.sh` on the branch.
 - [Quality gates](quality-gates.md): what each gate checks.
 - [CI](ci.md): what runs on GitHub.
 - [Hand-off pipelines](hand-off-pipelines.md): measuring deployments that a workflow hands off outside GitHub.
+- [iOS releases](ios-releases.md): recording an iOS app's App Store releases as production deployments.
 - [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md) and [SECURITY.md](../SECURITY.md).

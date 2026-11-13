@@ -132,13 +132,14 @@
 #         services:
 #           deploy-api: API
 #           deploy-admin: Admin
-#       - name: acme/ios-app
-#         deployment: workflow=testflight.yml
+#       - name: acme/ios-app   # the default, environment=production: App Store releases (see docs/ios-releases.md)
 #         label: iOS
 #   - name: Acme Tools
 #     repositories:
 #       - name: acme/cli
 #         deployment: release
+#       - name: acme/docs
+#         deployment: workflow=publish.yml
 #
 version: 1
 view: standard
