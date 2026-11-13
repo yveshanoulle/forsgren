@@ -933,16 +933,26 @@ Nine PRE gates keep the CI honest:
   a failed curl or an unreadable header is an `error:` line, never a skip, and
   turns the run red with a `❌` line naming the secret after the artifact is
   uploaded. The self-test uses a stub curl and pins the workflow.
-- **Dependabot merge policy** (`Scripts/test_dependabot_merge_policy.sh` and
-  `Scripts/test_dependabot_pr_comment.sh`, forsgren's own, forsgren#664,
-  the policy and the merge): `dependabot_merge.yml` starts on
-  `workflow_run` when Quality or DCO completes, and its one job runs only
-  for a run of event `pull_request` on a `dependabot/` branch of this
-  repository (a fork's branch never qualifies), on `ubuntu-latest`, with
-  `contents: read`, `pull-requests: write`, `actions: read` and
-  `checks: read`, one concurrency group per branch. It checks out the
-  default branch only, without credentials, never the pull request's code,
-  and runs `Scripts/dependabot_merge_policy.sh`, which reads the GitHub API
+- **Dependabot merge policy** (`Scripts/test_dependabot_merge_policy.sh`,
+  `Scripts/test_dependabot_pr_comment.sh` and
+  `Scripts/test_dependabot_merge_policy_workflow.sh`, forsgren's own,
+  forsgren#664, the policy and the merge, and forsgren#666, the reusable
+  workflow): `dependabot_merge.yml` starts on `workflow_run` when Quality or
+  DCO completes and has one job, a call of the reusable
+  `dependabot_merge_policy.yml` (the very file installations call, see
+  [Dependabot merge policy](dependabot-merge.md)) with
+  `settings-file: .github/dependabot-merge.conf`, the variable
+  `DEPENDABOT_AUTOMERGE` as `mode` and the secret `DEPENDABOT_MERGE_TOKEN`
+  passed by name. The called job runs only for a `workflow_run` of event
+  `pull_request` on a `dependabot/` branch of the caller's repository (a
+  fork's branch never qualifies), on `ubuntu-latest`, with
+  `contents: read`, `pull-requests: write` and `actions: read` (the caller
+  grants exactly those), one concurrency group per repository and branch.
+  It never checks out the caller's repository: it fetches forsgren's three
+  scripts (the policy, the comment and `lib_tmp.sh`) with a sparse checkout
+  at its own commit (`job.workflow_sha`, checked to be 40 hex digits), without
+  credentials, reads the settings file through the API from the caller's
+  default branch, and runs `Scripts/dependabot_merge_policy.sh`, which reads the GitHub API
   only and is ELIGIBLE only when every condition holds: opened by
   `dependabot[bot]` from a `dependabot/<ecosystem>/` branch of this
   repository (a head repository that is another one, or deleted, blocks),
@@ -959,7 +969,7 @@ Nine PRE gates keep the CI honest:
   updates in place (a hidden marker, `github-actions[bot]`'s own comment
   only). The policy step writes `eligible=true` and `head_sha=` (the head
   commit the record names) to its outputs only after the policy exits 0.
-  The repository variable `DEPENDABOT_AUTOMERGE` is the kill switch: `off`
+  The repository variable `DEPENDABOT_AUTOMERGE`, the input `mode`, is the kill switch: `off`
   logs only, `on` comments "eligible: merging" or "not eligible: no merge"
   and merges, and `dry-run`, unset or any other value comments "would
   merge" or "would not merge" and merges nothing. The merge step runs only
@@ -973,16 +983,21 @@ Nine PRE gates keep the CI honest:
   to the step summary, and a record step (job token) adds it to the same
   pull-request comment. zizmor's `dangerous-triggers` audit flags every
   `workflow_run`, so the `workflow_run:` line carries the one inline ignore
-  of that rule, held by the self-test to these safeguards: the default
-  branch checked out only, without credentials, no artifact downloaded, no
-  cache, the one secret read in the merge step alone under both conditions,
-  and the policy checking again the author, the head repository, the branch
-  and the head commit. It is not `auto_update.yml`, the reusable workflow
-  installations call for their own pin. The self-tests use a stub gh, pin
-  the workflow and the config (every workflow on `pull_request` must be
-  expected), and prove each rule with a mutant (among them: the `on` or the
-  eligible condition dropped, `--match-head-commit` dropped, the job token
-  swapped in or added as a fallback, the empty-token check disabled).
+  of that rule; the called file needs none, `workflow_call` being no
+  dangerous trigger. The ignore is held to these safeguards of the called
+  file: the caller's repository never checked out, only forsgren's three
+  scripts at its own commit, without credentials, no artifact downloaded, no
+  cache, the settings from the default branch, the one secret read in the
+  merge step alone under both conditions, and the policy checking again the
+  author, the head repository, the branch and the head commit. It is not
+  `auto_update.yml`, the reusable workflow installations call for their own
+  pin. The self-tests use a stub gh, pin the caller, the called workflow and
+  the config (every workflow on `pull_request` must be expected), run the
+  called workflow's commit check, settings read and merge step with a stub,
+  and prove each rule with a mutant (among them: the `on` or the eligible
+  condition dropped, `--match-head-commit` dropped, the job token swapped in
+  or added as a fallback, the empty-token check disabled, the caller's code
+  or a branch checked out, `secrets: inherit` in the caller).
   `dependabot_merge_token_check.yml`, started by hand
   only (`workflow_dispatch`, `contents: read`, `ubuntu-latest`), checks the
   Actions secret `DEPENDABOT_MERGE_TOKEN` that the merge step needs

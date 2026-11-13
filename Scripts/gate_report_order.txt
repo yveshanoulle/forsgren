@@ -721,9 +721,13 @@ dependabot config|Scripts/test_dependabot_config.sh|pre|
 # .github/workflows/dependabot_merge.yml runs on this repository's own
 # Dependabot pull requests, fail closed, and the one pull-request comment it
 # keeps. Not gates: the workflow runs the two scripts; these self-tests prove
-# them and pin the workflow and .github/dependabot-merge.conf.
+# them and pin the workflow and .github/dependabot-merge.conf. Since
+# forsgren#666 that workflow calls the reusable
+# .github/workflows/dependabot_merge_policy.yml, which installations call
+# too, and the last row pins the called file.
 dependabot merge policy self-test|Scripts/test_dependabot_merge_policy.sh|pre|
 dependabot pull-request comment self-test|Scripts/test_dependabot_pr_comment.sh|pre|
+dependabot merge policy workflow pin|Scripts/test_dependabot_merge_policy_workflow.sh|pre|
 #
 # The lockfile must describe the manifest (forsgren#2, ladder step 1): the
 # root entry of package-lock.json against package.json, offline, so a drift

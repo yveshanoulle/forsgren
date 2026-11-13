@@ -95,4 +95,5 @@ The maintainer then runs `./FBP.sh` on the branch.
 - [CI](ci.md): what runs on GitHub.
 - [Hand-off pipelines](hand-off-pipelines.md): measuring deployments that a workflow hands off outside GitHub.
 - [iOS releases](ios-releases.md): recording an iOS app's App Store releases as production deployments.
+- [Dependabot merge policy](dependabot-merge.md): the reusable workflow that merges a repository's allowed Dependabot updates.
 - [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md) and [SECURITY.md](../SECURITY.md).

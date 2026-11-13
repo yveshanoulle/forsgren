@@ -1125,3 +1125,13 @@ jobs:
   `github-pages` environment.
 - The Go the workflow builds with is the one of forsgren's `go.mod`
   toolchain line for that release; the caller sets up nothing.
+
+### Merging Dependabot's safe updates
+
+A second reusable workflow, `dependabot_merge_policy.yml` (forsgren#666),
+merges the Dependabot pull requests of a repository that your own settings
+file allows, after the workflows it names are green on the pull request's
+current head, failing closed on anything else; forsgren merges its own
+updates with it. The caller example, the permissions it needs, the settings
+file format and the security model are in
+[Dependabot merge policy](dependabot-merge.md).

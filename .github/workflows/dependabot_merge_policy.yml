@@ -1,0 +1,307 @@
+# .github/workflows/dependabot_merge_policy.yml
+#
+# The REUSABLE Dependabot merge policy (forsgren#666, step 1): forsgren's own
+# fail-closed merge policy for Dependabot pull requests (forsgren#664), for
+# any repository that calls it, forsgren's own included
+# (.github/workflows/dependabot_merge.yml is a caller). When one of the
+# caller's expected workflows completes for a Dependabot pull request, this
+# runs Scripts/dependabot_merge_policy.sh on that pull request, records the
+# decision in the step summary and in one pull-request comment, updated in
+# place by Scripts/dependabot_pr_comment.sh, and, in mode on, squash-merges
+# an ELIGIBLE pull request at exactly the head commit the policy checked
+# (--match-head-commit).
+#
+# Not to be confused with auto_update.yml, which merges only the pull request
+# that bumps an installation's forsgren pin, through forsgren check-update.
+#
+# THE CALLER (see docs/dependabot-merge.md) has a workflow_run trigger on the
+# workflows its settings file expects, completed, and one job that calls this
+# file, pinned by commit:
+#   uses: yveshanoulle/forsgren/.github/workflows/dependabot_merge_policy.yml@<commit> # vX.Y.Z
+# with the inputs below and the secret DEPENDABOT_MERGE_TOKEN passed by name
+# (never secrets: inherit). In a called workflow the github context is the
+# caller's: github.event is the caller's workflow_run event, which names the
+# pull request's head commit and branch, and github.repository and
+# github.token are the caller's repository and job token.
+#
+# Security:
+#   - the job runs only for a workflow_run event of a run of event
+#     pull_request whose head branch is dependabot/* in the caller's own
+#     repository (a fork's branch never qualifies), on GitHub's hosted
+#     ubuntu-latest;
+#   - forsgren's scripts come from this workflow's OWN commit and repository
+#     (job.workflow_sha and job.workflow_repository; github.workflow_sha
+#     would be the caller's), checked first, fetched with a sparse checkout
+#     of exactly the three files, without credentials; the caller's
+#     repository is never checked out, so no pull-request code reaches the
+#     runner;
+#   - the caller's settings file is read through the API from the caller's
+#     default branch only, never from the pull request, so a pull request
+#     cannot widen what may merge;
+#   - the job token can comment on pull requests and read contents and
+#     Actions runs, nothing more; a caller that grants less stops the run
+#     before any step, and a called workflow can never get more than its
+#     caller grants;
+#   - the secret DEPENDABOT_MERGE_TOKEN is read in one step only, the merge,
+#     which runs only when the policy said ELIGIBLE and the input mode is
+#     exactly on; every other step is secret-free. Without it the merge step
+#     fails and never falls back to the job token;
+#   - every value from the event or an input reaches the shell through env:,
+#     never as an expression inside run:.
+#
+# No zizmor ignore: workflow_call is not a dangerous trigger. The caller's
+# workflow_run trigger is, so the caller carries the one inline ignore of
+# dangerous-triggers on its workflow_run: line (forsgren's own caller does);
+# the safeguards that make that ignore acceptable are here, and
+# Scripts/test_dependabot_merge_policy_workflow.sh pins each.
+name: Dependabot merge policy
+
+on:
+  workflow_call:
+    inputs:
+      settings-file:
+        description: >-
+          The caller's settings file (allow and workflow lines, docs/dependabot-merge.md),
+          a path in the caller's repository, read from its default branch.
+        type: string
+        required: false
+        default: .github/dependabot-merge.conf
+      mode:
+        description: >-
+          off (log only), dry-run (comment, never merge) or on (comment and merge an eligible
+          pull request); empty or any other value is dry-run. Callers pass their repository
+          variable, vars.DEPENDABOT_AUTOMERGE.
+        type: string
+        required: false
+        default: dry-run
+    secrets:
+      # Not required: in dry-run and off nothing reads it, and required: true
+      # would refuse those runs before any step. The merge step fails when it
+      # is empty.
+      DEPENDABOT_MERGE_TOKEN:
+        description: >-
+          A fine-grained token with Contents and Pull requests read and write on the caller's
+          repository, used by the merge step alone, so the caller's push workflows run on the
+          merge commit.
+        required: false
+
+# The minimum the steps use, and so what the caller's job must grant:
+#   contents: read       the settings file, the head commit, the compare
+#   pull-requests: write the pull request, and its one comment
+#   actions: read        the runs of the expected workflows
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+jobs:
+  policy:
+    name: Merge policy
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      startsWith(github.event.workflow_run.head_branch, 'dependabot/') &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # One decision at a time per Dependabot branch of the caller; a newer
+    # completion waits for the running one, never cancels it. The group's
+    # name is this workflow's own, so a caller's group never collides with it.
+    concurrency:
+      group: forsgren-dependabot-merge-${{ github.repository }}-${{ github.event.workflow_run.head_branch }}
+      cancel-in-progress: false
+
+    steps:
+      # The commit must be 40 lower-case hex digits, so a tag or a branch
+      # (whatever it names on the day of the run) never decides which scripts
+      # run; the repository must be one owner/name. The fetch below takes
+      # both from this step's outputs, written only after the checks.
+      - name: Check this workflow's own commit
+        id: forsgren
+        shell: bash
+        env:
+          FORSGREN_SHA: ${{ job.workflow_sha }}
+          FORSGREN_REPOSITORY: ${{ job.workflow_repository }}
+        run: |
+          full_commit='^[0-9a-f]{40}$'
+          owner_name='^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_][A-Za-z0-9_.-]*$'
+          if [[ ! "$FORSGREN_SHA" =~ $full_commit ]]; then
+            echo "::error title=forsgren commit::job.workflow_sha is not a full 40-digit commit; the merge scripts are fetched only from the exact commit this workflow is called at"
+            exit 1
+          fi
+          if [[ ! "$FORSGREN_REPOSITORY" =~ $owner_name ]]; then
+            echo "::error title=forsgren repository::job.workflow_repository is not one owner/name; the merge scripts are fetched only from the repository this workflow lives in"
+            exit 1
+          fi
+          echo "forsgren merge scripts: ${FORSGREN_REPOSITORY}@${FORSGREN_SHA}"
+          echo "sha=${FORSGREN_SHA}" >>"$GITHUB_OUTPUT"
+          echo "repository=${FORSGREN_REPOSITORY}" >>"$GITHUB_OUTPUT"
+
+      - name: Fetch forsgren's merge scripts at this workflow's own commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          repository: ${{ steps.forsgren.outputs.repository }}
+          ref: ${{ steps.forsgren.outputs.sha }}
+          path: forsgren-merge
+          persist-credentials: false
+          sparse-checkout: |
+            Scripts/dependabot_merge_policy.sh
+            Scripts/dependabot_pr_comment.sh
+            Scripts/lib_tmp.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Find the pull request of the run's head commit
+        id: pr
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          numbers="$(gh api "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA/pulls" \
+            --jq "[.[] | select(.state == \"open\" and .head.sha == \"$HEAD_SHA\" and .user.login == \"dependabot[bot]\") | .number] | join(\" \")")"
+          read -ra found <<<"$numbers"
+          if [ "${#found[@]}" -ne 1 ]; then
+            echo "No single open Dependabot pull request has head $HEAD_SHA (found: ${numbers:-none}); nothing to decide." |
+              tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "number=${found[0]}" >>"$GITHUB_OUTPUT"
+
+      # The settings file from the caller's default branch, never from the
+      # pull request. The path must be a plain relative path (no leading /,
+      # no . or .. part, no empty part); any refusal or failed read fails the
+      # step, so nothing is decided or merged.
+      - name: Read the caller's settings file from its default branch
+        id: settings
+        if: steps.pr.outputs.number != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SETTINGS_FILE: ${{ inputs.settings-file }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          plain_path='^[A-Za-z0-9_.][A-Za-z0-9_.-]*(/[A-Za-z0-9_.][A-Za-z0-9_.-]*)*$'
+          if [[ ! "$SETTINGS_FILE" =~ $plain_path ]] || [[ "/$SETTINGS_FILE/" == */../* || "/$SETTINGS_FILE/" == */./* ]]; then
+            echo "::error title=settings file::the input settings-file is not a plain relative path in the repository; nothing is decided"
+            exit 1
+          fi
+          if [ -z "$DEFAULT_BRANCH" ]; then
+            echo "::error title=settings file::the event names no default branch; nothing is decided"
+            exit 1
+          fi
+          conf="$RUNNER_TEMP/dependabot-merge.conf"
+          if ! gh api --method GET -H "Accept: application/vnd.github.raw+json" \
+            "repos/$GITHUB_REPOSITORY/contents/$SETTINGS_FILE" -f ref="$DEFAULT_BRANCH" >"$conf"; then
+            echo "::error title=settings file::$SETTINGS_FILE cannot be read from the default branch $DEFAULT_BRANCH; nothing is decided"
+            exit 1
+          fi
+          echo "conf=$conf" >>"$GITHUB_OUTPUT"
+
+      - name: Apply the merge policy
+        id: policy
+        if: steps.settings.outputs.conf != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.pr.outputs.number }}
+          MODE: ${{ inputs.mode }}
+          DEPENDABOT_MERGE_CONF: ${{ steps.settings.outputs.conf }}
+          DEPENDABOT_MERGE_EXPECTED_HEAD: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          case "${MODE:-dry-run}" in
+            off)
+              echo "The mode is off: no decision, no comment for #$PR." | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+              ;;
+            on)
+              yes="eligible: merging"
+              no="not eligible: no merge"
+              note=""
+              ;;
+            dry-run)
+              yes="dry run: would merge"
+              no="dry run: would not merge"
+              note=""
+              ;;
+            *)
+              yes="dry run: would merge"
+              no="dry run: would not merge"
+              note="The mode has the unknown value '$MODE': treated as dry-run."
+              ;;
+          esac
+          record="$RUNNER_TEMP/dependabot-merge-record.md"
+          if ./forsgren-merge/Scripts/dependabot_merge_policy.sh "$PR" >"$record"; then
+            # The head commit the policy checked: the merge step merges exactly that commit or nothing.
+            head_sha="$(sed -n 's/^- Head commit: \([0-9a-f]\{40\}\)$/\1/p' "$record")"
+            if [ -n "$head_sha" ]; then
+              verdict="$yes"
+              echo "eligible=true" >>"$GITHUB_OUTPUT"
+              echo "head_sha=$head_sha" >>"$GITHUB_OUTPUT"
+            else
+              verdict="$no"
+              note="The record names no head commit: nothing to merge."
+            fi
+          else
+            verdict="$no"
+          fi
+          {
+            echo "**$verdict**"
+            [ -z "$note" ] || printf '\n%s\n' "$note"
+            echo
+            cat "$record"
+            echo
+            echo "Workflow run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } >"$RUNNER_TEMP/dependabot-merge-comment.md"
+          cat "$RUNNER_TEMP/dependabot-merge-comment.md"
+          ./forsgren-merge/Scripts/dependabot_pr_comment.sh "$PR" "$RUNNER_TEMP/dependabot-merge-comment.md"
+
+      # The only step that reads a secret; it runs only when the policy said
+      # ELIGIBLE and the mode is exactly on.
+      - name: Merge the pull request
+        id: merge
+        if: steps.policy.outputs.eligible == 'true' && inputs.mode == 'on'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.DEPENDABOT_MERGE_TOKEN }}
+          PR: ${{ steps.pr.outputs.number }}
+          HEAD_SHA: ${{ steps.policy.outputs.head_sha }}
+        run: |
+          result="$RUNNER_TEMP/dependabot-merge-result.md"
+          if [ -z "$GH_TOKEN" ]; then
+            echo "❌ DEPENDABOT_MERGE_TOKEN is not set or empty: #$PR is not merged (never with the job token)." |
+              tee "$result" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if out="$(gh pr merge "$PR" -R "$GITHUB_REPOSITORY" --squash --match-head-commit "$HEAD_SHA" 2>&1)"; then
+            echo "✅ merged #$PR at $HEAD_SHA (squash)." | tee "$result" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          {
+            echo "❌ GitHub refused to merge #$PR at $HEAD_SHA:"
+            echo
+            echo '```'
+            echo "$out"
+            echo '```'
+          } | tee "$result" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit 1
+
+      # Adds the merge result (merged, or refused with gh's message) to the
+      # same pull-request comment, with the job token.
+      - name: Record the merge result
+        if: ${{ !cancelled() && (steps.merge.outcome == 'success' || steps.merge.outcome == 'failure') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          comment="$RUNNER_TEMP/dependabot-merge-comment.md"
+          result="$RUNNER_TEMP/dependabot-merge-result.md"
+          [ -s "$result" ] || echo "❌ the merge step left no result." >"$result"
+          {
+            echo
+            echo "Merge:"
+            echo
+            cat "$result"
+          } >>"$comment"
+          cat "$comment"
+          ./forsgren-merge/Scripts/dependabot_pr_comment.sh "$PR" "$comment"

@@ -36,3 +36,11 @@ paths:
   .github/workflows/auto_update.yml:
     ignore:
       - 'property "workflow_(sha|repository)" is not defined in object type'
+  # The same waiver for the reusable Dependabot merge policy (forsgren#666,
+  # awaiting Yves's explicit yes on that issue), which fetches forsgren's
+  # merge scripts at its own commit and repository exactly as metrics.yml
+  # installs forsgren; only its first step reads the two properties. Remove
+  # with the two blocks above.
+  .github/workflows/dependabot_merge_policy.yml:
+    ignore:
+      - 'property "workflow_(sha|repository)" is not defined in object type'

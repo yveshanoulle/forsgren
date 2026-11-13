@@ -2,8 +2,9 @@
 # Scripts/lib_workflow_steps.sh
 #
 # forsgren's own (forsgren#59, refactor): the awk readers of a workflow file
-# that the pins of the two reusable workflows share,
-# Scripts/test_metrics_workflow.sh and Scripts/test_auto_update_workflow.sh.
+# that the pins of the reusable workflows share,
+# Scripts/test_metrics_workflow.sh and Scripts/test_auto_update_workflow.sh,
+# and since forsgren#666 Scripts/test_dependabot_merge_policy_workflow.sh.
 # Each carried its own byte-identical copy; this is that code, once. A
 # workflow is read with awk, not a YAML parser: PyYAML is a module, not a
 # command, and nothing here installs it. The readers know the layout both
@@ -14,8 +15,8 @@
 # the metrics pin's does not, and its mutation proofs are built on that.
 # Unifying them would loosen one pin or change the other's verdicts.
 #
-# SOURCED, never run. It judges nothing on its own: the two pins that source
-# it are its test. It sets no shell options and no traps; the sourcing
+# SOURCED, never run. It judges nothing on its own: the pins that source it
+# are its test. It sets no shell options and no traps; the sourcing
 # script owns those.
 
 # on_events <file>: the event names of the column-0 `on:` block, one per line.

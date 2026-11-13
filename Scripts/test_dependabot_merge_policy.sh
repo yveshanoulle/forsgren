@@ -2,7 +2,7 @@
 # Scripts/test_dependabot_merge_policy.sh
 #
 # Self-test for Scripts/dependabot_merge_policy.sh (forsgren#664) and
-# for the pin of .github/workflows/dependabot_merge.yml and
+# for the pin of .github/workflows/dependabot_merge.yml (the caller) and
 # .github/dependabot-merge.conf. No network: a fake gh on PATH answers each
 # API read from a fixture, and every case must give its exit code and name
 # its reason.
@@ -31,24 +31,20 @@
 #   7. the config missing, without a workflow, with a line not understood
 #   8. usage: no number, a number that is not one, no GITHUB_REPOSITORY
 #   9. read only: every gh call of every case is a plain GET
-#  10. this repository's config and workflow: every expected workflow file
-#      exists under its name and runs on pull_request; every workflow that
-#      runs on pull_request is expected; Go modules, Docker and majors are not
-#      allowed; the merge workflow starts on exactly the expected workflows,
-#      for event pull_request, a dependabot/ branch of this repository only,
-#      checks out the default branch only without credentials, has the
-#      minimal permissions, a per-branch group, the kill switch, runs on a
-#      GitHub-hosted runner and has no other trigger (never workflow_call, so
-#      it cannot be taken for auto_update.yml); one checkout, no artifact
-#      download, no cache, the run's head commit given to the policy, and
-#      exactly one zizmor ignore, dangerous-triggers on the workflow_run:
-#      line; secret-free except the merge step: secrets. exactly once, as
-#      that step's GH_TOKEN; the kill switch's values (off, on, dry-run,
-#      anything else); eligible= and head_sha= written only after the
-#      policy's exit 0; the merge step's if: both eligible and the switch on,
-#      HEAD_SHA from the policy step and --match-head-commit passed, the only
-#      gh pr merge, no job token in it and an empty token a failure; the
-#      record step updating the same comment
+#  10. this repository's config and its merge workflow, a caller of the
+#      reusable .github/workflows/dependabot_merge_policy.yml (forsgren#666,
+#      whose own pin is Scripts/test_dependabot_merge_policy_workflow.sh):
+#      every expected workflow file exists under its name and runs on
+#      pull_request; every workflow that runs on pull_request is expected;
+#      Go modules, Docker and majors are not allowed; the caller starts on
+#      exactly the expected workflows, completed, has no other trigger
+#      (never workflow_call, so it cannot be taken for auto_update.yml), the
+#      minimal three permissions, exactly one zizmor ignore,
+#      dangerous-triggers on the workflow_run: line, one job that calls the
+#      local reusable file and has no steps of its own, this repository's
+#      config as settings-file, DEPENDABOT_AUTOMERGE as the mode, and
+#      DEPENDABOT_MERGE_TOKEN passed by name as its only secret (never
+#      secrets: inherit)
 #  11. the merge token check (.github/workflows/dependabot_merge_token_check.yml):
 #      workflow_dispatch only, contents: read alone, DEPENDABOT_MERGE_TOKEN
 #      through env: and no other secret, never printed or traced, its length,
@@ -58,9 +54,9 @@
 # behind main taken as fresh, any author, any head repository, any branch
 # prefix, a head that moved, a state other than clean, a failed
 # read that does not block, the oldest run deciding) must each turn a red case
-# green; copies of the merge workflow (among them: the on or the eligible
-# condition dropped, --match-head-commit dropped, the job token swapped in or
-# added as a fallback, the empty-token check disabled) and of the token check
+# green; copies of the caller (among them: a write permission, another
+# trigger, the zizmor ignore moved or doubled, steps of its own, a call of a
+# branch, the switch forced on, secrets: inherit) and of the token check
 # with one rule broken must each be judged red.
 
 set -euo pipefail
@@ -76,6 +72,7 @@ selftest_begin "dependabot merge policy self-test"
 POLICY="Scripts/dependabot_merge_policy.sh"
 CONF=".github/dependabot-merge.conf"
 MERGE_WF=".github/workflows/dependabot_merge.yml"
+CALLED_WF=".github/workflows/dependabot_merge_policy.yml"
 [[ -x "$POLICY" ]] || selftest_abort "${POLICY} does not exist or is not executable — no Dependabot pull request would ever be judged"
 REPO_ROOT="$(pwd)"
 # D and B stand for a dollar sign and a backtick inside double quotes, so the
@@ -386,58 +383,13 @@ else
   echo "  ok: 10. Go modules (the toolchain included), Docker and majors are not allowed"
 fi
 
-# step_of <code file> <step name>: the lines of the step with that exact name,
-# up to the next step.
-step_of() {
-  awk -v n="      - name: $2" '/^      - name: / { inside = ($0 == n) } inside' "$1"
-}
-# after_line <text> <exact line>: the line that follows it.
-after_line() { grep -A1 -xF "$2" <<< "$1" | sed -n 2p; }
-# judge_merge_steps <code file>: one line per rule the policy, merge and
-# record steps break. Secret-free except the merge step, which runs only for
-# ELIGIBLE with the switch on, merges only the checked head commit, with the
-# secret alone, and fails on an empty one.
-judge_merge_steps() {
-  local f="$1" policy merge record if_at yes_at else_at
-  policy="$(step_of "$f" "Apply the merge policy")"
-  merge="$(step_of "$f" "Merge the pull request")"
-  record="$(step_of "$f" "Record the merge result")"
-  [[ -n "$policy" && -n "$merge" && -n "$record" ]] || echo "it lacks the policy, the merge or the record step"
-  [[ "$(grep -c 'secrets\.' "$f")" -eq 1 ]] && grep -qxF "          GH_TOKEN: ${D}{{ secrets.DEPENDABOT_MERGE_TOKEN }}" <<< "$merge" ||
-    echo "it reads a secret other than DEPENDABOT_MERGE_TOKEN as the merge step's GH_TOKEN, or reads one twice: it is not secret-free except the merge step"
-  grep -qxF "        if: steps.policy.outputs.eligible == 'true' && vars.DEPENDABOT_AUTOMERGE == 'on'" <<< "$merge" &&
-    [[ "$(grep -c '^        if:' <<< "$merge")" -eq 1 ]] || echo "the merge step's if: does not require both the policy's eligible output and DEPENDABOT_AUTOMERGE == 'on'"
-  grep -qxF "          HEAD_SHA: ${D}{{ steps.policy.outputs.head_sha }}" <<< "$merge" &&
-    grep -qF "gh pr merge \"${D}PR\" -R \"${D}GITHUB_REPOSITORY\" --squash --match-head-commit \"${D}HEAD_SHA\"" <<< "$merge" ||
-    echo "the merge step does not squash-merge with --match-head-commit at the head commit the policy checked"
-  [[ "$(grep -c 'gh pr merge' "$f")" -eq 1 && "$(grep -c 'gh pr merge' <<< "$merge")" -eq 1 ]] && ! grep -qE 'gh api .*merge' "$f" ||
-    echo "it merges outside the merge step, or more than once"
-  ! grep -qE 'github\.token|GITHUB_TOKEN' <<< "$merge" || echo "the merge step can use the job token"
-  grep -qxF "          if [ -z \"${D}GH_TOKEN\" ]; then" <<< "$merge" && grep -qF '❌ DEPENDABOT_MERGE_TOKEN is not set or empty' <<< "$merge" &&
-    [[ "$(grep -c 'GH_TOKEN' <<< "$merge")" -eq 2 ]] || echo "the merge step does not fail on an empty DEPENDABOT_MERGE_TOKEN"
-  # eligible= and head_sha= once each, inside the branch of the policy's exit 0.
-  if_at="$(grep -nxF "          if ./Scripts/dependabot_merge_policy.sh \"${D}PR\" >\"${D}record\"; then" <<< "$policy" | cut -d: -f1)"
-  yes_at="$(grep -nxF "              echo \"eligible=true\" >>\"${D}GITHUB_OUTPUT\"" <<< "$policy" | cut -d: -f1)"
-  else_at="$(awk -v from="${if_at:-0}" 'NR > from && /^          else$/ { print NR; exit }' <<< "$policy")"
-  [[ -n "$if_at" && -n "$yes_at" && -n "$else_at" && "$if_at" -lt "$yes_at" && "$yes_at" -lt "$else_at" ]] &&
-    grep -qxF "              echo \"head_sha=${D}head_sha\" >>\"${D}GITHUB_OUTPUT\"" <<< "$policy" &&
-    [[ "$(grep -c 'eligible=' "$f")" -eq 1 && "$(grep -c 'head_sha=.*GITHUB_OUTPUT' "$f")" -eq 1 ]] ||
-    echo "it writes eligible= or head_sha= elsewhere than once, after the policy's exit 0"
-  # The kill switch: off decides nothing; on merges; dry-run, unset or any other value is a dry run.
-  [[ "$(after_line "$policy" "              echo \"DEPENDABOT_AUTOMERGE is off: no decision, no comment for #${D}PR.\" | tee -a \"${D}GITHUB_STEP_SUMMARY\"")" == '              exit 0' ]] &&
-    [[ "$(after_line "$policy" '            on)')" == '              yes="eligible: merging"' ]] &&
-    grep -qxF '              no="not eligible: no merge"' <<< "$policy" &&
-    [[ "$(after_line "$policy" '            dry-run)')" == '              yes="dry run: would merge"' ]] &&
-    [[ "$(after_line "$policy" '            *)')" == '              yes="dry run: would merge"' ]] &&
-    [[ "$(grep -cxF '              no="dry run: would not merge"' <<< "$policy")" -eq 2 ]] &&
-    ! grep -qF 'merging is not enabled' "$f" || echo "its kill switch is not off = log only, on = eligible: merging / not eligible: no merge, anything else = would merge / would not merge"
-  grep -qF "steps.merge.outcome" <<< "$record" && grep -qxF "          GH_TOKEN: ${D}{{ github.token }}" <<< "$record" &&
-    grep -qxF "          ./Scripts/dependabot_pr_comment.sh \"${D}PR\" \"${D}comment\"" <<< "$record" ||
-    echo "the record step does not add the merge result to the same comment with the job token"
-}
-
-# judge_workflow <file>: one line per rule the merge workflow breaks; no
-# output when it holds them all. It reads a copy without comment lines, in TMP.
+# judge_workflow <file>: one line per rule the caller, this repository's
+# merge workflow, breaks; no output when it holds them all. Every step and
+# safeguard is in the called workflow, which
+# Scripts/test_dependabot_merge_policy_workflow.sh pins; the caller starts
+# it on exactly the expected workflows and hands it this repository's
+# settings, the switch and the one secret, by name. It reads a copy without
+# comment lines, in TMP.
 judge_workflow() {
   local f want perms
   f="${TMP}/judged.$(basename "$1").code"
@@ -447,26 +399,19 @@ judge_workflow() {
   grep -qxF "$want" "$f" || echo "it does not start on exactly the expected workflows ($want)"
   [[ "$(on_events "$f")" == "workflow_run " ]] || echo "its triggers are '$(on_events "$f")', not workflow_run alone"
   grep -qxF '    types: [completed]' "$f" || echo "it does not start on completed runs only"
-  grep -qF "github.event.workflow_run.event == 'pull_request' &&" "$f" || echo "it does not require a run of event pull_request"
-  grep -qF "startsWith(github.event.workflow_run.head_branch, 'dependabot/') &&" "$f" || echo "it does not require a dependabot/ branch"
-  grep -qF 'github.event.workflow_run.head_repository.full_name == github.repository' "$f" || echo "it does not require the head repository to be this one"
-  grep -qF "ref: ${D}{{ github.event.repository.default_branch }}" "$f" && [[ "$(grep -c 'ref:' "$f")" -eq 1 ]] || echo "it checks out something other than the default branch"
-  grep -qF 'persist-credentials: false' "$f" || echo "its checkout keeps credentials"
-  [[ "$(grep -c 'uses: actions/checkout@' "$f")" -eq 1 ]] || echo "it has more than one checkout, or none"
-  ! grep -qE 'download-artifact|actions/cache|^[[:space:]]+cache:|cache-dependency-path' "$f" || echo "it downloads an artifact or uses a cache"
-  judge_merge_steps "$f"
-  grep -qF "DEPENDABOT_MERGE_EXPECTED_HEAD: ${D}{{ github.event.workflow_run.head_sha }}" "$f" || echo "it does not give the policy the head commit the run was for"
   # The one zizmor ignore: counted in the file as written, comments included.
   [[ "$(grep -c 'zizmor: ignore' "$1")" -eq 1 ]] || echo "it carries $(grep -c 'zizmor: ignore' "$1") zizmor ignores, not exactly one"
   grep -qxF '  workflow_run:  # zizmor: ignore[dangerous-triggers]' "$1" || echo "its zizmor ignore is not dangerous-triggers on the workflow_run: line"
   ! grep -qE 'pull_request_target|workflow_call' "$f" || echo "it names pull_request_target or workflow_call"
   perms="$(sed -n '/^permissions:/,/^$/p' "$f" | sed '1d;/^$/d' | tr -d ' ' | LC_ALL=C sort | tr '\n' ' ')"
-  [[ "$perms" == "actions:read checks:read contents:read pull-requests:write " ]] || echo "its permissions are '$perms', not the minimal four"
-  grep -qF "group: dependabot-merge-${D}{{ github.event.workflow_run.head_branch }}" "$f" || echo "its concurrency group is not per branch"
-  grep -qF "MODE: ${D}{{ vars.DEPENDABOT_AUTOMERGE }}" "$f" && grep -qF "case \"${D}{MODE:-dry-run}\" in" "$f" || echo "it lacks the kill switch DEPENDABOT_AUTOMERGE, unset meaning dry-run"
-  [[ "$(grep -cE '^[[:space:]]+runs-on:' "$f")" -ge 1 ]] && ! grep -E '^[[:space:]]+runs-on:' "$f" | has -qvE 'runs-on: ubuntu-latest$' || echo "a job runs elsewhere than on GitHub's hosted ubuntu-latest"
-  grep -qF "./Scripts/dependabot_merge_policy.sh \"${D}PR\"" "$f" || echo "it does not run the policy"
-  grep -qF "./Scripts/dependabot_pr_comment.sh \"${D}PR\"" "$f" || echo "it does not keep the one comment"
+  [[ "$perms" == "actions:read contents:read pull-requests:write " ]] || echo "its permissions are '$perms', not the minimal three"
+  [[ "$(grep -cE '^[[:space:]]+uses:' "$f")" -eq 1 ]] && grep -qxF "    uses: ./${CALLED_WF}" "$f" ||
+    echo "it does not call ./${CALLED_WF} as its one job, from this commit"
+  ! grep -qE '^[[:space:]]+(runs-on|steps):' "$f" || echo "it has steps of its own: every step belongs in the called workflow"
+  grep -qxF "      settings-file: ${CONF}" "$f" || echo "it does not hand the called workflow ${CONF}"
+  grep -qxF "      mode: ${D}{{ vars.DEPENDABOT_AUTOMERGE }}" "$f" || echo "it does not hand the kill switch DEPENDABOT_AUTOMERGE over as the mode"
+  [[ "$(grep -c 'secrets\.' "$f")" -eq 1 ]] && grep -qxF "      DEPENDABOT_MERGE_TOKEN: ${D}{{ secrets.DEPENDABOT_MERGE_TOKEN }}" "$f" &&
+    ! grep -qE 'secrets: *inherit' "$f" || echo "it does not pass DEPENDABOT_MERGE_TOKEN alone, by name (never secrets: inherit)"
   ! grep -qE "^name: Auto update$" "$f" || echo "it carries the name of auto_update.yml"
 }
 if [[ ! -f "$MERGE_WF" ]]; then
@@ -546,7 +491,7 @@ policy_mutant clean "s/\\[ \"\\${D}mstate\" = clean \\] ||/true ||/" "$UNCLEAN_C
 policy_mutant apiblock 's/block "GitHub API read failed: .*/return 1/' "$COMMIT_FAIL_CASE" "a failed read that does not block"
 policy_mutant oldest 's/sort_by(.id) | last/sort_by(.id) | first/' "$LATEST_CASE" "the oldest run deciding"
 
-# Mutation proofs: the workflow. Each broken copy must be judged red.
+# Mutation proofs: the caller. Each broken copy must be judged red.
 # workflow_mutant <name> <sed> <what>
 workflow_mutant() {
   local m="${TMP}/wfmut/$1.yml"
@@ -560,39 +505,24 @@ workflow_mutant() {
     fail "mutation proof: $3 is not caught"
   fi
 }
-workflow_mutant creds 's/persist-credentials: false/persist-credentials: true/' "a checkout that keeps credentials"
-workflow_mutant prref "s/ref: \\${D}{{ github.event.repository.default_branch }}/ref: ${D}{{ github.event.workflow_run.head_sha }}/" "a checkout of the pull request's head"
-workflow_mutant fork '/head_repository.full_name == github.repository/d' "a fork's branch let through"
-workflow_mutant event "s/github.event.workflow_run.event == 'pull_request' &&/true \&\&/" "a run of another event let through"
 workflow_mutant perms 's/^  contents: read$/  contents: write/' "a write permission on contents"
 workflow_mutant trigger 's/^  workflow_run:/  pull_request_target:\
   workflow_run:/' "a pull_request_target trigger"
 workflow_mutant onlyone 's/^    workflows: \[Quality, DCO\]$/    workflows: [Quality]/' "an expected workflow dropped from the trigger"
-workflow_mutant killswitch "s/^              yes=\"dry run: would merge\"$/              gh pr merge \"${D}PR\"; yes=\"dry run: would merge\"/" "a merge in dry-run"
-workflow_mutant dryeligible 's/^              yes="dry run: would merge"$/              yes="eligible: merging"/' "dry-run commenting eligible: merging"
-workflow_mutant offcomments '/no decision, no comment for/{n;s/^              exit 0$/              :/;}' "off going on to decide and comment"
-workflow_mutant dropon "s/ \\&\\& vars.DEPENDABOT_AUTOMERGE == 'on'$//" "the merge step without the on condition"
-workflow_mutant dropeligible "s/if: steps.policy.outputs.eligible == 'true' \\&\\& /if: /" "the merge step without the eligible condition"
-workflow_mutant dropmatch "s/ --match-head-commit \"\\${D}HEAD_SHA\"//" "the merge without --match-head-commit"
-workflow_mutant runhead "s/HEAD_SHA: \\${D}{{ steps.policy.outputs.head_sha }}/HEAD_SHA: ${D}{{ github.event.workflow_run.head_sha }}/" "the merged head taken from the run, not from the policy"
-workflow_mutant jobtoken "s/GH_TOKEN: \\${D}{{ secrets.DEPENDABOT_MERGE_TOKEN }}/GH_TOKEN: ${D}{{ github.token }}/" "the job token swapped in for the merge"
-workflow_mutant fallback "s/GH_TOKEN: \\${D}{{ secrets.DEPENDABOT_MERGE_TOKEN }}/GH_TOKEN: ${D}{{ secrets.DEPENDABOT_MERGE_TOKEN || github.token }}/" "a job token fallback for the merge"
-workflow_mutant emptytoken "s/if \\[ -z \"\\${D}GH_TOKEN\" \\]; then/if false; then/" "the empty-token check disabled"
-workflow_mutant eligibleanyway "s/^          record=\"\\${D}RUNNER_TEMP\\/dependabot-merge-record.md\"$/&\\
-          echo \"eligible=true\" >>\"${D}GITHUB_OUTPUT\"/" "eligible written before the policy ran"
-workflow_mutant eligibleelse "s/^            verdict=\"\\${D}no\"$/            verdict=\"${D}no\"; echo \"eligible=true\" >>\"${D}GITHUB_OUTPUT\"/" "eligible written on the policy's refusal"
-workflow_mutant norecord "/^          .\\/Scripts\\/dependabot_pr_comment.sh \"\\${D}PR\" \"\\${D}comment\"$/d" "the merge result not added to the comment"
-workflow_mutant runner 's/runs-on: ubuntu-latest/runs-on: [self-hosted, linux]/' "a self-hosted runner"
+workflow_mutant types 's/^    types: \[completed\]$/    types: [requested, completed]/' "a start on requested runs"
 workflow_mutant ignoreabove 's/^  workflow_run:  # zizmor: ignore\[dangerous-triggers\]$/  # zizmor: ignore[dangerous-triggers]\
   workflow_run:/' "the zizmor ignore moved to its own line"
 workflow_mutant ignoretwice 's/^    types: \[completed\]$/    types: [completed]  # zizmor: ignore[dangerous-triggers]/' "a second zizmor ignore"
 workflow_mutant ignoreother 's/ignore\[dangerous-triggers\]/ignore[template-injection]/' "an ignore of another rule"
-workflow_mutant artifact 's/^      - name: Find the pull request/      - uses: actions\/download-artifact@0000000000000000000000000000000000000000\
-      - name: Find the pull request/' "an artifact download"
-workflow_mutant cache 's/^          persist-credentials: false$/          persist-credentials: false\
-          cache: true/' "a cache"
-workflow_mutant secret "s/GH_TOKEN: \\${D}{{ github.token }}/GH_TOKEN: ${D}{{ secrets.DEPENDABOT_MERGE_TOKEN }}/" "a secret read"
-workflow_mutant expected '/DEPENDABOT_MERGE_EXPECTED_HEAD:/d' "the run's head commit not given to the policy"
+workflow_mutant remote 's#^    uses: \./\.github/workflows/dependabot_merge_policy\.yml$#    uses: owner/forsgren/.github/workflows/dependabot_merge_policy.yml@main#' "a call of a branch instead of this commit's file"
+workflow_mutant steps 's/^    uses: .*/    runs-on: ubuntu-latest\
+    steps:\
+      - run: echo/' "steps of its own"
+workflow_mutant settings 's/^      settings-file: .*/      settings-file: other.conf/' "another settings file"
+workflow_mutant modeon 's/^      mode: .*/      mode: on/' "the switch forced on"
+workflow_mutant inherit 's/^    secrets:$/    secrets: inherit/;/DEPENDABOT_MERGE_TOKEN:/d' "secrets: inherit"
+workflow_mutant extrasecret "s/^      DEPENDABOT_MERGE_TOKEN: .*/&\\
+      OTHER: ${D}{{ secrets.OTHER }}/" "a second secret passed"
 
 selftest_end "the Dependabot merge policy does not hold" \
   "dependabot merge policy: only an allowed Dependabot update with both expected workflows green on its head, mergeable, clean and fresh is eligible; every error is not eligible; read only; the workflow and config pinned; mutation proven"
