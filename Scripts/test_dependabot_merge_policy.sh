@@ -60,19 +60,12 @@
 # behind main taken as fresh, any author, any head repository, any branch
 # prefix, a head that moved, a state other than clean, a failed
 # read that does not block, the oldest run deciding) must each turn a red case
-<<<<<<< Updated upstream
 # green; copies of the caller (among them: a write permission, another
 # trigger, the zizmor ignore moved or doubled, steps of its own, a call of a
 # branch, the switch forced on, secrets: inherit) and of the token check
-# with one rule broken must each be judged red.
-=======
-# green; copies of the merge workflow (among them: the on or the eligible
-# condition dropped, --match-head-commit dropped, the job token swapped in or
-# added as a fallback, the empty-token check disabled) and of the token check
 # with one rule broken must each be judged red; copies of the token check's
 # step that go on after a refused GraphQL read or take no pull request as
 # proof must each be judged wrong when run.
->>>>>>> Stashed changes
 
 set -euo pipefail
 
