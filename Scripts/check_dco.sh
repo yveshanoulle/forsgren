@@ -35,6 +35,16 @@
 #   - that email is the commit author's, compared without case. A sign-off
 #     by someone else is not the author's certificate.
 # A Signed-off-by in the body, mid-line, or as the subject is no sign-off.
+#
+# THE ONE SIGNER PAIR (forsgren#676, option A): GitHub records a Dependabot
+# pull request it squash-merges as authored by Dependabot's noreply email,
+# while Dependabot signs its commits off with another address. Exactly one
+# author email and one sign-off line, both in SIGNER_PAIR_* below, count as
+# the same signer: the author email as written (not without case), and the
+# whole trailer line, name and email, as written (trailing blanks aside).
+# Any other author with that sign-off, or that author with any other
+# sign-off than its own email, is judged by the rule above; nothing else
+# is relaxed. This is no exemption: the commit still needs the trailer.
 # Merge commits get no exception: a pull request that merges main into its
 # branch signs that merge off too (`git merge --signoff`; `-s` there picks
 # the merge strategy, it does not sign off).
@@ -74,6 +84,11 @@ OPENER="${2:-}"
 # GitHub App's bot account adds [bot], which no person's login can hold.
 ACCOUNT='^[A-Za-z]+:[A-Za-z0-9-]+(\[bot\])?$'
 
+# The one signer pair (THE ONE SIGNER PAIR above): the author email GitHub
+# records for a Dependabot squash merge, and Dependabot's own sign-off line.
+SIGNER_PAIR_AUTHOR='49699333+dependabot[bot]@users.noreply.github.com'
+SIGNER_PAIR_SIGNOFF='Signed-off-by: dependabot[bot] <support@github.com>'
+
 opener="-"
 if [ -n "$OPENER" ]; then
   if ! [[ "$OPENER" =~ $ACCOUNT ]]; then
@@ -91,10 +106,11 @@ fi
 
 # judge <author-email>: reads one message on stdin, prints signed, mismatch
 # or unsigned. The mutation proofs in Scripts/test_check_dco.sh rewrite the
-# `while (start > 1` line and the tolower comparison line, each by its exact
-# text: keep both on their own line.
+# `while (start > 1` line, the tolower comparison line and the signer pair
+# line, each by its exact text: keep the three on their own line.
 judge() {
-  awk -v author="$1" '
+  awk -v author="$1" -v pair_author="$SIGNER_PAIR_AUTHOR" \
+      -v pair_signoff="$SIGNER_PAIR_SIGNOFF" '
     { sub(/\r$/, ""); line[NR] = $0 }
     END {
       n = NR
@@ -113,6 +129,9 @@ judge() {
           sub(/^[^<]*</, "", email)
           sub(/>[ \t]*$/, "", email)
           if (tolower(email) == tolower(author)) matched = 1
+          trailer = line[i]
+          sub(/[ \t]+$/, "", trailer)
+          if (author == pair_author && trailer == pair_signoff) matched = 1
         }
       }
       if (matched) print "signed"

@@ -604,7 +604,15 @@ Developer Certificate of Origin (see [CONTRIBUTING.md](../CONTRIBUTING.md)):
 trailer, or with one whose email is not the commit author's, naming the
 commit and its subject. A trailer counts only as a whole line of the
 message's last paragraph, never in the body, mid-line or as the subject;
-the emails are compared without case and never printed. Merge commits get no
+the emails are compared without case and never printed. One signer pair
+counts as the same signer (forsgren#676): GitHub records a Dependabot pull
+request it squash-merges as authored by
+`49699333+dependabot[bot]@users.noreply.github.com`, while Dependabot signs
+off as `Signed-off-by: dependabot[bot] <support@github.com>`, so that author
+email with exactly that trailer line, name and email as written, passes.
+That sign-off with any other author, or that author with any other
+sign-off, is held to the rule; the pair is data in one place in the
+script. Merge commits get no
 exception. Bots are (ruled 2026-10-02, for Dependabot's security updates): a
 commit is exempt, named as such, when GitHub links it to an account of type
 `Bot` and that bot opened the pull request (`pull_request.user`, passed
@@ -651,7 +659,9 @@ own. The check does not run in `sfl` or Quality, since it judges the
 commits a pull request or a push brings; its
 self-test does (**DCO sign-off self-test**, `Scripts/test_check_dco.sh`,
 offline, with mutation proofs for the last-paragraph rule, the email
-comparison, the account-type rule and the opener comparison, a
+comparison, the account-type rule and the opener comparison, two for
+the signer pair (without it the pair is red; widened to any bot's noreply
+author, another bot's commit is green), a
 throwaway repository for the push listing, and a stub `gh` for the push
 check, one mutation proof per condition of its two exemptions, and one for
 the retry), and **gate wiring** is red when

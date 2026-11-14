@@ -55,6 +55,24 @@
 #                                                     commit alone
 #  21. an opener not in the <type>:<login> shape   -> red
 #  22. an author account not in the shape          -> red, malformed
+# The one signer pair (forsgren#676, option A): GitHub records a Dependabot
+# squash merge as authored by Dependabot's noreply email, while Dependabot
+# signs off with another address; that one pair counts as the same signer,
+# on a push too (account -), and nothing else:
+#  22a. the pair: that author, Dependabot's sign-off -> green
+#  22b. the same sign-off, another bot's noreply
+#       author                                       -> red, mismatch
+#  22c. the same sign-off, a person's author         -> red, mismatch
+#  22d. the same sign-off, the pair's author email
+#       in another case                              -> red, mismatch
+#  22e. that author, a person's sign-off             -> red, mismatch
+#  22f. that author, the sign-off email with
+#       another name                                 -> red, mismatch
+#  22g. that author, the sign-off name with another
+#       email                                        -> red, mismatch
+#  22h. that author, the sign-off in another case    -> red, mismatch
+#  22i. that author, the sign-off in the body        -> red, no trailer
+#  22j. that author, no sign-off                     -> red, no trailer
 # The push check, Scripts/dco_push_check.sh (forsgren#267, decision #268), with
 # a stub gh (DCO_GH) answering from fixture files, offline:
 #  28. a direct push commit, no sign-off              -> red as ever; signed -> green
@@ -233,6 +251,51 @@ printf '%s %s %s %s\n' 222222222222eeee 'Bot:dependabot[bot]x' "$(b64 "$BOT_EMAI
 capture "$CHECK" "$TMP/badaccount.txt" "$DEPENDABOT"
 want_red "22. an author account not in the shape" "malformed line 1"
 
+# --- The one signer pair (forsgren#676). The messages end as Dependabot's
+# squash merges do: its sign-off, then a Co-authored-by trailer.
+PAIR_SIGNOFF='Signed-off-by: dependabot[bot] <support@github.com>'
+PAIR_CO='Co-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>'
+pair_msg() {
+  printf 'Bump example-lib from 1.0.0 to 1.0.1\n\nBumps example-lib from 1.0.0 to 1.0.1.\n\n%s\n%s' "$1" "$PAIR_CO"
+}
+MISMATCH="is signed off, but not by its author"
+
+commit 22a22a22a22a1111 "$BOT_EMAIL" "$(pair_msg "$PAIR_SIGNOFF")" > "$TMP/pair.txt"
+capture "$CHECK" "$TMP/pair.txt"
+want_green "22a. the signer pair: Dependabot's noreply author, Dependabot's sign-off" "every one signed off"
+
+commit 22b22b22b22b1111 "12345678+renovate[bot]@users.noreply.github.com" "$(pair_msg "$PAIR_SIGNOFF")" > "$TMP/pair-otherbot.txt"
+capture "$CHECK" "$TMP/pair-otherbot.txt"
+want_red "22b. Dependabot's sign-off on another bot's noreply author" "commit 22b22b22b22b (Bump example-lib from 1.0.0 to 1.0.1) ${MISMATCH}"
+
+commit 22c22c22c22c1111 ada@example.org "$(pair_msg "$PAIR_SIGNOFF")" > "$TMP/pair-person.txt"
+capture "$CHECK" "$TMP/pair-person.txt"
+want_red "22c. Dependabot's sign-off on a person's author" "commit 22c22c22c22c (Bump example-lib from 1.0.0 to 1.0.1) ${MISMATCH}"
+
+commit 22d22d22d22d1111 "49699333+Dependabot[bot]@users.noreply.github.com" "$(pair_msg "$PAIR_SIGNOFF")" > "$TMP/pair-authorcase.txt"
+capture "$CHECK" "$TMP/pair-authorcase.txt"
+want_red "22d. the pair's author email in another case" "commit 22d22d22d22d (Bump example-lib from 1.0.0 to 1.0.1) ${MISMATCH}"
+
+# pair_red <case> <sha> <sign-off line> <description>: that author, another
+# sign-off, red as a mismatch.
+pair_red() {
+  commit "$2" "$BOT_EMAIL" "$(pair_msg "$3")" > "$TMP/pair-$1.txt"
+  capture "$CHECK" "$TMP/pair-$1.txt"
+  want_red "$1. $4" "commit ${2:0:12} (Bump example-lib from 1.0.0 to 1.0.1) ${MISMATCH}"
+}
+pair_red 22e 22e22e22e22e1111 'Signed-off-by: Ada Example <ada@example.org>' "Dependabot's noreply author, a person's sign-off"
+pair_red 22f 22f22f22f22f1111 'Signed-off-by: renovate[bot] <support@github.com>' "Dependabot's noreply author, the sign-off email with another name"
+pair_red 22g 22a9a9a9a9a91111 'Signed-off-by: dependabot[bot] <support@github.com.example.org>' "Dependabot's noreply author, the sign-off name with another email"
+pair_red 22h 22a8a8a8a8a81111 'Signed-off-by: Dependabot[bot] <Support@GitHub.com>' "Dependabot's noreply author, the sign-off in another case"
+
+commit 22a7a7a7a7a71111 "$BOT_EMAIL" $'Bump example-lib from 1.0.0 to 1.0.1\n\nSigned-off-by: dependabot[bot] <support@github.com>\n\nBumps example-lib from 1.0.0 to 1.0.1.' > "$TMP/pair-body.txt"
+capture "$CHECK" "$TMP/pair-body.txt"
+want_red "22i. Dependabot's noreply author, the sign-off in the body" "commit 22a7a7a7a7a7 (Bump example-lib from 1.0.0 to 1.0.1) has no Signed-off-by trailer"
+
+commit 22a6a6a6a6a61111 "$BOT_EMAIL" "$BUMP" > "$TMP/pair-none.txt"
+capture "$CHECK" "$TMP/pair-none.txt"
+want_red "22j. Dependabot's noreply author, no sign-off" "commit 22a6a6a6a6a6 (Bump example-lib from 1.0.0 to 1.0.1) has no Signed-off-by trailer"
+
 # --- The commits of a push (Scripts/dco_push_commits.sh, forsgren#81): the
 # same input lines, built from git for the range before..after, so the check
 # can judge a push to main as it judges a pull request. A throwaway
@@ -351,7 +414,11 @@ APP_HEAD="acea3e92934dddf15e59d01602feb943ff477c42"
 APP_MERGE="e85d564a7c3a00000000000000000000000000aa"
 APP_FIRST="e57bcd13e13821218649eb0095d43c557c4f39ee"
 APP_DIRECT="d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1"
-DEP_MSG=$'Bump example-lib from 1.0.0 to 1.0.1\n\nBumps example-lib.\n\nSigned-off-by: dependabot[bot] <support@github.com>'
+# Dependabot's commit as its security updates write it, with no sign-off:
+# red when judged strictly. (Its sign-off as the signer pair writes it would
+# be green on its own since forsgren#676, so the strict cases below would
+# no longer show their condition.)
+DEP_MSG=$'Bump example-lib from 1.0.0 to 1.0.1\n\nBumps example-lib.'
 MERGE_MSG=$'Merge pull request #7 from acme/app/dependabot/example-lib\n\nBump example-lib from 1.0.0 to 1.0.1'
 MAINTAINER_EMAIL="1234+maintainer-example@users.noreply.github.com"
 DEP_SUBJECT="Bump example-lib from 1.0.0 to 1.0.1"
@@ -429,25 +496,25 @@ want_green "31. the real push after merging Dependabot's pull request, both comm
 fx_merged_pull
 fx_runs "$APP_HEAD" failure
 capture push_check "$TMP/pull-dep.txt"
-want_red "32. a commit of a merged pull request whose DCO run failed is judged strictly" "commit ${SHORT_HEAD} (${DEP_SUBJECT}) is signed off, but not by its author"
+want_red "32. a commit of a merged pull request whose DCO run failed is judged strictly" "commit ${SHORT_HEAD} (${DEP_SUBJECT}) has no Signed-off-by trailer"
 capture push_check "$TMP/pull-merge.txt"
 want_red "32. the merge commit of a pull request whose DCO run failed is judged strictly" "commit ${SHORT_MERGE} (${MERGE_SUBJECT}) has no Signed-off-by trailer"
 fx_put "repos/acme/app/commits/${APP_HEAD}/check-runs?per_page=100" '{"check_runs":[{"name":"Quality gates","conclusion":"success","app":{"slug":"github-actions"}}]}'
 capture push_check "$TMP/pull-dep.txt"
-want_red "32b. a commit of a merged pull request with no DCO run is judged strictly" "commit ${SHORT_HEAD} (${DEP_SUBJECT}) is signed off, but not by its author"
+want_red "32b. a commit of a merged pull request with no DCO run is judged strictly" "commit ${SHORT_HEAD} (${DEP_SUBJECT}) has no Signed-off-by trailer"
 fx_runs "$APP_HEAD" success some-other-app
 capture push_check "$TMP/pull-dep.txt"
-want_red "32c. a green check run of that name made by another app is no DCO run" "commit ${SHORT_HEAD} (${DEP_SUBJECT}) is signed off, but not by its author"
+want_red "32c. a green check run of that name made by another app is no DCO run" "commit ${SHORT_HEAD} (${DEP_SUBJECT}) has no Signed-off-by trailer"
 
 # 33: a pull request that is not merged; 34: another repository's.
 fx_merged_pull
 fx_pulls "$APP_HEAD" 7 null "acme/app" "$APP_HEAD"
 capture push_check "$TMP/pull-dep.txt"
-want_red "33. a commit of a pull request that is not merged is judged strictly" "commit ${SHORT_HEAD} (${DEP_SUBJECT}) is signed off, but not by its author"
+want_red "33. a commit of a pull request that is not merged is judged strictly" "commit ${SHORT_HEAD} (${DEP_SUBJECT}) has no Signed-off-by trailer"
 fx_merged_pull
 fx_pulls "$APP_HEAD" 7 "2026-10-21T19:53:21Z" "acme/other" "$APP_HEAD"
 capture push_check "$TMP/pull-dep.txt"
-want_red "34. a commit of a merged pull request of another repository is judged strictly" "commit ${SHORT_HEAD} (${DEP_SUBJECT}) is signed off, but not by its author"
+want_red "34. a commit of a merged pull request of another repository is judged strictly" "commit ${SHORT_HEAD} (${DEP_SUBJECT}) has no Signed-off-by trailer"
 
 # 35 to 37: a merge commit not made by GitHub, not verified, wrong second parent.
 fx_merged_pull
@@ -467,7 +534,7 @@ fx_merged_pull
 fx_put "repos/acme/app/pulls/7/commits" "[{\"sha\":\"${APP_DIRECT}\"}]"
 fx_commit "$APP_HEAD" true someone-example noreply@github.com "$APP_DIRECT"
 capture push_check "$TMP/pull-dep.txt"
-want_red "38. a commit the pull request's own DCO run never saw is judged strictly" "commit ${SHORT_HEAD} (${DEP_SUBJECT}) is signed off, but not by its author"
+want_red "38. a commit the pull request's own DCO run never saw is judged strictly" "commit ${SHORT_HEAD} (${DEP_SUBJECT}) has no Signed-off-by trailer"
 
 # 39: a failed API call is red with its reason, never a pass: the commit is
 # signed off, so only the failed call can turn it red.
@@ -597,6 +664,30 @@ if selftest_mutant "$CHECK" "$MUTANT" 's/^\( *\)if \[ "\([$]\)account" = "Bot:[$
   fi
 fi
 
+# Mutation proofs for the signer pair (forsgren#676): a copy of the check
+# without the pair line must be red on case 22a, so 22a is green BECAUSE of
+# the pair; and a copy whose pair takes any bot's noreply author must be
+# green on case 22b, so 22b catches a pair widened to every bot.
+PAIR_LINE='s|^\( *\)if (author == pair_author && trailer == pair_signoff) matched = 1$|'
+MUTANT="$TMP/mutant-nopair/Scripts/check_dco.sh"
+if selftest_mutant "$CHECK" "$MUTANT" "${PAIR_LINE}"'\1matched = matched|'; then
+  capture "$MUTANT" "$TMP/pair.txt"
+  if [[ "$RC" -ne 0 ]]; then
+    echo "  ok: mutation proof: without the signer pair, case 22a is red, so it is green because of the pair"
+  else
+    fail "mutation proof: a check without the signer pair is still green on case 22a — case 22a is green for another reason. Output: ${OUT}"
+  fi
+fi
+MUTANT="$TMP/mutant-anybot/Scripts/check_dco.sh"
+if selftest_mutant "$CHECK" "$MUTANT" "${PAIR_LINE}"'\1if (author ~ /\\[bot\\]@users\\.noreply\\.github\\.com$/ \&\& trailer == pair_signoff) matched = 1|'; then
+  capture "$MUTANT" "$TMP/pair-otherbot.txt"
+  if [[ "$RC" -eq 0 ]]; then
+    echo "  ok: mutation proof: a pair widened to any bot's noreply author is green on case 22b, so case 22b catches the widening"
+  else
+    fail "mutation proof: a pair widened to any bot's noreply author is still red on case 22b (exit ${RC}) — case 22b does not catch the widening. Output: ${OUT}"
+  fi
+fi
+
 # Mutation proof for case 17: a copy of the check that takes any Bot
 # account, whoever opened the pull request, must be green on it.
 MUTANT="$TMP/mutant-opener/Scripts/check_dco.sh"
@@ -698,4 +789,4 @@ if selftest_lib_mutant ./Scripts/dco_push_check.sh ./Scripts/lib_dco_api.sh "$TM
 fi
 
 selftest_end "the DCO check does not hold every commit to a Signed-off-by trailer from its author, or exempts a commit on anything but the Bot account that opened the pull request, or does not judge a push as the push check says" \
-  "DCO check is green on commits signed off by their authors (any case, among other trailers, CRLF), red naming the unsigned commit alone, on no commit, on a Signed-off-by in the body, mid-line or as the subject, on a sign-off by someone else (no email printed), on no author email and on a malformed line, exits 2 on a missing file, reads stdin, exempts only the unsigned commits of the Bot account that opened the pull request (never by a bot-looking email, for a User or no account, another opener or none), names the human commit alone in a mixed pull request, and its last-paragraph rule, email comparison, account rule and opener comparison are what redden cases 4, 7, 15 and 17"
+  "DCO check is green on commits signed off by their authors (any case, among other trailers, CRLF), red naming the unsigned commit alone, on no commit, on a Signed-off-by in the body, mid-line or as the subject, on a sign-off by someone else (no email printed), on no author email and on a malformed line, exits 2 on a missing file, reads stdin, exempts only the unsigned commits of the Bot account that opened the pull request (never by a bot-looking email, for a User or no account, another opener or none), names the human commit alone in a mixed pull request, takes Dependabot's sign-off for its squash-merge author and no other pair, and its last-paragraph rule, email comparison, account rule and opener comparison are what redden cases 4, 7, 15 and 17, and the signer pair what greens case 22a"

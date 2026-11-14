@@ -285,6 +285,12 @@ push brings to `main`; commits of an earlier push are not checked again):
   (compared without case). Each author signs off their own commits;
 - has no author email at all.
 
+One pair of addresses counts as the same signer: a commit whose author
+email is `49699333+dependabot[bot]@users.noreply.github.com` (how GitHub
+records a Dependabot pull request it squash-merges) and whose trailer is
+exactly `Signed-off-by: dependabot[bot] <support@github.com>` (Dependabot's
+own sign-off). Either half with anything else is held to the rule above.
+
 Merge commits are held to the same rule (`git merge --signoff`).
 
 Bots are exempt: a commit with no sign-off passes, and the check names it
