@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v33
+# canon: test_gate_browser v34
+# v34 (forsgren#674, step 2; the cases and proofs of a site's v33, site issue 94, with their ids): a gate that tests nothing is never green: cases 58a to 58d, a manifest with no page, one without requiredPages, a missing manifest and a named Chrome that does not exist, each exit 2 before anything is checked; case 55d, an engine that ends 0 after the launch without its OK line (no page checked) is red in the wrapper (gate_browser v7); proof V, the engine without its empty-manifest guard, prints an OK line for 0 pages; proof W, the wrapper without its OK-line check, turns case 55d green (its copy finds puppeteer-core through FORSGREN_NODE_ROOT, no link to node_modules)
 # v33 (forsgren#660, the owner's ruling, option A): the real-Chrome signal cases run with Chrome's code-sign clone off (--disable-features=MacAppCodeSignClone, merged into the one --disable-features Chrome is given, through the wrapper chrome_no_clone.sh) and the engine looks at an empty folder of the case, so they no longer read the folder every Chrome on the machine shares: a clone folder of anyone else cannot change their verdict. closed_verdict asserts instead that the clone is off for this Chrome: its own command line has one --disable-features naming the feature and no --enable-features naming it, and the installed Chrome still knows the feature; a missing, overridden or unknown flag is a reason, never a return to the shared folder. Case 53g keeps its clone assertions on a parent of the test; 53h and 53i are unchanged; case 53j pins the check
 # v32 (forsgren#642): case 54b says why its replaced folder is a new one on Linux too: ext4 hands the freed inode of the removed folder to the new one, so the engine compares the birth time as well (browser_gate v19); on the first Linux run the folder was taken for the identified one and removed (Quality run 42406819133)
 # v31 (forsgren#642): a signal case's TMPDIR is a folder of its own straight under the temp root (mktemp), its side files under TMP: on Linux Chrome's singleton socket lies in the profile, and under TMP/sig_<label> its path passed the 107 characters of a Unix socket, so Chrome aborted (SIGABRT) during the launch; proof S copies the libraries the wrapper sources, read from it
@@ -145,6 +146,16 @@
 #   Y. the wait for the paint removed (forsgren#620): case 57 turns green.
 #  57. the same page with a main thread busy past all the pieces (a slow runner)
 #      -> red as 55: the server waits for the paint between pieces (browser_gate v8)
+# Nothing tested is never green (site issue 94, forsgren#674):
+#  58a. a manifest whose requiredPages is empty        -> exit 2, no page
+#  58b. a manifest without requiredPages               -> exit 2, no page
+#  58c. a missing manifest                             -> exit 2
+#  58d. FORSGREN_CHROME naming no file (no browser)    -> exit 2
+#  55d. the engine ends 0 after the launch without its OK line (no page
+#      checked)                                         -> exit 2 from the wrapper
+#   V. the engine without its empty-manifest guard: case 58a's fixture prints an
+#      OK line for 0 pages (the wrapper's OK-line check is the second guard);
+#   W. the wrapper without its OK-line check: case 55d turns green.
 # The exits (forsgren#381, site issue 34): Chrome closed and its profile folder
 # removed on every way out:
 #  52. SIGTERM, SIGINT, SIGHUP to the wrapper, SIGTERM to node (under the wrapper
@@ -247,9 +258,9 @@ done
 FIRST_CASES=(8 1 31 32 33 34 30 23 22
   2 3 4 5 6 7 9 10 11 12 13 14 16 17 18 24a 24b 24c 24d 24e 24f 25
   26 27 28 29 35a 35b 35c 35d 35e 35f 36a 36b 36c 37 38 38b 40 39a 39b
-  41 42 43 44 45 46 47 48 49a 49b 49c 49d 50 51 54 55 56 57)
-SECOND_CASES=(19 20 21 55a 55b 55c)
-SECOND_PROOFS=(a b c d e f g h i j k kslow l m n o p q t u y)
+  41 42 43 44 45 46 47 48 49a 49b 49c 49d 50 51 54 55 56 57 58a 58b 58c 58d)
+SECOND_CASES=(19 20 21 55a 55b 55c 55d)
+SECOND_PROOFS=(a b c d e f g h i j k kslow l m n o p q t u y v w)
 SERIAL_CASES=(52h 52i 53j 52a 52b 52c 52d 52e 52f 53 52g 53d 53g 53h 53i 54a 54b 54c 53e 53f)
 SERIAL_PROOFS=(r rb s x z dh)
 # SHARD_FOLLOWERS: "<unit> <the cases and proofs that run in its shard>" (v30).
@@ -1141,6 +1152,29 @@ case_57() {
   want_said "57b: the finding names the delayed-delivery load" "1 delayed-delivery load (4 pieces 150 ms apart: 0."
 }
 
+# 58a to 58d (site issue 94, forsgren#674): inputs that leave nothing to check
+# are exit 2, never a green with nothing tested.
+case_58a() {
+  with_file clean manifest.json '{"requiredPages": []}'
+  run_gate clean
+  want_exit "58a: a manifest whose requiredPages is empty" 2 "lists no requiredPages: nothing to open is not clean"
+}
+case_58b() {
+  with_file clean manifest.json '{"pages": ["/"]}'
+  run_gate clean
+  want_exit "58b: a manifest without requiredPages" 2 "lists no requiredPages: nothing to open is not clean"
+}
+case_58c() {
+  with_file clean manifest.json -
+  run_gate clean
+  want_exit "58c: a missing manifest" 2 "cannot read the pages manifest"
+}
+case_58d() {
+  own_fixtures clean
+  FORSGREN_CHROME="${TMP}/no-such-chrome" run_gate clean
+  want_exit "58d: a named Chrome that does not exist (no browser to launch)" 2 "FORSGREN_CHROME does not exist"
+}
+
 # The first batch: every plain case that needs nothing of another case
 # (FIRST_CASES, in its order), those of this shard when it is one.
 if [[ -n "$SHARD_N" ]]; then
@@ -1952,6 +1986,18 @@ case_55c() {
   FORSGREN_GATE_BROWSER_HOOK="$KILL_SEAM" run_gate clean
   want_exit "55c: the engine killed (SIGKILL): the wrapper names the signal" 137 "FAIL: browser gate: the engine was killed by signal KILL (exit 137)"
 }
+# 55d (site issue 94, forsgren#674): the engine ends 0 right after the launch,
+# no page checked and no OK line: the wrapper is red, exit 2, never a green
+# with nothing tested.
+EXIT0_SEAM="${TMP}/exit0_seam.cjs"
+cat > "$EXIT0_SEAM" << 'SEAM'
+module.exports = () => { process.exit(0); };
+SEAM
+case_55d() {
+  own_fixtures clean
+  FORSGREN_GATE_BROWSER_HOOK="$EXIT0_SEAM" run_gate clean
+  want_exit "55d: the engine ends 0 with no page checked and no OK line: the wrapper is red" 2 "FAIL: browser gate: the engine ended with exit 0 but printed no OK line"
+}
 
 # Mutation proofs, run side by side (Scripts/lib_parallel_mutants.sh, forsgren#382).
 # Each proof is a mutant_<letter> function that works on its own copy of the
@@ -2215,8 +2261,37 @@ mutant_y() {
   fi
 }
 
+# V (site issue 94, forsgren#674): the engine without its empty-manifest guard
+# -> case 58a's fixture is "checked" with 0 pages, and the engine says OK for
+# them.
+stage v clean
+printf '{"requiredPages": []}' > "${TMP}/fx_v/manifest.json"
+mutant_v() {
+  if mutant_engine "s/ || pages.length === 0//"; then
+    run_mutant "$MUTANT_ENGINE" "${TMP}/fx_v"
+    want_green "mutation proof V: without the empty-manifest guard case 58a's fixture gets an OK line for 0 pages" "OK: browser gate: 0 pages"
+  fi
+}
+
+# W (site issue 94, forsgren#674): the wrapper without its OK-line check ->
+# case 55d turns green. The copy has the engine and the libraries the wrapper
+# sources, empty package folders for the wrapper's npm ci check, and finds the
+# real packages through FORSGREN_NODE_ROOT (no link to node_modules).
+stage w clean
+mutant_w() {
+  local wmut="${MUTANT_DIR}/wmut"
+  mkdir -p "${wmut}/Scripts" "${wmut}/node_modules/puppeteer-core" "${wmut}/node_modules/axe-core"
+  cp Scripts/browser_gate.mjs "${wmut}/Scripts/"
+  while IFS= read -r lib; do cp "$lib" "${wmut}/Scripts/"; done < <(sed -n 's#^source \(Scripts/lib_[a-z_]*\.sh\)$#\1#p' Scripts/gate_browser.sh)
+  if selftest_mutant Scripts/gate_browser.sh "${wmut}/Scripts/gate_browser.sh" 's/^if \[\[ "[$]OK_COUNT" -ne 1 \]\].*/if false; then/'; then
+    LAP=$SECONDS
+    FORSGREN_NODE_ROOT="$REPO_ROOT" FORSGREN_GATE_BROWSER_HOOK="$EXIT0_SEAM" at_fixture "${TMP}/fx_w" "${wmut}/Scripts/gate_browser.sh"
+    want_green "mutation proof W: without the OK-line check case 55d turns green"
+  fi
+}
+
 # The second batch: the plain cases that waited for case 8's M, the exit cases
-# 55a to 55c, and the mutation proofs, side by side.
+# 55a to 55d, and the mutation proofs, side by side.
 PHASE_START=$SECONDS
 for id in "${SECOND_CASES[@]}"; do
   if runs "case_${id}"; then plain_case "$id"; fi
@@ -2225,7 +2300,7 @@ for proof in "${SECOND_PROOFS[@]}"; do
   if runs "mutant_${proof}"; then mutant_run "mutant_${proof}"; fi
 done
 mutants_wait
-echo "browser gate self-test: the second batch (19 to 21, 55a to 55c, the mutation proofs), side by side: $((SECONDS - PHASE_START)) s"
+echo "browser gate self-test: the second batch (19 to 21, 55a to 55d, the mutation proofs), side by side: $((SECONDS - PHASE_START)) s"
 
 # The proofs of the exits (R, S, X, Z) drive real signal cases (signal_case): they signal and
 # kill processes, share the machine's clone folders and Chrome listing (a case counts the
@@ -2358,5 +2433,5 @@ if [[ -n "$SHARD_N" ]]; then
   selftest_end "the browser gate self-test (shard ${SHARD_N}/${SHARD_M}) failed" \
     "browser gate (shard ${SHARD_N}/${SHARD_M}): every case of the shard holds, $(grep -c '^mutant_' <<< "$RUN_IDS" || true) mutation proofs seen"
 else
-  selftest_end "the browser gate self-test failed" "browser gate: every case holds, twenty-six mutations seen"
+  selftest_end "the browser gate self-test failed" "browser gate: every case holds, twenty-eight mutations seen"
 fi

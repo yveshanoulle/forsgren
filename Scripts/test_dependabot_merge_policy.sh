@@ -7,12 +7,16 @@
 # API read from a fixture, and every case must give its exit code and name
 # its reason.
 #   1. eligible: an Actions patch or minor pin, an npm development patch, a
-#      group whose members are all allowed; the record names the repository,
-#      each dependency old -> new, the head commit and each check, and goes to
-#      the step summary too
+#      puppeteer-core development minor (forsgren#674), alone and grouped
+#      with a patch, a group whose members are all allowed; the record names
+#      the repository, each dependency old -> new, the head commit and each
+#      check, and goes to the step summary too
 #   2. not an allowed update: a group with one runtime member, an npm
-#      development minor, an npm runtime patch, a major, Docker, a Go module,
-#      an indirect npm update, a branch outside dependabot/<ecosystem>/
+#      development minor (another package, also one named like
+#      puppeteer-core, and grouped with a puppeteer-core minor), a
+#      puppeteer-core major, puppeteer-core as a production dependency, an
+#      npm runtime patch, a major, Docker, a Go module, an indirect npm
+#      update, a branch outside dependabot/<ecosystem>/
 #   3. an author other than dependabot[bot]; 3b. a head repository that is
 #      another one or deleted (null), an ecosystem-shaped branch outside
 #      dependabot/, a head that moved since the run (and one that did not)
@@ -28,7 +32,8 @@
 #      answer without behind_by, commit metadata missing, unclosed, with a line
 #      it does not understand (also in a group's last member), two blocks, a
 #      member without update-type, a head that is not a commit id
-#   7. the config missing, without a workflow, with a line not understood
+#   7. the config missing, without a workflow, with a line not understood,
+#      an allow line with two fields or two dependency names
 #   8. usage: no number, a number that is not one, no GITHUB_REPOSITORY
 #   9. read only: every gh call of every case is a plain GET
 #  10. this repository's config and its merge workflow, a caller of the
@@ -36,7 +41,8 @@
 #      whose own pin is Scripts/test_dependabot_merge_policy_workflow.sh):
 #      every expected workflow file exists under its name and runs on
 #      pull_request; every workflow that runs on pull_request is expected;
-#      Go modules, Docker and majors are not allowed; the caller starts on
+#      Go modules, Docker and majors are not allowed; the allow lines are
+#      exactly the pinned four; the caller starts on
 #      exactly the expected workflows, completed, has no other trigger
 #      (never workflow_call, so it cannot be taken for auto_update.yml), the
 #      minimal three permissions, exactly one zizmor ignore,
@@ -57,8 +63,9 @@
 #      the token usable
 # Mutation proofs: copies of the policy with one condition weakened (a check
 # not completed with success taken as green, every update allowed, a head
-# behind main taken as fresh, any author, any head repository, any branch
-# prefix, a head that moved, a state other than clean, a failed
+# behind main taken as fresh, a rule that names a dependency allowing every
+# dependency, any update type, any dependency type, any author, any head
+# repository, any branch prefix, a head that moved, a state other than clean, a failed
 # read that does not block, the oldest run deciding) must each turn a red case
 # green; copies of the caller (among them: a write permission, another
 # trigger, the zizmor ignore moved or doubled, steps of its own, a call of a
@@ -156,6 +163,7 @@ ACTIONS_BRANCH=dependabot/github_actions/actions/checkout-7.0.2
 NPM_BRANCH=dependabot/npm_and_yarn/npm-tooling-0123456789
 ACTIONS_PATCH="actions/checkout|direct:production|semver-patch|7.0.1|7.0.2"
 NPM_DEV_PATCH="htmlhint|direct:development|semver-patch|1.9.2|1.9.3"
+PUPPETEER_MINOR="puppeteer-core|direct:development|semver-minor|25.16.0|25.17.0"
 
 # edit <file> <jq filter>: changes a fixture in place.
 edit() { jq "$2" "$1" > "$1.new" && mv "$1.new" "$1"; }
@@ -203,12 +211,27 @@ new_case "$NPM_BRANCH" "$NPM_DEV_PATCH" "jscpd|direct:development|semver-patch|5
 expect "$d" 0 "Decision: ELIGIBLE" "1. a grouped pull request whose members are all allowed is eligible"
 new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH" "actions/setup-go|direct:production|semver-minor|6.0.0|6.1.0"
 expect "$d" 0 "Decision: ELIGIBLE" "1. a grouped Actions pull request of a patch and a minor is eligible"
+new_case "$NPM_BRANCH" "$PUPPETEER_MINOR"
+expect "$d" 0 "${B}puppeteer-core${B} (npm_and_yarn, direct:development, version-update:semver-minor): 25.16.0 → 25.17.0, allowed" "1. a puppeteer-core development minor is eligible (forsgren#674)"
+new_case "$NPM_BRANCH" "$PUPPETEER_MINOR" "$NPM_DEV_PATCH"
+expect "$d" 0 "Decision: ELIGIBLE" "1. a group of a puppeteer-core minor and a development patch is eligible"
 
 # 2 not an allowed update
 new_case "$NPM_BRANCH" "$NPM_DEV_PATCH" "left-pad|direct:production|semver-patch|1.3.0|1.3.1"
 expect "$d" 1 "${B}left-pad${B} is not an allowed update (npm_and_yarn, direct:production" "2. a group with one runtime member is not eligible"
 new_case "$NPM_BRANCH" "htmlhint|direct:development|semver-minor|1.9.2|1.10.0"
 expect "$d" 1 "${B}htmlhint${B} is not an allowed update (npm_and_yarn, direct:development, version-update:semver-minor)" "2. an npm development minor is not eligible"
+DEV_MINOR_CASE="$d"
+new_case "$NPM_BRANCH" "puppeteer|direct:development|semver-minor|25.16.0|25.17.0"
+expect "$d" 1 "${B}puppeteer${B} is not an allowed update (npm_and_yarn, direct:development, version-update:semver-minor)" "2. a development minor of another package named like puppeteer-core is not eligible"
+new_case "$NPM_BRANCH" "$PUPPETEER_MINOR" "htmlhint|direct:development|semver-minor|1.9.2|1.10.0"
+expect "$d" 1 "${B}htmlhint${B} is not an allowed update (npm_and_yarn, direct:development, version-update:semver-minor)" "2. a group of a puppeteer-core minor and another development minor is not eligible"
+new_case "$NPM_BRANCH" "puppeteer-core|direct:development|semver-major|25.17.0|26.0.0"
+expect "$d" 1 "${B}puppeteer-core${B} is not an allowed update (npm_and_yarn, direct:development, version-update:semver-major)" "2. a puppeteer-core major is not eligible"
+PUPPETEER_MAJOR_CASE="$d"
+new_case "$NPM_BRANCH" "puppeteer-core|direct:production|semver-minor|25.16.0|25.17.0"
+expect "$d" 1 "${B}puppeteer-core${B} is not an allowed update (npm_and_yarn, direct:production, version-update:semver-minor)" "2. puppeteer-core as a production dependency, minor, is not eligible"
+PUPPETEER_PRODUCTION_CASE="$d"
 new_case "$NPM_BRANCH" "left-pad|direct:production|semver-patch|1.3.0|1.3.1"
 expect "$d" 1 "${B}left-pad${B} is not an allowed update" "2. an npm runtime patch is not eligible"
 new_case "$ACTIONS_BRANCH" "actions/checkout|direct:production|semver-major|5.1.0|7.0.1"
@@ -348,6 +371,12 @@ want_exit "7. a config without workflows is not eligible" 1 "names no allow rule
 printf 'allow github_actions * semver-patch\nworkflow .github/workflows/quality.yml Quality\nallwo npm_and_yarn * semver-patch\n' > "$d/typo.conf"
 run_policy "$d" "$d/typo.conf"
 want_exit "7. a config line not understood is not eligible" 1 "config line not understood: allwo"
+printf 'allow npm_and_yarn direct:development semver-minor puppeteer-core htmlhint\nworkflow .github/workflows/quality.yml Quality\n' > "$d/fivefields.conf"
+run_policy "$d" "$d/fivefields.conf"
+want_exit "7. an allow line with more than one dependency name is not eligible" 1 "config line not understood: allow npm_and_yarn direct:development semver-minor puppeteer-core htmlhint"
+printf 'allow npm_and_yarn semver-patch\nworkflow .github/workflows/quality.yml Quality\n' > "$d/twofields.conf"
+run_policy "$d" "$d/twofields.conf"
+want_exit "7. an allow line with two fields is not eligible" 1 "config line not understood: allow npm_and_yarn semver-patch"
 
 # 8 usage
 capture env PATH="${TMP}/bin:${PATH}" GITHUB_REPOSITORY=owner/repo "$POLICY"
@@ -389,6 +418,16 @@ if grep -qE '^allow (go_modules|docker)[[:space:]]' "$CONF" || grep -qE '^allow 
   fail "10. ${CONF} allows Go modules, Docker or a major update: those stay manual merges"
 else
   echo "  ok: 10. Go modules (the toolchain included), Docker and majors are not allowed"
+fi
+# The allow lines, exactly: a widened category changes this pin on purpose.
+ALLOW_WANT="allow github_actions * semver-patch
+allow github_actions * semver-minor
+allow npm_and_yarn direct:development semver-patch
+allow npm_and_yarn direct:development semver-minor puppeteer-core"
+if [[ "$(grep -E '^allow[[:space:]]' "$CONF")" == "$ALLOW_WANT" ]]; then
+  echo "  ok: 10. ${CONF} allows exactly Actions patch and minor, npm development patch, and puppeteer-core development minor"
+else
+  fail "10. ${CONF} allow lines differ from the pinned four: $(grep -E '^allow[[:space:]]' "$CONF" | tr '\n' ';')"
 fi
 
 # judge_workflow <file>: one line per rule the caller, this repository's
@@ -599,7 +638,10 @@ policy_mutant() {
   fi
 }
 policy_mutant status "s/\\[ \"\\${D}status\" = completed \\] \\&\\& \\[ \"\\${D}conclusion\" = success \\] ||/true ||/" "$FAILED_CASE" "a check not completed with success taken as green"
-policy_mutant allowed 's/^  return 1$/  return 0/' "${TMP}/case7" "every update allowed"
+policy_mutant allowed 's/^  return 1$/  return 0/' "$DEV_MINOR_CASE" "every update allowed"
+policy_mutant name "s/{ \\[ -z \"\\${D}name\" \\] || \\[ \"\\${D}name\" = \"\\${D}4\" \\]; }/true/" "$DEV_MINOR_CASE" "a rule that names a dependency allowing every dependency"
+policy_mutant update "s/\\[ \"version-update:\\${D}upd\" = \"\\${D}3\" \\]/true/" "$PUPPETEER_MAJOR_CASE" "any update type allowed (a puppeteer-core major)"
+policy_mutant type "s/{ \\[ \"\\${D}type\" = \"\\*\" \\] || \\[ \"\\${D}type\" = \"\\${D}2\" \\]; }/true/" "$PUPPETEER_PRODUCTION_CASE" "any dependency type allowed (puppeteer-core as a production dependency)"
 policy_mutant behind "s/elif \\[ \"\\${D}behind\" -ne 0 \\]/elif false/" "$BEHIND_CASE" "a head behind main taken as fresh"
 policy_mutant author "s/\\[ \"\\${D}login\" = \"\\${D}AUTHOR\" \\] ||/true ||/" "$AUTHOR_CASE" "any author accepted"
 policy_mutant repository "s/elif \\[ \"\\${D}head_repo\" != \"\\${D}REPO\" \\]; then/elif false; then/" "$REPO_CASE" "any head repository accepted"

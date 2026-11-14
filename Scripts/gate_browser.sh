@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# canon: gate_browser v5 + forsgren#642 (the default baseline per platform, Scripts/lib_browser_baseline.sh)
+# canon: gate_browser v7 + forsgren#642 (the default baseline per platform, Scripts/lib_browser_baseline.sh)
+# v7 (forsgren#674, step 2) = v6 plus two conditions: the OK line must be there exactly once, and its checks must be pages x variants (a page or a variant skipped is not a pass); the FAIL line starts as v6's
+# v6 (site issue 94): an exit of 0 counts only with the engine's OK line naming at least one page, one variant and one check; an engine that ends 0 without it (nothing proven checked) is exit 2, never a green with nothing tested
 # v5 (estate issue 629, step 2): a non-zero end always names its reason: an engine killed by a signal, or one that ended with no FAIL line, gets one from the wrapper; the engine (browser_gate v16) flushes its output before it exits
 # v4 merges the two lines of the canon (estate issue 629): v3 (the exit-trap idiom of forsgren#381, temp names through lib_tmp.sh) and the sites' v2 (the same idiom as the local fix of site issue 34, with plain mktemp); the wrapper is v3 as it was
 # Scripts/gate_browser.sh (forsgren#205)
@@ -113,5 +115,16 @@ if [[ "$rc" -ne 0 ]]; then
     echo "FAIL: browser gate: the engine ended with exit ${rc} and printed no reason" >&2
   fi
   exit "$rc"
+fi
+# An exit of 0 is a pass only with the engine's OK line, exactly once, naming
+# at least one page, one variant and pages x variants checks (site issue 94,
+# forsgren#674): an engine that ended 0 without it, with 0 of any, or with a
+# page or a variant skipped, proved nothing checked.
+OK_SHAPE='^OK: browser gate: ([1-9][0-9]*) pages x ([1-9][0-9]*) variants .*, ([1-9][0-9]*) checks, '
+OK_COUNT="$(grep -c '^OK: browser gate: ' "$OUT_FILE" || true)"
+OK_LINE="$(grep '^OK: browser gate: ' "$OUT_FILE" || true)"
+if [[ "$OK_COUNT" -ne 1 ]] || ! [[ "$OK_LINE" =~ $OK_SHAPE ]] || [[ "${BASH_REMATCH[3]}" -ne $((BASH_REMATCH[1] * BASH_REMATCH[2])) ]]; then
+  echo "FAIL: browser gate: the engine ended with exit 0 but printed no OK line naming at least one page, one variant and one check, pages x variants checks, exactly once (${OK_COUNT} OK lines${OK_LINE:+: ${OK_LINE%%, axe*}}); nothing is proven checked" >&2
+  exit 2
 fi
 COMPLETED=1

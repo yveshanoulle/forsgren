@@ -112,10 +112,11 @@ its own: what may merge is only what this file allows, and a file with no
 
 ```text
 # .github/dependabot-merge.conf
-# allow <ecosystem> <dependency-type or *> <update-type>
+# allow <ecosystem> <dependency-type or *> <update-type> [<dependency-name>]
 allow github_actions * semver-patch
 allow github_actions * semver-minor
 allow npm_and_yarn direct:development semver-patch
+allow npm_and_yarn direct:development semver-minor puppeteer-core
 
 # workflow <file> <name>
 workflow .github/workflows/ci.yml CI
@@ -126,22 +127,30 @@ workflow .github/workflows/ci.yml CI
   `npm_and_yarn`, `go_modules`, ...); the dependency type and update type as
   in the `updated-dependencies` block of Dependabot's commit message, the
   update type without its `version-update:` prefix (`semver-patch`,
-  `semver-minor`, `semver-major`); `*` matches any dependency type.
+  `semver-minor`, `semver-major`); `*` matches any dependency type. An
+  optional fourth field names one dependency, as in the
+  `updated-dependencies` block: the rule then allows that dependency only
+  (forsgren#674). A line with fewer than three fields or more than four is
+  not understood, and nothing merges.
 - `workflow <file> <name>`: a workflow that must have a completed,
   successful run for the pull request's current head commit; both the file
   and the name must match, so a renamed or added workflow cannot stand in
   for it. List every workflow that runs on your pull requests.
 
-forsgren's own file allows GitHub Actions patch and minor updates and npm
-development patch updates, and keeps Go modules, Docker and every major
-update a manual merge. Keep yours as narrow; widen it one line at a time.
+forsgren's own file allows GitHub Actions patch and minor updates, npm
+development patch updates, and minor updates of one npm development
+dependency, `puppeteer-core`, the driver of its browser gates, which fail
+when they test nothing (forsgren#674); it keeps Go modules, Docker and every
+major update a manual merge. Keep yours as narrow; widen it one line at a
+time, naming the dependency where one is enough.
 
 In a forsgren installation, the pull request that moves the forsgren pin is
 a `github_actions` update too, so an `allow github_actions` line also
 matches it, beside `auto_update.yml`, which decides that pull request by
-your `auto_update` and `auto_update_level` settings. The file has no rule
-that leaves one dependency out; while you rely on `auto_update_level`, keep
-`github_actions` minor updates out of the settings file.
+your `auto_update` and `auto_update_level` settings. A rule can name the one
+dependency it allows, but no rule leaves one dependency out; while you rely
+on `auto_update_level`, keep `github_actions` minor updates out of the
+settings file, or name the actions they may move instead.
 
 ## Security
 

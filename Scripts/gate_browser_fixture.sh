@@ -117,4 +117,15 @@ set -e
 if [[ "$rc" -ne 0 ]]; then
   exit "$rc"
 fi
+# An exit of 0 is a pass only with the engine's OK line, exactly once, naming
+# at least one page, one variant and pages x variants checks (site issue 94,
+# forsgren#674): an engine that ended 0 without it, with 0 of any, or with a
+# page or a variant skipped, proved nothing checked.
+OK_SHAPE='^OK: browser gate: ([1-9][0-9]*) pages x ([1-9][0-9]*) variants .*, ([1-9][0-9]*) checks, '
+OK_COUNT="$(grep -c '^OK: browser gate: ' "$OUT_FILE" || true)"
+OK_LINE="$(grep '^OK: browser gate: ' "$OUT_FILE" || true)"
+if [[ "$OK_COUNT" -ne 1 ]] || ! [[ "$OK_LINE" =~ $OK_SHAPE ]] || [[ "${BASH_REMATCH[3]}" -ne $((BASH_REMATCH[1] * BASH_REMATCH[2])) ]]; then
+  echo "FAIL: browser gate (fixture site): the engine ended with exit 0 but printed no OK line naming at least one page, one variant and one check, pages x variants checks, exactly once (${OK_COUNT} OK lines${OK_LINE:+: ${OK_LINE%%, axe*}}); nothing is proven checked" >&2
+  exit 2
+fi
 COMPLETED=1

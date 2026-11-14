@@ -20,10 +20,19 @@
 #   4. a baseline given as the fourth argument wins on Linux too (the
 #      self-tests of the gate pass their own)
 #   5. the real Linux file exists (the engine refuses a missing baseline)
+# CASES of the green proof (forsgren#674), for each wrapper: exit 0 from the
+# engine is green only with its one OK line naming at least one page, one
+# variant and pages x variants checks; otherwise exit 2 with a FAIL line:
+#   6. no OK line (an engine that ended with 0 and said nothing)
+#   7. 0 pages, 0 variants or 0 checks on the OK line
+#   8. checks that are not pages x variants (a page or a variant skipped)
+#   9. two OK lines
 # MUTATION PROOFS (each must make a case red for its reason):
 #   A. a wrapper that always reads the macOS file: case 2 reads the macOS file
 #   B. a library that falls back to the macOS file on an unknown platform:
 #      case 3 ends with exit 0 on the macOS file
+#   C. a wrapper that takes exit 0 as green without the OK line: case 6 ends
+#      with exit 0
 
 set -euo pipefail
 
@@ -37,7 +46,9 @@ LIB="Scripts/lib_browser_baseline.sh"
 [[ -f "$LIB" ]] || selftest_abort "${LIB} does not exist"
 
 # The fakes: uname prints FAKE_UNAME; node prints its fifth argument,
-# the baseline the wrapper hands Scripts/browser_gate.mjs, and exits 0.
+# the baseline the wrapper hands Scripts/browser_gate.mjs, then FAKE_OK (by
+# default the OK line of one page in one variant, one check; "none" prints no
+# line) and exits 0.
 FAKES="${TMP}/fakes"
 mkdir -p "$FAKES"
 cat > "${FAKES}/uname" <<'S'
@@ -47,6 +58,8 @@ S
 cat > "${FAKES}/node" <<'S'
 #!/usr/bin/env bash
 echo "engine baseline=${5:-}"
+ok="${FAKE_OK:-OK: browser gate: 1 pages x 1 variants (light), 1 checks, axe serious+critical 0 new}"
+[[ "$ok" == none ]] || printf '%s\n' "$ok"
 S
 chmod 755 "${FAKES}/uname" "${FAKES}/node"
 
@@ -124,6 +137,32 @@ for entry in "${WRAPPERS[@]}"; do
   fi
 done
 
+# 6 to 9: exit 0 is green only with one OK line that names what was tested.
+# ok_case <label> <FAKE_OK> <want: green or red>
+ok_case() {
+  local w="$1" label="$2" ok="$3" want="$4"
+  capture env PATH="${FAKES}:${PATH}" FAKE_UNAME=Darwin FAKE_OK="$ok" "${REAL}/Scripts/${w}.sh" "${REAL}/site" "" ""
+  if [[ "$want" == green ]]; then
+    if [[ "$RC" -eq 0 ]]; then echo "  ok: ${label}"; else fail "${label}: exit ${RC}, not 0: ${OUT}"; fi
+  elif [[ "$RC" -eq 2 ]] && grep -qF "the engine ended with exit 0 but printed no OK line naming at least one page, one variant and one check, pages x variants checks, exactly once" <<< "$OUT"; then
+    echo "  ok: ${label}"
+  else
+    fail "${label}: exit ${RC}, not 2 with the FAIL line naming the missing proof: ${OUT}"
+  fi
+}
+OK_TAIL="axe serious+critical 0 new"
+for entry in "${WRAPPERS[@]}"; do
+  IFS='|' read -r w mac linux <<< "$entry"
+  ok_case "$w" "6: ${w}.sh with no OK line from the engine is red" none red
+  ok_case "$w" "7: ${w}.sh with 0 pages on the OK line is red" "OK: browser gate: 0 pages x 1 variants (light), 0 checks, ${OK_TAIL}" red
+  ok_case "$w" "7: ${w}.sh with 0 variants on the OK line is red" "OK: browser gate: 2 pages x 0 variants (), 0 checks, ${OK_TAIL}" red
+  ok_case "$w" "7: ${w}.sh with 0 checks on the OK line is red" "OK: browser gate: 2 pages x 1 variants (light), 0 checks, ${OK_TAIL}" red
+  ok_case "$w" "8: ${w}.sh with fewer checks than pages x variants is red" "OK: browser gate: 2 pages x 2 variants (light, dark), 3 checks, ${OK_TAIL}" red
+  ok_case "$w" "9: ${w}.sh with two OK lines is red" "OK: browser gate: 1 pages x 1 variants (light), 1 checks, ${OK_TAIL}
+OK: browser gate: 1 pages x 1 variants (light), 1 checks, ${OK_TAIL}" red
+  ok_case "$w" "6: ${w}.sh with pages x variants checks on its one OK line is green" "OK: browser gate: 2 pages x 2 variants (light, dark), 4 checks, ${OK_TAIL}" green
+done
+
 # A: each wrapper made to read its macOS file on every platform.
 for entry in "${WRAPPERS[@]}"; do
   IFS='|' read -r w mac linux <<< "$entry"
@@ -158,5 +197,19 @@ if selftest_mutant "$LIB" "${TMP}/mut_b/lib_browser_baseline.sh" "$FALLBACK_EXPR
   done
 fi
 
-selftest_end "the browser gates do not read the baseline of their platform" \
-  "each browser gate reads the baseline of its platform, Darwin's or Linux's, and refuses any other (and each wrong shape is still detected)"
+# C: each wrapper taking exit 0 as green without the OK line.
+for entry in "${WRAPPERS[@]}"; do
+  IFS='|' read -r w mac linux <<< "$entry"
+  if selftest_mutant "Scripts/${w}.sh" "${TMP}/mut_c/${w}.sh" "s/^if \\[\\[ \"\\\$OK_COUNT\" -ne 1 \\]\\].*/if false; then/"; then
+    root="$(sandbox "c_${w}" "${TMP}/mut_c/${w}.sh")"
+    capture env PATH="${FAKES}:${PATH}" FAKE_UNAME=Darwin FAKE_OK=none "${root}/Scripts/${w}.sh" "${root}/site" "" ""
+    if [[ "$RC" -eq 0 ]]; then
+      echo "  ok: mutation proof C: ${w}.sh taking exit 0 as green without the OK line is caught by case 6"
+    else
+      fail "mutation proof C: ${w}.sh without the OK line check did not turn case 6 green (exit ${RC}): ${OUT}"
+    fi
+  fi
+done
+
+selftest_end "the browser gates do not read the baseline of their platform, or take an engine that tested nothing as green" \
+  "each browser gate reads the baseline of its platform, Darwin's or Linux's, and refuses any other; exit 0 is green only with one OK line naming pages, variants and pages x variants checks (and each wrong shape is still detected)"

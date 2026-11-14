@@ -12,7 +12,8 @@
 #     head is the commit the workflow run was for, when that is given;
 #   - every dependency in the updated-dependencies block of the head commit's
 #     message is allowed by .github/dependabot-merge.conf (a grouped pull
-#     request only if every member is);
+#     request only if every member is; a rule that names a dependency allows
+#     that dependency only);
 #   - every workflow the config expects has a completed, successful run for
 #     the pull request's current head commit;
 #   - the pull request is open, mergeable and clean;
@@ -120,7 +121,7 @@ field() { jq -r "$2" "$1" 2>/dev/null || echo "null"; }
 ALLOW=()
 WORKFLOWS=()
 read_config() {
-  local kind rest
+  local kind rest n
   [ -r "$CONF" ] || {
     block "config $CONF cannot be read"
     finish
@@ -128,7 +129,15 @@ read_config() {
   while read -r kind rest; do
     case "$kind" in
       "" | \#*) ;;
-      allow) ALLOW+=("$rest") ;;
+      allow)
+        # <ecosystem> <dependency-type> <update-type> [<dependency-name>]
+        n="$(wc -w <<<"$rest")"
+        [ "$n" -eq 3 ] || [ "$n" -eq 4 ] || {
+          block "config line not understood: allow $rest"
+          finish
+        }
+        ALLOW+=("$rest")
+        ;;
       workflow) WORKFLOWS+=("$rest") ;;
       *)
         block "config line not understood: $kind $rest"
@@ -251,13 +260,15 @@ versions() {
   ' "$2"
 }
 
-# allowed <ecosystem> <dependency-type> <update-type>: 0 when an allow rule
-# of the config matches.
+# allowed <ecosystem> <dependency-type> <update-type> <dependency-name>: 0
+# when an allow rule of the config matches; a rule that names a dependency
+# matches that dependency only.
 allowed() {
-  local rule eco type upd
+  local rule eco type upd name
   for rule in "${ALLOW[@]}"; do
-    read -r eco type upd <<<"$rule"
-    [ "$eco" = "$1" ] && { [ "$type" = "*" ] || [ "$type" = "$2" ]; } && [ "version-update:$upd" = "$3" ] && return 0
+    read -r eco type upd name <<<"$rule"
+    [ "$eco" = "$1" ] && { [ "$type" = "*" ] || [ "$type" = "$2" ]; } && [ "version-update:$upd" = "$3" ] &&
+      { [ -z "$name" ] || [ "$name" = "$4" ]; } && return 0
   done
   return 1
 }
@@ -280,7 +291,7 @@ check_dependencies() {
   while IFS='|' read -r name type upd ver; do
     change="$(versions "$name" "$WORK/text")"
     [ "$change" != "?" ] || change="? → ${ver:-?}"
-    if allowed "$ECOSYSTEM" "$type" "$upd"; then
+    if allowed "$ECOSYSTEM" "$type" "$upd" "$name"; then
       DEPS+=("\`$name\` ($ECOSYSTEM, ${type:-no dependency-type}, ${upd:-no update-type}): $change, allowed")
     else
       DEPS+=("\`$name\` ($ECOSYSTEM, ${type:-no dependency-type}, ${upd:-no update-type}): $change, NOT allowed")

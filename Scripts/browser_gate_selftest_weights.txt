@@ -106,8 +106,13 @@ case_36b 1
 case_36c 1
 case_39a 1
 case_39b 1
+case_58a 1
+case_58b 1
+case_58c 1
+case_58d 1
 case_49a 1
 case_49b 1
 case_49c 1
 case_49d 1
 case_55c 1
+case_55d 2

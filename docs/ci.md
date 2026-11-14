@@ -958,9 +958,10 @@ Nine PRE gates keep the CI honest:
   repository (a head repository that is another one, or deleted, blocks),
   its head still the commit the run was for; every dependency of the head commit's
   `updated-dependencies` block allowed by `.github/dependabot-merge.conf`
-  (GitHub Actions patch and minor, npm development patch; a group only if
-  every member is; Go modules, the Go toolchain, Docker and every major stay
-  manual); every workflow the config expects (Quality and DCO, the two that
+  (GitHub Actions patch and minor, npm development patch, and
+  `puppeteer-core` development minor, a rule that names its one dependency,
+  forsgren#674; a group only if every member is; Go modules, the Go
+  toolchain, Docker and every major stay manual); every workflow the config expects (Quality and DCO, the two that
   run on pull requests) completed with success for the current head commit,
   file and name both matching, the latest run deciding; open, mergeable,
   clean; not behind the default branch. Any API error or answer it cannot
