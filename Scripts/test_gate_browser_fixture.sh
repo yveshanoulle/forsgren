@@ -18,7 +18,9 @@
 #      History page (a chart)                         -> green
 #   8. a fixture site that cannot be built            -> exit 2, naming it
 # Mutation proofs (each fixture is red BECAUSE of the line mutated):
-#   H. the engine not run on the data site: case 2 turns green;
+#   H. the engine not run on the data site: case 2 is refused by the wrapper's
+#      OK-line check (forsgren#674), exit 2 naming 0 OK lines;
+#  Hb. the engine not run and the OK-line check removed: case 2 turns green;
 #   I. the engine's status dropped: case 2 exits 0 with its FAIL line.
 
 set -euo pipefail
@@ -141,10 +143,20 @@ while IFS= read -r lib; do cp "$lib" "${GATE_ROOT}/Scripts/"; done < <(sed -n 's
 ln -s "${REPO_ROOT}/node_modules" "${GATE_ROOT}/node_modules"
 MUTANT="${GATE_ROOT}/Scripts/gate_browser_fixture.sh"
 
-# H: the engine never runs -> case 2 turns green.
-if selftest_mutant "$GATE" "$MUTANT" 's/^node Scripts[/]browser_gate.mjs/true Scripts\/browser_gate.mjs/'; then
+# H: the engine never runs -> case 2 is still red, now from the wrapper's
+# OK-line check (forsgren#674): no OK line, nothing proven checked, exit 2.
+NO_ENGINE='s/^node Scripts[/]browser_gate.mjs/true Scripts\/browser_gate.mjs/'
+NO_OK_CHECK='s/^if \[\[ "[$]OK_COUNT" -ne 1 \]\].*/if false; then/'
+if selftest_mutant "$GATE" "$MUTANT" "$NO_ENGINE"; then
   run_gate pale "$MUTANT"
-  want_green "mutation proof H: without the engine run case 2 turns green" "the site rendered from fixture data"
+  want_exit "mutation proof H: without the engine run case 2 is refused by the OK-line check" 2 "FAIL: browser gate (fixture site): the engine ended with exit 0 but printed no OK line naming at least one page, one variant and one check, pages x variants checks, exactly once (0 OK lines); nothing is proven checked"
+fi
+
+# Hb: the engine never runs and the OK-line check is gone too -> case 2 turns
+# green: each of the two layers alone keeps case 2 red.
+if selftest_mutant "$GATE" "$MUTANT" "${NO_ENGINE};${NO_OK_CHECK}"; then
+  run_gate pale "$MUTANT"
+  want_green "mutation proof Hb: without the engine run and the OK-line check case 2 turns green" "the site rendered from fixture data"
 fi
 
 # I: the engine's status dropped -> the FAIL line is printed, the exit is 0.
@@ -157,4 +169,4 @@ if selftest_mutant "$GATE" "$MUTANT" 's/^  exit "[$]rc"/  COMPLETED=1; exit 0/';
   fi
 fi
 
-selftest_end "the browser gate (fixture site) self-test failed" "browser gate (fixture site): every case holds, two mutations seen"
+selftest_end "the browser gate (fixture site) self-test failed" "browser gate (fixture site): every case holds, three mutations seen"

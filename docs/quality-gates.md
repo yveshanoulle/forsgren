@@ -892,7 +892,9 @@ The POST gates, on the generated site:
   unchanged but for that choice. The fixture build is checked by cases 20
   to 36 of `Scripts/test_build_site.sh`, the gate by its self-test (the data site
   clean, a finding only on a data page, the baseline, stale rows, exit 2 cases,
-  the default build, mutation proofs H and I).
+  the default build, mutation proofs H, Hb and I: without the engine run the
+  wrapper's OK-line check refuses case 2, and only with that check removed too
+  does case 2 turn green, forsgren#674).
 
 - **browser gate inputs** (`Scripts/test_gate_inputs.sh`, forsgren#262 step 1
   of 3, forsgren only, not canon): `Scripts/gate_inputs.txt` lists what each of
