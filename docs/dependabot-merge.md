@@ -116,7 +116,7 @@ its own: what may merge is only what this file allows, and a file with no
 allow github_actions * semver-patch
 allow github_actions * semver-minor
 allow npm_and_yarn direct:development semver-patch
-allow npm_and_yarn direct:development semver-minor puppeteer-core
+allow npm_and_yarn direct:development semver-minor
 
 # workflow <file> <name>
 workflow .github/workflows/ci.yml CI
@@ -137,12 +137,15 @@ workflow .github/workflows/ci.yml CI
   and the name must match, so a renamed or added workflow cannot stand in
   for it. List every workflow that runs on your pull requests.
 
-forsgren's own file allows GitHub Actions patch and minor updates, npm
-development patch updates, and minor updates of one npm development
-dependency, `puppeteer-core`, the driver of its browser gates, which fail
-when they test nothing (forsgren#674); it keeps Go modules, Docker and every
-major update a manual merge. Keep yours as narrow; widen it one line at a
-time, naming the dependency where one is enough.
+forsgren's own file allows GitHub Actions patch and minor updates and npm
+development patch and minor updates (forsgren#677: wherever patches merge
+on their own, minors of the same ecosystem and dependency type do too), and
+keeps Go modules, Docker and every major update a manual merge. Before
+forsgren#677 it allowed the minor updates of one npm development
+dependency only, `puppeteer-core`, the driver of its browser gates, which
+fail when they test nothing (forsgren#674), with a line that names it. Keep
+yours as narrow; widen it one line at a time, naming the dependency where
+one is enough.
 
 In a forsgren installation, the pull request that moves the forsgren pin is
 a `github_actions` update too, so an `allow github_actions` line also

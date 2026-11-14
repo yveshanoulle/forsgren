@@ -515,11 +515,14 @@ Seven PRE gates read the repository's own scripts and files:
   forsgren#605), each at directory `/`, with `schedule: interval: cron`
   (04:00 UTC, so a weekend release is seen; `interval: daily` runs Monday to Friday only), a
   `commit-message` prefix, `groups` with `patterns`, `cooldown` with
-  `default-days: 3`, and a comment line directly above each of `schedule:`,
+  `default-days: 7` (forsgren#677: both Shai-Hulud npm waves of 2025 were
+  found about 1 to 3 days after they started; security updates skip the
+  cooldown), and a comment line directly above each of `schedule:`,
   `commit-message:`, `groups:` and `cooldown:`. Red with the file and the
   broken part. Its fixtures are synthetic files (one per broken shape) plus the
-  real one, and four mutation proofs show the comment, cooldown, groups and
-  npm checks are what refuse their file.
+  real one; six mutation proofs show the comment, cooldown, groups, npm, order
+  and update-types checks are what refuse their file, and the real file with
+  any one entry's cooldown set back to 3 days is red, naming that entry.
 
 actionlint, zizmor, shellcheck and yamllint come from Homebrew, through
 `Scripts/required_tools.txt` (see [The tools](development.md)). shellcheck

@@ -14,7 +14,9 @@
 #   3. commit-message with a prefix;
 #   4. groups with at least one patterns: entry, so one release run does not
 #      open several pull requests;
-#   5. cooldown with default-days: 3 (the documented default, written out);
+#   5. cooldown with default-days: 7 (forsgren#677: both Shai-Hulud npm
+#      waves of 2025 were found about 1 to 3 days after they started;
+#      security updates skip the cooldown);
 #   6. a comment line directly above schedule:, commit-message:, groups: and
 #      cooldown:, one per choice;
 #   7. npm only (forsgren#638): a group with the patterns stylelint and
@@ -28,11 +30,16 @@
 # one that skips the groups check the file without groups, one that skips the
 # npm check the file without the npm entry, one that skips the order check the
 # file with the stylelint group after npm-tooling, one that skips the
-# update-types check the file whose stylelint group lacks major.
+# update-types check the file whose stylelint group lacks major. And the real
+# file with one entry's cooldown set back to 3 days, once per entry, must be
+# red naming that entry (forsgren#677).
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+
+# The cooldown every entry must name, in days (forsgren#677).
+COOLDOWN_DAYS=7
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
@@ -45,7 +52,7 @@ judge_file() {
     echo "${f}: there is no dependabot.yml"
     return
   fi
-  awk -v file="$f" -v skip="${SKIP:-}" '
+  awk -v file="$f" -v skip="${SKIP:-}" -v want_days="$COOLDOWN_DAYS" '
     function skipped(w) { return index("," skip ",", "," w ",") > 0 }
     function iscomment(s) { return s ~ /^[[:space:]]*#/ }
     function hasword(s, w) { return s ~ ("(^|[^a-z])" w "([^a-z]|$)") }
@@ -117,7 +124,7 @@ judge_file() {
           print file ": " e ": schedule is not interval: cron with a cronjob and timezone: UTC"
         if (!cm[e] || !prefix[e]) print file ": " e ": no commit-message prefix"
         if (!skipped("groups") && (!grp[e] || !pat[e])) print file ": " e ": no groups with patterns"
-        if (!skipped("cooldown") && days[e] != "3") print file ": " e ": no cooldown with default-days: 3"
+        if (!skipped("cooldown") && days[e] != want_days) print file ": " e ": no cooldown with default-days: " want_days
         if (e == "npm") stylelint_group()
       }
     }
@@ -148,7 +155,7 @@ block() {
   fi
   if [[ "$6" == 1 ]]; then
     [[ -n "$c" ]] && printf '%s\n' "$c"
-    printf '    cooldown:\n      default-days: 3\n'
+    printf '    cooldown:\n      default-days: %s\n' "$COOLDOWN_DAYS"
   fi
 }
 
@@ -205,7 +212,7 @@ want_red "5. gomod at another directory" "gomod: directory is not /"
 
 synth nocooldown gomod go / 1 1 0 -- github-actions actions / 1 1 1 -- "${NPM[@]}"
 judge "$WF"
-want_red "6. no cooldown" "gomod: no cooldown with default-days: 3"
+want_red "6. no cooldown" "gomod: no cooldown with default-days: ${COOLDOWN_DAYS}"
 COOLDOWN_WF="$WF"
 
 synth nogroups gomod go / 1 1 1 -- github-actions actions / 1 0 1 -- "${NPM[@]}"
@@ -251,6 +258,20 @@ judge .github/dependabot.yml
 want_rc "15. .github/dependabot.yml has the three ecosystems with every choice commented, and the npm stylelint group" 0
 
 # --- mutation proofs ----------------------------------------------------------
+# The real file with the cooldown of its n-th entry set back to 3 days (the
+# value before forsgren#677) is red, naming that entry: every entry is pinned,
+# not only the first.
+for n in 1 2 3; do
+  eco="$(awk -v n="$n" '/^  - package-ecosystem:/ { e = $3 } /^      default-days:/ && ++k == n { print e }' .github/dependabot.yml)"
+  awk -v n="$n" '/^      default-days:/ && ++k == n { sub(/default-days:.*/, "default-days: 3") } { print }' \
+    .github/dependabot.yml > "${TMP}/three${n}.yml"
+  judge "${TMP}/three${n}.yml"
+  if [[ -z "$eco" ]]; then
+    fail "mutation proof: .github/dependabot.yml has no entry number ${n} with default-days"
+  else
+    want_red "mutation proof: the real file with the ${eco} cooldown set to 3 days" "${eco}: no cooldown with default-days: ${COOLDOWN_DAYS}"
+  fi
+done
 SKIP=comments judge "$COMMENTS_WF"
 if [[ "$RC" -eq 0 ]]; then
   echo "  ok: mutation proof: without the comment check the uncommented file is accepted, so case 8 is red because of it"
@@ -291,4 +312,4 @@ else
 fi
 
 selftest_end "the dependabot config does not hold" \
-  "dependabot config: gomod, github-actions and npm at /, cron schedule, commit-message prefix, groups, cooldown and a comment per choice, npm with stylelint and stylelint-config-* in one group for every update type before npm-tooling; each broken shape is red; mutation proven"
+  "dependabot config: gomod, github-actions and npm at /, cron schedule, commit-message prefix, groups, a 7-day cooldown on every entry and a comment per choice, npm with stylelint and stylelint-config-* in one group for every update type before npm-tooling; each broken shape is red; mutation proven"

@@ -6,17 +6,20 @@
 # .github/dependabot-merge.conf. No network: a fake gh on PATH answers each
 # API read from a fixture, and every case must give its exit code and name
 # its reason.
-#   1. eligible: an Actions patch or minor pin, an npm development patch, a
-#      puppeteer-core development minor (forsgren#674), alone and grouped
-#      with a patch, a group whose members are all allowed; the record names
-#      the repository, each dependency old -> new, the head commit and each
-#      check, and goes to the step summary too
+#   1. eligible: an Actions patch or minor pin, an npm development patch or
+#      minor (forsgren#677), a group whose members are all allowed; with a
+#      fixture config whose npm development minor rule names puppeteer-core
+#      (the named form, forsgren#674), a puppeteer-core development minor,
+#      alone and grouped with a patch; the record names the repository, each
+#      dependency old -> new, the head commit and each check, and goes to
+#      the step summary too
 #   2. not an allowed update: a group with one runtime member, an npm
-#      development minor (another package, also one named like
-#      puppeteer-core, and grouped with a puppeteer-core minor), a
-#      puppeteer-core major, puppeteer-core as a production dependency, an
-#      npm runtime patch, a major, Docker, a Go module, an indirect npm
-#      update, a branch outside dependabot/<ecosystem>/
+#      development major, an npm runtime patch, a major, Docker, a Go module,
+#      an indirect npm update, a branch outside dependabot/<ecosystem>/; with
+#      the named-rule fixture config: a development minor of another package
+#      (also one named like puppeteer-core, and grouped with a
+#      puppeteer-core minor), a puppeteer-core major, puppeteer-core as a
+#      production dependency
 #   3. an author other than dependabot[bot]; 3b. a head repository that is
 #      another one or deleted (null), an ecosystem-shaped branch outside
 #      dependabot/, a head that moved since the run (and one that did not)
@@ -64,10 +67,10 @@
 # Mutation proofs: copies of the policy with one condition weakened (a check
 # not completed with success taken as green, every update allowed, a head
 # behind main taken as fresh, a rule that names a dependency allowing every
-# dependency, any update type, any dependency type, any author, any head
-# repository, any branch prefix, a head that moved, a state other than clean, a failed
-# read that does not block, the oldest run deciding) must each turn a red case
-# green; copies of the caller (among them: a write permission, another
+# dependency, any update type, any dependency type (these three on the
+# named-rule fixture config), any author, any head repository, any branch
+# prefix, a head that moved, a state other than clean, a failed read that
+# does not block, the oldest run deciding) must each turn a red case green; copies of the caller (among them: a write permission, another
 # trigger, the zizmor ignore moved or doubled, steps of its own, a call of a
 # branch, the switch forced on, secrets: inherit) and of the token check
 # with one rule broken must each be judged red; copies of the token check's
@@ -177,11 +180,32 @@ new_case() {
   fixture "$d" "$@"
 }
 
+# The named-rule fixture config (forsgren#674's form): this repository's
+# allow lines before forsgren#677, whose npm development minor rule names
+# puppeteer-core alone, and the same two workflows. The cases that prove the
+# name filter run against it, so they keep proving it whatever the real
+# config allows.
+NAMED_CONF="${TMP}/named.conf"
+printf '%s\n' "allow github_actions * semver-patch" "allow github_actions * semver-minor" \
+  "allow npm_and_yarn direct:development semver-patch" \
+  "allow npm_and_yarn direct:development semver-minor puppeteer-core" \
+  "workflow .github/workflows/quality.yml Quality" "workflow .github/workflows/dco.yml DCO" > "$NAMED_CONF"
+
+# named_case <branch> <member...>: new_case, judged with the named-rule
+# fixture config (its merge.conf), mutation proofs included.
+named_case() {
+  new_case "$@"
+  cp "$NAMED_CONF" "$d/merge.conf"
+}
+
 # run_policy <case dir> [conf]: runs ${SCRIPT:-$POLICY} on pull request 7 with
-# the fake gh; OUT and RC as capture leaves them, the output also in out.txt.
+# the fake gh, with the conf given, else the case's own merge.conf, else this
+# repository's; OUT and RC as capture leaves them, the output also in out.txt.
 run_policy() {
+  local conf="${2:-$REPO_ROOT/$CONF}"
+  [[ -n "${2:-}" || ! -f "$1/merge.conf" ]] || conf="$1/merge.conf"
   capture env FAKE_GH_DIR="$1" PATH="${TMP}/bin:${PATH}" GITHUB_REPOSITORY=owner/repo \
-    DEPENDABOT_MERGE_RETRY_SECONDS=0 DEPENDABOT_MERGE_CONF="${2:-$REPO_ROOT/$CONF}" \
+    DEPENDABOT_MERGE_RETRY_SECONDS=0 DEPENDABOT_MERGE_CONF="$conf" \
     DEPENDABOT_MERGE_EXPECTED_HEAD="${EXPECT_HEAD:-}" GITHUB_STEP_SUMMARY="$1/summary.md" "${SCRIPT:-$POLICY}" 7
   printf '%s\n' "$OUT" > "$1/out.txt"
 }
@@ -211,26 +235,30 @@ new_case "$NPM_BRANCH" "$NPM_DEV_PATCH" "jscpd|direct:development|semver-patch|5
 expect "$d" 0 "Decision: ELIGIBLE" "1. a grouped pull request whose members are all allowed is eligible"
 new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH" "actions/setup-go|direct:production|semver-minor|6.0.0|6.1.0"
 expect "$d" 0 "Decision: ELIGIBLE" "1. a grouped Actions pull request of a patch and a minor is eligible"
-new_case "$NPM_BRANCH" "$PUPPETEER_MINOR"
-expect "$d" 0 "${B}puppeteer-core${B} (npm_and_yarn, direct:development, version-update:semver-minor): 25.16.0 → 25.17.0, allowed" "1. a puppeteer-core development minor is eligible (forsgren#674)"
-new_case "$NPM_BRANCH" "$PUPPETEER_MINOR" "$NPM_DEV_PATCH"
-expect "$d" 0 "Decision: ELIGIBLE" "1. a group of a puppeteer-core minor and a development patch is eligible"
+new_case "$NPM_BRANCH" "htmlhint|direct:development|semver-minor|1.9.2|1.10.0"
+expect "$d" 0 "${B}htmlhint${B} (npm_and_yarn, direct:development, version-update:semver-minor): 1.9.2 → 1.10.0, allowed" "1. an npm development minor is eligible (forsgren#677)"
+named_case "$NPM_BRANCH" "$PUPPETEER_MINOR"
+expect "$d" 0 "${B}puppeteer-core${B} (npm_and_yarn, direct:development, version-update:semver-minor): 25.16.0 → 25.17.0, allowed" "1. named-rule config: a puppeteer-core development minor is eligible (forsgren#674)"
+named_case "$NPM_BRANCH" "$PUPPETEER_MINOR" "$NPM_DEV_PATCH"
+expect "$d" 0 "Decision: ELIGIBLE" "1. named-rule config: a group of a puppeteer-core minor and a development patch is eligible"
 
 # 2 not an allowed update
 new_case "$NPM_BRANCH" "$NPM_DEV_PATCH" "left-pad|direct:production|semver-patch|1.3.0|1.3.1"
 expect "$d" 1 "${B}left-pad${B} is not an allowed update (npm_and_yarn, direct:production" "2. a group with one runtime member is not eligible"
-new_case "$NPM_BRANCH" "htmlhint|direct:development|semver-minor|1.9.2|1.10.0"
-expect "$d" 1 "${B}htmlhint${B} is not an allowed update (npm_and_yarn, direct:development, version-update:semver-minor)" "2. an npm development minor is not eligible"
+new_case "$NPM_BRANCH" "htmlhint|direct:development|semver-major|1.10.0|2.0.0"
+expect "$d" 1 "${B}htmlhint${B} is not an allowed update (npm_and_yarn, direct:development, version-update:semver-major)" "2. an npm development major is not eligible"
+named_case "$NPM_BRANCH" "htmlhint|direct:development|semver-minor|1.9.2|1.10.0"
+expect "$d" 1 "${B}htmlhint${B} is not an allowed update (npm_and_yarn, direct:development, version-update:semver-minor)" "2. named-rule config: a development minor of another package is not eligible"
 DEV_MINOR_CASE="$d"
-new_case "$NPM_BRANCH" "puppeteer|direct:development|semver-minor|25.16.0|25.17.0"
-expect "$d" 1 "${B}puppeteer${B} is not an allowed update (npm_and_yarn, direct:development, version-update:semver-minor)" "2. a development minor of another package named like puppeteer-core is not eligible"
-new_case "$NPM_BRANCH" "$PUPPETEER_MINOR" "htmlhint|direct:development|semver-minor|1.9.2|1.10.0"
-expect "$d" 1 "${B}htmlhint${B} is not an allowed update (npm_and_yarn, direct:development, version-update:semver-minor)" "2. a group of a puppeteer-core minor and another development minor is not eligible"
-new_case "$NPM_BRANCH" "puppeteer-core|direct:development|semver-major|25.17.0|26.0.0"
-expect "$d" 1 "${B}puppeteer-core${B} is not an allowed update (npm_and_yarn, direct:development, version-update:semver-major)" "2. a puppeteer-core major is not eligible"
+named_case "$NPM_BRANCH" "puppeteer|direct:development|semver-minor|25.16.0|25.17.0"
+expect "$d" 1 "${B}puppeteer${B} is not an allowed update (npm_and_yarn, direct:development, version-update:semver-minor)" "2. named-rule config: a development minor of another package named like puppeteer-core is not eligible"
+named_case "$NPM_BRANCH" "$PUPPETEER_MINOR" "htmlhint|direct:development|semver-minor|1.9.2|1.10.0"
+expect "$d" 1 "${B}htmlhint${B} is not an allowed update (npm_and_yarn, direct:development, version-update:semver-minor)" "2. named-rule config: a group of a puppeteer-core minor and another development minor is not eligible"
+named_case "$NPM_BRANCH" "puppeteer-core|direct:development|semver-major|25.17.0|26.0.0"
+expect "$d" 1 "${B}puppeteer-core${B} is not an allowed update (npm_and_yarn, direct:development, version-update:semver-major)" "2. named-rule config: a puppeteer-core major is not eligible"
 PUPPETEER_MAJOR_CASE="$d"
-new_case "$NPM_BRANCH" "puppeteer-core|direct:production|semver-minor|25.16.0|25.17.0"
-expect "$d" 1 "${B}puppeteer-core${B} is not an allowed update (npm_and_yarn, direct:production, version-update:semver-minor)" "2. puppeteer-core as a production dependency, minor, is not eligible"
+named_case "$NPM_BRANCH" "puppeteer-core|direct:production|semver-minor|25.16.0|25.17.0"
+expect "$d" 1 "${B}puppeteer-core${B} is not an allowed update (npm_and_yarn, direct:production, version-update:semver-minor)" "2. named-rule config: puppeteer-core as a production dependency, minor, is not eligible"
 PUPPETEER_PRODUCTION_CASE="$d"
 new_case "$NPM_BRANCH" "left-pad|direct:production|semver-patch|1.3.0|1.3.1"
 expect "$d" 1 "${B}left-pad${B} is not an allowed update" "2. an npm runtime patch is not eligible"
@@ -423,9 +451,9 @@ fi
 ALLOW_WANT="allow github_actions * semver-patch
 allow github_actions * semver-minor
 allow npm_and_yarn direct:development semver-patch
-allow npm_and_yarn direct:development semver-minor puppeteer-core"
+allow npm_and_yarn direct:development semver-minor"
 if [[ "$(grep -E '^allow[[:space:]]' "$CONF")" == "$ALLOW_WANT" ]]; then
-  echo "  ok: 10. ${CONF} allows exactly Actions patch and minor, npm development patch, and puppeteer-core development minor"
+  echo "  ok: 10. ${CONF} allows exactly Actions patch and minor and npm development patch and minor (forsgren#677)"
 else
   fail "10. ${CONF} allow lines differ from the pinned four: $(grep -E '^allow[[:space:]]' "$CONF" | tr '\n' ';')"
 fi
