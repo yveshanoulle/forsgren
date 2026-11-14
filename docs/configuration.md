@@ -807,17 +807,18 @@ four only with its flag:
   "pull-request check skipped: grant pull-requests: read in your caller to
   enable it", "the pull-request check hit GitHub's rate limit, the next run
   tries again", "unknown (pull request list truncated)" for `--pr-check
-  truncated` (forsgren#203), "the pull-request check failed", "waiting for the 3-day
-  cooldown until 2026-10-18" or "no Dependabot pull request yet"; "unknown
+  truncated` (forsgren#203), "the pull-request check failed", "waiting for the 7-day
+  cooldown until 2026-10-22" or "no Dependabot pull request yet"; "unknown
   (the latest release could not be read)" when the latest release is
   unknown. The cooldown (forsgren#194) is the `cooldown: default-days` of the
   first `github-actions` update in the checkout's `.github/dependabot.yml`
   that names one, counted from the publish time in the file `--latest-published`
   names (the one `latest-release --published` wrote), and it ends on the
-  UTC date shown. A `github-actions` update with no `default-days` (no
-  `cooldown` key at all) has Dependabot's documented default of 3 days
-  (forsgren#195); `default-days: 0` is no cooldown. With no such file, no
-  `github-actions` update, a cooldown of 0, a time that cannot be read or a
+  UTC date shown. forsgren-template writes `default-days: 7` (forsgren#678;
+  an installation made before has 3). A `github-actions` update with no
+  `default-days` (no `cooldown` key at all) has Dependabot's documented
+  default of 3 days (forsgren#195); `default-days: 0` is no cooldown. With
+  no such file, no `github-actions` update, a cooldown of 0, a time that cannot be read or a
   cooldown that is over, the line says "no Dependabot pull request yet".
 - `Token:`, only with `--token-expiry`, from the file `collect` wrote (see
   [Collecting deployments](data-files.md#collecting-deployments-collect)): "valid

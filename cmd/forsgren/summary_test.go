@@ -340,7 +340,8 @@ func TestTheUpdateLineNamesTheDependabotCooldown(t *testing.T) {
 	)
 	cases := []struct{ name, dependabot, published, want string }{
 		{"waiting", actionsCooldown("3"), fresh, waiting},
-		{"the template's", templateDependabot, fresh, waiting},
+		{"the template's", templateDependabot, fresh, "waiting for the 7-day cooldown until 2026-10-22"},
+		{"the template's before forsgren#678", preTemplateDependabot, fresh, waiting},
 		{"in UTC", actionsCooldown("3"), "2026-10-15T23:30:00-03:00", "waiting for the 3-day cooldown until 2026-10-19"},
 		{"zero days", actionsCooldown("0"), fresh, none},
 		{"no cooldown key", "version: 2\nupdates:\n  - package-ecosystem: github-actions\n", fresh, waiting},

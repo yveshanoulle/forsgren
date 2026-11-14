@@ -332,8 +332,13 @@ workflow declares no permissions block of its own.
 **The template's Dependabot setup.** The template's `.github/dependabot.yml`
 groups the pins of both caller files into one pull request, checks every day
 at 04:00 UTC, weekends included (`interval: cron`, `cronjob: "0 4 * * *"`;
-`interval: daily` runs Monday to Friday only), and waits 3 days after a
-release before it proposes it (a cooldown).
+`interval: daily` runs Monday to Friday only), and waits 7 days after a
+release before it proposes it (a cooldown, `default-days: 7`; 3 before
+forsgren#678): both Shai-Hulud npm waves of 2025 were found about 1 to 3 days
+after they started, so 3 days is at the edge, while security updates skip the
+cooldown. An installation made before keeps its 3 until the person changes
+it; an agent following [agent-upgrade.md](../agent-upgrade.md) proposes 7 and
+takes any wait of 7 or more as it is.
 
 **To switch auto-update off**, set `auto_update: false` in
 `forsgren.config.yml` (or remove the key). Dependabot still opens its pull

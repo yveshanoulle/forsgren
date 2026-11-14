@@ -205,8 +205,11 @@ their default silently.
    behaviour. With `auto_update: false` the person merges each update by
    hand.
    Also ask for the **update wait**: how many days old a forsgren release
-   must be before Dependabot proposes it. Default: `3`; `0` means as soon
-   as it is released. A few days lets a broken release be noticed first.
+   must be before Dependabot proposes it. Default: `7`; `0` means as soon
+   as it is released. A few days lets a broken release be noticed first:
+   both Shai-Hulud npm waves of 2025 were found about 1 to 3 days after they
+   started, so 3 days is at the edge, while security updates skip the wait
+   (forsgren#678).
 8. **history_days**, how far back the history goes. Default: `365`. A whole
    number from 30 to 1825. forsgren reads it in chunks of 100 days, one more
    chunk per daily run, so a deeper history fills in over several days.
@@ -453,14 +456,14 @@ Show the person, in one message:
 - `OWNER/REPO`, public or private, and the token route (A or B).
 - The full `forsgren.config.yml` you will write (step 9 shows its shape).
 - The page address: `https://OWNER.github.io/REPO/`, or `DOMAIN`.
-- The update wait, when it is not 3 (step 11 changes it).
+- The update wait, when it is not 7 (step 11 changes it).
 - What they will do themselves: on route B the token and its secret
   (step 10B); with a custom domain the domain verification (step 13) and
   the DNS record (step 14).
 
 End the plan with this go-question, with `OWNER/REPO` filled in, with
 "and the forsgren.yml change" only on route A, and with "and the
-dependabot.yml change" only when the update wait is not 3:
+dependabot.yml change" only when the update wait is not 7:
 
 > Reply "go: create OWNER/REPO, switch on its Pages, and commit its
 > forsgren.config.yml and the forsgren.yml change and the dependabot.yml
@@ -762,7 +765,7 @@ gh api -H 'Accept: application/vnd.github.raw' \
 
 Works: no output. Fails: stop and report.
 
-**The update wait**, only when the person's answer is not 3 (`N` is their
+**The update wait**, only when the person's answer is not 7 (`N` is their
 number of days):
 
 1. Read the file:
@@ -774,8 +777,9 @@ number of days):
    grep -n '^ *default-days:' WORK/dependabot.yml
    ```
 
-   Check: one line, `default-days: 3`. Anything else: stop and report.
-2. In `WORK/dependabot.yml`, change that line's `3` to `N`, with your file
+   Check: one line, `default-days: 7`, or `default-days: 3` from a template
+   made before forsgren#678. Anything else: stop and report.
+2. In `WORK/dependabot.yml`, change that line's number to `N`, with your file
    tool, and nothing else. Check:
    `grep -n '^ *default-days:' WORK/dependabot.yml` prints one line,
    `default-days: N`.
@@ -1126,7 +1130,7 @@ rm -r WORK
 
 This is checked once the next forsgren release after `VERSION` is out, not in
 the install session. The template's Dependabot checks every day at 04:00 UTC
-and proposes a release once it is 3 days old. An installation that is behind
+and proposes a release once it is 7 days old. An installation that is behind
 (a release that waited for a person, or `auto_update: false`) is brought up to
 date with [agent-upgrade.md](agent-upgrade.md), not with this file.
 
@@ -1135,7 +1139,7 @@ date with [agent-upgrade.md](agent-upgrade.md), not with this file.
    shows a tag newer than `VERSION`.
 2. Dependabot proposed it:
    `gh pr list -R OWNER/REPO --app dependabot --state all`
-   lists a pull request that moves the forsgren pins. None 4 days after the
+   lists a pull request that moves the forsgren pins. None 8 days after the
    release: report it.
 3. The update workflow ran on it:
    `gh run list -R OWNER/REPO -w forsgren-update.yml -L 3`

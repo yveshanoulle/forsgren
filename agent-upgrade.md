@@ -425,10 +425,19 @@ applies:
    notes recommend. A line that says `nothing` is not asked.
 3. **Auto-update**, showing the current value: `auto_update` true or false
    (default: what it is now), `auto_update_level` (default: what it is now, or
-   `major` when the file has none), and the update wait in days (default: what
-   `default-days` says now, or `3` when `dependabot.yml` is missing; `0` means
-   as soon as a release is out). Offer the starter's setting, `auto_update:
-   true` with `major`, only as information.
+   `major` when the file has none), and the update wait in days, `0` meaning
+   as soon as a release is out. For the update wait (forsgren#678), 7 or more
+   is good: its default is what `default-days` says now. `3`, the wait every
+   installation got before forsgren#678, is a proposal: its default is `7`.
+   Another number below 7 is the person's own choice: its default is what it
+   is now, and name 7 as forsgren's recommendation. With `3` or another
+   number below 7, say why 7: both Shai-Hulud npm waves of 2025 were found
+   about 1 to 3 days after they started, so 3 days is at the edge, while
+   security updates skip the wait, so a fix for a known vulnerability does
+   not wait longer. It is a question, never a reason to stop. When
+   `dependabot.yml` is missing, the default is `7` (step 7 brings the
+   template's file). Offer the starter's setting, `auto_update: true` with
+   `major`, only as information.
 4. **Several accounts**, only when `forsgren.config.yml` has no
    `same_developer` yet. Does anyone commit with more than one GitHub
    account, or through an assistant account? Default: no. If yes, ask for the
@@ -1066,8 +1075,8 @@ rm -r WORK
 
 Nothing runs by itself at once. When the next forsgren release after `LATEST`
 is out, Dependabot checks every day at 04:00 UTC and proposes it once it is as
-old as the update wait (`default-days`, 3 by default). With `auto_update:
-true` the pull request merges by itself when the step is within
+old as the update wait (`default-days`, 7 for a new installation). With
+`auto_update: true` the pull request merges by itself when the step is within
 `auto_update_level` (patch, minor or major), and `forsgren.yml` runs at once;
 otherwise it waits for a person. The section "Later: the first auto-update"
 of [agent-installer.md](agent-installer.md) lists the commands that check that

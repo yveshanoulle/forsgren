@@ -3,11 +3,13 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 // templateDependabot is the dependabot.yml of forsgren-template as it stands
-// (forsgren#194), the shape installations have.
+// (forsgren#194), the shape new installations have: a 7-day cooldown since
+// forsgren#678.
 const templateDependabot = `# Proposes each new forsgren release as a pull request: Dependabot moves the
 # pinned ` + "`" + `uses: yveshanoulle/forsgren/.github/workflows/<workflow>@<commit>
 # # vX.Y.Z` + "`" + ` lines in .github/workflows/forsgren.yml and forsgren-update.yml to
@@ -35,12 +37,18 @@ updates:
       forsgren:
         patterns:
           - "yveshanoulle/forsgren/*"
-    # A release is proposed once it is 3 days old: a window to replace a bad
-    # release before it reaches installations. Set default-days: 0 to get
-    # releases at the next daily check (forsgren#14).
+    # A release is proposed once it is 7 days old: a window to replace a bad
+    # release before it reaches installations. Both Shai-Hulud npm waves of
+    # 2025 were found about 1 to 3 days after they started; security updates
+    # skip the cooldown. Set default-days: 0 to get releases at the next daily
+    # check (forsgren#14, forsgren#678).
     cooldown:
-      default-days: 3
+      default-days: 7
 `
+
+// preTemplateDependabot is templateDependabot as installations made before
+// forsgren#678 have it: a 3-day cooldown.
+var preTemplateDependabot = strings.Replace(templateDependabot, "default-days: 7", "default-days: 3", 1)
 
 // writeDependabot writes content as a dependabot.yml in a fresh directory and
 // returns its path.
@@ -55,7 +63,7 @@ func writeDependabot(t *testing.T, content string) string {
 
 // TestCooldownDaysReadsTheGithubActionsCooldown (forsgren#194, #195): the days
 // are default-days of the github-actions update, as forsgren-template writes
-// it, 0 included; a github-actions update that does not name default-days (no
+// it, 7 now and 3 before forsgren#678, 0 included; a github-actions update that does not name default-days (no
 // cooldown, an empty one, or only the semver days, which Dependabot does not
 // apply to github-actions) has Dependabot's default of 3. No file, a file that
 // is no YAML, a negative number and another ecosystem's cooldown are none.
@@ -67,7 +75,8 @@ func TestCooldownDaysReadsTheGithubActionsCooldown(t *testing.T) {
 		name, content string
 		want          int
 	}{
-		{"the template's", templateDependabot, 3},
+		{"the template's", templateDependabot, 7},
+		{"the template's before forsgren#678", preTemplateDependabot, 3},
 		{"zero", head + actions + "    cooldown:\n      default-days: 0\n", 0},
 		{"five", head + actions + "    cooldown:\n      default-days: 5\n", 5},
 		{"no cooldown key", head + actions, defaultCooldownDays},
