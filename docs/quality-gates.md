@@ -707,8 +707,8 @@ The POST gates, on the generated site:
   requires a non-zero exit, the probe named, the "aborted before completing"
   line and no temporary directory left behind. Its self-test is
   `Scripts/test_check_exit_trap_completion.sh`.
-- **pipe into grep -q** (`Scripts/check_pipe_grep_q.sh`, forsgren's own,
-  forsgren#428, found by #425): a shell script, at the repository root or
+- **pipe into grep -q** (`Scripts/check_pipe_grep_q.sh`, canon
+  `check_pipe_grep_q v2`, forsgren#428, found by #425): a shell script, at the repository root or
   directly in `Scripts/`, that pipes a producer into `grep` with a quiet flag
   (`-q` alone or in a cluster such as `-qE` or `-vqxF`, `--quiet`,
   `--silent`; a line ending in a pipe or a backslash is read with the next
@@ -718,8 +718,13 @@ The POST gates, on the generated site:
   producer writes more than a pipe holds (about 16 KB). The cure is `has` of
   `Scripts/lib_has.sh` (sourced, never run), which reads all of stdin before
   it matches: `producer | has -qE pattern`. A `grep -q` that names a file or
-  reads a here-string has no producer and stays. Its self-test is
-  `Scripts/test_check_pipe_grep_q.sh`, which also proves `has` on 300 KB.
+  reads a here-string has no producer and stays. Since v2 (forsgren#675) it
+  finds the repository root with `git rev-parse --show-toplevel` from its own
+  folder, so it scans the work tree it lives in from any current directory
+  and other repositories take the file byte-identical; outside a work tree it
+  exits 2 naming git's answer, rather than scanning the current directory.
+  Its self-test is `Scripts/test_check_pipe_grep_q.sh`, which also proves
+  `has` on 300 KB.
 - **bare mktemp** (`Scripts/check_bare_mktemp.sh`, canon `check_bare_mktemp
   v1`, forsgren#612, pre): on macOS a `mktemp` whose template has no path in
   it (no template, `-d` alone, `-t <prefix>`, `-p <dir>`, or `name.XXXXXX`)

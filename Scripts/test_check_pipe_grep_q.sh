@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_check_pipe_grep_q v1
+# canon: test_check_pipe_grep_q v2
 # Scripts/test_check_pipe_grep_q.sh
 #
 # Self-test of Scripts/check_pipe_grep_q.sh (forsgren#428) and of the helper it
@@ -8,12 +8,21 @@
 # shapes beside it green, a mutation proof per pattern, and the helper finding
 # a pattern after more output than a pipe holds, which the plain pipe does not.
 #
+# v2 (forsgren#675): the gate finds its root with git rev-parse from its own
+# folder. Cases 25 and 26: a copy in a work tree, run from another directory,
+# scans the work tree it lives in; a copy outside any work tree fails with a
+# named cause instead of scanning the current directory. Each has a mutation
+# proof, and the other mutants live in a work tree so they find a root.
+#
 # The fixture text is built from parts (GREP, the line formats): a line of this
 # file that held the pipe itself would be red for the gate that scans it.
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
+
+# shellcheck source=Scripts/lib_git_sandbox.sh
+source Scripts/lib_git_sandbox.sh
 
 GATE="./Scripts/check_pipe_grep_q.sh"
 GREP="grep"
@@ -119,8 +128,40 @@ else
 fi
 set +o pipefail
 
+# from <dir> <command...>: runs the command with <dir> as its current directory.
+from() {
+  local dir="$1"
+  shift
+  (cd "$dir" && "$@")
+}
+
+# HOME_TREE: a work tree holding a copy of the gate and a red Scripts/a.sh.
+# ELSEWHERE: another work tree, clean, the current directory of the runs.
+HOME_TREE="$TMP/home"
+ELSEWHERE="$TMP/elsewhere"
+git init -q -b main "$HOME_TREE"
+git init -q -b main "$ELSEWHERE"
+mkdir -p "$HOME_TREE/Scripts" "$ELSEWHERE/Scripts"
+cp "$GATE" "$HOME_TREE/Scripts/check_pipe_grep_q.sh"
+{ echo '#!/usr/bin/env bash'; echo "cat f | ${GREP} -q pat"; } > "$HOME_TREE/Scripts/a.sh"
+{ echo '#!/usr/bin/env bash'; echo 'echo clean'; } > "$ELSEWHERE/Scripts/b.sh"
+capture from "$ELSEWHERE" "$HOME_TREE/Scripts/check_pipe_grep_q.sh"
+want_red "25. run from another work tree, the gate scans the work tree it lives in" \
+  "Scripts/a.sh:2 pipes a producer into grep -q"
+
+# A copy outside any work tree. GIT_CEILING_DIRECTORIES keeps git from looking
+# in $TMP or above it, so the case holds wherever TMPDIR is.
+OUTSIDE="$TMP/outside"
+mkdir -p "$OUTSIDE/Scripts"
+cp "$GATE" "$OUTSIDE/Scripts/check_pipe_grep_q.sh"
+capture from "$ELSEWHERE" env GIT_CEILING_DIRECTORIES="$TMP" "$OUTSIDE/Scripts/check_pipe_grep_q.sh"
+want_exit "26. a copy outside any work tree exits 2 naming the cause, and scans nothing" 2 \
+  "no repository root for"
+want_said "26b. the cause is git's own answer" "not a git repository"
+
 # Mutation proofs: each red fixture is red BECAUSE of its pattern.
-mutant_name() { echo "$TMP/mutant-$1/Scripts/check_pipe_grep_q.sh"; }
+# The mutants live in HOME_TREE, so the root lookup finds a work tree.
+mutant_name() { echo "$HOME_TREE/mutant-$1/Scripts/check_pipe_grep_q.sh"; }
 
 # The quiet-grep pattern never matching: case 1 turns green.
 selftest_mutant_green "$GATE" "$(mutant_name pattern)" \
@@ -154,10 +195,36 @@ mutant_red oror "s#^PIPE_QUIET=.*#PIPE_QUIET='${OROR_PATTERN}'#" "$TMP/oror" \
   "a gate that counts || as a pipe turns case 13 red, so || is clean BECAUSE of the rule" \
   "with the || rule dropped the || fixture is still green"
 
+# The root lookup replaced by the current directory: case 25 turns green, as
+# the gate then scans the clean work tree it is run from.
+if selftest_mutant "$GATE" "$(mutant_name root)" \
+  's#^cd .*git rev-parse --show-toplevel.*#cd . || exit 1#'; then
+  capture from "$ELSEWHERE" "$(mutant_name root)"
+  if [[ "$RC" -eq 0 ]]; then
+    echo "  ok: mutation proof: a gate that takes the current directory as its root turns case 25 green, so it scans its own work tree BECAUSE of the git root lookup"
+  else
+    fail "mutation proof: with the root lookup replaced by the current directory case 25 is still red (exit $RC). Output: $OUT"
+  fi
+fi
+
+# The guard dropped: outside a work tree git prints nothing, cd "" stays in the
+# current directory, and the copy scans that and goes green: case 26 holds
+# BECAUSE of the guard.
+GUARD_MUTANT="$OUTSIDE/mutant-guard/check_pipe_grep_q.sh"
+if selftest_mutant "$GATE" "$GUARD_MUTANT" 's#^if ! why=.*#if false; then#'; then
+  capture from "$ELSEWHERE" env GIT_CEILING_DIRECTORIES="$TMP" "$GUARD_MUTANT"
+  if [[ "$RC" -eq 0 ]]; then
+    echo "  ok: mutation proof: without the guard a copy outside any work tree silently scans the current directory, so case 26 fails clearly BECAUSE of the guard"
+  else
+    fail "mutation proof: with the guard dropped the copy outside a work tree did not go green on the current directory (exit $RC). Output: $OUT"
+  fi
+fi
+
 CLAIM="pipe-into-grep-q gate is red on every shape of a producer piped into a quiet grep (-q, -qE, -vqxF, -Fqi,"
 CLAIM+=" --quiet, a later flag, a pipe ending the line, a continuation), names each match with a count, a tree"
 CLAIM+=" with no script and exits 2 on a missing root, is green on has, a file operand, a here-string, ||, a"
-CLAIM+=" comment, no quiet flag, its patterns are what redden the case, and has finds a pattern after 300 KB"
+CLAIM+=" comment, no quiet flag, its patterns are what redden the case, scans the work tree it lives in from"
+CLAIM+=" any directory, exits 2 naming the cause outside a work tree, and has finds a pattern after 300 KB"
 CLAIM+=" where the plain pipe loses it"
 selftest_end "the pipe-into-grep-q gate does not flag a producer piped into a quiet grep, or has misses a pattern" \
   "$CLAIM"

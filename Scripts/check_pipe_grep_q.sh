@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: check_pipe_grep_q v1
+# canon: check_pipe_grep_q v2
 # Scripts/check_pipe_grep_q.sh [repo-root]
 #
 # Gate: red when a shell script pipes a producer into `grep -q`.
@@ -23,15 +23,28 @@
 # heredoc that looks like the pipe is read as code; a fixture that needs the
 # text builds it from parts (see Scripts/test_check_pipe_grep_q.sh).
 #
+# The repository root is the git work tree the script lives in, found with
+# `git rev-parse --show-toplevel` from the script's own folder (v2,
+# forsgren#675), so the gate scans that tree from any current directory, and a
+# copy at any depth of a work tree takes this file byte-identical. Outside a
+# work tree git prints nothing and `cd ""` would stay in the current directory
+# and scan it, so that is red first, naming git's answer.
+#
 # Findings carry the red-cross marker, one per match, as file:line. Exit 0
-# clean, 1 findings, 2 a missing root, and a root with no script at all is
+# clean, 1 findings, 2 a missing root (the script outside a git work tree, or
+# the root argument not a directory), and a root with no script at all is
 # red: nothing scanned is not clean.
 #
 # Self-test: Scripts/test_check_pipe_grep_q.sh.
 
 set -uo pipefail
 
-cd "$(dirname "$0")/.." || exit 1
+if ! why="$( (cd "$(dirname "$0")" && git rev-parse --show-toplevel > /dev/null) 2>&1)"; then
+  echo "❌ FAIL: no repository root for ${0}: git rev-parse --show-toplevel from its own folder failed" \
+    "(${why}); the gate must live inside a git work tree"
+  exit 2
+fi
+cd "$(cd "$(dirname "$0")" && git rev-parse --show-toplevel)" || exit 1
 REPO="$(pwd)"
 ROOT="${1:-$REPO}"
 
