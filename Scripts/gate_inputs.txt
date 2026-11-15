@@ -294,6 +294,7 @@ step summary isolation|in|Scripts/required_tools_browser_3_gates.txt
 step summary isolation|in|Scripts/browser_gate_selftest_weights.txt
 step summary isolation|in|Scripts/lib_isolation_shard.sh
 step summary isolation|in|Scripts/required_tools_quality_2_gates.txt
+step summary isolation|in|Scripts/required_tools_quality_3_gates.txt
 step summary isolation|in|Scripts/required_tools_quality_gates.txt
 step summary isolation|in|Scripts/check_community_files.sh
 step summary isolation|in|Scripts/language_allowlist.txt

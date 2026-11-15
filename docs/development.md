@@ -178,8 +178,9 @@ must already be installed. Only the tools the quality gates use are listed.
 In CI every gate job installs only what its gates need, from its own
 list (the installer's optional argument): the main job from
 `Scripts/required_tools_quality_gates.txt` (the full list less the four lint
-tools, forsgren#591) and the `quality_2` job from
-`Scripts/required_tools_quality_2_gates.txt`, both on macOS with
+tools, forsgren#591), the `quality_2` job from
+`Scripts/required_tools_quality_2_gates.txt` and the `quality_3` job from
+`Scripts/required_tools_quality_3_gates.txt` (forsgren#672), all three on macOS with
 `Scripts/install_tools.sh`, and the `browser_1`, `browser_2` and `browser_3`
 jobs, on Linux since forsgren#642, from
 `Scripts/required_tools_browser_1_gates.txt`,

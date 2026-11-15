@@ -26,7 +26,9 @@
 # `isolation_2` the git sandbox isolation self-test in two shards, one each
 # (forsgren#426); the `summary` job the step summary isolation gate
 # (forsgren#425); the `quality_2` job eleven gates of the main job, the Go
-# tests and Go coverage among them (forsgren#447); the jobs `browser_1` and
+# tests and Go coverage among them (forsgren#447); the `quality_3` job eighteen
+# more PRE gates of the main job, about half of its PRE seconds by measured
+# runtime (forsgren#672); the jobs `browser_1` and
 # `browser_2` the browser gate self-test in two shards, one each, and
 # `browser_2` the process self-test too, and the `browser_3` job the browser
 # gate and the fixture-site gate with its self-test and its own site build
@@ -48,10 +50,11 @@
 # `isolation_2`, `report` and the three browser jobs `browser_1`, `browser_2`
 # and `browser_3` (forsgren#642: the hosted image's Chrome, and a Linux
 # baseline per site, since fonts render differently and the widths differ).
-# The two that start together on macos-latest are `quality` and `quality_2`
-# (the language gate's sandbox-exec and LanguageTool, the secret scan's
-# Homebrew gitleaks, the exit-trap gate's bash 3.2); `preview` waits for all
-# of them.
+# The three that start together on macos-latest are `quality`, `quality_2`
+# and `quality_3` (the language gate's sandbox-exec and LanguageTool, the
+# secret scan's Homebrew gitleaks, the exit-trap gate's bash 3.2; quality_3
+# holds gates the main job ran on macOS, forsgren#672); `preview` waits for
+# all of them.
 # Scripts/test_quality_runner_pins.sh pins each job's image and the count.
 #
 # CHECK-ONLY. Nothing here fixes: gofmt runs as `gofmt -l` (the gofmt row),
@@ -309,9 +312,10 @@ jobs:
   # its comments are the main job's. No site build: all are PRE rows and none
   # reads .build/site. No secret reaches it: none of its gates reads one or is
   # secret-class. macos-latest: the exit-trap completion behaviour gate tests
-  # the bash 3.2 of macOS (/bin/bash).
+  # the bash 3.2 of macOS (/bin/bash). Named 2/3 since forsgren#672 added
+  # quality_3; the job id stays quality_2.
   quality_2:
-    name: Quality gates 2/2
+    name: Quality gates 2/3
     runs-on: macos-latest
 
     steps:
@@ -364,7 +368,7 @@ jobs:
 
       # The rows Scripts/ci_job_groups.txt gives to this job, in order-file
       # order. A failing gate does not stop the phase, as in the main job.
-      - name: Quality gates 2/2
+      - name: Quality gates 2/3
         shell: bash
         run: |
           set -uo pipefail
@@ -383,6 +387,93 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: quality-report-quality_2
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
+          retention-days: 1
+          if-no-files-found: error
+
+  # The quality_3 job (forsgren#672, decision #672 A): the main job's PRE gates
+  # split in two by their measured seconds. Scripts/ci_job_groups.txt gives
+  # this job eighteen PRE rows of the main job, about 308 of its 578 s by the
+  # median of four green runs, and Scripts/run_ci_phase.sh skips them in the
+  # main job, which keeps the rest, the site build and the POST gates. The same
+  # setup as quality_2, step for step: its comments are the main job's. No site
+  # build: all are PRE rows and none reads .build/site. No secret reaches it:
+  # none of its gates reads one or is secret-class. macos-latest, as the main
+  # job these gates ran in. A red gate here makes this job red, the report job
+  # reads its result and the preview waits for it, as for every gate job.
+  quality_3:
+    name: Quality gates 3/3
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up the gate environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
+          toolchain="$(./Scripts/go_toolchain.sh)"
+          echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      # Only the tools its gates run: go, node and jq (forsgren#672).
+      # A tool a gate calls and the list lacks fails that gate, never skips it.
+      - name: Install tools
+        shell: bash
+        env:
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
+        run: |
+          set -euo pipefail
+          ./Scripts/install_tools.sh Scripts/required_tools_quality_3_gates.txt
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start report
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
+          : > "$rows"
+          rm -rf "$details" && mkdir -p "$details"
+          echo "ROWS=${rows}" >> "$GITHUB_ENV"
+          echo "DETAILS=${details}" >> "$GITHUB_ENV"
+
+      # The rows Scripts/ci_job_groups.txt gives to this job, in order-file
+      # order. A failing gate does not stop the phase, as in the main job.
+      - name: Quality gates 3/3
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" quality_3
+
+      - name: Collect the gate report
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
+
+      - name: Hand over the gate report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: quality-report-quality_3
           path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
           retention-days: 1
           if-no-files-found: error
@@ -1204,7 +1295,7 @@ jobs:
   # job.
   report:
     name: Quality report
-    needs: [quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows]
+    needs: [quality, quality_2, quality_3, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows]
     if: always()
     runs-on: ubuntu-latest
 
@@ -1225,6 +1316,7 @@ jobs:
         env:
           QS_QUALITY_RESULT: ${{ needs.quality.result }}
           QS_QUALITY_2_RESULT: ${{ needs.quality_2.result }}
+          QS_QUALITY_3_RESULT: ${{ needs.quality_3.result }}
           QS_LINT_RESULT: ${{ needs.lint.result }}
           QS_ISOLATION_1_RESULT: ${{ needs.isolation_1.result }}
           QS_ISOLATION_2_RESULT: ${{ needs.isolation_2.result }}
@@ -1249,7 +1341,7 @@ jobs:
           mkdir -p "$art"
           ./Scripts/merge_quality_report.sh merge "$art" "$rows" "$details" || rc=$?
           QS_JOB_STATUS="$(./Scripts/merge_quality_report.sh status \
-            "$QS_QUALITY_RESULT" "$QS_QUALITY_2_RESULT" "$QS_LINT_RESULT" "$QS_ISOLATION_1_RESULT" "$QS_ISOLATION_2_RESULT" \
+            "$QS_QUALITY_RESULT" "$QS_QUALITY_2_RESULT" "$QS_QUALITY_3_RESULT" "$QS_LINT_RESULT" "$QS_ISOLATION_1_RESULT" "$QS_ISOLATION_2_RESULT" \
             "$QS_SUMMARY_RESULT" "$QS_BROWSER_1_RESULT" "$QS_BROWSER_2_RESULT" "$QS_BROWSER_3_RESULT" "$QS_WORKFLOWS_RESULT")"
           export QS_JOB_STATUS
           export SITE_PAGE_COUNT_FILE="${art}/quality-report-quality/page-count.log"
@@ -1257,7 +1349,7 @@ jobs:
           ./Scripts/render_quality_report.sh "$rows" "$details" >> "$GITHUB_STEP_SUMMARY" || rc=$?
           # forsgren#561: the report is written; now the check turns red when a gate job did not succeed.
           ./Scripts/merge_quality_report.sh verdict \
-            "quality=$QS_QUALITY_RESULT" "quality_2=$QS_QUALITY_2_RESULT" "lint=$QS_LINT_RESULT" \
+            "quality=$QS_QUALITY_RESULT" "quality_2=$QS_QUALITY_2_RESULT" "quality_3=$QS_QUALITY_3_RESULT" "lint=$QS_LINT_RESULT" \
             "isolation_1=$QS_ISOLATION_1_RESULT" "isolation_2=$QS_ISOLATION_2_RESULT" "summary=$QS_SUMMARY_RESULT" \
             "browser_1=$QS_BROWSER_1_RESULT" "browser_2=$QS_BROWSER_2_RESULT" "browser_3=$QS_BROWSER_3_RESULT" \
             "workflows=$QS_WORKFLOWS_RESULT" || rc=$?
@@ -1273,8 +1365,9 @@ jobs:
   # This job only starts it: Scripts/dispatch_preview.sh POSTs a
   # workflow_dispatch and requires HTTP 204; any other answer fails the run.
   #
-  # needs: every other job (quality, quality_2, lint, isolation_1, isolation_2,
-  # summary, browser_1, browser_2, browser_3, workflows and report), no
+  # needs: every other job (quality, quality_2, quality_3 (forsgren#672), lint,
+  # isolation_1, isolation_2, summary, browser_1, browser_2, browser_3,
+  # workflows and report), no
   # `if: always()`: a failed,
   # cancelled or skipped gate job skips this one. The condition keeps it off
   # pull requests, where no secret exists. The secret PREVIEW_DISPATCH_TOKEN
@@ -1287,7 +1380,7 @@ jobs:
   # Scripts/test_preview_workflow.sh pins this job.
   preview:
     name: Start the preview deploy
-    needs: [quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows, report]
+    needs: [quality, quality_2, quality_3, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows, report]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: macos-latest
     permissions:

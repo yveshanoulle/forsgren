@@ -60,7 +60,8 @@ jq, languagetool, node; forsgren#591 step 2): it runs the language gate
 installs shellcheck, yamllint, actionlint and zizmor, whose gates all run in
 the `lint` job.
 `quality_2` takes `Scripts/required_tools_quality_2_gates.txt` (go, node, jq),
-`browser_1` and `browser_2` take `Scripts/required_tools_browser_1_gates.txt`
+`quality_3` takes `Scripts/required_tools_quality_3_gates.txt` (go, node, jq;
+forsgren#672), `browser_1` and `browser_2` take `Scripts/required_tools_browser_1_gates.txt`
 and `Scripts/required_tools_browser_2_gates.txt` (node), and `browser_3` takes
 `Scripts/required_tools_browser_3_gates.txt` (go, node; forsgren#641); since
 forsgren#642 the three browser jobs run on Linux and pass their list to
@@ -81,7 +82,8 @@ never in none. The file names the groups below; the job ids are the keys of
 | Job (name) | OS | Install tools step | Gates it runs |
 |---|---|---|---|
 | `quality` (Quality gates) | macOS | `Scripts/required_tools_quality_gates.txt` (gitleaks, go, jq, languagetool, node) | every gate no group names: the language gate, the secret scan, the site build and the POST gates, the long tail of small gates |
-| `quality_2` (Quality gates 2/2) | macOS | `Scripts/required_tools_quality_2_gates.txt` (go, node, jq) | Go tests and Go coverage, golden pages, and the slower self-tests, among them the exit-trap completion behaviour |
+| `quality_2` (Quality gates 2/3) | macOS | `Scripts/required_tools_quality_2_gates.txt` (go, node, jq) | Go tests and Go coverage, golden pages, and the slower self-tests, among them the exit-trap completion behaviour |
+| `quality_3` (Quality gates 3/3) | macOS | `Scripts/required_tools_quality_3_gates.txt` (go, node, jq) | eighteen PRE gates of the main job, about half of its PRE seconds (forsgren#672): the privacy-posture and two browser gate self-tests, Go vulnerabilities, markdown links, bare mktemp and slower self-tests of FBP, sfl and the build |
 | `browser_1` (Browser gates 1/3) | Linux | `Scripts/required_tools_browser_1_gates.txt` (node) | the browser gate self-test, shard 1/2 |
 | `browser_2` (Browser gates 2/3) | Linux | `Scripts/required_tools_browser_2_gates.txt` (node) | the browser gate self-test, shard 2/2, and the browser gate process self-test |
 | `browser_3` (Browser gates 3/3) | Linux | `Scripts/required_tools_browser_3_gates.txt` (go, node) | the fixture-site self-test, the browser gate and the fixture-site gate, with its own site build |
@@ -98,9 +100,11 @@ builds the site its POST gates read. `quality_2` holds the exit-trap completion
 behaviour gate, which proves the idiom against bash 3.2, the bash a Mac runs
 scripts with. Every other gate reads files with bash, awk, sed, grep and jq,
 runs Go, or opens Chrome (the three browser jobs, on Linux since forsgren#642),
-and runs on Linux. Quality starts 2 macOS gate jobs together (`quality` and
-`quality_2`), under GitHub's limit of 5 macOS jobs at once for the account;
-`preview`, the third macOS job, starts only after every gate job.
+and runs on Linux. `quality_3` (forsgren#672) holds gates the main job ran on
+macOS, kept there with it. Quality starts 3 macOS gate jobs together
+(`quality`, `quality_2` and `quality_3`), under GitHub's limit of 5 macOS jobs
+at once for the account; `preview`, the fourth macOS job, starts only after
+every gate job.
 
 **The tools check is derived.** `Scripts/test_quality_jobs.sh` reads the scripts
 of each job's gates and the `Scripts/*.sh` those call, transitively (the
@@ -215,6 +219,57 @@ setup the rule asks it to beat. A Linux job with the three slowest Linux-run
 gates (Go test duplication, parallel mutants library self-test, Go coverage
 self-test, about 92 s) saves 62 s by the median and 48 s on average. The run's
 floor is now Workflow gates as much as the main job.
+
+**The main job's PRE gates in two jobs** (forsgren#672, decision #672 A). By
+14 November the main job took 9 to 13 minutes again (8 to 13, average 10, over
+nine runs from 10 November; its PRE step 680 s in run 43514912640), every PRE
+gate one after the other. Four green Quality runs of `main` (43627000625,
+43623807626, 43619206241, 43598239235), seconds per gate from the log's group
+times: the main job's 105 PRE gates took 658, 596, 481 and 549 s (the sum of
+the medians 578 s), Quality gates 2/2 4.7 to 6.7 minutes. The `quality_3` job
+takes the eighteen of them below, picked by their measured seconds and not by
+their number, so the two halves end at about the same time:
+
+| Gate | Median s | Range s |
+|---|---|---|
+| privacy-posture self-test | 108 | 86 to 115 |
+| browser gate (TBD tables) self-test | 57 | 53 to 62 |
+| Go vulnerabilities | 13 | 10 to 15 |
+| FBP aborted run | 13 | 10 to 14 |
+| browser gate (default TBD fixture) self-test | 12 | 11 to 15 |
+| Go coverage self-test | 12 | 7 to 13 |
+| html-duplication self-test | 10 | 6 to 12 |
+| bare mktemp self-test | 10 | 7 to 10 |
+| markdown links | 9 | 7 to 10 |
+| build-site self-test | 9 | 8 to 10 |
+| FBP --no-push self-test | 8 | 5 to 8 |
+| tmp failure stops self-test | 8 | 4 to 9 |
+| sfl pull rebase self-test | 8 | 6 to 10 |
+| FBP push-or-rebase self-test | 8 | 5 to 10 |
+| workflow-triggers self-test | 7 | 7 to 8 |
+| required-pages self-test | 7 | 5 to 11 |
+| bare mktemp | 7 | 5 to 8 |
+| npm-audit self-test | 7 | 4 to 8 |
+| **quality_3, together** | **308** | 249 to 340 |
+| the 87 gates left in the main job | 270 | 232 to 318 |
+
+The main job also builds the site and runs the POST gates (about 25 s) and
+installs more tools (36 to 48 s against 16 to 29 s), so both jobs come to
+about 6 minutes, against 9 to 13 for the main job before. All eighteen need
+only go, node and jq and name no other tool of `Scripts/required_tools.txt`
+(the tools check reads names: the two dependabot merge policy gates, 45 and
+31 s, name zizmor in their fixtures and so stay in the main job), read no
+secret (the private names gate and the secret scan stay in the main job, with
+their exit 2) and no built site, and keep their pre phase and their place in
+the order file. `quality_3` has `quality_2`'s setup
+on `macos-latest`, its own tools list, and hands over
+`quality-report-quality_3`; the report job's `needs:`, its status and its
+verdict take its result, and `preview` `needs:` it, so a red `quality_3` is a
+red Quality, as any gate job. `quality_2` is named Quality gates 2/3 since. The
+runners share the account's macOS slots, so the change is judged by the run's
+end-to-end time over the first pushes, not by the two jobs alone. The Workflow
+gates job is not split (one run near 10 minutes is not yet a recurring
+bottleneck).
 
 **Go test duplication runs in the Lint gates job** (forsgren#591). The slowest
 gate left in the main job (67 s by the median above) moved to `lint`, which
@@ -468,8 +523,9 @@ Go-only gates run on Linux (forsgren#447, steps 5 and 6). The `lint` job also
 runs Go lint and its self-test (124 s on the Mac, 146 s at most; they left
 `quality_2`), and the `workflows` job also runs go mod tidy, the Go test
 duplication self-test and the Go vulnerabilities self-test (85 s, 106 s at
-most; they left the main job; the Go vulnerabilities gate stays in the main
-job, and the Go test duplication gate joined `lint` in forsgren#591, above).
+most; they left the main job; the Go vulnerabilities gate stays on macOS, in
+`quality_3` since forsgren#672, and the Go test duplication gate joined `lint`
+in forsgren#591, above).
 Go ships with the hosted Linux image and `GOTOOLCHAIN` comes from `go.mod`, as
 for the other Linux jobs, and the Go tools run from `go.mod` (`go tool`), so
 neither tools list changes. `quality_2` keeps Go tests and Go coverage together

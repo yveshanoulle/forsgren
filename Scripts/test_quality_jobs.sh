@@ -70,6 +70,15 @@
 #      tests and the Go coverage gate (it reads the profile the Go tests gate writes, so
 #      the two stay together), about 180 s since step 5; the jobs' gates together are the
 #      order file's rows, each once (union_findings)
+#   3i. the quality_3 job (forsgren#672) is quality_2's twin: the same setup,
+#      exactly run_ci_phase.sh pre for the job `quality_3`, no step naming one
+#      of its gates, its own tools list (go, node and jq); the group file gives
+#      it eighteen PRE gates of the main job, about half of the main job's PRE
+#      seconds by the median of four green runs. Every gate is in exactly one
+#      job: a gate left out of its group, a row given twice to one job and a
+#      gate in two jobs are each named (union_findings), and a gate of a job
+#      that runs only its pre rows (lint, quality_2, quality_3) must be a pre
+#      row, since a post row there would run in no job
 #   3f. the browser_1 and browser_2 jobs (forsgren#447, #641) have the same
 #      setup and each runs exactly run_ci_phase.sh pre for its own job name,
 #      with no site build: the group file gives browser_1 the browser gate
@@ -275,14 +284,14 @@ tool_pattern() {
 # deep (forsgren#447, step 9), calls a tool of the full list that the job's list lacks.
 tools_file_findings() {
   local job file want listed missing tool script reached
-  for job in quality_2 browser_1 browser_2 browser_3; do
+  for job in quality_2 quality_3 browser_1 browser_2 browser_3; do
     file="${TOOLS_DIR}/$(basename "$(tools_file_of "$job")")"
     if [[ ! -s "$file" ]]; then
       echo "tools: ${file} does not exist or is empty"
       continue
     fi
     case "$job" in
-      quality_2) want='go jq node ' ;;
+      quality_2 | quality_3) want='go jq node ' ;;
       browser_1 | browser_2) want='node ' ;;
       *) want='go node ' ;;
     esac
@@ -417,16 +426,30 @@ phase_calls() {
 
 # job_findings <file>: pins 1 to 5.
 job_findings() {
-  local wf="$1" main q2 lnt iso sum pre_job b3 wfl rep calls id others needs listed pre_line build_line post_line n
+  local wf="$1" main qn lnt iso sum pre_job b3 wfl rep calls id others needs listed pre_line build_line post_line n
   main="${JOBS_TMP}/main.yml"
-  q2="${JOBS_TMP}/quality_2.yml"
   lnt="${JOBS_TMP}/lint.yml"
   sum="${JOBS_TMP}/summary.yml"
   b3="${JOBS_TMP}/browser_3.yml"
   wfl="${JOBS_TMP}/workflows.yml"
   rep="${JOBS_TMP}/report.yml"
   job_of "$wf" quality > "$main"
-  job_of "$wf" quality_2 > "$q2"
+  # The two macOS twins of the main job's PRE gates: quality_2 (forsgren#447)
+  # and quality_3 (forsgren#672), each held to the same pins.
+  for id in quality_2 quality_3; do
+    qn="${JOBS_TMP}/${id}.yml"
+    job_of "$wf" "$id" > "$qn"
+    setup_findings "$qn" "$id" macos-latest "Scripts/install_tools.sh $(tools_file_of "$id")"
+    handover_findings "$qn" "$id"
+    if [[ -s "$qn" ]]; then
+      calls="$(phase_calls "$qn")"
+      [[ "$calls" == *"run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" ${id}" && "$(wc -l <<< "$calls" | tr -d ' ')" == 1 ]] \
+        || echo "${id}: the ${id} job must run exactly ./Scripts/run_ci_phase.sh pre \"\$ROWS\" \"\$DETAILS\" ${id}, got: ${calls:-none}"
+    fi
+    if code "$wf" | has -E "($(gates_of "$id" | paste -sd'|' -))"; then
+      echo "${id}: a step names a ${id} gate itself; ${GROUPS_FILE} and the order file decide which gates a job runs"
+    fi
+  done
   job_of "$wf" lint > "$lnt"
   for n in 1 2; do
     job_of "$wf" "isolation_${n}" > "${JOBS_TMP}/isolation_${n}.yml"
@@ -438,7 +461,6 @@ job_findings() {
   job_of "$wf" workflows > "$wfl"
   job_of "$wf" report > "$rep"
 
-  setup_findings "$q2" quality_2 macos-latest "Scripts/install_tools.sh $(tools_file_of quality_2)"
   code "$main" | has -xF "          ./Scripts/install_tools.sh $(tools_file_of quality)" \
     || echo "setup: the quality job does not run Scripts/install_tools.sh $(tools_file_of quality)"
   setup_findings "$lnt" lint ubuntu-latest "Scripts/install_tools_linux.sh Scripts/required_tools_linux.txt"
@@ -451,7 +473,6 @@ job_findings() {
   done
   setup_findings "$wfl" workflows ubuntu-latest "$LINUX_GATES_INSTALL"
   handover_findings "$main" quality
-  handover_findings "$q2" quality_2
   handover_findings "$lnt" lint
   for n in 1 2; do
     handover_findings "${JOBS_TMP}/isolation_${n}.yml" "isolation_${n}"
@@ -502,14 +523,6 @@ job_findings() {
     calls="$(phase_calls "$sum")"
     [[ "$calls" == *"run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" summary" && "$(wc -l <<< "$calls" | tr -d ' ')" == 1 ]] \
       || echo "summary: the summary job must run exactly ./Scripts/run_ci_phase.sh pre \"\$ROWS\" \"\$DETAILS\" summary, got: ${calls:-none}"
-  fi
-  if [[ -s "$q2" ]]; then
-    calls="$(phase_calls "$q2")"
-    [[ "$calls" == *"run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" quality_2" && "$(wc -l <<< "$calls" | tr -d ' ')" == 1 ]] \
-      || echo "quality_2: the quality_2 job must run exactly ./Scripts/run_ci_phase.sh pre \"\$ROWS\" \"\$DETAILS\" quality_2, got: ${calls:-none}"
-  fi
-  if code "$wf" | has -E "($(gates_of quality_2 | paste -sd'|' -))"; then
-    echo "quality_2: a step names a quality_2 gate itself; ${GROUPS_FILE} and the order file decide which gates a job runs"
   fi
   if [[ -s "$lnt" ]]; then
     calls="$(phase_calls "$lnt")"
@@ -594,6 +607,20 @@ Q2_ROWS=('quality_2|Go tests' 'quality_2|Go coverage'
   'quality_2|markdown-links self-test' 'quality_2|HTMLHint self-test'
   'quality_2|html duplication, generated page self-test')
 
+# Q3_ROWS: the gates the quality_3 job runs (forsgren#672): eighteen PRE gates
+# of the main job, about 308 s of its 578 s of PRE gates by the median of four
+# green runs, so the main job and quality_3 end at about the same time. All
+# need only go, node and jq, read no secret and no built site.
+Q3_ROWS=('quality_3|privacy-posture self-test' 'quality_3|browser gate (TBD tables) self-test'
+  'quality_3|Go vulnerabilities' 'quality_3|FBP aborted run'
+  'quality_3|browser gate (default TBD fixture) self-test' 'quality_3|Go coverage self-test'
+  'quality_3|html-duplication self-test' 'quality_3|bare mktemp self-test'
+  'quality_3|markdown links' 'quality_3|build-site self-test'
+  'quality_3|FBP --no-push self-test' 'quality_3|tmp failure stops self-test'
+  'quality_3|sfl pull rebase self-test' 'quality_3|FBP push-or-rebase self-test'
+  'quality_3|workflow-triggers self-test' 'quality_3|required-pages self-test'
+  'quality_3|bare mktemp' 'quality_3|npm-audit self-test')
+
 groups_findings() {
   local rows labels
   labels="$(printf '%s\n' 'isolation_1|git sandbox isolation self-test|--shard 1/2' 'isolation_2|git sandbox isolation self-test|--shard 2/2' 'summary|step summary isolation' \
@@ -602,7 +629,7 @@ groups_findings() {
     'lint|actionlint self-test' 'lint|actionlint forsgren cases self-test' 'lint|actionlint' \
     'lint|shellcheck self-test' 'lint|shellcheck' 'lint|yamllint self-test' 'lint|yamllint' \
     'lint|zizmor self-test' 'lint|zizmor' 'lint|Go lint self-test' 'lint|Go lint' 'lint|Go test duplication' \
-    "${Q2_ROWS[@]}" \
+    "${Q2_ROWS[@]}" "${Q3_ROWS[@]}" \
     'workflows|gate wiring' 'workflows|mutation: checkout pins' 'workflows|metrics workflow' 'workflows|release workflow' \
     'workflows|starter page workflow' 'workflows|quality jobs pin' 'workflows|preview workflow' \
     'workflows|vulncheck workflow' 'workflows|auto-update workflow' \
@@ -615,13 +642,18 @@ groups_findings() {
   [[ -f "$GROUPS_FILE" ]] || { echo "groups: ${GROUPS_FILE} does not exist"; return 0; }
   rows="$(grep -v '^#' "$GROUPS_FILE" | grep . | LC_ALL=C sort | tr '\n' ';')"
   [[ "$rows" == "$labels" ]] \
-    || echo "groups: ${GROUPS_FILE} must give the two isolation jobs the git sandbox isolation self-test, one shard each (isolation_1 with --shard 1/2, isolation_2 with --shard 2/2), the summary job the step summary isolation gate, the browser_1 job the browser gate self-test --shard 1/2, the browser_2 job its --shard 2/2 and the browser gate process self-test, the browser_3 job the browser gate (fixture site) self-test and the two browser gates, the lint job actionlint, shellcheck, yamllint and zizmor with their self-tests and Go lint with its self-test and, since forsgren#591, the Go test duplication gate, the quality_2 job the eleven gates of forsgren#447 (the Go tests with the Go coverage gate, nine more), and the workflows job gate wiring, the checkout pins mutations and the pins of the metrics, release, starter page, vulncheck, auto-update and preview workflows and of this job layout, go mod tidy, the Go test duplication and Go vulnerabilities self-tests and, since step 8b, eleven Linux-safe tail gates of the main job (release pins, browser gate selection, Go tests, release precheck, community-files, DCO sign-off, release plan, release report, release check and release metrics self-tests, and sfl drives from the order file), got: ${rows:-none}"
+    || echo "groups: ${GROUPS_FILE} must give the two isolation jobs the git sandbox isolation self-test, one shard each (isolation_1 with --shard 1/2, isolation_2 with --shard 2/2), the summary job the step summary isolation gate, the browser_1 job the browser gate self-test --shard 1/2, the browser_2 job its --shard 2/2 and the browser gate process self-test, the browser_3 job the browser gate (fixture site) self-test and the two browser gates, the lint job actionlint, shellcheck, yamllint and zizmor with their self-tests and Go lint with its self-test and, since forsgren#591, the Go test duplication gate, the quality_2 job the eleven gates of forsgren#447 (the Go tests with the Go coverage gate, nine more), the quality_3 job the eighteen gates of forsgren#672 (half of the main job's PRE seconds), and the workflows job gate wiring, the checkout pins mutations and the pins of the metrics, release, starter page, vulncheck, auto-update and preview workflows and of this job layout, go mod tidy, the Go test duplication and Go vulnerabilities self-tests and, since step 8b, eleven Linux-safe tail gates of the main job (release pins, browser gate selection, Go tests, release precheck, community-files, DCO sign-off, release plan, release report, release check and release metrics self-tests, and sfl drives from the order file), got: ${rows:-none}"
   while IFS='|' read -r job label _args; do
     awk -F'|' -v l="$label" '$1 == l && ($3 == "pre" || $3 == "post")' <(grep -v '^#' "$ORDER") | has . \
       || echo "groups: '${label}' is no pre or post row of ${ORDER}"
-    if [[ "$job" == lint ]] && ! awk -F'|' -v l="$label" '$1 == l && $3 == "pre"' <(grep -v '^#' "$ORDER") | has .; then
-      echo "groups: the lint gate '${label}' is no pre row of ${ORDER}; the lint rows keep their pre phase"
-    fi
+    # forsgren#672: lint, quality_2 and quality_3 call run_ci_phase.sh pre only,
+    # so a post row given to one of them would run in no job.
+    case "$job" in
+      lint | quality_2 | quality_3)
+        awk -F'|' -v l="$label" '$1 == l && $3 == "pre"' <(grep -v '^#' "$ORDER") | has . \
+          || echo "groups: the ${job} gate '${label}' is no pre row of ${ORDER}; the ${job} job runs only its pre rows, so the gate would run in no job"
+        ;;
+    esac
   done < <(grep -v '^#' "$GROUPS_FILE" | grep .)
   union_findings
 }
@@ -633,16 +665,20 @@ groups_findings() {
 # job. A gate is in two jobs only as one shard each (forsgren#641: the browser
 # gate self-test is in browser_1 and browser_2, as the isolation self-test of
 # forsgren#426 is in isolation_1 and isolation_2): every row of a label listed
-# more than once carries --shard, and no two the same shard.
+# more than once carries --shard, and no two the same shard. The same
+# `<job>|<label>` twice is named on its own (forsgren#672): it is one job, not
+# two, and Scripts/run_ci_phase.sh refuses the group file for it.
 union_findings() {
-  local all grouped main both twice
+  local all grouped main both twice dup
   all="$(grep -v '^#' "$ORDER" | grep . | awk -F'|' '$3 == "pre" || $3 == "post" { print $1 }' | LC_ALL=C sort)"
   grouped="$(grep -v '^#' "$GROUPS_FILE" | grep . | cut -d'|' -f2 | LC_ALL=C sort -u)"
   main="$(LC_ALL=C comm -23 <(printf '%s\n' "$all" | LC_ALL=C sort -u) <(printf '%s\n' "$grouped"))"
   both="$( { printf '%s\n' "$main"; printf '%s\n' "$grouped"; } | grep . | LC_ALL=C sort)"
   [[ "$both" == "$(printf '%s\n' "$all" | LC_ALL=C sort)" ]] \
     || echo "union: the main job's gates and the group file's gates are not the order file's pre and post rows, each once"
-  twice="$(grep -v '^#' "$GROUPS_FILE" | grep . | awk -F'|' '{ n[$2]++; if ($3 !~ /^--shard [1-9][0-9]*\/[1-9][0-9]*$/ || s[$2 "|" $3]++) bad[$2] = 1 } END { for (l in bad) if (n[l] > 1) print l }')"
+  dup="$(grep -v '^#' "$GROUPS_FILE" | grep . | awk -F'|' 'seen[$1 "|" $2]++ == 1 { print $1 "|" $2 }' | paste -sd',' -)"
+  [[ -z "$dup" ]] || echo "union: a gate is given to the same job twice: ${dup}"
+  twice="$(grep -v '^#' "$GROUPS_FILE" | grep . | awk -F'|' '{ if (seen[$1 "|" $2]++) next; n[$2]++; if ($3 !~ /^--shard [1-9][0-9]*\/[1-9][0-9]*$/ || s[$2 "|" $3]++) bad[$2] = 1 } END { for (l in bad) if (n[l] > 1) print l }')"
   [[ -z "$twice" ]] || echo "union: a gate is in two jobs, not as one shard each: ${twice}"
 }
 
@@ -735,7 +771,7 @@ fi
 
 OUT="$(tools_file_findings)"
 if [[ -z "$OUT" ]]; then
-  echo "  ok: the tools lists of the quality_2 and browser jobs hold every pin"
+  echo "  ok: the tools lists of the quality_2, quality_3 and browser jobs hold every pin"
 else
   fail "the tools lists break a pin:"$'\n'"$OUT"
 fi
@@ -788,7 +824,8 @@ Q='/^  quality:/,/^  quality_2:/'
 L='/^  lint:/,/^  isolation_1:/'
 I1='/^  isolation_1:/,/^  isolation_2:/'
 I2='/^  isolation_2:/,/^  summary:/'
-Q2='/^  quality_2:/,/^  lint:/'
+Q2='/^  quality_2:/,/^  quality_3:/'
+Q3='/^  quality_3:/,/^  lint:/'
 S='/^  summary:/,/^  browser_1:/'
 B1='/^  browser_1:/,/^  browser_2:/'
 B2='/^  browser_2:/,/^  browser_3:/'
@@ -806,7 +843,7 @@ for n in 1 2; do
   mutant "isolation_${n} runs the other shard's job" "${I}s/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" isolation_${n}/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" isolation_$((3 - n))/" "isolation: the isolation_${n} job must run exactly"
   mutant "isolation_${n} hand-over not always" "${I}"'{/Hand over the gate report/,/uses:/s/if: always()/if: success()/;}' "handover: the isolation_${n} job's"
   mutant "isolation_${n} hand-over under another name" "${I}"'s/name: quality-report-isolation_'"${n}"'/name: quality-report-other/' "handover: the isolation_${n} job does not upload the artifact quality-report-isolation_${n}"
-  mutant "report without isolation_${n} in needs" "${R}"'s/needs: \[quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows\]/needs: [quality, quality_2, lint, '"$( [[ $n == 1 ]] && echo isolation_2 || echo isolation_1 )"', summary, browser_1, browser_2, browser_3, workflows]/' "report: the gate job isolation_${n} is not in the report job's needs:"
+  mutant "report without isolation_${n} in needs" "${R}"'s/needs: \[quality, quality_2, quality_3, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows\]/needs: [quality, quality_2, quality_3, lint, '"$( [[ $n == 1 ]] && echo isolation_2 || echo isolation_1 )"', summary, browser_1, browser_2, browser_3, workflows]/' "report: the gate job isolation_${n} is not in the report job's needs:"
   mutant "report without the isolation_${n} result" "${R}"'{/QS_ISOLATION_'"${n}"'_RESULT:/d;}' "report: the report job has no QS_ISOLATION_${n}_RESULT from needs.isolation_${n}.result"
   mutant "status without the isolation_${n} result" "${R}"'s/ "[$]QS_ISOLATION_'"${n}"'_RESULT"//' "report: the status call does not pass"
 done
@@ -841,14 +878,14 @@ FIRST_SUM_GATE="$(gates_of summary | sed -n 1p)"
 mutant "a step naming the summary gate" "${S}"'s#\./Scripts/install_tools_linux\.sh Scripts/required_tools_linux_gates\.txt#./Scripts/install_tools_linux.sh Scripts/required_tools_linux_gates.txt; ./Scripts/'"${FIRST_SUM_GATE}"'.sh#' "isolation: a step names an isolation gate itself"
 mutant "summary hand-over not always" "${S}"'{/Hand over the gate report/,/uses:/s/if: always()/if: success()/;}' "handover: the summary job's"
 mutant "summary hand-over under another name" "${S}"'s/name: quality-report-summary/name: quality-report-other/' "handover: the summary job does not upload the artifact quality-report-summary"
-mutant "report without summary in needs" "${R}"'s/needs: \[quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows\]/needs: [quality, quality_2, lint, isolation_1, isolation_2, browser_1, browser_2, browser_3, workflows]/' "report: the gate job summary is not in the report job's needs:"
+mutant "report without summary in needs" "${R}"'s/needs: \[quality, quality_2, quality_3, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows\]/needs: [quality, quality_2, quality_3, lint, isolation_1, isolation_2, browser_1, browser_2, browser_3, workflows]/' "report: the gate job summary is not in the report job's needs:"
 mutant "report without the summary result" "${R}"'{/QS_SUMMARY_RESULT:/d;}' "report: the report job has no QS_SUMMARY_RESULT from needs.summary.result"
 mutant "status without the summary result" "${R}"'s/ "[$]QS_SUMMARY_RESULT"//' "report: the status call does not pass"
 mutant "main without its job name" "${Q}s/run_ci_phase.sh post \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" main/run_ci_phase.sh post \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\"/" "main: both run_ci_phase.sh calls of the main job"
 FIRST_ISO_GATE="$(gates_of isolation_1 | sed -n 1p)"
 mutant "a step naming an isolation gate" "${I1}"'s#\./Scripts/install_tools_linux\.sh Scripts/required_tools_linux_gates\.txt#./Scripts/install_tools_linux.sh Scripts/required_tools_linux_gates.txt; ./Scripts/'"${FIRST_ISO_GATE}"'.sh#' "isolation: a step names an isolation gate itself"
 mutant "main hand-over under another name" "${Q}"'s/name: quality-report-quality/name: quality-report-other/' "handover: the quality job does not upload the artifact quality-report-quality"
-mutant "report without lint in needs" "${R}"'s/needs: \[quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows\]/needs: [quality, quality_2, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows]/' "report: the gate job lint is not in the report job's needs:"
+mutant "report without lint in needs" "${R}"'s/needs: \[quality, quality_2, quality_3, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows\]/needs: [quality, quality_2, quality_3, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows]/' "report: the gate job lint is not in the report job's needs:"
 mutant "report without the lint result" "${R}"'{/QS_LINT_RESULT:/d;}' "report: the report job has no QS_LINT_RESULT from needs.lint.result"
 mutant "status without the lint result" "${R}"'s/ "[$]QS_LINT_RESULT"//' "report: the status call does not pass"
 mutant "no lint job" 's/^  lint:/  lint_gone:/' "job: the file has no lint job"
@@ -865,17 +902,24 @@ mutant "a step naming a lint gate" \
   "lint: a step names a lint gate itself"
 mutant "lint hand-over not always" "${L}"'{/Hand over the gate report/,/uses:/s/if: always()/if: success()/;}' "handover: the lint job's"
 mutant "lint hand-over under another name" "${L}"'s/name: quality-report-lint/name: quality-report-other/' "handover: the lint job does not upload the artifact quality-report-lint"
-mutant "report without quality_2 in needs" "${R}"'s/needs: \[quality, quality_2, lint,/needs: [quality, lint,/' "report: the gate job quality_2 is not in the report job's needs:"
-mutant "report without the quality_2 result" "${R}"'{/QS_QUALITY_2_RESULT:/d;}' "report: the report job has no QS_QUALITY_2_RESULT from needs.quality_2.result"
-mutant "status without the quality_2 result" "${R}"'s/ "[$]QS_QUALITY_2_RESULT"//' "report: the status call does not pass"
-mutant "no quality_2 job" 's/^  quality_2:/  quality_2_gone:/' "job: the file has no quality_2 job"
-mutant "quality_2 on another runner" "${Q2}"'s/runs-on: macos-latest/runs-on: ubuntu-latest/' "runs-on: the quality_2 job is not on macos-latest"
-mutant "quality_2 without npm ci" "${Q2}"'s/run: npm ci/run: true/' "setup: the quality_2 job does not run npm ci"
-mutant "quality_2 runs the main job's gates" "${Q2}s/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" quality_2/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" main/" "quality_2: the quality_2 job must run exactly"
-FIRST_Q2_GATE="$(gates_of quality_2 | sed -n 1p)"
-mutant "a step naming a quality_2 gate" "${Q2}"'s#\./Scripts/install_tools.sh#./Scripts/install_tools.sh; ./Scripts/'"${FIRST_Q2_GATE}"'.sh#' "quality_2: a step names a quality_2 gate itself"
-mutant "quality_2 hand-over not always" "${Q2}"'{/Hand over the gate report/,/uses:/s/if: always()/if: success()/;}' "handover: the quality_2 job's"
-mutant "quality_2 hand-over under another name" "${Q2}"'s/name: quality-report-quality_2/name: quality-report-other/' "handover: the quality_2 job does not upload the artifact quality-report-quality_2"
+# The two twins of the main job's PRE gates, quality_2 (forsgren#447) and
+# quality_3 (forsgren#672): the same proofs for each.
+for n in 2 3; do
+  case "$n" in 2) QN="$Q2" ;; *) QN="$Q3" ;; esac
+  other=$((5 - n))
+  mutant "report without quality_${n} in needs" "${R}"'s/needs: \[quality, quality_2, quality_3,/needs: [quality, quality_'"${other}"',/' "report: the gate job quality_${n} is not in the report job's needs:"
+  mutant "report without the quality_${n} result" "${R}"'{/QS_QUALITY_'"${n}"'_RESULT:/d;}' "report: the report job has no QS_QUALITY_${n}_RESULT from needs.quality_${n}.result"
+  mutant "status without the quality_${n} result" "${R}"'s/ "[$]QS_QUALITY_'"${n}"'_RESULT"//' "report: the status call does not pass"
+  mutant "no quality_${n} job" "s/^  quality_${n}:/  quality_${n}_gone:/" "job: the file has no quality_${n} job"
+  mutant "quality_${n} on another runner" "${QN}"'s/runs-on: macos-latest/runs-on: ubuntu-latest/' "runs-on: the quality_${n} job is not on macos-latest"
+  mutant "quality_${n} without npm ci" "${QN}"'s/run: npm ci/run: true/' "setup: the quality_${n} job does not run npm ci"
+  mutant "quality_${n} runs the main job's gates" "${QN}s/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" quality_${n}/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" main/" "quality_${n}: the quality_${n} job must run exactly"
+  mutant "quality_${n} runs the other twin's gates" "${QN}s/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" quality_${n}/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" quality_${other}/" "quality_${n}: the quality_${n} job must run exactly"
+  FIRST_QN_GATE="$(gates_of "quality_${n}" | sed -n 1p)"
+  mutant "a step naming a quality_${n} gate" "${QN}"'s#\./Scripts/install_tools.sh#./Scripts/install_tools.sh; ./Scripts/'"${FIRST_QN_GATE}"'.sh#' "quality_${n}: a step names a quality_${n} gate itself"
+  mutant "quality_${n} hand-over not always" "${QN}"'{/Hand over the gate report/,/uses:/s/if: always()/if: success()/;}' "handover: the quality_${n} job's"
+  mutant "quality_${n} hand-over under another name" "${QN}"'s/name: quality-report-quality_'"${n}"'/name: quality-report-other/' "handover: the quality_${n} job does not upload the artifact quality-report-quality_${n}"
+done
 # The three browser jobs: what every gate job must hold, then what the two PRE
 # jobs (browser_1, browser_2) and browser_3 each hold of their own.
 browser_range() {
@@ -903,7 +947,7 @@ done
 mutant "browser_3 without its site build" "${B3}"'s#\./Scripts/build_site.sh#./Scripts/other.sh#' "browser_3: the browser_3 job must run PRE, then its own site build"
 mutant "browser_3 running the main job's gates" "${B3}s/run_ci_phase.sh post \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" browser_3/run_ci_phase.sh post \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" main/" "browser_3: the browser_3 job must run run_ci_phase.sh pre and post"
 mutant "a step naming a browser gate" "${B3}"'s#\./Scripts/install_tools_linux.sh#./Scripts/install_tools_linux.sh; ./Scripts/gate_browser.sh#' "browser: a step names a browser gate itself"
-mutant "report without workflows in needs" "${R}"'s/needs: \[quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows\]/needs: [quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3]/' "report: the gate job workflows is not in the report job's needs:"
+mutant "report without workflows in needs" "${R}"'s/needs: \[quality, quality_2, quality_3, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3, workflows\]/needs: [quality, quality_2, quality_3, lint, isolation_1, isolation_2, summary, browser_1, browser_2, browser_3]/' "report: the gate job workflows is not in the report job's needs:"
 mutant "report without the workflows result" "${R}"'{/QS_WORKFLOWS_RESULT:/d;}' "report: the report job has no QS_WORKFLOWS_RESULT from needs.workflows.result"
 mutant "status without the workflows result" "${R}"'s/ "[$]QS_WORKFLOWS_RESULT"//' "report: the status call does not pass"
 mutant "no workflows job" 's/^  workflows:/  workflows_gone:/' "job: the file has no workflows job"
@@ -925,10 +969,18 @@ mutant "a softened job" "${I1}"'s/^    runs-on: ubuntu-latest/    continue-on-er
 # Pin 3g, the install commands: each of the four jobs on its own list, quality_2
 # with the Homebrew installer and the three browser jobs with the Linux one
 # (forsgren#642), and the main job on a list.
-mutant "quality_2 installing the full tool list" "${Q2}"'s#install_tools\.sh Scripts/required_tools_[a-z0-9_]*_gates\.txt#install_tools.sh#' \
-  "setup: the quality_2 job does not run Scripts/install_tools.sh $(tools_file_of quality_2)"
-mutant "quality_2 installing another job's list" "${Q2}"'s#required_tools_[a-z0-9_]*_gates\.txt#required_tools_linux_gates.txt#' \
-  "setup: the quality_2 job does not run Scripts/install_tools.sh $(tools_file_of quality_2)"
+for j in quality_2:"$Q2" quality_3:"$Q3"; do
+  jid="${j%%:*}"
+  jrange="${j#*:}"
+  mutant "${jid} installing the full tool list" "${jrange}"'s#install_tools\.sh Scripts/required_tools_[a-z0-9_]*_gates\.txt#install_tools.sh#' \
+    "setup: the ${jid} job does not run Scripts/install_tools.sh $(tools_file_of "$jid")"
+  mutant "${jid} installing another job's list" "${jrange}"'s#required_tools_[a-z0-9_]*_gates\.txt#required_tools_linux_gates.txt#' \
+    "setup: the ${jid} job does not run Scripts/install_tools.sh $(tools_file_of "$jid")"
+done
+# forsgren#672: quality_3 on quality_2's list (the same tools, another file) is
+# still another job's list.
+mutant "quality_3 installing the quality_2 list" "${Q3}"'s#required_tools_quality_3_gates\.txt#required_tools_quality_2_gates.txt#' \
+  "setup: the quality_3 job does not run Scripts/install_tools.sh $(tools_file_of quality_3)"
 for j in browser_1:"$B1" browser_2:"$B2" browser_3:"$B3"; do
   jid="${j%%:*}"
   jrange="${j#*:}"
@@ -986,6 +1038,30 @@ expect_named "a group file that leaves the quality_2 gates in the main job" "the
 grep -v '^quality_2|Go coverage$' "$GROUPS_FILE" > "${VERDICT_TMP}/nocov.txt"
 OUT="$(GROUPS_FILE="${VERDICT_TMP}/nocov.txt" groups_findings)"
 expect_named "a group file that leaves Go coverage apart from Go tests" "the quality_2 job the eleven gates"
+# forsgren#672: every PRE gate in exactly one job. A quality_3 gate left out of
+# its group (back in the main job), the same quality_3 row twice, a quality_3
+# gate in quality_2 too, and a quality_3 gate turned into a post row (the job
+# runs only its pre rows) are each named for what they are.
+grep -vx 'quality_3|privacy-posture self-test' "$GROUPS_FILE" > "${VERDICT_TMP}/noq3gate.txt"
+OUT="$(GROUPS_FILE="${VERDICT_TMP}/noq3gate.txt" groups_findings)"
+expect_named "a quality_3 gate left out of its group" "the quality_3 job the eighteen gates of forsgren#672"
+grep -v '^quality_3|' "$GROUPS_FILE" > "${VERDICT_TMP}/noq3.txt"
+OUT="$(GROUPS_FILE="${VERDICT_TMP}/noq3.txt" groups_findings)"
+expect_named "a group file that leaves the quality_3 gates in the main job" "the quality_3 job the eighteen gates of forsgren#672"
+{ cat "$GROUPS_FILE"; echo 'quality_3|privacy-posture self-test'; } > "${VERDICT_TMP}/q3dup.txt"
+OUT="$(GROUPS_FILE="${VERDICT_TMP}/q3dup.txt" groups_findings)"
+expect_named "a quality_3 gate given to its job twice" "union: a gate is given to the same job twice: quality_3|privacy-posture self-test"
+if grep -qF 'union: a gate is in two jobs' <<< "$OUT"; then
+  fail "mutation proof: a quality_3 gate given to its job twice was named as a gate in two jobs. Findings: ${OUT}"
+fi
+{ cat "$GROUPS_FILE"; echo 'quality_2|privacy-posture self-test'; } > "${VERDICT_TMP}/q3twojobs.txt"
+OUT="$(GROUPS_FILE="${VERDICT_TMP}/q3twojobs.txt" groups_findings)"
+expect_named "a quality_3 gate in quality_2 too" "union: a gate is in two jobs, not as one shard each: privacy-posture self-test"
+mkdir -p "${VERDICT_TMP}/order"
+sed 's/^privacy-posture self-test|\(Scripts\/[a-z_]*\.sh\)|pre|/privacy-posture self-test|\1|post|/' "$ORDER" > "${VERDICT_TMP}/order/q3post.txt"
+cmp -s "$ORDER" "${VERDICT_TMP}/order/q3post.txt" && fail "the mutation of the privacy-posture self-test's phase changed nothing"
+OUT="$(ORDER="${VERDICT_TMP}/order/q3post.txt" groups_findings)"
+expect_named "a quality_3 gate that is a post row" "the quality_3 gate 'privacy-posture self-test' is no pre row"
 { cat "$GROUPS_FILE"; echo 'lint|golden pages'; } > "${VERDICT_TMP}/twojobs.txt"
 OUT="$(GROUPS_FILE="${VERDICT_TMP}/twojobs.txt" groups_findings)"
 expect_named "a gate in quality_2 and in another job" "union: a gate is in two jobs, not as one shard each: golden pages"
@@ -1005,7 +1081,7 @@ expect_named "a group file that leaves the process self-test in browser_3" "the 
 OUT="$(GROUPS_FILE="${VERDICT_TMP}/b1twice.txt" groups_findings)"
 expect_named "the browser gate self-test whole in browser_3 besides its shards" "union: a gate is in two jobs, not as one shard each: browser gate self-test"
 # Pin 3g, the lists: each mutant is a copy of the lists in a directory of its own.
-for f in "$(tools_file_of quality_2)" "$(tools_file_of browser_1)" "$(tools_file_of browser_2)" "$(tools_file_of browser_3)"; do
+for f in "$(tools_file_of quality_2)" "$(tools_file_of quality_3)" "$(tools_file_of browser_1)" "$(tools_file_of browser_2)" "$(tools_file_of browser_3)"; do
   [[ -f "$f" ]] && cp "$f" "${VERDICT_TMP}/"
 done
 mkdir -p "${VERDICT_TMP}/nojq" "${VERDICT_TMP}/nonode" "${VERDICT_TMP}/extra" "${VERDICT_TMP}/empty"
@@ -1018,6 +1094,12 @@ grep -vx 'jq' "$(tools_file_of quality_2)" > "${VERDICT_TMP}/nojq/required_tools
 OUT="$(TOOLS_DIR="${VERDICT_TMP}/nojq" tools_file_findings)"
 expect_named "a quality_2 list without jq" "lists 'go node ', the quality_2 job needs 'go jq node '"
 expect_named "the Go coverage gate that calls jq" "the quality_2 gate check_coverage calls jq"
+mkdir -p "${VERDICT_TMP}/q3nojq"
+cp "${VERDICT_TMP}"/required_tools_*_gates.txt "${VERDICT_TMP}/q3nojq/" 2> /dev/null || true
+grep -vx 'jq' "$(tools_file_of quality_3)" > "${VERDICT_TMP}/q3nojq/required_tools_quality_3_gates.txt" || true
+OUT="$(TOOLS_DIR="${VERDICT_TMP}/q3nojq" tools_file_findings)"
+expect_named "a quality_3 list without jq" "lists 'go node ', the quality_3 job needs 'go jq node '"
+expect_named "the Go coverage self-test that reaches jq" "the quality_3 gate test_check_coverage reaches jq in Scripts/check_coverage.sh"
 grep -vx 'node' "$(tools_file_of browser_3)" > "${VERDICT_TMP}/nonode/required_tools_browser_3_gates.txt" || true
 OUT="$(TOOLS_DIR="${VERDICT_TMP}/nonode" tools_file_findings)"
 expect_named "a browser_3 list without node" "lists 'go ', the browser_3 job needs 'go node '"

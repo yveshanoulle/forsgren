@@ -107,8 +107,8 @@ workflows|auto-update workflow
 # Three Go-only gates of the main job (forsgren#447, step 6), about 85 s on the
 # Mac (106 s at most): go mod tidy, and the self-tests of the Go test
 # duplication and Go vulnerabilities gates (the Go vulnerabilities gate stays
-# in the main job; the Go test duplication gate is in the lint job since
-# forsgren#591). Go ships with the hosted Linux image, as for the Go lint pair.
+# on macOS, in the quality_3 job since forsgren#672; the Go test duplication
+# gate is in the lint job since forsgren#591). Go ships with the hosted Linux image, as for the Go lint pair.
 workflows|go mod tidy
 workflows|Go test duplication self-test
 workflows|Go vulnerabilities self-test
@@ -152,3 +152,39 @@ quality_2|quality-run summary
 quality_2|markdown-links self-test
 quality_2|HTMLHint self-test
 quality_2|html duplication, generated page self-test
+#
+# The quality_3 job (forsgren#672, decision #672 A): the main job's PRE gates
+# took 481 to 658 s (median sum 578 s) in four green Quality runs of main
+# (43627000625, 43623807626, 43619206241, 43598239235), all one after the other,
+# and the main job 9 to 13 minutes. These eighteen PRE gates, picked by their
+# measured seconds and not by their number, took 308 s by the median of the
+# same runs (privacy-posture self-test 108, browser gate (TBD tables) self-test
+# 57, Go vulnerabilities 13, FBP aborted run 13, browser gate (default TBD
+# fixture) self-test 12, Go coverage self-test 12, html-duplication self-test
+# 10, bare mktemp self-test 10, markdown links 9, build-site self-test 9, FBP
+# --no-push self-test 8, tmp failure stops, sfl pull rebase and FBP
+# push-or-rebase self-tests 8 each, workflow-triggers self-test, required-pages
+# self-test and bare mktemp 7 each, npm-audit self-test 7), and 270 s stay in
+# the main job, which also builds the site and runs the POST gates (about
+# 25 s). All need only go, node and jq and name no other tool of
+# Scripts/required_tools.txt (the two dependabot merge policy gates, 75 s, name
+# zizmor and stay in the main job), read no secret and no built site; they keep
+# their pre phase and their place in the order file.
+quality_3|privacy-posture self-test
+quality_3|browser gate (TBD tables) self-test
+quality_3|Go vulnerabilities
+quality_3|FBP aborted run
+quality_3|browser gate (default TBD fixture) self-test
+quality_3|Go coverage self-test
+quality_3|html-duplication self-test
+quality_3|bare mktemp self-test
+quality_3|markdown links
+quality_3|build-site self-test
+quality_3|FBP --no-push self-test
+quality_3|tmp failure stops self-test
+quality_3|sfl pull rebase self-test
+quality_3|FBP push-or-rebase self-test
+quality_3|workflow-triggers self-test
+quality_3|required-pages self-test
+quality_3|bare mktemp
+quality_3|npm-audit self-test
