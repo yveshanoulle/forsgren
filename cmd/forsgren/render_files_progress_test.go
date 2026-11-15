@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -20,7 +21,7 @@ const filesProgressH = "# forsgren commit files progress v1\nrepository,read,lef
 // filesReadings are the Data page's reads still going of the history at data.
 func filesReadings(t *testing.T, data string) []metrics.FilesReading {
 	t.Helper()
-	got, err := withHistory(page.Data{}, pathsProject(), data, renderNow)
+	got, err := withHistory(page.Data{}, pathsProject(), data, renderNow, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}

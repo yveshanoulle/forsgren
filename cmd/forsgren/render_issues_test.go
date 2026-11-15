@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -140,7 +141,7 @@ func TestRenderCountsTheOpenBugsFromTheBugFlagsFile(t *testing.T) {
 	if _, err := history.AppendIssueBugs(filepath.Join(filepath.Dir(data), "issue_bugs.csv"), bugs); err != nil {
 		t.Fatal(err)
 	}
-	got, err := withHistory(page.Data{}, config.Config{}, data, time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC))
+	got, err := withHistory(page.Data{}, config.Config{}, data, time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC), io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +174,7 @@ func renderWithBugsCut(t *testing.T, cut ...string) page.Data {
 	if len(cut) > 0 {
 		saveBugsCut(t, data, cut)
 	}
-	got, err := withHistory(page.Data{}, config.Config{}, data, time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC))
+	got, err := withHistory(page.Data{}, config.Config{}, data, time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC), io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}

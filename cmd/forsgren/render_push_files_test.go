@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,7 +20,7 @@ const pushFilesFilledH = "# forsgren push files filled v1\nrepository,filled_at\
 // data.
 func webDataRow(t *testing.T, data string) metrics.DataRow {
 	t.Helper()
-	got, err := withHistory(page.Data{}, pathsProject(), data, renderNow)
+	got, err := withHistory(page.Data{}, pathsProject(), data, renderNow, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}

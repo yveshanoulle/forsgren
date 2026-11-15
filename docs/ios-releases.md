@@ -138,6 +138,14 @@ version.
   `environment: production`, a `workflow=` rule on the upload workflow, or
   a GitHub Release per upload with the `release` rule each count uploads as
   releases, and the deployment frequency is inflated.
+- **TestFlight uploads already recorded as production.** An app that
+  recorded its uploads as production deployments before it moved to this
+  setup keeps them in its history, which only grows. When those deployments
+  carry a task of their own, the repository's
+  [`exclude`](configuration.md#configuration) key leaves them out of every
+  metric and the History without rewriting the files: `task:` the uploads'
+  task, and `before:` the time of the switch only when the same task still
+  names production deployments that should count after it.
 - **Tags per version instead of per build.** A tag `v7.3.0` moved or set on
   the newest upload names the wrong commit when Apple released an earlier
   build of that version, and lead time then counts commits that users do

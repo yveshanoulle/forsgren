@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -62,7 +63,7 @@ func storePushes(t *testing.T, data string, pushes []history.Push, commits []his
 // pushData is withHistory of the history at data for pushesProject.
 func pushData(t *testing.T, data string) page.Data {
 	t.Helper()
-	got, err := withHistory(page.Data{}, pushesProject(), data, time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC))
+	got, err := withHistory(page.Data{}, pushesProject(), data, time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC), io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}

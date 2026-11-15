@@ -557,6 +557,36 @@ projects:
   those of services. Which rule a stored deployment belongs to is its kind and
   name (see [Data files](data-files.md#collecting-deployments-collect)).
 
+- **`exclude`** is optional, per repository (forsgren#667): stored
+  deployments that count nowhere, for a repository that finds out some of its
+  past production deployments were not production at all. It is a list, each
+  entry a `task` (the task GitHub stored with the deployment, the history's
+  `task` column) and an optional `before`, an RFC 3339 time. Without `before`
+  every deployment of that task is left out; with it, only those created
+  before that time, and a deployment created at `before` or later counts.
+
+  ```yaml
+  repositories:
+    - name: acme/app
+      exclude:
+        - task: beta-upload                  # every deployment of the task
+        - task: deploy
+          before: 2026-06-01T00:00:00Z       # only those created before it
+  ```
+
+  An excluded deployment is left out of every number: deployment frequency,
+  lead time for changes (its commits), change fail rate and rework rate (a
+  failed one is no failure), failed deployment recovery time, the History,
+  TBD, Week and Data pages. A failure issue has no task, so it still counts.
+  The exclusion is applied when the page is rendered, to what is stored and to
+  what later runs collect: `data/deployments.csv` and `data/commits.csv` keep
+  every line, so removing an entry counts them again. Refused: an entry
+  without a `task` or with an empty one, a `before` that is not an RFC 3339
+  time with its zone (`2026-06-01` alone is refused), and a key other than
+  `task` and `before`. A `task` that no stored deployment of the repository
+  has (a typo, or a task of another repository) is not refused: `render`
+  writes one warning line for it on stderr, and it excludes nothing.
+
 A **failure** is an issue labelled `failure` whose body carries the failure
 record block (see [How it gets its data](data-files.md#how-it-gets-its-data)); lead time runs from a change's first
 commit. Neither is configured per repository in version 1. A repository with

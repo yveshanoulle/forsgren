@@ -1485,6 +1485,16 @@
     "github.com/yveshanoulle/forsgren/internal/page/legendlinks.go:mentionAt": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/legendlinks.go:inWord": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/legendlinks.go:withEntryLinks": 83.2,
-    "github.com/yveshanoulle/forsgren/internal/page/legendlinks.go:countSkipping": 100.0
+    "github.com/yveshanoulle/forsgren/internal/page/legendlinks.go:countSkipping": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/renderexclude.go:withoutExcluded": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/renderexclude.go:exclusionsOf": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/exclude.go:exclusionsOf": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/exclude.go:check": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/validate.go:deploymentsOf": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/history/exclusions.go:excludes": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/history/exclusions.go:names": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/history/exclusions.go:Unmatched": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/history/exclusions.go:excluded": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/history/exclusions.go:WithoutExcluded": 100.0
   }
 }

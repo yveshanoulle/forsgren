@@ -127,7 +127,7 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 	if o.data == "" {
 		return data, nil
 	}
-	return withHistory(data, cfg, o.data, at)
+	return withHistory(data, cfg, o.data, at, stderr)
 }
 
 // pagesInMode are the pages whose key the config sets to mode, by page name:
@@ -166,9 +166,9 @@ const issueDays = 30
 // withHistory is data with what the history at path shows: the table's rows
 // and the rows of the days and issues pages (forsgren#89, forsgren#123),
 // from the issues file next to the history (data/issues.csv beside
-// data/deployments.csv), at the render time at.
-func withHistory(data page.Data, cfg config.Config, path string, at time.Time) (page.Data, error) {
-	metricsData, err := metricsDataOf(cfg, path)
+// data/deployments.csv), at the render time at; a warning goes to stderr.
+func withHistory(data page.Data, cfg config.Config, path string, at time.Time, stderr io.Writer) (page.Data, error) {
+	metricsData, err := metricsDataOf(cfg, path, stderr)
 	if err != nil {
 		return data, err
 	}
@@ -259,8 +259,9 @@ func markBugs(events []history.IssueEvent, bugs []history.IssueBug) []history.Is
 // forsgren#18, and rework rate, forsgren#39) and the reach beside it
 // (data/reach.csv, how far back each repository was read; none when missing,
 // then nothing is read for the history page, forsgren#68) and the pull
-// request files beside it (withPulls).
-func metricsDataOf(cfg config.Config, path string) (metrics.Data, error) {
+// request files beside it (withPulls), less the deployments the config
+// excludes (withoutExcluded, forsgren#667), whose warnings go to stderr.
+func metricsDataOf(cfg config.Config, path string, stderr io.Writer) (metrics.Data, error) {
 	records, err := loadOrNone(path, history.Load)
 	if err != nil {
 		return metrics.Data{}, err
@@ -269,6 +270,7 @@ func metricsDataOf(cfg config.Config, path string) (metrics.Data, error) {
 	if err != nil {
 		return metrics.Data{}, err
 	}
+	records, commits = withoutExcluded(cfg, records, commits, stderr)
 	failures, err := failuresOf(path)
 	if err != nil {
 		return metrics.Data{}, err

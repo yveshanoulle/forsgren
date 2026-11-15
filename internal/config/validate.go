@@ -357,6 +357,17 @@ func (r fileRepository) toRepository(project string, seen *names) (Repository, e
 	if err := seen.claimRepository(project, r.Name); err != nil {
 		return Repository{}, fmt.Errorf("%s: %w", where, err)
 	}
+	repo, err := r.deploymentsOf(where)
+	if err != nil {
+		return Repository{}, err
+	}
+	repo.Exclude, err = exclusionsOf(where, r.Exclude)
+	return repo, err
+}
+
+// deploymentsOf is the repository's deployment rules with their labels, in
+// either form; where names the repository in an error.
+func (r fileRepository) deploymentsOf(where string) (Repository, error) {
 	if r.Deployments != nil {
 		return r.toRuledRepository(where)
 	}

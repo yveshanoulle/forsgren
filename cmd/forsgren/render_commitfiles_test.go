@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"path/filepath"
 	"testing"
 
@@ -44,7 +45,7 @@ func writeFilesOf(t *testing.T, data string) {
 // webRow is the Web service row of the TBD page data of the history at data.
 func webRow(t *testing.T, data string) metrics.TbdRow {
 	t.Helper()
-	got, err := withHistory(page.Data{}, pathsProject(), data, renderNow)
+	got, err := withHistory(page.Data{}, pathsProject(), data, renderNow, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}

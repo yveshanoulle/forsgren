@@ -174,6 +174,9 @@ type Repository struct {
 	// with DeploymentRules, which gives the one rule of Deployment, without a
 	// label, when Rules is nil.
 	Rules []Rule
+	// Exclude are the stored deployments of the repository that count
+	// nowhere, in file order, nil for none (forsgren#667, exclude.go).
+	Exclude []Exclusion
 }
 
 // Project groups the repositories that ship one product; the page shows
@@ -326,6 +329,7 @@ var (
 	ErrDuplicateRepository = errors.New("listed twice")
 	ErrDeployment          = errors.New("invalid deployment")
 	ErrLabel               = errors.New("invalid label")
+	ErrExclude             = errors.New("invalid exclude")
 	ErrView                = errors.New("invalid view")
 	ErrAutoUpdate          = errors.New("invalid auto_update")
 	ErrAutoUpdateLevel     = errors.New("invalid auto_update_level")
@@ -446,6 +450,9 @@ type fileRepository struct {
 	// Deployments is the `deployments:` map, nil when the key is left out
 	// (forsgren#498).
 	Deployments *ruleList `yaml:"deployments"`
+	// Exclude is the `exclude:` list, nil when the key is left out
+	// (forsgren#667).
+	Exclude []fileExclusion `yaml:"exclude"`
 }
 
 // decode reads exactly one YAML document strictly: an unknown key or a value
