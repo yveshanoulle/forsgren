@@ -64,13 +64,29 @@
 #      ✅ line, refused or with no pull request to read red with its ❌ line,
 #      the permissions.push line naming the owner's role and never calling
 #      the token usable
+#  12. deny rules (forsgren#668), on a fixture config that allows Actions
+#      patch and minor: a forsgren bump is not eligible and listed DENIED;
+#      another Actions minor still is; a group's second member denied; a
+#      name in another case; a prefix pattern (and a name that only starts
+#      like it); a deny rule of another ecosystem; deny lines with one field,
+#      two names or * inside; with a github_actions deny rule the changed
+#      workflow files are read (once, 100 to a page; never without one): a
+#      denied reference the metadata does not name, a composite action's
+#      action.yaml, a uses: line it cannot read, a workflow file without a
+#      patch, a files list not read whole or without changed_files, a file
+#      without a filename, an answer that is no list, a failed read and
+#      unreadable metadata are not eligible; local, docker and comment lines
+#      and files that are no workflow are read as not denied
 # Mutation proofs: copies of the policy with one condition weakened (a check
 # not completed with success taken as green, every update allowed, a head
 # behind main taken as fresh, a rule that names a dependency allowing every
 # dependency, any update type, any dependency type (these three on the
 # named-rule fixture config), any author, any head repository, any branch
 # prefix, a head that moved, a state other than clean, a failed read that
-# does not block, the oldest run deciding) must each turn a red case green; copies of the caller (among them: a write permission, another
+# does not block, the oldest run deciding; forsgren#668: the deny rule
+# ignored, checked on the first member only, compared case-sensitively, a
+# uses: line it cannot read taken as allowed, the changed workflow files not
+# read) must each turn a red case green; copies of the caller (among them: a write permission, another
 # trigger, the zizmor ignore moved or doubled, steps of its own, a call of a
 # branch, the switch forced on, secrets: inherit) and of the token check
 # with one rule broken must each be judged red; copies of the token check's
@@ -111,6 +127,7 @@ D="$FAKE_GH_DIR"
 echo "$*" >> "$D/calls.log"
 [ "$1" = api ] && [ "$#" -eq 2 ] || { echo "fake gh: unexpected call: $*" >&2; exit 64; }
 case "$2" in
+  */pulls/*/files*) kind=files ;;
   */pulls/*) kind=pr ;;
   */commits/*) kind=commit ;;
   */actions/runs*) kind=runs ;;
@@ -406,6 +423,174 @@ printf 'allow npm_and_yarn semver-patch\nworkflow .github/workflows/quality.yml 
 run_policy "$d" "$d/twofields.conf"
 want_exit "7. an allow line with two fields is not eligible" 1 "config line not understood: allow npm_and_yarn semver-patch"
 
+# 12 deny rules (forsgren#668)
+# The deny fixture config: Actions patch and minor and npm development patch
+# and minor allowed, as an installation may have them, with deny rules for
+# the reference the installation leaves to auto_update_level, for one npm
+# development dependency and for a name prefix, and the same two workflows.
+FORSGREN_REF="yveshanoulle/forsgren"
+DENY_CONF="${TMP}/deny.conf"
+printf '%s\n' "allow github_actions * semver-patch" "allow github_actions * semver-minor" \
+  "allow npm_and_yarn direct:development semver-patch" "allow npm_and_yarn direct:development semver-minor" \
+  "deny github_actions ${FORSGREN_REF}" "deny npm_and_yarn left-pad" "deny npm_and_yarn @acme/*" \
+  "workflow .github/workflows/quality.yml Quality" "workflow .github/workflows/dco.yml DCO" > "$DENY_CONF"
+FORSGREN_BRANCH=dependabot/github_actions/yveshanoulle/forsgren-1.9.0
+FORSGREN_MINOR="${FORSGREN_REF}|direct:production|semver-minor|1.8.0|1.9.0"
+SETUP_NODE_MINOR="actions/setup-node|direct:production|semver-minor|6.0.0|6.1.0"
+
+# The same without the github_actions deny rule: with deny rules of other
+# ecosystems only, the pull request's files are never read.
+NPM_DENY_CONF="${TMP}/npmdeny.conf"
+grep -v '^deny github_actions ' "$DENY_CONF" > "$NPM_DENY_CONF"
+
+# workflow_files <case dir> <member...>: the pull request's files answer, one
+# workflow file whose patch moves each member's uses: line from its old to its
+# new version (the forsgren reference as a reusable workflow, the others as
+# actions), and changed_files to match.
+workflow_files() {
+  local dir="$1" m name type upd from to ref patch="@@ -10,4 +10,4 @@ jobs:"
+  shift
+  for m in "$@"; do
+    IFS='|' read -r name type upd from to <<< "$m"
+    ref="$name"
+    [[ "$name" != "$FORSGREN_REF" ]] || ref="${name}/.github/workflows/metrics.yml"
+    patch+=$'\n'"-      - uses: ${ref}@${OLD} # v${from}"$'\n'"+      - uses: ${ref}@${SHA} # v${to}"
+  done
+  jq -n --arg p "$patch" '[{filename: ".github/workflows/ci.yml", status: "modified", patch: $p}]' > "$dir/files.json"
+  edit "$dir/pr.json" '.changed_files = 1'
+}
+
+# package_files <case dir> <member...>: the files answer of an npm pull
+# request, package.json moving each member's version.
+package_files() {
+  local dir="$1" m name type upd from to patch="@@ -20,4 +20,4 @@"
+  shift
+  for m in "$@"; do
+    IFS='|' read -r name type upd from to <<< "$m"
+    patch+=$'\n'"-    \"${name}\": \"${from}\","$'\n'"+    \"${name}\": \"${to}\","
+  done
+  jq -n --arg p "$patch" '[{filename: "package.json", status: "modified", patch: $p}]' > "$dir/files.json"
+  edit "$dir/pr.json" '.changed_files = 1'
+}
+
+# add_line <case dir> <line>: one more line in the patch of the first file.
+add_line() { jq --arg l "$2" '.[0].patch += "\n" + $l' "$1/files.json" > "$1/files.new" && mv "$1/files.new" "$1/files.json"; }
+
+# deny_case <branch> <member...>: new_case judged with the deny fixture
+# config, mutation proofs included, with the files answer of workflow_files
+# for a github_actions branch and of package_files for any other.
+deny_case() {
+  local branch="$1"
+  new_case "$@"
+  cp "$DENY_CONF" "$d/merge.conf"
+  shift
+  if [[ "$branch" == dependabot/github_actions/* ]]; then workflow_files "$d" "$@"; else package_files "$d" "$@"; fi
+}
+
+deny_case "$FORSGREN_BRANCH" "$FORSGREN_MINOR"
+expect "$d" 1 "${B}${FORSGREN_REF}${B} is denied by the rule 'deny github_actions ${FORSGREN_REF}' (github_actions, direct:production, version-update:semver-minor)" \
+  "12. a forsgren bump above auto_update_level is not eligible, though Actions minor is allowed"
+DENY_IGNORED_CASE="$d"
+if grep -qF -- "- ${B}${FORSGREN_REF}${B} (github_actions, direct:production, version-update:semver-minor): 1.8.0 → 1.9.0, DENIED (deny github_actions ${FORSGREN_REF})" "$d/out.txt"; then
+  echo "  ok: 12. the record lists the denied dependency as DENIED, with its rule"
+else
+  fail "12. the record does not list the denied dependency as DENIED: $(cat "$d/out.txt")"
+fi
+deny_case "$ACTIONS_BRANCH" "$SETUP_NODE_MINOR"
+expect "$d" 0 "Decision: ELIGIBLE" "12. another Actions minor update is still eligible beside the deny rule"
+deny_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH" "$FORSGREN_MINOR"
+expect "$d" 1 "${B}${FORSGREN_REF}${B} is denied by the rule" "12. a group whose second member is denied is not eligible"
+deny_case "$FORSGREN_BRANCH" "YvesHanoulle/Forsgren|direct:production|semver-minor|1.8.0|1.9.0"
+expect "$d" 1 "${B}YvesHanoulle/Forsgren${B} is denied by the rule 'deny github_actions ${FORSGREN_REF}'" \
+  "12. a denied name written in another case is denied (GitHub's owner and repository names ignore case)"
+DENY_CASE_CASE="$d"
+deny_case "$NPM_BRANCH" "@acme/ui|direct:development|semver-patch|2.0.0|2.0.1"
+expect "$d" 1 "${B}@acme/ui${B} is denied by the rule 'deny npm_and_yarn @acme/*'" "12. a name that starts with a denied prefix (a pattern ending in *) is denied"
+deny_case "$NPM_BRANCH" "@acmeco/ui|direct:development|semver-patch|2.0.0|2.0.1"
+expect "$d" 0 "Decision: ELIGIBLE" "12. a name that only starts like a denied prefix is not denied"
+deny_case "$NPM_BRANCH" "$NPM_DEV_PATCH" "left-pad|direct:development|semver-patch|1.3.0|1.3.1"
+cp "$NPM_DENY_CONF" "$d/merge.conf"
+expect "$d" 1 "${B}left-pad${B} is denied by the rule 'deny npm_and_yarn left-pad' (npm_and_yarn, direct:development, version-update:semver-patch)" \
+  "12. an npm development patch an allow rule covers is not eligible when a deny rule names it (second member of a group)"
+DENY_SECOND_CASE="$d"
+deny_case "$ACTIONS_BRANCH" "left-pad|direct:production|semver-patch|1.3.0|1.3.1"
+cp "$NPM_DENY_CONF" "$d/merge.conf"
+expect "$d" 0 "Decision: ELIGIBLE" "12. a deny rule applies to its own ecosystem only"
+deny_case "$NPM_BRANCH" "$NPM_DEV_PATCH"
+printf 'allow npm_and_yarn * semver-patch\nworkflow .github/workflows/quality.yml Quality\ndeny npm_and_yarn\n' > "$d/deny1.conf"
+run_policy "$d" "$d/deny1.conf"
+want_exit "12. a deny line with one field is not eligible" 1 "config line not understood: deny npm_and_yarn"
+printf 'allow npm_and_yarn * semver-patch\nworkflow .github/workflows/quality.yml Quality\ndeny npm_and_yarn left-pad htmlhint\n' > "$d/deny3.conf"
+run_policy "$d" "$d/deny3.conf"
+want_exit "12. a deny line with two names is not eligible" 1 "config line not understood: deny npm_and_yarn left-pad htmlhint"
+printf 'allow npm_and_yarn * semver-patch\nworkflow .github/workflows/quality.yml Quality\ndeny npm_and_yarn *-pad\n' > "$d/denymid.conf"
+run_policy "$d" "$d/denymid.conf"
+want_exit "12. a deny pattern with * anywhere but at its end is not eligible" 1 "config line not understood: deny npm_and_yarn *-pad"
+if [[ ! -e "$DENY_SECOND_CASE/count.files" ]]; then
+  echo "  ok: 12. without a github_actions deny rule in play the pull request's files are not read"
+else
+  fail "12. an npm pull request judged by npm deny rules read the pull request's files"
+fi
+
+# 12 the changed workflow files: with a github_actions deny rule, every
+# uses: line a pull request changes in a workflow file is held to the deny
+# rules too, and a file or line it cannot read is not eligible.
+deny_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
+workflow_files "$d" "$ACTIONS_PATCH" "$FORSGREN_MINOR"
+expect "$d" 1 "changed workflow file .github/workflows/ci.yml moves ${B}${FORSGREN_REF}/.github/workflows/metrics.yml${B}, denied by the rule 'deny github_actions ${FORSGREN_REF}'" \
+  "12. a changed uses: line of a denied reference that the metadata does not name is not eligible"
+FILES_UNREAD_CASE="$d"
+if [[ "$(cat "$d/calls.log" | grep -c '^api repos/owner/repo/pulls/7/files?per_page=100$')" -eq 1 ]]; then
+  echo "  ok: 12. the pull request's files are read once, 100 to a page"
+else
+  fail "12. the pull request's files are not read once with per_page=100: $(cat "$d/calls.log")"
+fi
+deny_case "$ACTIONS_BRANCH" "$SETUP_NODE_MINOR"
+add_line "$d" "+        uses: ${D}{{ matrix.action }}"
+expect "$d" 1 "changed workflow file .github/workflows/ci.yml has a uses: line it cannot read, so a denied dependency cannot be ruled out: +        uses: ${D}{{ matrix.action }}" \
+  "12. a changed uses: line it cannot read is not eligible (fail closed)"
+UNREADABLE_USES_CASE="$d"
+deny_case "$ACTIONS_BRANCH" "$SETUP_NODE_MINOR"
+add_line "$d" "+  - uses : actions/cache"
+expect "$d" 1 "changed workflow file .github/workflows/ci.yml has a uses: line it cannot read" "12. a changed uses: line without a ref after @ is not eligible"
+deny_case "$ACTIONS_BRANCH" "$SETUP_NODE_MINOR"
+add_line "$d" "-      - uses: ./.github/actions/setup"
+add_line "$d" "+      - uses: \"./.github/actions/setup-node\""
+add_line "$d" "+      # uses: ${FORSGREN_REF}@main is the reusable one"
+add_line "$d" "+      - uses: docker://alpine:3.22"
+expect "$d" 0 "Decision: ELIGIBLE" "12. changed uses: lines of a local action, a docker image and a comment are read and none is denied"
+deny_case "$ACTIONS_BRANCH" "$SETUP_NODE_MINOR"
+edit "$d/files.json" 'del(.[0].patch)'
+expect "$d" 1 "changed workflow file .github/workflows/ci.yml has no patch in GitHub's answer, so its uses: lines cannot be read" \
+  "12. a changed workflow file without a patch is not eligible"
+deny_case "$ACTIONS_BRANCH" "$SETUP_NODE_MINOR"
+edit "$d/files.json" '.[0].filename = ".github/actions/setup/action.yaml"'
+add_line "$d" "+    uses: ${FORSGREN_REF}/.github/workflows/metrics.yml@main"
+expect "$d" 1 "changed workflow file .github/actions/setup/action.yaml moves ${B}${FORSGREN_REF}/.github/workflows/metrics.yml${B}" "12. a changed action.yaml of a composite action is read too"
+deny_case "$ACTIONS_BRANCH" "$SETUP_NODE_MINOR"
+edit "$d/files.json" '.[0].filename = "docs/ci.md"'
+add_line "$d" "+uses: ${D}{{ x }}"
+expect "$d" 0 "Decision: ELIGIBLE" "12. a changed file that is no workflow file is not read for uses: lines"
+deny_case "$ACTIONS_BRANCH" "$SETUP_NODE_MINOR"
+edit "$d/pr.json" '.changed_files = 2'
+expect "$d" 1 "pull request files not read whole (1 of 2), so a denied uses: line cannot be ruled out" "12. a files answer with fewer files than the pull request changes is not eligible"
+deny_case "$ACTIONS_BRANCH" "$SETUP_NODE_MINOR"
+edit "$d/pr.json" 'del(.changed_files)'
+expect "$d" 1 "pull request files not read whole (1 of null)" "12. a pull request that does not say how many files it changes is not eligible"
+deny_case "$ACTIONS_BRANCH" "$SETUP_NODE_MINOR"
+edit "$d/files.json" 'del(.[0].filename)'
+expect "$d" 1 "pull request files answer names a file without a filename, so a denied uses: line cannot be ruled out" "12. a file without a filename in the files answer is not eligible"
+deny_case "$ACTIONS_BRANCH" "$SETUP_NODE_MINOR"
+echo '{"message": "Not Found"}' > "$d/files.json"
+expect "$d" 1 "pull request files answer is not a list" "12. a files answer that is not a list is not eligible"
+deny_case "$ACTIONS_BRANCH" "$SETUP_NODE_MINOR"
+touch "$d/fail.files"
+expect "$d" 1 "GitHub API read failed: GET pulls/7/files?per_page=100" "12. a failing read of the pull request's files is not eligible"
+deny_case "$FORSGREN_BRANCH" "$FORSGREN_MINOR"
+edit "$d/commit.json" '.commit.message |= sub("  update-type"; "update-type")'
+workflow_files "$d" "$SETUP_NODE_MINOR"
+expect "$d" 1 "commit metadata unreadable: line not understood" "12. with deny rules, metadata it cannot read is not eligible (fail closed)"
+
 # 8 usage
 capture env PATH="${TMP}/bin:${PATH}" GITHUB_REPOSITORY=owner/repo "$POLICY"
 want_rc "8. no pull request number exits 2" 2
@@ -680,6 +865,13 @@ unset EXPECT_HEAD
 policy_mutant clean "s/\\[ \"\\${D}mstate\" = clean \\] ||/true ||/" "$UNCLEAN_CASE" "a mergeable state other than clean accepted"
 policy_mutant apiblock 's/block "GitHub API read failed: .*/return 1/' "$COMMIT_FAIL_CASE" "a failed read that does not block"
 policy_mutant oldest 's/sort_by(.id) | last/sort_by(.id) | first/' "$LATEST_CASE" "the oldest run deciding"
+# forsgren#668: each mutant weakens one part of the deny rule; its case,
+# otherwise eligible, is red only for that part.
+policy_mutant denyignored "s/^  \\[ \"\\${D}{#DENY\\[@\\]}\" -ne 0 \\] || return 1${D}/  return 1/" "$DENY_IGNORED_CASE" "the deny rule ignored (a forsgren bump with Actions minor allowed)"
+policy_mutant denyfirst "s/if denied \"\\${D}ECOSYSTEM\" \"\\${D}name\"; then/if [ \"${D}{#DEPS[@]}\" -eq 0 ] \\&\\& denied \"${D}ECOSYSTEM\" \"${D}name\"; then/" "$DENY_SECOND_CASE" "the deny rule checked on the first member only"
+policy_mutant denycase "s/tr '\\[:upper:\\]' '\\[:lower:\\]'/cat/" "$DENY_CASE_CASE" "the deny pattern compared case-sensitively, though GitHub's names ignore case"
+policy_mutant denyopen "s/block \"changed workflow file \\${D}1 has a uses: line it cannot read.*/return 0/" "$UNREADABLE_USES_CASE" "a uses: line it cannot read taken as allowed (fail closed turned into allow)"
+policy_mutant denyfiles "s/^check_workflow_files${D}/:/" "$FILES_UNREAD_CASE" "the changed workflow files not read"
 
 # Mutation proofs: the caller. Each broken copy must be judged red.
 # workflow_mutant <name> <sed> <what>

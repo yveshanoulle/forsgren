@@ -1027,7 +1027,14 @@ Nine PRE gates keep the CI honest:
   (GitHub Actions patch and minor, npm development patch and minor,
   forsgren#677; an allow line may name one dependency to allow only it,
   forsgren#674; a group only if every member is; Go modules, the Go
-  toolchain, Docker and every major stay manual); every workflow the config expects (Quality and DCO, the two that
+  toolchain, Docker and every major stay manual), and no member matching a
+  `deny` line of the settings, whatever the allow lines say (forsgren#668;
+  names compared ignoring case, a pattern ending in `*` a prefix; with a
+  `deny github_actions` line, every `uses:` line the pull request adds or
+  removes in a workflow file is held to it too, read from the pull
+  request's files, and a list not read whole, a workflow file without a
+  patch or a `uses:` line it cannot read blocks; forsgren's own settings
+  have no deny line, an installation denies its own forsgren reference); every workflow the config expects (Quality and DCO, the two that
   run on pull requests) completed with success for the current head commit,
   file and name both matching, the latest run deciding; open, mergeable,
   clean; not behind the default branch. Any API error or answer it cannot

@@ -27,8 +27,8 @@
 #   5. the settings file from the caller's default branch through the API
 #      (executed: a leading /, a .. part, an empty part, an empty path and
 #      no default branch refused before any gh call; a failed read fails; a
-#      good path is one GET of contents at ref=<default branch>, written to
-#      the conf output)
+#      good path is one GET of contents at ref=<default branch>, written
+#      whole to the conf output, its deny lines included, forsgren#668)
 #   6. the policy step: the fetched policy script on the pull request, the
 #      settings as DEPENDABOT_MERGE_CONF, the run's head as
 #      DEPENDABOT_MERGE_EXPECTED_HEAD, the kill switch from inputs.mode
@@ -70,13 +70,14 @@ SETTINGS_STEP="Read the caller's settings file from its default branch"
 MERGE_STEP="Merge the pull request"
 
 # The fake gh: logs its arguments to $FAKE_GH_LOG; fails with a message when
-# FAKE_GH_FAIL is set; an api call prints a settings line.
+# FAKE_GH_FAIL is set; an api call prints a settings file of an allow and a
+# deny line (forsgren#668: the policy gets the deny rules whole).
 mkdir -p "${TMP}/bin"
 cat > "${TMP}/bin/gh" << 'FAKE'
 #!/usr/bin/env bash
 echo "$*" >> "$FAKE_GH_LOG"
 [ -z "${FAKE_GH_FAIL:-}" ] || { echo "Pull request is not mergeable (fake)" >&2; exit 1; }
-[ "$1" != api ] || echo "allow github_actions * semver-patch"
+[ "$1" != api ] || printf '%s\n' "allow github_actions * semver-patch" "deny github_actions owner/forsgren"
 exit 0
 FAKE
 chmod +x "${TMP}/bin/gh"
@@ -119,9 +120,10 @@ executed_findings() {
   [[ "$RC" -ne 0 && ! -s "$c/output" ]] || echo "the settings step goes on after a failed read"
   run_step "$f" "$SETTINGS_STEP" "$c" GH_TOKEN=t SETTINGS_FILE=.github/dependabot-merge.conf DEFAULT_BRANCH=main
   [[ "$RC" -eq 0 ]] && grep -qxF "conf=${c}/dependabot-merge.conf" "$c/output" && grep -qxF "allow github_actions * semver-patch" "$c/dependabot-merge.conf" &&
+    grep -qxF "deny github_actions owner/forsgren" "$c/dependabot-merge.conf" &&
     [[ "$(wc -l < "$c/gh.log" | tr -d ' ')" -eq 1 ]] &&
     grep -qxF "api --method GET -H Accept: application/vnd.github.raw+json repos/owner/repo/contents/.github/dependabot-merge.conf -f ref=main" "$c/gh.log" ||
-    echo "the settings step does not read the file once, with GET at the default branch, into the conf output ($(cat "$c/gh.log"))"
+    echo "the settings step does not read the file once, with GET at the default branch, whole into the conf output ($(cat "$c/gh.log"))"
   # 7. the merge step
   run_step "$f" "$MERGE_STEP" "$c" GH_TOKEN= PR=7 HEAD_SHA="$SHA"
   [[ "$RC" -ne 0 && ! -s "$c/gh.log" ]] && grep -qF "❌ DEPENDABOT_MERGE_TOKEN is not set or empty" <<< "$OUT" ||
@@ -287,6 +289,7 @@ mutant pathcheck "s/if \\[\\[ ! \"\\${D}SETTINGS_FILE\" =~ \\${D}plain_path \\]\
 mutant dotdot 's#== \*/\.\./\*#== */never/*#' "a .. part let through"
 mutant dot 's#== \*/\./\*#== */never/*#' "a . part let through"
 mutant prbranch "s/DEFAULT_BRANCH: \\${D}{{ github.event.repository.default_branch }}/DEFAULT_BRANCH: ${D}{{ github.event.workflow_run.head_branch }}/" "the settings read from the pull request's branch"
+mutant denyfilter "s/ -f ref=\"\\${D}DEFAULT_BRANCH\" >\"\\${D}conf\"; then/ -f ref=\"${D}DEFAULT_BRANCH\" | grep -v '^deny' >\"${D}conf\"; then/" "the deny lines dropped from the settings the policy gets"
 mutant readfail '/cannot be read from the default branch/{n;s/^            exit 1$/            :/;}' "a failed settings read that goes on"
 mutant noconf '/DEPENDABOT_MERGE_CONF:/d' "the policy judging by forsgren's own settings"
 mutant expected '/DEPENDABOT_MERGE_EXPECTED_HEAD:/d' "the run's head commit not given to the policy"

@@ -37,7 +37,9 @@
 #     runner;
 #   - the caller's settings file is read through the API from the caller's
 #     default branch only, never from the pull request, so a pull request
-#     cannot widen what may merge;
+#     cannot widen what may merge, and handed to the policy whole, so its
+#     deny rules (forsgren#668: a dependency that never merges here, such as
+#     an installation's own forsgren pin) hold whatever its allow rules say;
 #   - the job token can comment on pull requests and read contents and
 #     Actions runs, nothing more; a caller that grants less stops the run
 #     before any step, and a called workflow can never get more than its
@@ -61,7 +63,7 @@ on:
     inputs:
       settings-file:
         description: >-
-          The caller's settings file (allow and workflow lines, docs/dependabot-merge.md),
+          The caller's settings file (allow, deny and workflow lines, docs/dependabot-merge.md),
           a path in the caller's repository, read from its default branch.
         type: string
         required: false

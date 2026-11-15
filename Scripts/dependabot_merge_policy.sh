@@ -13,14 +13,22 @@
 #   - every dependency in the updated-dependencies block of the head commit's
 #     message is allowed by .github/dependabot-merge.conf (a grouped pull
 #     request only if every member is; a rule that names a dependency allows
-#     that dependency only);
+#     that dependency only), and no member matches a deny rule of the config,
+#     whatever the allow rules say (forsgren#668);
+#   - with a github_actions deny rule in the config, no uses: line the pull
+#     request adds or removes in a workflow file (.github/workflows/*.yml or
+#     .yaml, or a composite action's action.yml or action.yaml) names a
+#     denied reference; a files list it cannot read whole, a workflow file
+#     without a patch or a uses: line it cannot read blocks, since it cannot
+#     tell (forsgren#668);
 #   - every workflow the config expects has a completed, successful run for
 #     the pull request's current head commit;
 #   - the pull request is open, mergeable and clean;
 #   - its head contains the current default branch (behind by 0).
 # It reads the GitHub API only (gh api, GET); it never checks out or runs the
-# pull request's code. The policy is generic: which updates may merge and
-# which workflows must be green are data, in the config, never in this file.
+# pull request's code. The policy is generic: which updates may merge, which
+# dependencies never do and which workflows must be green are data, in the
+# config, never in this file.
 #
 # Prints the record (repository, pull request, dependencies old -> new, head
 # commit, checks, reasons, decision) and appends it to $GITHUB_STEP_SUMMARY
@@ -117,8 +125,9 @@ api() {
 # field <file> <jq filter>: one value as text ("null" when absent).
 field() { jq -r "$2" "$1" 2>/dev/null || echo "null"; }
 
-# The config: allow rules and expected workflows.
+# The config: allow rules, deny rules and expected workflows.
 ALLOW=()
+DENY=()
 WORKFLOWS=()
 read_config() {
   local kind rest n
@@ -137,6 +146,15 @@ read_config() {
           finish
         }
         ALLOW+=("$rest")
+        ;;
+      deny)
+        # <ecosystem> <dependency-name, or a name prefix followed by *>
+        n="$(wc -w <<<"$rest")"
+        [ "$n" -eq 2 ] && [[ "${rest#* }" =~ ^[^*]*\*?$ ]] || {
+          block "config line not understood: deny $rest"
+          finish
+        }
+        DENY+=("$rest")
         ;;
       workflow) WORKFLOWS+=("$rest") ;;
       *)
@@ -273,6 +291,32 @@ allowed() {
   return 1
 }
 
+# lower <text>: the text in lower case.
+lower() { tr '[:upper:]' '[:lower:]' <<<"$1"; }
+
+# denied <ecosystem> <dependency-name>: 0 when a deny rule of the config
+# matches, the rule then in DENIED_BY. The name is compared ignoring case, in
+# every ecosystem, so a deny rule can only ever block more; a pattern that
+# ends in * matches every name that starts with what comes before it.
+DENIED_BY=""
+denied() {
+  local rule eco pattern name
+  [ "${#DENY[@]}" -ne 0 ] || return 1
+  name="$(lower "$2")"
+  for rule in "${DENY[@]}"; do
+    read -r eco pattern <<<"$rule"
+    [ "$eco" = "$1" ] || continue
+    pattern="$(lower "$pattern")"
+    case "$pattern" in
+      *\*) [[ "$name" == "${pattern%\*}"* ]] || continue ;;
+      *) [ "$name" = "$pattern" ] || continue ;;
+    esac
+    DENIED_BY="deny $rule"
+    return 0
+  done
+  return 1
+}
+
 check_dependencies() {
   local parsed name type upd ver change
   api "commits/$HEAD_SHA" "$WORK/commit.json" || return
@@ -291,13 +335,98 @@ check_dependencies() {
   while IFS='|' read -r name type upd ver; do
     change="$(versions "$name" "$WORK/text")"
     [ "$change" != "?" ] || change="? → ${ver:-?}"
-    if allowed "$ECOSYSTEM" "$type" "$upd" "$name"; then
+    # A deny rule wins over every allow rule, for each member of a group.
+    if denied "$ECOSYSTEM" "$name"; then
+      DEPS+=("\`$name\` ($ECOSYSTEM, ${type:-no dependency-type}, ${upd:-no update-type}): $change, DENIED ($DENIED_BY)")
+      block "\`$name\` is denied by the rule '$DENIED_BY' ($ECOSYSTEM, ${type:-no dependency-type}, ${upd:-no update-type})"
+    elif allowed "$ECOSYSTEM" "$type" "$upd" "$name"; then
       DEPS+=("\`$name\` ($ECOSYSTEM, ${type:-no dependency-type}, ${upd:-no update-type}): $change, allowed")
     else
       DEPS+=("\`$name\` ($ECOSYSTEM, ${type:-no dependency-type}, ${upd:-no update-type}): $change, NOT allowed")
       block "\`$name\` is not an allowed update ($ECOSYSTEM, ${type:-no dependency-type}, ${upd:-no update-type})"
     fi
   done <<<"$parsed"
+}
+
+# workflow_file <path>: 0 for a file whose uses: lines name GitHub Actions
+# dependencies: a workflow under .github/workflows/ or a composite action's
+# action.yml or action.yaml.
+workflow_file() {
+  case "$1" in
+    .github/workflows/*.yml | .github/workflows/*.yaml | action.yml | action.yaml | */action.yml | */action.yaml) return 0 ;;
+  esac
+  return 1
+}
+
+# check_uses <path> <changed line>: blocks when the line is a uses: line that
+# names a denied reference or that it cannot read. A comment, a local action
+# (./...) and a docker:// image name no repository; owner/repo[/path]@ref is
+# held to the github_actions deny rules as owner/repo (Dependabot's
+# dependency name) and as written before the @.
+check_uses() {
+  local line="${2:1}" value ref
+  local readable='^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]+([^[:space:]#]+)([[:space:]]+#.*)?[[:space:]]*$'
+  local repository='^([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)(/[^@]*)?@[^@]+$'
+  [[ "$line" =~ ^[[:space:]]*# ]] && return 0
+  # Any line with uses and a colon after it, in any case, quoted or in a
+  # flow mapping, is a uses: line, read only in the plain form above.
+  [[ "$(lower "$line")" == *uses*:* ]] || return 0
+  if ! [[ "$line" =~ $readable ]]; then
+    block "changed workflow file $1 has a uses: line it cannot read, so a denied dependency cannot be ruled out: $2"
+    return 0
+  fi
+  value="${BASH_REMATCH[2]}"
+  [[ "$value" =~ ^\"(.*)\"$ || "$value" =~ ^\'(.*)\'$ ]] && value="${BASH_REMATCH[1]}"
+  case "$value" in ./* | docker://*) return 0 ;; esac
+  if ! [[ "$value" =~ $repository ]]; then
+    block "changed workflow file $1 has a uses: line it cannot read, so a denied dependency cannot be ruled out: $2"
+    return 0
+  fi
+  ref="${value%@*}"
+  if denied github_actions "${BASH_REMATCH[1]}" || denied github_actions "$ref"; then
+    block "changed workflow file $1 moves \`$ref\`, denied by the rule '$DENIED_BY'"
+  fi
+}
+
+# check_workflow_files: with a github_actions deny rule, every uses: line the
+# pull request adds or removes in a workflow file is held to the deny rules,
+# so a denied reference that the metadata names otherwise, or not at all,
+# still blocks. A list it cannot read whole, a workflow file without a patch
+# or a uses: line it cannot read blocks: it cannot tell.
+check_workflow_files() {
+  local f="$WORK/files.json" rule n changed i path line any=0
+  for rule in "${DENY[@]+"${DENY[@]}"}"; do
+    [ "${rule%% *}" != github_actions ] || any=1
+  done
+  [ "$any" -eq 1 ] || return 0
+  api "pulls/$PR/files?per_page=100" "$f" || return
+  jq -e 'type == "array"' "$f" >/dev/null 2>&1 || {
+    block "pull request files answer is not a list"
+    return
+  }
+  n="$(jq length "$f")"
+  changed="$(field "$WORK/pr.json" .changed_files)"
+  if ! [[ "$changed" =~ ^[0-9]+$ ]] || [ "$changed" -ne "$n" ]; then
+    block "pull request files not read whole ($n of $changed), so a denied uses: line cannot be ruled out"
+    return
+  fi
+  for ((i = 0; i < n; i++)); do
+    path="$(jq -r ".[$i].filename // empty" "$f")"
+    [ -n "$path" ] || {
+      block "pull request files answer names a file without a filename, so a denied uses: line cannot be ruled out"
+      continue
+    }
+    workflow_file "$path" || continue
+    if ! jq -e ".[$i].patch | type == \"string\"" "$f" >/dev/null 2>&1; then
+      block "changed workflow file $path has no patch in GitHub's answer, so its uses: lines cannot be read"
+      continue
+    fi
+    while IFS= read -r line; do
+      case "$line" in
+        [-+]*) check_uses "$path" "$line" ;;
+      esac
+    done < <(jq -r ".[$i].patch" "$f")
+  done
 }
 
 check_workflows() {
@@ -342,6 +471,7 @@ read_config
 read_pull_request
 check_pull_request
 check_dependencies
+check_workflow_files
 check_workflows
 check_fresh
 COMPLETE=1
