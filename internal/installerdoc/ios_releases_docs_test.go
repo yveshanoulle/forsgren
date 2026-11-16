@@ -65,8 +65,10 @@ func TestIOSReleasesPageDocumentsTheVersionBump(t *testing.T) {
 		"path/to/project.pbxproj")
 	wantAll(t, string(iosReleasesPage), readRepoFileAsOneLine(t, iosReleasesPage),
 		"(#bump-the-marketing-version-after-a-release)",
-		"https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow#triggering-a-workflow-from-a-workflow",
-		"https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token",
+		"https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/"+
+			"trigger-a-workflow#triggering-a-workflow-from-a-workflow",
+		"https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/"+
+			"managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token",
 		"https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets")
 }
 
