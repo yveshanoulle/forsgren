@@ -1,4 +1,5 @@
-// canon: browser_gate v20
+// canon: browser_gate v21
+// v21 (forsgren#682): a Chrome that makes no code-sign clone folder at launch (Chrome 157.0.8103.52 on macOS) leaves nothing to remove: when no new folder appeared during the launch the gate says so on stderr in one line, `this Chrome made no code-sign clone (nothing to remove)`, instead of reporting a folder kept for the nightly cleanup; one new folder is removed as before, and more than one (or an unreadable parent) is kept with its reason as before. The findings, the baseline format and the exit statuses are unchanged.
 // v20 (forsgren#649): one helper, orTimeout, races a promise against a timer wherever the engine waited for something or a time limit (the paint wait, Chrome's stderr, Chrome's exit after a launch error, a folder removal, the launch at a signal, the browser's close); every limit, every outcome and every message is as in v19, and each timer is now cleared however the race ends, so none keeps node alive after a rejection either. The findings, the baseline format and the exit statuses are unchanged.
 // v19 (forsgren#642): a launch whose own error comes before Chrome's 'exit' still names the death: on Linux the closed pipe of a dying Chrome is read first and puppeteer.launch rejects with TargetCloseError, so v18 printed that error and neither the death nor Chrome's stderr; the engine now gives Chrome's process LAUNCH_EXIT_SETTLE_MS (2 s) to be seen ending and names it as v17 and v18 do, with the launch's own error after Chrome's lines. A code-sign clone folder is the same folder at removal only with the same inode and the same birth time: a file system that hands a freed inode out again (ext4) gave a folder replaced after the launch the old number, and it was removed. The findings, the baseline format and the exit statuses are unchanged.
 // v18 (forsgren#642): a Chrome that dies during the launch is named with its own last lines on stderr (up to 20, kept from its spawn), or with the words that it wrote none: on Linux Chrome ends itself on a singleton socket path too long (LOG(FATAL) "Socket path too long") and is seen as SIGABRT, and the reason was only on its stderr, which nobody read. The findings, the baseline format and the exit statuses are unchanged.
@@ -1027,9 +1028,10 @@ function otherChromeStarts(sinceMs, pid) {
     return now - elapsedMs(match[2]) >= sinceMs;
   });
 }
-// { folder, inode, born } for this Chrome's folder, or { reason } for why it is left.
+// { folder, inode, born } for this Chrome's folder, { none: true } when the launch made no folder (v21), or { reason } for why it is left.
 function identifyClone(baseline, pid) {
   const fresh = cloneNames(baseline.parent).filter((name) => !baseline.names.has(name));
+  if (fresh.length === 0) return { none: true };
   if (fresh.length !== 1) return { reason: `${fresh.length} new clone folders appeared during the launch (a Chrome of another process makes one too)` };
   const folder = path.join(baseline.parent, fresh[0]);
   const stat = fs.statSync(folder, { throwIfNoEntry: false });
@@ -1115,6 +1117,8 @@ function release() {
       } else {
         left(`a process with ${profile} still runs ${REMOVE_TIMEOUT_MS / 1000} s after Chrome was ended; ${clone.folder} kept`);
       }
+    } else if (clone.none) {
+      console.error('browser gate: this Chrome made no code-sign clone (nothing to remove)');
     } else if (clone.reason) {
       left(clone.reason);
     }

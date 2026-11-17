@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v34
+# canon: test_gate_browser v35
+# v35 (forsgren#682): case 53l, a fake Chrome that makes no code-sign clone folder at launch (as Chrome 157 does on macOS): the run passes with one note, 'this Chrome made no code-sign clone (nothing to remove)' (browser_gate v21), and no line about a folder kept for the nightly cleanup; case 53h also asserts that a Chrome that makes a clone folder gets no such note
 # v34 (forsgren#674, step 2; the cases and proofs of a site's v33, site issue 94, with their ids): a gate that tests nothing is never green: cases 58a to 58d, a manifest with no page, one without requiredPages, a missing manifest and a named Chrome that does not exist, each exit 2 before anything is checked; case 55d, an engine that ends 0 after the launch without its OK line (no page checked) is red in the wrapper (gate_browser v7); proof V, the engine without its empty-manifest guard, prints an OK line for 0 pages; proof W, the wrapper without its OK-line check, turns case 55d green (its copy finds puppeteer-core through FORSGREN_NODE_ROOT, no link to node_modules)
 # v33 (forsgren#660, the owner's ruling, option A): the real-Chrome signal cases run with Chrome's code-sign clone off (--disable-features=MacAppCodeSignClone, merged into the one --disable-features Chrome is given, through the wrapper chrome_no_clone.sh) and the engine looks at an empty folder of the case, so they no longer read the folder every Chrome on the machine shares: a clone folder of anyone else cannot change their verdict. closed_verdict asserts instead that the clone is off for this Chrome: its own command line has one --disable-features naming the feature and no --enable-features naming it, and the installed Chrome still knows the feature; a missing, overridden or unknown flag is a reason, never a return to the shared folder. Case 53g keeps its clone assertions on a parent of the test; 53h and 53i are unchanged; case 53j pins the check
 # v32 (forsgren#642): case 54b says why its replaced folder is a new one on Linux too: ext4 hands the freed inode of the removed folder to the new one, so the engine compares the birth time as well (browser_gate v19); on the first Linux run the folder was taken for the identified one and removed (Quality run 42406819133)
@@ -178,6 +179,8 @@
 #  53h, 53i (site issue 61). Who owns a clone folder, decided on a folder and a
 #      process listing of the test (FORSGREN_GATE_CLONE_PARENT and
 #      FORSGREN_GATE_PS_LISTING of browser_gate v12)
+#  53l (forsgren#682). A Chrome that makes no clone folder at launch: nothing
+#      to remove, one note on stderr, no kept folder reported (browser_gate v21)
 #  53e (site issue 60). A loaded machine slows only the gate (browser_gate v12's
 #      FORSGREN_GATE_BROWSER_HOOK); a killed Chrome still ends the run at once;
 #      the kill waits for the seam's mark of the end of the launch (v25)
@@ -261,7 +264,7 @@ FIRST_CASES=(8 1 31 32 33 34 30 23 22
   41 42 43 44 45 46 47 48 49a 49b 49c 49d 50 51 54 55 56 57 58a 58b 58c 58d)
 SECOND_CASES=(19 20 21 55a 55b 55c 55d)
 SECOND_PROOFS=(a b c d e f g h i j k kslow l m n o p q t u y v w)
-SERIAL_CASES=(52h 52i 53j 52a 52b 52c 52d 52e 52f 53 52g 53d 53g 53h 53i 54a 54b 54c 53e 53f)
+SERIAL_CASES=(52h 52i 53j 52a 52b 52c 52d 52e 52f 53 52g 53d 53g 53h 53i 53l 54a 54b 54c 53e 53f)
 SERIAL_PROOFS=(r rb s x z dh)
 # SHARD_FOLLOWERS: "<unit> <the cases and proofs that run in its shard>" (v30).
 SHARD_FOLLOWERS=("case_8 case_19 case_20 case_21 mutant_b")
@@ -1201,8 +1204,8 @@ fi
 #    Chrome of a side-by-side case would be counted as theirs;
 #  - 53e: a kill and timing case (a loaded machine is simulated by its seam, and
 #    "at once" is timed): other cases would load the machine for real;
-#  - 53g, 53h, 53i: they share the clone folder listing and SEAM_* globals with
-#    the signal cases;
+#  - 53g, 53h, 53i, 53l: they share the clone folder listing and SEAM_* globals
+#    with the signal cases;
 #  - 52h, 52i, 53j: no browser and under a second, so nothing to win, and they
 #    swap the CLONE_PARENT and SIG_ globals the signal cases read;
 #  - 53f: a kill and timing case (Chrome killed during the launch, the end
@@ -1698,15 +1701,19 @@ SEAM_ENV=()
 SEAM_EXTRA=""
 SEAM_SIG=error
 SEAM_RC=2
+# SEAM_MAKES_CLONE=0: the fake Chrome makes no clone folder (case 53l).
+SEAM_MAKES_CLONE=1
 clone_seam_case() {
   SEAM_PARENT="${TMP}/seam_${1}"
   SEAM_FOLDER="${SEAM_PARENT}/code_sign_clone.own${1}"
   local chrome="${TMP}/chrome_seam_${1}.sh" listing="${TMP}/seam_${1}.ps"
+  local make=""
+  if [[ "$SEAM_MAKES_CLONE" -eq 1 ]]; then make="mkdir -p \"${SEAM_FOLDER}/Google Chrome.app.bundle\""; fi
   mkdir -p "$SEAM_PARENT"
   printf '%s' "$2" > "$listing"
   cat > "$chrome" << EOF
 #!/usr/bin/env bash
-mkdir -p "${SEAM_FOLDER}/Google Chrome.app.bundle"
+${make}
 ${SEAM_EXTRA}
 exec "${CHROME_UNDER_TEST}" "\$@"
 EOF
@@ -1729,6 +1736,27 @@ elif [[ -e "$SEAM_FOLDER" ]]; then
   fail "53h: the clone folder made for its own Chrome (nobody else started) was not removed. Output: ${SIG_OUT}"
 else
   echo "  ok: 53h: the one new clone folder, no other Chrome starting, is removed after its Chrome is gone"
+fi
+# 53h also: a Chrome that makes a clone gets no "made none" note (forsgren#682).
+if [[ "$SIG_OUT" == *"made no code-sign clone"* ]]; then
+  fail "53h: the gate said its Chrome made no clone although one appeared. Output: ${SIG_OUT}"
+fi
+# 53l (forsgren#682): a Chrome that makes NO clone folder (Chrome 157 on macOS):
+# nothing to remove, so the case passes, with one note line and no "left" line.
+SEAM_MAKES_CLONE=0
+clone_seam_case none ""
+SEAM_MAKES_CLONE=1
+why="$(seam_verdict)"
+if [[ -n "$why" ]]; then
+  fail "53l: ${why}. Output: ${SIG_OUT}"
+elif [[ "$(grep -c 'made no code-sign clone (nothing to remove)' <<< "$SIG_OUT")" -ne 1 ]]; then
+  fail "53l: the gate did not print its one note that this Chrome made no code-sign clone. Output: ${SIG_OUT}"
+elif [[ "$SIG_OUT" == *"left for the nightly cleanup"* ]]; then
+  fail "53l: the gate reported a kept clone folder although none was made. Output: ${SIG_OUT}"
+elif [[ -n "$(find "$SEAM_PARENT" -mindepth 1 -maxdepth 1 2> /dev/null)" ]]; then
+  fail "53l: a clone folder appeared although the fake Chrome made none. Output: ${SIG_OUT}"
+else
+  echo "  ok: 53l: a Chrome that makes no code-sign clone passes with the note (nothing to remove)"
 fi
 clone_seam_case foreign "99999 00:01 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
 "
