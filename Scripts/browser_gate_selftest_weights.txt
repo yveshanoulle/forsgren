@@ -14,8 +14,9 @@
 #  - serial is the cases of SERIAL_CASES and the proofs R, Rb, S, X, Z and Dh,
 #    run one after the other with nothing beside them: 41 + 62 = 103 s. The
 #    other units share the hosted runner's 2 side-by-side slots
-#    (lib_parallel_mutants.sh: half the CPUs, at least 2), so a unit of n
-#    seconds costs a shard about n / 2; serial weighs 2 x 103.
+#    (lib_parallel_mutants.sh: half the CPUs, at least 2 while 2 GB of memory
+#    is available), so a unit of n seconds costs a shard about n / 2; serial
+#    weighs 2 x 103.
 #
 # <unit> <seconds>
 default 15

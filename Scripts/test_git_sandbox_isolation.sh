@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_git_sandbox_isolation v4
+# canon: test_git_sandbox_isolation v5
+# v5 (forsgren#657): comment only: the local shard count M is the default wave of lib_parallel_mutants v4 (the smaller of the CPU rule and one per GB of available memory, never below 1), no longer half the CPUs alone; no code change.
 # v4 (forsgren#569): locally, with no --shard, the gate starts M shards side by side (Scripts/lib_isolation_local.sh) instead of one serial run; every self-test still runs in both shapes.
 # v3 (forsgren#446): --shard deals the self-tests out by their seconds (Scripts/git_sandbox_isolation_weights.txt), greedy, not by index.
 # v2 (forsgren#426): an optional --shard N/M runs every M-th self-test of the sorted list.
@@ -57,8 +58,10 @@
 #
 # LOCAL SHARDS (forsgren#569). Locally (GITHUB_ACTIONS unset) without --shard the
 # script runs itself as M shards side by side (Scripts/lib_isolation_local.sh), M
-# half the CPUs, 2 to 4, or FORSGREN_ISOLATION_LOCAL_SHARDS (1 = one serial process
-# as before): each shard has its own decoy, its output is printed in shard order,
+# the default wave of Scripts/lib_parallel_mutants.sh (v4: the smaller of half the
+# CPUs, 2 to 4, and one per GB of available memory, never below 1; MUTANT_JOBS is
+# not read here), or FORSGREN_ISOLATION_LOCAL_SHARDS, which wins (1 = one serial
+# process as before): each shard has its own decoy, its output is printed in shard order,
 # and the run fails when a shard failed or left no result. Every self-test still
 # runs in both shapes.
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: lib_parallel_mutants v3
+# canon: lib_parallel_mutants v4
+# v4 adds (forsgren#657): the default wave is the smaller of the CPU rule and one job per GB of available memory (free plus inactive plus speculative pages of vm_stat on macOS, MemAvailable of /proc/meminfo on Linux), never below 1, said on stderr when memory lowers it; memory that cannot be read falls back to the CPU rule with one ⚠️ line; MUTANT_MEM_AVAILABLE_KB is the seam for the read; a set MUTANT_JOBS still wins
 # v3 fixes (forsgren#629, CI red): a mutant that set failed=1 under the caller's set -e left no status file, so a later batch, restarting at m1, read the passing status of the first batch and a failed proof printed its FAIL line above an OK line; the status is now written whatever the end, and a later batch numbers on from the last mutant instead of restarting at m1
 # lib_parallel_mutants.sh — sourced, never run on its own.
 #
@@ -26,7 +27,8 @@
 #   * writes everything it wants to say to stdout/stderr: it is captured and printed
 #     in order by mutants_wait.
 # MUTANT_JOBS is the number of mutants at once (default: half the CPUs, at least 2,
-# at most 4); MUTANT_JOBS=1 runs them one after the other.
+# at most 4, and no more than one per GB of available memory, at least 1);
+# MUTANT_JOBS=1 runs them one after the other.
 #
 # An abort inside a mutant (an unbound variable under set -u, a failing command under
 # set -e) ends that subshell with a non-zero status, which mutants_wait reports. The
@@ -47,15 +49,88 @@ MUTANT_N=0
 MUTANT_BASE=0
 MUTANT_PIDS=()
 
+# One job per this much available memory (KB). The heaviest mutants are the browser
+# gate self-test's cases: one case (Chrome with its helpers, its node server and the
+# gate's shell) peaked at 700 to 725 MB of summed RSS, measured on macOS (forsgren#657);
+# 1 GB per job leaves about 30% for a case with more pages or variants.
+MUTANT_KB_PER_JOB=1048576
+
+# _mutant_vm_stat_kb: reads vm_stat's output on stdin and prints the available memory
+# in KB: free plus inactive plus speculative pages, times the page size its first line
+# names. vm_stat's "Pages free" leaves the speculative pages out, so the sum is the
+# kernel's free count plus its inactive count, the pages it hands out before it takes
+# any from a running process (psutil's "available" on macOS is the same sum). Status 1,
+# nothing printed, when a line is missing or no number.
+_mutant_vm_stat_kb() {
+  awk '
+    function count(v) { sub(/\.$/, "", v); if (v !~ /^[0-9]+$/) bad = 1; return v + 0 }
+    /page size of/ { for (i = 1; i < NF; i++) if ($i == "of") size = $(i + 1) }
+    /^Pages free:/ { free = count($3); seen++ }
+    /^Pages inactive:/ { inactive = count($3); seen++ }
+    /^Pages speculative:/ { spec = count($3); seen++ }
+    END {
+      if (seen != 3 || bad || size !~ /^[0-9]+$/ || size == 0) exit 1
+      printf "%.0f\n", (free + inactive + spec) * size / 1024
+    }'
+}
+
+# _mutant_meminfo_kb: reads /proc/meminfo on stdin and prints its MemAvailable in KB
+# (the kernel's own estimate of what can be handed out without swapping). Status 1,
+# nothing printed, without that line in kB (a kernel before 3.14 has none).
+_mutant_meminfo_kb() {
+  awk '
+    /^MemAvailable:/ { if ($2 ~ /^[0-9]+$/ && $3 == "kB") kb = $2 }
+    END { if (kb == "") exit 1; print kb }'
+}
+
+# _mutant_mem_available_kb: prints the available memory in KB; when it cannot be read,
+# prints why and returns 1 (never a guess). MUTANT_MEM_AVAILABLE_KB overrides the read
+# (the self-test's seam); a value that is no whole number is a failed read.
+_mutant_mem_available_kb() {
+  local kb
+  if [ -n "${MUTANT_MEM_AVAILABLE_KB:-}" ]; then
+    case "$MUTANT_MEM_AVAILABLE_KB" in
+      *[!0-9]*) echo "MUTANT_MEM_AVAILABLE_KB=${MUTANT_MEM_AVAILABLE_KB} is no whole number of KB"; return 1 ;;
+    esac
+    echo "$MUTANT_MEM_AVAILABLE_KB"
+    return 0
+  fi
+  if command -v vm_stat > /dev/null 2>&1; then
+    if kb="$(vm_stat 2> /dev/null | _mutant_vm_stat_kb 2> /dev/null)" && [ -n "$kb" ]; then echo "$kb"; return 0; fi
+    echo "vm_stat gave no free, inactive and speculative page counts with a page size"
+    return 1
+  fi
+  if [ -r /proc/meminfo ]; then
+    if kb="$(_mutant_meminfo_kb < /proc/meminfo 2> /dev/null)" && [ -n "$kb" ]; then echo "$kb"; return 0; fi
+    echo "/proc/meminfo gave no MemAvailable in kB"
+    return 1
+  fi
+  echo "neither vm_stat nor /proc/meminfo is there"
+  return 1
+}
+
 # The default number of mutants at once: half the CPUs, at least 2, at most 4, so a
-# machine that also runs other jobs is not saturated by one harness. MUTANT_CPUS
-# overrides the CPU count (the self-test's seam).
+# machine that also runs other jobs is not saturated by one harness, and no more than
+# one per GB of available memory, at least 1 (v4, forsgren#657: four browser cases
+# started together on a Mac with swap nearly full stalled for 9 minutes). A lowered
+# wave is said on stderr; memory that cannot be read leaves the CPU rule, with one ⚠️
+# line on stderr. MUTANT_CPUS overrides the CPU count (the self-test's seam).
 _mutant_default_jobs() {
-  local n
+  local n mem m
   n="${MUTANT_CPUS:-$(sysctl -n hw.ncpu 2> /dev/null || getconf _NPROCESSORS_ONLN 2> /dev/null || echo 4)}"
   n=$((n / 2))
   [ "$n" -ge 2 ] || n=2
   [ "$n" -le 4 ] || n=4
+  if mem="$(_mutant_mem_available_kb)"; then
+    m=$((mem / MUTANT_KB_PER_JOB))
+    [ "$m" -ge 1 ] || m=1
+    if [ "$m" -lt "$n" ]; then
+      echo "lib_parallel_mutants: ${m} at once, not ${n}: $((mem / 1024)) MB of memory available, one job per $((MUTANT_KB_PER_JOB / 1024)) MB" >&2
+      n="$m"
+    fi
+  else
+    echo "⚠️ lib_parallel_mutants: available memory not read (${mem}); the default wave follows the CPU rule alone: ${n} at once" >&2
+  fi
   echo "$n"
 }
 

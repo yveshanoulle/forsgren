@@ -10,7 +10,8 @@
 # decoy repository, and joins them.
 #
 #   isolation_default_shards
-#     Prints M: half the CPUs, at least 2, at most 4 (the cap of
+#     Prints M: half the CPUs, at least 2, at most 4, and no more than one per GB
+#     of available memory, at least 1 (the default wave of
 #     Scripts/lib_parallel_mutants.sh, so one gate never saturates the machine).
 #   isolation_shards_run <m> <dir> <command...>
 #     Starts <command...> --shard N/<m> for N = 1..m in the background, all at once

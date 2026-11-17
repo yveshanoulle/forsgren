@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_lib_parallel_mutants v4
+# canon: test_lib_parallel_mutants v5
+# v5 adds (forsgren#657): case (n), the default wave is the smaller of the CPU rule and one job per GB of available memory (free plus inactive plus speculative pages of vm_stat, MemAvailable of /proc/meminfo), never below 1; MUTANT_JOBS still wins; memory that cannot be read falls back to the CPU rule with one ⚠️ line; both parsers from fixture text, with mutation proofs; case (i) runs with plenty of memory (MUTANT_MEM_AVAILABLE_KB), so the CPU rule decides there
 # v4 adds (forsgren#632): case (m), the browser gate self-test runs its plain cases through the library too, each in a case function started with mutant_run, and only the cases of its named serial list (SERIAL_CASES) one after the other
 # v3 adds (forsgren#629, CI red): case (l), a failing mutant in a second batch under set -e fails the harness with its own status, in a folder of its own
 # Scripts/test_lib_parallel_mutants.sh
@@ -21,6 +22,17 @@
 #   (g) a harness whose mutants all pass keeps failed=0
 #   (i) the default cap: half the CPUs, floor 2, ceiling 4 (12 CPUs give 4),
 #       MUTANT_JOBS overrides; a library that restores a ceiling of 8 is caught
+#       (with plenty of memory, MUTANT_MEM_AVAILABLE_KB, so the CPU rule decides)
+#   (n) the memory rule (forsgren#657): the default is the smaller of the CPU rule
+#       and one job per GB of available memory, never below 1: plenty of memory
+#       leaves the CPU rule, little memory decides, very little gives 1, MUTANT_JOBS
+#       still wins; memory that cannot be read (a value that is no number, no
+#       vm_stat and no /proc/meminfo) gives the CPU rule with one ⚠️ line; vm_stat
+#       (free + inactive + speculative pages, times its page size) and
+#       /proc/meminfo (MemAvailable) are parsed from fixture text, an unparsable
+#       text is a failed read; mutation proofs: the memory rule dropped, max
+#       instead of min, no floor of 1, a silent fallback, inactive pages left out,
+#       a fixed page size
 #   (j) twenty quick mutants all come back with status 0 and no wait error (jobs -r
 #       could reap a child); the library never calls jobs, with a mutation proof for
 #       that pin
@@ -167,19 +179,22 @@ OUT_G="$(
 check_has "(g) passing mutants keep failed=0" "$OUT_G" "failed=0"
 
 # (i) the default number of mutants at once: half the CPUs, at least 2 and at most 4.
-# MUTANT_JOBS overrides it; MUTANT_CPUS is the seam for the CPU count.
+# MUTANT_JOBS overrides it; MUTANT_CPUS is the seam for the CPU count. With 64 GB of
+# available memory (MUTANT_MEM_AVAILABLE_KB, the seam for the memory read) the memory
+# rule of case (n) allows more than 4, so the CPU rule decides every case here.
+PLENTY_KB=67108864
 JOBS_PROG="${TMP}/jobs_prog.sh"
 cat > "$JOBS_PROG" <<'PROG'
 . "$1"
 MUTANT_CPUS="$2" mutants_init "$3"
 echo "$MUTANT_JOBS"
 PROG
-default_jobs() { # <cpus> [lib] [MUTANT_JOBS]: the MUTANT_JOBS mutants_init settles on for that many CPUs
-  local lib="${2:-$LIB}"
+default_jobs() { # <cpus> [lib] [MUTANT_JOBS] [available KB]: the MUTANT_JOBS mutants_init settles on
+  local lib="${2:-$LIB}" mem="${4:-$PLENTY_KB}"
   if [[ -n "${3:-}" ]]; then
-    MUTANT_JOBS="$3" bash "$JOBS_PROG" "$lib" "$1" "${TMP}/i"
+    MUTANT_JOBS="$3" MUTANT_MEM_AVAILABLE_KB="$mem" bash "$JOBS_PROG" "$lib" "$1" "${TMP}/i"
   else
-    env -u MUTANT_JOBS bash "$JOBS_PROG" "$lib" "$1" "${TMP}/i"
+    env -u MUTANT_JOBS MUTANT_MEM_AVAILABLE_KB="$mem" bash "$JOBS_PROG" "$lib" "$1" "${TMP}/i"
   fi
 }
 check "(i) 12 CPUs: 4" "4" "$(default_jobs 12)"
@@ -199,6 +214,116 @@ if selftest_mutant "$LIB" "${TMP}/lib_cap8.sh" 's/-le 4 \]/-le 8 ]/;s/|| n=4$/||
     fail "(i) the cap mutant still gives 4 on 12 CPUs: the pin would not catch it"
   fi
 fi
+
+# (n) the memory rule (forsgren#657): on 8 Nov a 16 GB Mac with swap nearly full started
+# four browser cases (a Chrome and its node server each) at once and the first wave
+# stalled for 9 minutes. The default is now the smaller of the CPU rule and one job per
+# GB of available memory, never below 1; MUTANT_JOBS still wins.
+# mem_jobs <cpus> <available KB> [lib]: the jobs mutants_init settles on; its stderr
+# goes to ${TMP}/mem_err.
+mem_jobs() {
+  env -u MUTANT_JOBS MUTANT_MEM_AVAILABLE_KB="$2" bash "$JOBS_PROG" "${3:-$LIB}" "$1" "${TMP}/n" 2> "${TMP}/mem_err"
+}
+warn_lines() { grep -c '^⚠️' "${TMP}/mem_err" || true; }
+check "(n) plenty of memory (64 GB), 12 CPUs: the CPU rule decides, 4" "4" "$(mem_jobs 12 "$PLENTY_KB")"
+check "(n) and nothing is said on stderr" "" "$(cat "${TMP}/mem_err")"
+check "(n) little memory (3 GB), 12 CPUs: memory decides, 3" "3" "$(mem_jobs 12 3145728)"
+check_has "(n) and says so on stderr, with the CPU rule it lowered" "$(cat "${TMP}/mem_err")" "3 at once, not 4"
+check "(n) and it is no warning" "0" "$(warn_lines)"
+check "(n) 2.5 GB: whole jobs only, 2" "2" "$(mem_jobs 12 2621440)"
+check "(n) little memory below the CPU floor: 1.5 GB on 2 CPUs gives 1" "1" "$(mem_jobs 2 1572864)"
+check "(n) very little memory (512 MB): 1, never 0" "1" "$(mem_jobs 12 524288)"
+check "(n) no memory at all (0 KB): still 1" "1" "$(mem_jobs 12 0)"
+check "(n) MUTANT_JOBS still wins over the memory rule (512 MB, MUTANT_JOBS=7)" "7" "$(default_jobs 12 "" 7 524288)"
+check "(n) memory unreadable (a seam that is no number): the CPU rule, 4" "4" "$(mem_jobs 12 lots)"
+check "(n) with one ⚠️ line" "1" "$(warn_lines)"
+check_has "(n) that names what was read" "$(cat "${TMP}/mem_err")" "lots"
+check_has "(n) and the CPU rule's number" "$(cat "${TMP}/mem_err")" "the CPU rule alone: 4 at once"
+check "(n) memory unreadable on 6 CPUs: the CPU rule, 3" "3" "$(mem_jobs 6 lots)"
+# No vm_stat and no /proc/meminfo (or no awk to read it): the real read fails, never a
+# silent guess. An empty PATH leaves only the shell's builtins.
+NOREAD_PROG="${TMP}/noread_prog.sh"
+cat > "$NOREAD_PROG" <<'PROG'
+. "$1"
+MUTANT_CPUS="$2" _mutant_default_jobs
+PROG
+mkdir -p "${TMP}/emptybin"
+noread_jobs() { env -u MUTANT_JOBS -u MUTANT_MEM_AVAILABLE_KB PATH="${TMP}/emptybin" "$BASH" "$NOREAD_PROG" "${2:-$LIB}" "$1" 2> "${TMP}/mem_err"; }
+check "(n) no command to read memory with: the CPU rule, 4" "4" "$(noread_jobs 12)"
+check "(n) with one ⚠️ line" "1" "$(warn_lines)"
+# The real read on this machine gives a whole number of KB.
+LIVE_KB="$(
+  unset MUTANT_MEM_AVAILABLE_KB
+  _mutant_mem_available_kb || echo "failed"
+)"
+if [[ "$LIVE_KB" =~ ^[0-9]+$ ]]; then echo "  ok: (n) the real memory read gives a whole number of KB (${LIVE_KB})"; else fail "(n) the real memory read gave [${LIVE_KB}]"; fi
+
+# The parsers, from fixture text: vm_stat on Apple silicon (16 KB pages) and on Intel
+# (4 KB pages), /proc/meminfo on Linux.
+VM_STAT_16K="Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                     5814.
+Pages active:                                 213732.
+Pages inactive:                               212305.
+Pages speculative:                               532.
+Pages throttled:                                   0.
+Pages wired down:                             392817.
+Pages purgeable:                                1730.
+File-backed pages:                            136398.
+Anonymous pages:                              290171.
+Pages stored in compressor:                  2182255.
+Pages occupied by compressor:                 183425."
+VM_STAT_4K="Mach Virtual Memory Statistics: (page size of 4096 bytes)
+Pages free:                                   100000.
+Pages active:                                 900000.
+Pages inactive:                               300000.
+Pages speculative:                             20000.
+Pages wired down:                             400000."
+MEMINFO="MemTotal:       16303428 kB
+MemFree:          512000 kB
+MemAvailable:    6291456 kB
+Buffers:          102400 kB
+Cached:          5120000 kB"
+# parse <lib> <parser> <text>: the parser's output, or failed when it refuses the text.
+parse() { bash -c '. "$1"; "$2"' _ "$1" "$2" <<< "$3" || echo "failed"; }
+# (5814 + 212305 + 532) pages of 16 KB
+check "(n) vm_stat, 16 KB pages: free + inactive + speculative, in KB" "3498416" "$(parse "$LIB" _mutant_vm_stat_kb "$VM_STAT_16K")"
+# (100000 + 300000 + 20000) pages of 4 KB
+check "(n) vm_stat, 4 KB pages" "1680000" "$(parse "$LIB" _mutant_vm_stat_kb "$VM_STAT_4K")"
+check "(n) vm_stat without its inactive line: a failed read" "failed" "$(parse "$LIB" _mutant_vm_stat_kb "$(grep -v inactive <<< "$VM_STAT_16K")")"
+check "(n) vm_stat without its page size: a failed read" "failed" "$(parse "$LIB" _mutant_vm_stat_kb "$(sed 1d <<< "$VM_STAT_16K")")"
+check "(n) vm_stat text that is no vm_stat: a failed read" "failed" "$(parse "$LIB" _mutant_vm_stat_kb "command not found")"
+check "(n) /proc/meminfo: MemAvailable, in KB" "6291456" "$(parse "$LIB" _mutant_meminfo_kb "$MEMINFO")"
+check "(n) /proc/meminfo without MemAvailable (a kernel before 3.14): a failed read" "failed" "$(parse "$LIB" _mutant_meminfo_kb "$(grep -v MemAvailable <<< "$MEMINFO")")"
+check "(n) /proc/meminfo that is empty: a failed read" "failed" "$(parse "$LIB" _mutant_meminfo_kb "")"
+
+# Mutation proofs: each mutant of the library is seen by a case above.
+# mem_mutant <name> <sed> <ok text> <pin>: writes the mutant, runs the pin function
+# with MUTANT_LIB naming it, and requires the pin to print "seen" (the mutant breaks
+# what the case pins).
+mem_mutant() {
+  local name="$1" expr="$2" ok="$3" pin="$4"
+  if selftest_mutant "$LIB" "${TMP}/lib_${name}.sh" "$expr"; then
+    MUTANT_LIB="${TMP}/lib_${name}.sh"
+    if [[ "$("$pin")" == "seen" ]]; then echo "  ok: (n) mutation proof: ${ok}"; else fail "(n) mutation proof: ${ok}: the cases did not see it"; fi
+  fi
+}
+seen_if_not() { if [[ "$1" != "$2" ]]; then echo "seen"; fi; }
+pin_little() { seen_if_not 3 "$(mem_jobs 12 3145728 "$MUTANT_LIB")"; }
+pin_plenty() { seen_if_not 4 "$(mem_jobs 12 "$PLENTY_KB" "$MUTANT_LIB")"; }
+pin_very_little() { seen_if_not 1 "$(mem_jobs 12 524288 "$MUTANT_LIB")"; }
+pin_warning() {
+  mem_jobs 12 lots "$MUTANT_LIB" > /dev/null
+  seen_if_not 1 "$(warn_lines)"
+}
+pin_vm_stat() { seen_if_not 3498416 "$(parse "$MUTANT_LIB" _mutant_vm_stat_kb "$VM_STAT_16K")"; }
+pin_meminfo() { seen_if_not 6291456 "$(parse "$MUTANT_LIB" _mutant_meminfo_kb "$MEMINFO")"; }
+mem_mutant no_memory_rule 's/^      n="[$]m"$/      :/' "without the memory rule, 3 GB on 12 CPUs gives 4" pin_little
+mem_mutant max_not_min 's/\(m" \)-lt/\1-gt/' "max instead of min gives more than 4 with plenty of memory" pin_plenty
+mem_mutant no_floor 's/ || m=1$//' "without the floor of 1, 512 MB gives 0" pin_very_little
+mem_mutant silent_fallback '/available memory not read/s/^\( *\)echo /\1: /' "a fallback without its ⚠️ line" pin_warning
+mem_mutant no_inactive 's/free + inactive + spec/free + spec/' "inactive pages left out of the vm_stat sum" pin_vm_stat
+mem_mutant fixed_page_size 's/size = [$](i + 1)/size = 4096/' "a page size of 4096 whatever vm_stat says" pin_vm_stat
+mem_mutant memfree 's/\^MemAvailable:/^MemFree:/' "MemFree read in place of MemAvailable" pin_meminfo
 
 # (j) the throttle once counted running mutants with jobs -r, which can reap a
 # finished child, so a later wait on its pid failed (status 127, not a child of this
@@ -327,4 +452,4 @@ done
 # starts it through the library.
 file_has "(k) the inline judge is mutant_case" "Scripts/test_quality_jobs.sh" 'mutant_case() {'
 
-selftest_end "the parallel mutants library self-test failed" "parallel mutants library: concurrency, order, failures, cap and the browser gate use hold"
+selftest_end "the parallel mutants library self-test failed" "parallel mutants library: concurrency, order, failures, cap, memory rule and the browser gate use hold"
