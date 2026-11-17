@@ -99,7 +99,10 @@ linters:
   exclusions:
     rules:
       # Inverse of the production config: keep ONLY _test.go dupl findings.
-      - path-except: _test\.go
+      # Anchored at the end (forsgren#657): golangci-lint matches the path as it
+      # reports it, which can climb out of the module and name its folders, and a
+      # folder named like *_test.go* must not make every file a test file.
+      - path-except: '_test\.go\$'
         linters:
           - dupl
 YAML

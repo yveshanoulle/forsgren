@@ -215,7 +215,11 @@ Seven more PRE gates check the Go code:
   leaves to it, so test code is judged once. Red on a module with no test
   file, and a tooling error (exit 2) when the tool exits 1 without a `(dupl)`
   line (forsgren#217). It too runs with `--allow-parallel-runners`, and a
-  lock refusal is exit 2 naming the lock (forsgren#437).
+  lock refusal is exit 2 naming the lock (forsgren#437). The `_test\.go$`
+  rule, here and in `.golangci.yml`, is anchored at the end of the path:
+  golangci-lint can report a path that climbs out of the module and names its
+  folders, and a folder named like `*_test.go*` once made every file a test
+  file (forsgren#657).
 - **Go file length** (`Scripts/check_file_length.sh`, another estate repository's
   `check_file_length.py` rewritten in bash and awk): red when a Go
   production file is longer than 600 lines, each such file named with its

@@ -90,7 +90,9 @@ linters:
       # dupl on test code is not judged here but by
       # Scripts/check_test_dupl.sh, the same linter and rule pointed at
       # _test.go files only (another estate repository's split, ported with it): enabling
-      # dupl on tests here too would gate them twice.
-      - path: _test\.go
+      # dupl on tests here too would gate them twice. Anchored at the end
+      # (forsgren#657), as in Scripts/check_test_dupl.sh: a folder named like
+      # *_test.go* does not make every file under it a test file.
+      - path: '_test\.go$'
         linters:
           - dupl

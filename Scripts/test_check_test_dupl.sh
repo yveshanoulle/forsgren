@@ -31,6 +31,11 @@
 #      `path` keeps only NON-test findings, and case 1 turns green: the
 #      filter is what points the gate at test code; and case 3 turns red,
 #      naming dupl: case 3's duplication is real, so its green is not vacuous
+#   3b. (forsgren#657) case 3 in a module under a folder whose name holds
+#      "_test.go"                                  -> exit 0: the rule matches the
+#      end of the path only (the temp folder selftest_test_dupl_gate_self_test.go...
+#      once turned case 3 red)
+#   6b. MUTATION PROOF: the rule without its end anchor turns case 3b red
 
 set -euo pipefail
 
@@ -144,6 +149,21 @@ add_one_test
 run_gate "$GATE" "$MOD"
 want_exit "duplication in non-test code is not this gate's red" 0 "OK:"
 PROD_DUP="$MOD"
+
+# --- Case 3b (forsgren#657 RED 4fd71ac1): the same production duplication in a
+# module whose folder name holds "_test.go". The self-test's temp folder is
+# selftest_test_dupl_gate_self_test.XXXXXX, so a random suffix starting with "go"
+# put "_test.go" in every path; golangci-lint matches the rule against a path that
+# climbs out of the working directory (it resolves /var to /private/var), so an
+# unanchored _test\.go kept Alpha.go's finding and case 3 went red. The rule
+# matches the file name's end only.
+mkdir -p "${TMP}/inside_test.go_folder"
+new_module "inside_test.go_folder/prod-dup"
+write_twins ""
+add_one_test
+run_gate "$GATE" "$MOD"
+want_exit "production duplication under a folder named like _test.go is still not this gate's red" 0 "OK:"
+PROD_DUP_TEST_FOLDER="$MOD"
 
 # --- Case 4: no test file.
 new_module "no-tests"
@@ -308,6 +328,17 @@ if selftest_mutant "$GATE" "$MUTANT" 's/path-except:/path:/'; then
   want_exit "mutation: with path instead of path-except, case 1 is green" 0 "OK:"
   run_gate "$MUTANT" "$PROD_DUP"
   want_exit "  ... and case 3 red, naming dupl: case 3's duplication is real" 1 "(dupl)"
+fi
+
+# --- Case 6b: MUTATION PROOF (forsgren#657). The rule without its end anchor
+# reads the folder named like _test.go as a test file: case 3b turns red.
+UNANCHORED="${TMP}/unanchored/Scripts/check_test_dupl.sh"
+if selftest_mutant "$GATE" "$UNANCHORED" 's/\(path-except: \).*/\1_test\\.go/'; then
+  cp go.mod "${TMP}/unanchored/"
+  cp Scripts/lib_go_tool.sh Scripts/lib_tmp.sh "${TMP}/unanchored/Scripts/"
+  if [[ -f go.sum ]]; then cp go.sum "${TMP}/unanchored/"; fi
+  run_gate "$UNANCHORED" "$PROD_DUP_TEST_FOLDER"
+  want_exit "mutation: without the end anchor, case 3b is red, naming dupl" 1 "(dupl)"
 fi
 
 selftest_end "the test-dupl gate does not tell green from red" \
