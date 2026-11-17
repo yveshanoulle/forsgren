@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # canon: test_gate_browser v35
-# v35 (forsgren#682): case 53l, a fake Chrome that makes no code-sign clone folder at launch (as Chrome 157 does on macOS): the run passes with one note, 'this Chrome made no code-sign clone (nothing to remove)' (browser_gate v21), and no line about a folder kept for the nightly cleanup; case 53h also asserts that a Chrome that makes a clone folder gets no such note; case 52j, a SIGHUP to the wrapper during a launch that never finishes (a deaf Chrome, the pipe of 53f, up once its profile has Local State, SIG_UP_LOCAL_STATE) ends the run with exit 129, no Chrome and no profile, within 20 s: up to browser_gate v21 the engine waited for the launch, 30 s, and case 52d failed under load when its signal came during a slow launch (browser_gate v22 ends Chrome's group at once)
+# v35 (forsgren#682): case 53l, a fake Chrome that makes no code-sign clone folder at launch (as Chrome 157 does on macOS): the run passes with one note, 'this Chrome made no code-sign clone (nothing to remove)' (browser_gate v21), and no line about a folder kept for the nightly cleanup; case 53h also asserts that a Chrome that makes a clone folder gets no such note; case 52j, a SIGHUP to the wrapper during a launch that never finishes (a deaf Chrome, the pipe of 53f, up once its profile has Local State, SIG_UP_LOCAL_STATE) ends the run with exit 129, no Chrome and no profile, within 20 s: up to browser_gate v21 the engine waited for the launch, up to 30 s (browser_gate v22 ends Chrome's group at once); a signal case starts its command with SIGINT, SIGTERM and SIGHUP at their default, since a self-test run under nohup (as FBP is started) passed SIGHUP on ignored, the wrapper could not trap it, and 52d and 52j failed with no output
 # v34 (forsgren#674, step 2; the cases and proofs of a site's v33, site issue 94, with their ids): a gate that tests nothing is never green: cases 58a to 58d, a manifest with no page, one without requiredPages, a missing manifest and a named Chrome that does not exist, each exit 2 before anything is checked; case 55d, an engine that ends 0 after the launch without its OK line (no page checked) is red in the wrapper (gate_browser v7); proof V, the engine without its empty-manifest guard, prints an OK line for 0 pages; proof W, the wrapper without its OK-line check, turns case 55d green (its copy finds puppeteer-core through FORSGREN_NODE_ROOT, no link to node_modules)
 # v33 (forsgren#660, the owner's ruling, option A): the real-Chrome signal cases run with Chrome's code-sign clone off (--disable-features=MacAppCodeSignClone, merged into the one --disable-features Chrome is given, through the wrapper chrome_no_clone.sh) and the engine looks at an empty folder of the case, so they no longer read the folder every Chrome on the machine shares: a clone folder of anyone else cannot change their verdict. closed_verdict asserts instead that the clone is off for this Chrome: its own command line has one --disable-features naming the feature and no --enable-features naming it, and the installed Chrome still knows the feature; a missing, overridden or unknown flag is a reason, never a return to the shared folder. Case 53g keeps its clone assertions on a parent of the test; 53h and 53i are unchanged; case 53j pins the check
 # v32 (forsgren#642): case 54b says why its replaced folder is a new one on Linux too: ext4 hands the freed inode of the removed folder to the new one, so the engine compares the birth time as well (browser_gate v19); on the first Linux run the folder was taken for the identified one and removed (Quality run 42406819133)
@@ -1386,8 +1386,13 @@ signal_case() {
   other_chromes "$tmpd" > "${side}.others_before"
   rm -f "${side}.ready"
   mkdir -p "${side}.no_clones"
+  # The signals the case sends are reset to their default first: a background
+  # job of a script ignores SIGINT, and a run under nohup (as FBP is started)
+  # ignores SIGHUP. A shell cannot trap a signal it was started with ignored, so
+  # the wrapper's HUP trap was void, the SIGHUP was dropped and the gate ran on
+  # (cases 52d and 52j, forsgren#682).
   # A case's own `env FORSGREN_CHROME=` or `FORSGREN_GATE_CLONE_PARENT=` comes after these and wins.
-  TMPDIR="$tmpd" FORSGREN_TEST_READY_MARK="${side}.ready" FORSGREN_CHROME="$CHROME_UNDER_TEST" FORSGREN_GATE_CLONE_PARENT="${side}.no_clones" perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' "$@" "${TMP}/slow/site" "${TMP}/slow/manifest.json" "${TMP}/slow/exceptions.txt" "${TMP}/slow/baseline.txt" "${TMP}/slow/variants.txt" > "${side}.out" 2>&1 &
+  TMPDIR="$tmpd" FORSGREN_TEST_READY_MARK="${side}.ready" FORSGREN_CHROME="$CHROME_UNDER_TEST" FORSGREN_GATE_CLONE_PARENT="${side}.no_clones" perl -e '$SIG{INT} = $SIG{TERM} = $SIG{HUP} = "DEFAULT"; exec @ARGV' "$@" "${TMP}/slow/site" "${TMP}/slow/manifest.json" "${TMP}/slow/exceptions.txt" "${TMP}/slow/baseline.txt" "${TMP}/slow/variants.txt" > "${side}.out" 2>&1 &
   pid=$!
   SIG_UP=0
   for _ in $(seq 1 150); do
@@ -1970,8 +1975,8 @@ fi
 # does. Its Chrome never answers puppeteer (the deaf pipe of 53f, no helper), so
 # the launch is still on when the signal comes, whatever the machine's speed.
 # The engine knows Chrome's process from its spawn and ends its group at once;
-# up to browser_gate v21 it waited for the launch, 30 s, and case 52d failed when
-# its SIGHUP came during a launch that a loaded machine kept on past 20 s.
+# up to browser_gate v21 it waited for the launch, up to 30 s, past this case's
+# 20 s.
 DEAF_CHROME="${TMP}/deaf_chrome.sh"
 cat > "$DEAF_CHROME" << EOF
 #!/usr/bin/env bash

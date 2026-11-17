@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser_process v7
+# canon: test_gate_browser_process v8
+# v8 (forsgren#682): a signal case starts its command with SIGINT, SIGTERM and SIGHUP at their default: under nohup (as FBP is started) SIGHUP came in ignored, a shell cannot trap a signal it was started with ignored, so the wrapper dropped case 52d's SIGHUP and the gate ran on
 # v7 (forsgren#642): case 53k, a launch that fails before Chrome's process is seen ending (its pipe closed first, as a dying Chrome's is read on Linux, where 53j got TargetCloseError in Quality run 42406819133) still names the death, Chrome's last lines on stderr and then the launch's own error (browser_gate v19)
 # v6 (forsgren#642): Linux. A signal case's TMPDIR is a folder of its own straight under the temp root (tmp_dir), its output under TMP: under TMP/sig_<label> the path of Chrome's singleton socket, which on Linux lies in the profile, passed the 107 characters of a Unix socket and Chrome aborted (SIGABRT) during the launch; the singleton folders are asserted where the platform puts them (own_place_why: in the profile on Linux, outside it on macOS), the decoy of another Chrome lies in the shared temp folder on Linux, and proof V asserts on Linux that the folders go with the profile; case 53j: a Chrome that dies during the launch is named with its last lines on stderr (browser_gate v18); proofs S and Sb copy the libraries the wrapper sources, read from it
 # v5 (forsgren#636): case 53f and mutation proof D moved to the canon browser gate self-test (Scripts/test_gate_browser.sh v29, as case 53f and proof Dh), so the sites test browser_gate v17 too; this self-test keeps what is forsgren's own: the exits on forty looks (52a-52f, 53, 53c), the singleton folders of forsgren#613 and the proofs V, W, R, Rb, S and Sb
@@ -198,7 +199,12 @@ signal_case() {
   tmpd="$(tmp_dir "sig_${label}")"
   SIG_TMPD="$tmpd"
   out="${TMP}/sig_${label}.out"
-  TMPDIR="$tmpd" perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' "$@" "${TMP}/slow/site" "${TMP}/slow/manifest.json" \
+  # The signals the case sends are reset to their default first: a background
+  # job of a script ignores SIGINT, and a run under nohup (as FBP is started)
+  # ignores SIGHUP. A shell cannot trap a signal it was started with ignored, so
+  # the wrapper's HUP trap was void, the SIGHUP was dropped and the gate ran on
+  # (cases 52d and 52j, forsgren#682).
+  TMPDIR="$tmpd" perl -e '$SIG{INT} = $SIG{TERM} = $SIG{HUP} = "DEFAULT"; exec @ARGV' "$@" "${TMP}/slow/site" "${TMP}/slow/manifest.json" \
     "${TMP}/slow/exceptions.txt" "${TMP}/slow/baseline.txt" "${TMP}/slow/variants.txt" > "$out" 2>&1 &
   pid=$!
   SIG_UP=0
