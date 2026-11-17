@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # canon: test_gate_browser v35
-# v35 (forsgren#682): case 53l, a fake Chrome that makes no code-sign clone folder at launch (as Chrome 157 does on macOS): the run passes with one note, 'this Chrome made no code-sign clone (nothing to remove)' (browser_gate v21), and no line about a folder kept for the nightly cleanup; case 53h also asserts that a Chrome that makes a clone folder gets no such note
+# v35 (forsgren#682): case 53l, a fake Chrome that makes no code-sign clone folder at launch (as Chrome 157 does on macOS): the run passes with one note, 'this Chrome made no code-sign clone (nothing to remove)' (browser_gate v21), and no line about a folder kept for the nightly cleanup; case 53h also asserts that a Chrome that makes a clone folder gets no such note; case 52j, a SIGHUP to the wrapper during a launch that never finishes (a deaf Chrome, the pipe of 53f, up once its profile has Local State, SIG_UP_LOCAL_STATE) ends the run with exit 129, no Chrome and no profile, within 20 s: up to browser_gate v21 the engine waited for the launch, 30 s, and case 52d failed under load when its signal came during a slow launch (browser_gate v22 ends Chrome's group at once)
 # v34 (forsgren#674, step 2; the cases and proofs of a site's v33, site issue 94, with their ids): a gate that tests nothing is never green: cases 58a to 58d, a manifest with no page, one without requiredPages, a missing manifest and a named Chrome that does not exist, each exit 2 before anything is checked; case 55d, an engine that ends 0 after the launch without its OK line (no page checked) is red in the wrapper (gate_browser v7); proof V, the engine without its empty-manifest guard, prints an OK line for 0 pages; proof W, the wrapper without its OK-line check, turns case 55d green (its copy finds puppeteer-core through FORSGREN_NODE_ROOT, no link to node_modules)
 # v33 (forsgren#660, the owner's ruling, option A): the real-Chrome signal cases run with Chrome's code-sign clone off (--disable-features=MacAppCodeSignClone, merged into the one --disable-features Chrome is given, through the wrapper chrome_no_clone.sh) and the engine looks at an empty folder of the case, so they no longer read the folder every Chrome on the machine shares: a clone folder of anyone else cannot change their verdict. closed_verdict asserts instead that the clone is off for this Chrome: its own command line has one --disable-features naming the feature and no --enable-features naming it, and the installed Chrome still knows the feature; a missing, overridden or unknown flag is a reason, never a return to the shared folder. Case 53g keeps its clone assertions on a parent of the test; 53h and 53i are unchanged; case 53j pins the check
 # v32 (forsgren#642): case 54b says why its replaced folder is a new one on Linux too: ext4 hands the freed inode of the removed folder to the new one, so the engine compares the birth time as well (browser_gate v19); on the first Linux run the folder was taken for the identified one and removed (Quality run 42406819133)
@@ -165,6 +165,8 @@
 #  53. Chrome killed mid-run (an error) -> exit 2; no Chrome, no profile folder
 #  52g, 53d (site issue 59). The same with a Chrome helper that outlives the
 #      browser and keeps writing into the profile folder: no profile left
+#  52j (forsgren#682). A SIGHUP during a launch that never finishes: exit 129
+#      within 20 s, no Chrome, no profile (browser_gate v22)
 #  52h, 52i (estate issue 617). The cleanup of the clone folders on a folder of
 #      the test: survives a vanished folder, removes only the new one, fails on
 #      one that cannot be removed
@@ -264,7 +266,7 @@ FIRST_CASES=(8 1 31 32 33 34 30 23 22
   41 42 43 44 45 46 47 48 49a 49b 49c 49d 50 51 54 55 56 57 58a 58b 58c 58d)
 SECOND_CASES=(19 20 21 55a 55b 55c 55d)
 SECOND_PROOFS=(a b c d e f g h i j k kslow l m n o p q t u y v w)
-SERIAL_CASES=(52h 52i 53j 52a 52b 52c 52d 52e 52f 53 52g 53d 53g 53h 53i 53l 54a 54b 54c 53e 53f)
+SERIAL_CASES=(52h 52i 53j 52a 52b 52c 52d 52e 52f 53 52g 52j 53d 53g 53h 53i 53l 54a 54b 54c 53e 53f)
 SERIAL_PROOFS=(r rb s x z dh)
 # SHARD_FOLLOWERS: "<unit> <the cases and proofs that run in its shard>" (v30).
 SHARD_FOLLOWERS=("case_8 case_19 case_20 case_21 mutant_b")
@@ -1199,7 +1201,7 @@ fi
 # SERIAL_CASES: the cases that still run one after the other, on a machine with no
 # other case of this self-test running, after the first batch and before the
 # second (forsgren#632). Each has its reason:
-#  - 52a to 52g, 53, 53d, 54a to 54c: they signal or kill processes found by a
+#  - 52a to 52g, 52j, 53, 53d, 54a to 54c: they signal or kill processes found by a
 #    pattern and count the Chromes that appear while they run (signal_case): a
 #    Chrome of a side-by-side case would be counted as theirs;
 #  - 53e: a kill and timing case (a loaded machine is simulated by its seam, and
@@ -1260,7 +1262,9 @@ for n in 1 2 3 4 5 6 7 8 9 10; do printf 'look%s|scheme:light\n' "$n" >> "${TMP}
 # SIG_READY is 0 when it never came (the case proves nothing, and says so).
 # A held case (53f, v29) is up once its profile has the Local State file: its
 # Chrome opens no page and never hears puppeteer, so the launch is still on.
+# SIG_UP_LOCAL_STATE=1 takes that sign of up for a signal too (52j).
 SIG_WAIT_READY=0
+SIG_UP_LOCAL_STATE=0
 CLONE_PARENT=""
 CLONE_FEATURE=MacAppCodeSignClone
 REAL_CHROME="${FORSGREN_CHROME:-}"
@@ -1391,7 +1395,7 @@ signal_case() {
     # Either order of the two flags: Chrome 156 puts --type=renderer before
     # --user-data-dir (pilot issue 30), so the one-order pattern never
     # matched and every case sent its signal only after this 30 s wait.
-    if [[ "$sig" == "held" ]]; then
+    if [[ "$sig" == "held" || "$SIG_UP_LOCAL_STATE" -eq 1 ]]; then
       if [[ -n "$(find "$tmpd" -maxdepth 2 -path '*/browser-gate-*/Local State' 2> /dev/null)" ]]; then SIG_UP=1; break; fi
     elif pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-.*--type=renderer|--type=renderer.*--user-data-dir=${tmpd}/browser-gate-" > /dev/null; then SIG_UP=1; break; fi
     sleep 0.2
@@ -1962,6 +1966,22 @@ if [[ -n "$HELD_WHY" ]]; then
 else
   echo "  ok: 53f: Chrome killed during the launch while a helper holds its pipe ends the run within ${HELD_BOUND} s with a FAIL naming it, its PID and its exit status"
 fi
+# 52j (forsgren#682): a signal during the launch ends the run as one after it
+# does. Its Chrome never answers puppeteer (the deaf pipe of 53f, no helper), so
+# the launch is still on when the signal comes, whatever the machine's speed.
+# The engine knows Chrome's process from its spawn and ends its group at once;
+# up to browser_gate v21 it waited for the launch, 30 s, and case 52d failed when
+# its SIGHUP came during a launch that a loaded machine kept on past 20 s.
+DEAF_CHROME="${TMP}/deaf_chrome.sh"
+cat > "$DEAF_CHROME" << EOF
+#!/usr/bin/env bash
+exec "${CHROME_UNDER_TEST}" "\$@" --no-startup-window 3<> "${DEAF_FIFO}"
+EOF
+chmod +x "$DEAF_CHROME"
+SIG_UP_LOCAL_STATE=1
+signal_case hup_in_launch self HUP env "FORSGREN_CHROME=${DEAF_CHROME}" "$GATE"
+SIG_UP_LOCAL_STATE=0
+want_closed "52j: SIGHUP to the wrapper during a launch that never finishes: exit 129 within 20 s, no Chrome, no profile" 129
 echo "browser gate self-test: the cases of SERIAL_CASES before the mutation proofs, one after the other: $((SECONDS - PHASE_START)) s"
 }
 # serial is one unit: its first case stands for all of them.

@@ -1,4 +1,5 @@
-// canon: browser_gate v21
+// canon: browser_gate v22
+// v22 (forsgren#682): a signal during the launch no longer waits for the launch once Chrome's process is known from its spawn (v17): release() ends Chrome's group at once, removes the profile and exits 128 plus the signal number. Before, it waited for the launch, bounded at 30 s, and on a loaded machine a launch still on 20 s after a SIGHUP kept the run alive past the self-test's bound with nothing printed. A signal before the spawn is seen still waits for the launch, bounded as before. The findings, the baseline format and the exit statuses are unchanged.
 // v21 (forsgren#682): a Chrome that makes no code-sign clone folder at launch (Chrome 157.0.8103.52 on macOS) leaves nothing to remove: when no new folder appeared during the launch the gate says so on stderr in one line, `this Chrome made no code-sign clone (nothing to remove)`, instead of reporting a folder kept for the nightly cleanup; one new folder is removed as before, and more than one (or an unreadable parent) is kept with its reason as before. The findings, the baseline format and the exit statuses are unchanged.
 // v20 (forsgren#649): one helper, orTimeout, races a promise against a timer wherever the engine waited for something or a time limit (the paint wait, Chrome's stderr, Chrome's exit after a launch error, a folder removal, the launch at a signal, the browser's close); every limit, every outcome and every message is as in v19, and each timer is now cleared however the race ends, so none keeps node alive after a rejection either. The findings, the baseline format and the exit statuses are unchanged.
 // v19 (forsgren#642): a launch whose own error comes before Chrome's 'exit' still names the death: on Linux the closed pipe of a dying Chrome is read first and puppeteer.launch rejects with TargetCloseError, so v18 printed that error and neither the death nor Chrome's stderr; the engine now gives Chrome's process LAUNCH_EXIT_SETTLE_MS (2 s) to be seen ending and names it as v17 and v18 do, with the launch's own error after Chrome's lines. A code-sign clone folder is the same folder at removal only with the same inode and the same birth time: a file system that hands a freed inode out again (ext4) gave a folder replaced after the launch the old number, and it was removed. The findings, the baseline format and the exit statuses are unchanged.
@@ -1066,10 +1067,11 @@ function cloneOf(browser) {
   return live.cloning;
 }
 
-// A signal during the launch finds no browser yet, although Chrome runs: wait
-// for the launch (bounded), so that this browser is closed too. A Chrome that
-// died during the launch ends the wait at once (v17): its launch may wait for a
-// pipe another process still holds.
+// A signal before Chrome's spawn is seen finds no browser and no process yet:
+// wait for the launch (bounded), so that this browser is closed too. A Chrome
+// that died during the launch ends the wait at once (v17): its launch may wait
+// for a pipe another process still holds. Once the spawn is seen, release()
+// does not wait (v22): it ends Chrome's group at once.
 async function launched() {
   if (!live.launching) return null;
   const launch = live.launching.catch(() => null);
@@ -1080,7 +1082,10 @@ async function launched() {
 function release() {
   releasing ||= (async () => {
     const { server, profile } = live;
-    const browser = live.browser || await launched();
+    // A launch still on when Chrome's process is known (a signal during the
+    // launch, v22) is not waited for: on a loaded machine it took more than
+    // 20 s, and the run outlived the signal. Chrome's group is ended below.
+    const browser = live.browser || (live.chrome?.pid ? null : await launched());
     const clone = cloneOf(browser);
     if (browser) {
       const child = browser.process();
