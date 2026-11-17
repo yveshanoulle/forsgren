@@ -31,10 +31,11 @@
 #      `path` keeps only NON-test findings, and case 1 turns green: the
 #      filter is what points the gate at test code; and case 3 turns red,
 #      naming dupl: case 3's duplication is real, so its green is not vacuous
-#   3b. (forsgren#657) case 3 in a module under a folder whose name holds
-#      "_test.go"                                  -> exit 0: the rule matches the
+#   3b. (forsgren#657, forsgren#683) case 3 in a folder inside the module whose
+#      name holds "_test.go"                       -> exit 0: the rule matches the
 #      end of the path only (the temp folder selftest_test_dupl_gate_self_test.go...
-#      once turned case 3 red)
+#      once turned case 3 red; the fixture's folder is inside the module so the
+#      reported path names it on macOS and Linux alike)
 #   6b. MUTATION PROOF: the rule without its end anchor turns case 3b red
 
 set -euo pipefail
@@ -150,19 +151,24 @@ run_gate "$GATE" "$MOD"
 want_exit "duplication in non-test code is not this gate's red" 0 "OK:"
 PROD_DUP="$MOD"
 
-# --- Case 3b (forsgren#657 RED 4fd71ac1): the same production duplication in a
-# module whose folder name holds "_test.go". The self-test's temp folder is
-# selftest_test_dupl_gate_self_test.XXXXXX, so a random suffix starting with "go"
-# put "_test.go" in every path; golangci-lint matches the rule against a path that
-# climbs out of the working directory (it resolves /var to /private/var), so an
-# unanchored _test\.go kept Alpha.go's finding and case 3 went red. The rule
-# matches the file name's end only.
-mkdir -p "${TMP}/inside_test.go_folder"
-new_module "inside_test.go_folder/prod-dup"
+# --- Case 3b (forsgren#657 RED 4fd71ac1, forsgren#683): the same production
+# duplication in a folder INSIDE the module whose name holds "_test.go". The
+# reported path then names that folder on every platform: golangci-lint matches
+# the rule against the path it reports (relative to the module), so an
+# unanchored _test\.go keeps Alpha.go's finding and case 3 goes red. Do NOT
+# build the fixture from a folder ABOVE the module (a first try, forsgren#657):
+# only macOS reports a path that climbs out of the module (/var is a symlink to
+# /private/var), so on Linux the unanchored mutant stayed green (forsgren#683).
+new_module "prod-dup-folder"
+MODULE_ROOT="$MOD"
+MOD="${MODULE_ROOT}/inside_test.go_folder"
+mkdir -p "$MOD"
+printf '// Package m is a dupl fixture.\npackage m\n' > "${MOD}/lib.go"
 write_twins ""
+MOD="$MODULE_ROOT"
 add_one_test
 run_gate "$GATE" "$MOD"
-want_exit "production duplication under a folder named like _test.go is still not this gate's red" 0 "OK:"
+want_exit "production duplication in a folder named like _test.go is still not this gate's red" 0 "OK:"
 PROD_DUP_TEST_FOLDER="$MOD"
 
 # --- Case 4: no test file.
