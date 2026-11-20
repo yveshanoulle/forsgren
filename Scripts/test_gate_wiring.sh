@@ -117,6 +117,10 @@ source Scripts/lib_has.sh
 # Temp folders and files through Scripts/lib_tmp.sh (forsgren#612).
 # shellcheck source=Scripts/lib_tmp.sh
 source Scripts/lib_tmp.sh
+# Pin 8 reads the workflows through git, so an exported GIT_DIR must not reach it
+# (git sandbox guard).
+# shellcheck source=Scripts/lib_git_sandbox.sh
+source Scripts/lib_git_sandbox.sh
 
 # order_names <script-basename>: an order-file row names Scripts/<basename>.
 order_names() {
