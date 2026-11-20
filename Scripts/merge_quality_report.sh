@@ -44,14 +44,30 @@
 #       one never judged its gates), exit 1; all success prints nothing, exit
 #       0. The report job runs it after the report is rendered, so the check
 #       named Quality report is never green while a gate job is not.
+#   Scripts/merge_quality_report.sh view <groups-file> <order-file> <groups-out> <order-out> <job>...
+#       (forsgren#686) Two workflows run the rows of one order file and one
+#       group file: Quality the real gates, Self-tests the self-test rows,
+#       each in its own jobs. A workflow's report must list its own rows only,
+#       or every row of the other workflow would show as unmeasured. view
+#       writes the part of the two files that belongs to the jobs named: in
+#       <groups-out> the group rows of those jobs, in <order-out> the order
+#       rows that run in one of them, comments left out. The job `main` is
+#       the default job (Scripts/run_ci_phase.sh): it holds every row the
+#       group file gives to no job, and the `n/a` rows, which the report
+#       counts as declared. The report job then passes <order-out> to
+#       Scripts/render_quality_summary.sh and Scripts/render_quality_report.sh
+#       and <groups-out> as QS_JOB_GROUPS. A job other than main that the
+#       group file does not name is red (exit 1, named): its gates could not
+#       be listed. A view that holds no row is red too.
 #
-# Exit: 0, 1 a gate reported twice or a gate job not success, 64 usage. Self-test:
+# Exit: 0, 1 a gate reported twice, a gate job not success or a view that
+# cannot be made, 64 usage. Self-test:
 # Scripts/test_merge_quality_report.sh.
 
 set -uo pipefail
 
 usage() {
-  echo "usage: merge_quality_report.sh handover <rows> <details-dir> <out-dir> [page-count-file] | merge <artifacts-dir> <rows-out> <details-out> | status <result>... | verdict <job>=<result>..." >&2
+  echo "usage: merge_quality_report.sh handover <rows> <details-dir> <out-dir> [page-count-file] | merge <artifacts-dir> <rows-out> <details-out> | status <result>... | verdict <job>=<result>... | view <groups-file> <order-file> <groups-out> <order-out> <job>..." >&2
   exit 64
 }
 
@@ -196,6 +212,44 @@ merge() {
   [ "$duplicates" -eq 0 ] || exit 1
 }
 
+# view <groups> <order> <groups-out> <order-out> <job>...: see the header.
+view() {
+  local groups="$1" order="$2" groups_out="$3" order_out="$4" job jobs=" "
+  shift 4
+  [ "$#" -ge 1 ] || usage
+  if [ ! -f "$groups" ] || [ ! -f "$order" ]; then
+    echo "❌ view: ${groups} or ${order} is missing, so no view can be made"
+    return 1
+  fi
+  for job in "$@"; do
+    case "$job" in
+      ''|*[!A-Za-z0-9_-]*) usage ;;
+    esac
+    if [ "$job" != main ] && ! awk -F'|' -v j="$job" '$0 !~ /^#/ && $1 == j { f = 1 } END { exit !f }' "$groups"; then
+      echo "❌ view: ${job} is no job of ${groups}: its gates cannot be listed"
+      return 1
+    fi
+    jobs="${jobs}${job} "
+  done
+  awk -F'|' -v jobs="$jobs" '$0 !~ /^#/ && $1 != "" && index(jobs, " " $1 " ") { print }' "$groups" > "$groups_out" || return 1
+  awk -F'|' -v jobs="$jobs" '
+    FNR == NR {
+      if ($0 ~ /^#/ || $1 == "") next
+      grouped[$2] = 1
+      if (index(jobs, " " $1 " ")) mine[$2] = 1
+      next
+    }
+    $0 ~ /^#/ || $1 == "" { next }
+    $2 == "n/a" { if (index(jobs, " main ")) print; next }
+    ($1 in mine) || (!($1 in grouped) && index(jobs, " main ")) { print }
+  ' "$groups" "$order" > "$order_out" || return 1
+  if [ ! -s "$order_out" ]; then
+    echo "❌ view: no row of ${order} runs in the jobs${jobs% }"
+    return 1
+  fi
+  echo "view: $# jobs, $(grep -c . "$groups_out" || true) group rows, $(grep -c . "$order_out" || true) rows of ${order}"
+}
+
 handover() {
   local rows="$1" details="$2" out="$3" count="${4:-}"
   rm -rf "$out" || exit 1
@@ -223,6 +277,11 @@ case "${1:-}" in
   verdict)
     shift
     verdict "$@"
+    ;;
+  view)
+    shift
+    [ "$#" -ge 5 ] || usage
+    view "$@"
     ;;
   *) usage ;;
 esac

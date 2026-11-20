@@ -108,7 +108,8 @@ INPUTS
 run_sfl() {
   local root="$1" phase="$2"
   shift 2
-  OUT="$(cd "$root" && env -u GITHUB_ACTIONS -u SFL_GATE_SELECT_FULL MARKS="$MARKS" "$@" ./sfl.sh "$phase" 2>&1)" && RC=0 || RC=$?
+  # SFL_WITH_SELFTESTS=1 (forsgren#686): the fixture has no Scripts/selftest_rows.sh, and its self-test rows must run.
+  OUT="$(cd "$root" && env -u GITHUB_ACTIONS -u SFL_GATE_SELECT_FULL MARKS="$MARKS" SFL_WITH_SELFTESTS=1 "$@" ./sfl.sh "$phase" 2>&1)" && RC=0 || RC=$?
 }
 
 # run_both <root> [VAR=value...]: pre then post, the marks cleared first.

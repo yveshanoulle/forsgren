@@ -124,7 +124,14 @@ and exports the Go pin. **It stops at the first red gate**
 `⏭ skipped: <label> (stopped after <label of the red gate>)`, is a `⏭ skip` row
 of the step table (never counted as passed), and the last line says
 `sfl pre failed, stopped after <label>`; `./sfl.sh --all pre|post` (and
-`./FBP.sh --all`) runs every gate, also past a red static block, as CI does. It
+`./FBP.sh --all`) runs every gate, also past a red static block, as CI does.
+**It skips the self-test rows** (forsgren#686): the tests of the gates
+themselves run in the Self-tests workflow on GitHub after the push (see
+[docs/ci.md](ci.md)), so sfl runs what Quality runs. The rows
+`Scripts/selftest_rows.sh` lists are not run and not counted as steps, and one
+line says how many were skipped; FBP's summary repeats it.
+`./sfl.sh --with-selftests pre|post`, `./FBP.sh --with-selftests` or
+`SFL_WITH_SELFTESTS=1` runs them here too. It
 prints a step table and an `Errors:` block with
 each failed gate's reason, and exits 0 green, 1 red, 2 on a secret-class
 red (which stops too and writes no stop sink, so FBP.sh commits nothing). The
@@ -179,9 +186,9 @@ In CI every gate job installs only what its gates need, from its own
 list (the installer's optional argument): the main job from
 `Scripts/required_tools_quality_gates.txt` (the full list less the four lint
 tools, forsgren#591), the `quality_2` job from
-`Scripts/required_tools_quality_2_gates.txt` and the `quality_3` job from
-`Scripts/required_tools_quality_3_gates.txt` (forsgren#672), all three on macOS with
-`Scripts/install_tools.sh`, and the `browser_1`, `browser_2` and `browser_3`
+`Scripts/required_tools_quality_2_gates.txt` and the Self-tests jobs
+`selftest_mac_1` and `selftest_mac_2` from their own lists (forsgren#686), all
+four on macOS with `Scripts/install_tools.sh`, and the `browser_1`, `browser_2` and `browser_3`
 jobs, on Linux since forsgren#642, from
 `Scripts/required_tools_browser_1_gates.txt`,
 `Scripts/required_tools_browser_2_gates.txt` and

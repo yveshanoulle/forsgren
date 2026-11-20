@@ -1,0 +1,22 @@
+# Tools the selftest_mac_1 job of selftests.yml needs (forsgren#686; the
+# quality_3 job of quality.yml up to then, forsgren#672), one per line.
+# Read by Scripts/install_tools.sh, which the job runs with this file in place
+# of Scripts/required_tools.txt; sfl.sh keeps the full list.
+#
+# ONLY what its self-tests run (Scripts/ci_job_groups.txt gives it the rows; read
+# from their scripts, and from the scripts those call). A tool a self-test
+# calls but this list lacks is not skipped: the self-test fails with `command
+# not found`, and Scripts/test_quality_jobs.sh is red when a listed row names a
+# tool of Scripts/required_tools.txt that is not here.
+
+# go: the site and fixture builds of the build-site, FBP, Go coverage, browser
+# gate inputs and default TBD fixture self-tests.
+go
+
+# node: npm and node, for the browser gate, privacy-posture, html-duplication
+# and npm-audit self-tests and the FBP and sfl self-tests.
+node
+
+# jq: the Go coverage gate its self-test runs, and the npm-audit and tmp
+# failure stops self-tests.
+jq

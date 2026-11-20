@@ -145,7 +145,8 @@ ORDER
 run_sfl() {
   rm -rf "$MARKS"
   mkdir -p "$MARKS"
-  OUT="$(cd "$1" && MARKS="$MARKS" ./sfl.sh ${3:+"$3"} "$2" 2>&1)" && RC=0 || RC=$?
+  # SFL_WITH_SELFTESTS=1 (forsgren#686): the fixture has no Scripts/selftest_rows.sh; every row runs.
+  OUT="$(cd "$1" && MARKS="$MARKS" SFL_WITH_SELFTESTS=1 ./sfl.sh ${3:+"$3"} "$2" 2>&1)" && RC=0 || RC=$?
 }
 
 marked() { [[ -f "${MARKS}/$1" ]]; }

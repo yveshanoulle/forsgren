@@ -263,6 +263,13 @@ step summary isolation|grep|GITHUB_STEP_SUMMARY
 step summary isolation|in|.github/workflows/auto_update.yml
 step summary isolation|in|.github/workflows/metrics.yml
 step summary isolation|in|.github/workflows/quality.yml
+step summary isolation|in|.github/workflows/selftests.yml
+step summary isolation|in|.gitleaks.toml
+step summary isolation|in|Scripts/check_secrets.sh
+step summary isolation|in|Scripts/open_selftests_failure_issue.sh
+step summary isolation|in|Scripts/selftest_rows.sh
+step summary isolation|in|Scripts/test_selftests_failure_issue.sh
+step summary isolation|in|Scripts/test_sfl_selftest_skip.sh
 step summary isolation|in|.github/workflows/release.yml
 step summary isolation|in|package.json
 step summary isolation|in|Scripts/browser_gate_baseline.txt
@@ -294,7 +301,8 @@ step summary isolation|in|Scripts/required_tools_browser_3_gates.txt
 step summary isolation|in|Scripts/browser_gate_selftest_weights.txt
 step summary isolation|in|Scripts/lib_isolation_shard.sh
 step summary isolation|in|Scripts/required_tools_quality_2_gates.txt
-step summary isolation|in|Scripts/required_tools_quality_3_gates.txt
+step summary isolation|in|Scripts/required_tools_selftest_mac_1_gates.txt
+step summary isolation|in|Scripts/required_tools_selftest_mac_2_gates.txt
 step summary isolation|in|Scripts/required_tools_quality_gates.txt
 step summary isolation|in|Scripts/check_community_files.sh
 step summary isolation|in|Scripts/language_allowlist.txt
@@ -476,6 +484,9 @@ step summary isolation|in|Scripts/strip_markdown_code.awk
 # are the closure of the script; Scripts/test_gate_inputs.sh holds them listed.
 metrics workflow|in|.github/workflows/metrics.yml
 metrics workflow|in|.github/workflows/quality.yml
+metrics workflow|in|.github/workflows/selftests.yml
+metrics workflow|in|Scripts/ci_job_groups.txt
+metrics workflow|in|Scripts/selftest_rows.sh
 metrics workflow|in|FBP.sh
 metrics workflow|in|internal/config/starter.yml
 metrics workflow|in|package-lock.json
@@ -569,6 +580,8 @@ gate wiring|in|.github/workflows/auto_update.yml
 gate wiring|in|.github/workflows/dco.yml
 gate wiring|in|.github/workflows/metrics.yml
 gate wiring|in|.github/workflows/quality.yml
+gate wiring|in|.github/workflows/selftests.yml
+gate wiring|in|.gitleaks.toml
 gate wiring|in|.github/workflows/release.yml
 gate wiring|in|.github/workflows/starter_page.yml
 gate wiring|in|.github/workflows/token_expiry_probe.yml

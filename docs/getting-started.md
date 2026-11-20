@@ -54,6 +54,10 @@ Good to know:
 - **The gates stop at the first red one.** Later gates are printed as
   skipped, and the build and the POST gates do not run. `./FBP.sh --all` runs
   every gate and shows all the reds at once, as CI does.
+- **The self-tests run on GitHub, not here.** The tests of the gates
+  themselves run in the Self-tests workflow after the push, so a local run
+  checks only the real gates and says how many self-test rows it skipped.
+  `./FBP.sh --with-selftests` runs them locally too.
 - **A red run still commits.** The commit is made locally with the subject
   `*** RED ****` and your message in the body, so no work is lost. Nothing is
   pushed. Fix the cause and run `./FBP.sh "<message>"` again.

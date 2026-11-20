@@ -990,6 +990,18 @@ quality summary first|Scripts/test_quality_summary_first.sh|pre|
 quality jobs pin|Scripts/test_quality_jobs.sh|pre|
 merge quality report self-test|Scripts/test_merge_quality_report.sh|pre|
 #
+# The self-tests' own workflow (forsgren#686): .github/workflows/selftests.yml
+# runs every self-test row after a push to main, Quality the real gates, and
+# sfl.sh skips the self-test rows locally by default (--with-selftests, or
+# SFL_WITH_SELFTESTS=1, runs them). Scripts/selftest_rows.sh lists them from
+# Scripts/ci_job_groups.txt and selftests.yml, the one source of both sides;
+# the first self-test below runs the real sfl.sh in throwaway repositories with
+# its mutation proofs. A red Self-tests run on main opens one issue through
+# Scripts/open_selftests_failure_issue.sh, whose self-test runs it against a
+# stub gh.
+sfl self-test skip self-test|Scripts/test_sfl_selftest_skip.sh|pre|
+self-tests failure issue self-test|Scripts/test_selftests_failure_issue.sh|pre|
+#
 step summary isolation|Scripts/test_step_summary_isolation.sh|pre|
 git sandbox isolation self-test|Scripts/test_git_sandbox_isolation.sh|pre|
 git sandbox isolation scope self-test|Scripts/test_git_sandbox_isolation_scope.sh|pre|

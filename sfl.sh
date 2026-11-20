@@ -24,7 +24,10 @@ cd "$(dirname "$0")" || exit 1
 # before, the missing check let it go on with an empty path.
 # v13 (forsgren#290) sources an optional git-ignored .fbp-local.sh before the
 # first gate; a failing hook stops the run with a ❌ line.
-VERSION=13
+# v14 (forsgren#686) skips the self-test rows by default, which run in the
+# Self-tests workflow after the push; --with-selftests or SFL_WITH_SELFTESTS=1
+# runs them here too.
+VERSION=14
 
 # forsgren#214: FBP.sh FIXES what the gates can fix (the npm audit heal runs
 # only under GATE_FIX=1); CI never sets it and only checks.
@@ -35,8 +38,13 @@ usage() {
   echo "  $0 [--all] pre    run PRE-BUILD quality gates"
   echo "  $0 [--all] post   run POST-BUILD quality gates"
   echo
+  echo "  $0 --with-selftests [--all] pre|post"
+  echo "                     also run the self-test rows (same as SFL_WITH_SELFTESTS=1)"
+  echo
   echo "A phase stops at its first red gate: each later gate is printed skipped,"
   echo "named, and the summary says where it stopped. --all runs every gate."
+  echo "The self-test rows run in the Self-tests workflow after the push, so a"
+  echo "phase skips them, says how many in one line, and --with-selftests runs them."
 }
 
 # forsgren#441 (decision #440): the stop is the default, --all lifts it.
@@ -45,6 +53,7 @@ PHASE=""
 for arg in "$@"; do
   case "$arg" in
     --all) RUN_ALL=1 ;;
+    --with-selftests) SFL_WITH_SELFTESTS=1 ;;
     *) [ -z "$PHASE" ] && PHASE="$arg" ;;
   esac
 done
@@ -226,8 +235,43 @@ GATE_N=0
 # nothing has to be marshalled at the end.
 STEP=0
 
-# Count only gates belonging to the requested phase. +1 is the sfl-internal
-# step-count self-check that always runs last.
+# forsgren#686: THE SELF-TEST ROWS. Every self-test row (a label ending in
+# " self-test" or starting with "mutation: ", and the step summary isolation
+# gate; the secret-class secret-scan self-test excepted) runs in
+# .github/workflows/selftests.yml after the push, and Quality runs the rest. A
+# phase here runs what Quality runs: the rows Scripts/selftest_rows.sh names
+# (it reads the same Scripts/ci_job_groups.txt and selftests.yml CI runs from,
+# so there is one list) are not run, not counted as steps and not rows of the
+# step table; one line says how many, and goes to SELFTESTS_SINK for FBP.sh's
+# summary. --with-selftests or SFL_WITH_SELFTESTS=1 runs every row. A list
+# that cannot be read stops the run before any gate: a silent fallback would
+# hide it. Fixture: Scripts/test_sfl_selftest_skip.sh.
+SELFTEST_ROWS=""
+SELFTEST_SKIP_N=0
+SELFTEST_SKIPPED=0
+SELFTESTS_SINK=".build/sfl-selftests-skipped.log"
+if [ "${SFL_WITH_SELFTESTS:-0}" != 1 ]; then
+  if ! SELFTEST_ROWS="$(./Scripts/selftest_rows.sh)"; then
+    echo "❌ Scripts/selftest_rows.sh failed, so the self-test rows are unknown; no gate ran (--with-selftests runs every row)" >&2
+    rm -rf "${GATE_LOG_DIR}"
+    exit 1
+  fi
+  SELFTEST_SKIP_N="$(
+    awk -F'|' -v phase="$PHASE" '
+      FNR == NR { if ($0 != "") st[$0] = 1; next }
+      $0 !~ /^#/ && NF >= 3 && $3 == phase && $2 != "n/a" && ($1 in st) { count++ }
+      END { print count + 0 }
+    ' <(printf '%s\n' "$SELFTEST_ROWS") Scripts/gate_report_order.txt
+  )"
+fi
+mkdir -p .build
+if [[ "$PHASE" == "pre" ]]; then
+  : > "$SELFTESTS_SINK"
+fi
+
+# Count only gates belonging to the requested phase, less the self-test rows
+# skipped here. +1 is the sfl-internal step-count self-check that always runs
+# last.
 PHASE_GATE_COUNT="$(
   awk -F'|' -v phase="$PHASE" '
     $0 !~ /^#/ && NF >= 3 && $3 == phase && $2 != "n/a" {
@@ -239,7 +283,7 @@ PHASE_GATE_COUNT="$(
     }
   ' Scripts/gate_report_order.txt
 )"
-TOTAL_STEPS=$((PHASE_GATE_COUNT + 1))
+TOTAL_STEPS=$((PHASE_GATE_COUNT - SELFTEST_SKIP_N + 1))
 
 STEP_ROWS="${GATE_LOG_DIR}/steps.tsv"
 : > "$STEP_ROWS"
@@ -318,12 +362,12 @@ run_step() {
 check_step_total() {
   # run_gate has already counted THIS step before invoking us, so $STEP is the
   # final total and needs no adjustment.
-  if [ "$STEP" -ne "$TOTAL_STEPS" ]; then
-    echo "❌ TOTAL_STEPS=${TOTAL_STEPS} but this run executed ${STEP} steps"
+  if [ "$STEP" -ne "$TOTAL_STEPS" ] || [ "$SELFTEST_SKIPPED" -ne "$SELFTEST_SKIP_N" ]; then
+    echo "❌ TOTAL_STEPS=${TOTAL_STEPS} (the runnable rows of the phase, less ${SELFTEST_SKIP_N} self-test rows skipped locally, + 1) but this run executed ${STEP} steps and skipped ${SELFTEST_SKIPPED} self-test rows"
     return 1
   fi
 
-  echo "OK: TOTAL_STEPS=${TOTAL_STEPS} matches the ${STEP} steps executed"
+  echo "OK: TOTAL_STEPS=${TOTAL_STEPS} matches the ${STEP} steps executed (${SELFTEST_SKIPPED} self-test rows skipped locally)"
 }
 
 # --- THE GATES ------------------------------------------------------------
@@ -407,6 +451,13 @@ while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:
     continue
   fi
 
+  # forsgren#686: a self-test row runs in the Self-tests workflow, not here
+  # (unless --with-selftests): no step, no row of the step table, only counted.
+  if [ -n "$SELFTEST_ROWS" ] && grep -qxF -- "$label" <<< "$SELFTEST_ROWS"; then
+    SELFTEST_SKIPPED=$((SELFTEST_SKIPPED + 1))
+    continue
+  fi
+
   if [ ! -e "$script" ]; then
     echo "❌ ${label} declares ${script}, which does not exist"
     FAIL=1
@@ -467,6 +518,12 @@ run_step "step-count self-check (TOTAL_STEPS)" check_step_total
   "$SFL_COUNTS_FILE"
 
 echo
+
+# forsgren#686: the one line on the self-test rows this phase skipped.
+if [ "$SELFTEST_SKIPPED" -gt 0 ]; then
+  printf 'self-tests skipped locally (%s rows): they run in the Self-tests workflow on GitHub after the push — use --with-selftests to run them here\n' "$SELFTEST_SKIPPED" | tee -a "$SELFTESTS_SINK"
+  echo
+fi
 
 if [[ $FAIL -ne 0 ]]; then
   echo "Errors:"

@@ -180,6 +180,17 @@ FBP_SANDBOX_SFL_LOG_TMPDIR=""
 #     FBP.sh reads a run that skipped gates.
 FBP_SANDBOX_SFL_SKIPS=""
 
+# forsgren#686: two more seams, for Scripts/test_sfl_selftest_skip.sh, set and
+# reset the same way.
+#   FBP_SANDBOX_SFL_SELFTESTS: when non-empty, the stub sfl.sh, run as sfl.sh
+#     pre, writes this text to .build/sfl-selftests-skipped.log, the sink the
+#     real sfl.sh fills with its line on the self-test rows it skipped.
+#   FBP_SANDBOX_SFL_LOG_SELFTESTS: when non-empty, the stub sfl.sh first prints
+#     `stub sfl SFL_WITH_SELFTESTS=<value>` (`unset` when not set), so a
+#     fixture sees whether FBP.sh handed --with-selftests on.
+FBP_SANDBOX_SFL_SELFTESTS=""
+FBP_SANDBOX_SFL_LOG_SELFTESTS=""
+
 # Road to public, step 4 (the DCO sign-off FBP.sh adds to its commits): one
 # more seam, for case 5 of Scripts/test_fbp_commit_message.sh, set and reset
 # the same way.
@@ -343,12 +354,17 @@ fbp_sandbox_write_sfl() {
       # shellcheck disable=SC2016 # the stub expands it, not this printf
       printf 'echo "stub sfl TMPDIR=${TMPDIR:-unset}"\n'
     fi
+    if [ -n "$FBP_SANDBOX_SFL_LOG_SELFTESTS" ]; then
+      # shellcheck disable=SC2016 # the stub expands it, not this printf
+      printf 'echo "stub sfl SFL_WITH_SELFTESTS=${SFL_WITH_SELFTESTS:-unset}"\n'
+    fi
     fbp_sandbox_sfl_counts_line pre "$FBP_SANDBOX_SFL_COUNTS_PRE"
     fbp_sandbox_sfl_counts_line post "$FBP_SANDBOX_SFL_COUNTS_POST"
     fbp_sandbox_sfl_static_stop_line
     fbp_sandbox_sfl_pre_red_line
     fbp_sandbox_sfl_pre_signal_line
     fbp_sandbox_sfl_skips_line
+    fbp_sandbox_sfl_selftests_line
     printf 'exit 0\n'
   } > sfl.sh
   chmod +x sfl.sh
@@ -371,6 +387,16 @@ fbp_sandbox_sfl_skips_line() {
   local phase_arg="\"\$1\""
   if [ -n "$FBP_SANDBOX_SFL_SKIPS" ]; then
     printf 'if [ %s = pre ]; then mkdir -p .build; %s %q > .build/sfl-skips.log; fi\n' "$phase_arg" "printf '%s\n'" "$FBP_SANDBOX_SFL_SKIPS"
+  fi
+}
+
+# fbp_sandbox_sfl_selftests_line — forsgren#686: prints the stub sfl.sh line
+# that, when the stub runs as sfl.sh pre, writes FBP_SANDBOX_SFL_SELFTESTS to
+# .build/sfl-selftests-skipped.log; prints nothing when that is empty.
+fbp_sandbox_sfl_selftests_line() {
+  local phase_arg="\"\$1\""
+  if [ -n "$FBP_SANDBOX_SFL_SELFTESTS" ]; then
+    printf 'if [ %s = pre ]; then mkdir -p .build; %s %q > .build/sfl-selftests-skipped.log; fi\n' "$phase_arg" "printf '%s\n'" "$FBP_SANDBOX_SFL_SELFTESTS"
   fi
 }
 

@@ -1,0 +1,817 @@
+# .github/workflows/selftests.yml
+#
+# forsgren's self-tests (forsgren#686): the tests of the gates themselves, split
+# from Quality. A self-test row is a row of Scripts/gate_report_order.txt whose
+# label ends in " self-test" or starts with "mutation: ", and the step summary
+# isolation gate, which runs the self-tests that write to the step summary and
+# is a self-test in full. The one exception is the secret-scan self-test: it is
+# secret-class (its first case scans the real tree, forsgren#570), so it stays
+# in Quality and in every local run, before a commit. Scripts/ci_job_groups.txt
+# gives each self-test row to one job below, and pin 8 of
+# Scripts/test_gate_wiring.sh proves that every runnable row runs in exactly
+# one of the two workflows, the one the rule names (nothing dropped, nothing
+# doubled). The self-tests were 91% of the local gate time on a sibling project
+# with the same machinery; a local FBP run leaves them to this workflow
+# (Scripts/selftest_rows.sh lists them, sfl.sh skips them by default and says
+# how many; --with-selftests runs them there too).
+#
+# GATES NOTHING. The Release (Scripts/release_quality.sh reads the run of the
+# workflow named Quality) and the preview deploy (a job of quality.yml) chain
+# to Quality only, never to this workflow. A red run on main opens one issue
+# (the failure_issue job), so the red is seen without holding a release back.
+#
+# JOBS. Each self-test runs on the runner it ran on in Quality before the split,
+# so it sees the same platform:
+#   selftest_mac_1, selftest_mac_2  macos-latest: the self-tests of Quality's
+#                                   macOS jobs, in two halves by measured
+#                                   seconds (about 363 and 405 s)
+#   selftest_linux                  ubuntu-latest: the self-tests of the lint
+#                                   and workflows jobs (about 203 s)
+#   isolation_1, isolation_2        ubuntu-latest: the git sandbox isolation
+#                                   self-test, --shard 1/2 and --shard 2/2
+#                                   (forsgren#426; about 541 and 216 s)
+#   summary                         ubuntu-latest: the step summary isolation
+#                                   gate (forsgren#425; about 315 s)
+#   browser_1, browser_2            ubuntu-latest: the browser gate self-test,
+#                                   --shard 1/2 and --shard 2/2 (forsgren#641),
+#                                   with the fixture site self-test in browser_1
+#                                   and the process self-test in browser_2
+#                                   (about 496 and 404 s)
+# so the longest job takes about ten minutes with its setup. Each job sets
+# itself up the way its Quality job did (checkout with full history, setup-go
+# first on Linux, the gate environment, Node from .nvmrc, the tools of its own
+# list, npm ci, its own report folder), runs its rows through
+# Scripts/run_ci_phase.sh and hands them over as the artifact
+# quality-report-<job>. The `report` job merges them into the one Self-tests
+# report. GitHub runs at most 5 macOS jobs at once for the account: this
+# workflow starts two, Quality two. Scripts/test_quality_jobs.sh pins the
+# layout, Scripts/test_quality_runner_pins.sh each job's image.
+#
+# CHECK-ONLY, as Quality: Scripts/run_ci_phase.sh turns a self-test that
+# changes the checked-out tree into a red row. No secret reaches a gate job:
+# the self-tests run their gates against fixtures and stubs.
+name: Self-tests
+
+on:
+  # Quality's push trigger, which has no paths filter (every tracked file is an
+  # input of some gate), so every push to main runs the self-tests once. No
+  # pull_request: a contributor's pull request runs Quality, the real gates,
+  # and the self-tests of the merged commit run here on main. Never
+  # pull_request_target. Scripts/check_workflow_triggers.sh reads this file as
+  # every other workflow.
+  push:
+    branches: ["main"]
+  # By hand: the full run, as on a push.
+  workflow_dispatch:
+
+# The gate jobs read the repository and nothing else; the failure_issue job
+# alone writes an issue.
+permissions:
+  contents: read
+
+# As Quality's on main: every commit gets its own complete run, neither
+# cancelled nor dropped from the queue, hence a group per commit.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  # The self-tests of Quality's old quality_3 job and the browser gate inputs
+  # self-test (Scripts/ci_job_groups.txt), on macos-latest as before: the same
+  # setup as Quality's macOS jobs, step for step, whose comments are
+  # quality.yml's main job's. No site build: all are PRE rows.
+  selftest_mac_1:
+    name: Self-tests (macOS) 1/2
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up the gate environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
+          toolchain="$(./Scripts/go_toolchain.sh)"
+          echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      # Only the tools its self-tests run: go, node and jq. A tool a self-test
+      # calls and the list lacks fails that self-test, never skips it.
+      - name: Install tools
+        shell: bash
+        env:
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
+        run: |
+          set -euo pipefail
+          ./Scripts/install_tools.sh Scripts/required_tools_selftest_mac_1_gates.txt
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start report
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
+          : > "$rows"
+          rm -rf "$details" && mkdir -p "$details"
+          echo "ROWS=${rows}" >> "$GITHUB_ENV"
+          echo "DETAILS=${details}" >> "$GITHUB_ENV"
+
+      # The rows Scripts/ci_job_groups.txt gives to this job, in order-file
+      # order. A failing self-test does not stop the phase.
+      - name: Self-tests (macOS) 1/2
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" selftest_mac_1
+
+      - name: Collect the gate report
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
+
+      - name: Hand over the gate report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: quality-report-selftest_mac_1
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
+          retention-days: 1
+          if-no-files-found: error
+
+  # The self-tests of Quality's main job (the secret-scan self-test excepted)
+  # and the rest of quality_2's, on macos-latest as before. selftest_mac_1's
+  # twin with its own list.
+  selftest_mac_2:
+    name: Self-tests (macOS) 2/2
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up the gate environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
+          toolchain="$(./Scripts/go_toolchain.sh)"
+          echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      # The main job's tools (gitleaks, go, jq, languagetool and node): these
+      # self-tests ran in Quality's main job, so they keep its environment.
+      - name: Install tools
+        shell: bash
+        env:
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
+        run: |
+          set -euo pipefail
+          ./Scripts/install_tools.sh Scripts/required_tools_selftest_mac_2_gates.txt
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start report
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
+          : > "$rows"
+          rm -rf "$details" && mkdir -p "$details"
+          echo "ROWS=${rows}" >> "$GITHUB_ENV"
+          echo "DETAILS=${details}" >> "$GITHUB_ENV"
+
+      - name: Self-tests (macOS) 2/2
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" selftest_mac_2
+
+      - name: Collect the gate report
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
+
+      - name: Hand over the gate report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: quality-report-selftest_mac_2
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
+          retention-days: 1
+          if-no-files-found: error
+
+  # The self-tests of Quality's lint and workflows jobs, on ubuntu-latest as
+  # before, with the setup of those jobs: setup-go first (forsgren#573: the
+  # Go of go.mod's toolchain line, fetched and verified once, module and build
+  # cache on; Scripts/test_quality_jobs.sh pins the step in every Linux job),
+  # the gate environment, Node, and the four pinned Linux lint tools of
+  # Scripts/required_tools_linux.txt (the lint self-tests run the real
+  # actionlint, shellcheck, yamllint and zizmor).
+  selftest_linux:
+    name: Self-tests (Linux)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Set up the gate environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
+          toolchain="$(./Scripts/go_toolchain.sh)"
+          echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Install tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./Scripts/install_tools_linux.sh Scripts/required_tools_linux.txt
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start report
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
+          : > "$rows"
+          rm -rf "$details" && mkdir -p "$details"
+          echo "ROWS=${rows}" >> "$GITHUB_ENV"
+          echo "DETAILS=${details}" >> "$GITHUB_ENV"
+
+      - name: Self-tests (Linux)
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" selftest_linux
+
+      - name: Collect the gate report
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
+
+      - name: Hand over the gate report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: quality-report-selftest_linux
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
+          retention-days: 1
+          if-no-files-found: error
+
+  # The isolation jobs (forsgren#259, decision #260; two shards since
+  # forsgren#426; in quality.yml up to forsgren#686): the git sandbox isolation
+  # self-test, the slowest self-test. It runs its git-using self-tests in two
+  # shards, one job each: Scripts/ci_job_groups.txt gives the gate to
+  # isolation_1 with --shard 1/2 and to isolation_2 with --shard 2/2, and
+  # Scripts/run_ci_phase.sh passes each job its argument (the self-test runs
+  # every second self-test of its sorted list, so each runs in exactly one
+  # shard and a new one lands in one by itself). Each shard hands over a row
+  # named for it, `... (shard 1/2)`, and Scripts/merge_quality_report.sh joins
+  # the two into the gate's one row. On ubuntu-latest (forsgren#447, step 3):
+  # the gate only checks that no git-using self-test leaks into a decoy
+  # repository, whatever the self-tests' own verdicts, and needs no macOS tool.
+  # Its Install tools step installs the pinned Linux builds of
+  # Scripts/required_tools_linux_gates.txt (shellcheck and yamllint, which two
+  # of those self-tests run).
+  isolation_1:
+    name: Isolation gates 1/2
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Set up the gate environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
+          toolchain="$(./Scripts/go_toolchain.sh)"
+          echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Install tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./Scripts/install_tools_linux.sh Scripts/required_tools_linux_gates.txt
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start report
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
+          : > "$rows"
+          rm -rf "$details" && mkdir -p "$details"
+          echo "ROWS=${rows}" >> "$GITHUB_ENV"
+          echo "DETAILS=${details}" >> "$GITHUB_ENV"
+
+      - name: Isolation gates 1/2
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" isolation_1
+
+      - name: Collect the gate report
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
+
+      - name: Hand over the gate report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: quality-report-isolation_1
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
+          retention-days: 1
+          if-no-files-found: error
+
+  isolation_2:
+    name: Isolation gates 2/2
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Set up the gate environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
+          toolchain="$(./Scripts/go_toolchain.sh)"
+          echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Install tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./Scripts/install_tools_linux.sh Scripts/required_tools_linux_gates.txt
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start report
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
+          : > "$rows"
+          rm -rf "$details" && mkdir -p "$details"
+          echo "ROWS=${rows}" >> "$GITHUB_ENV"
+          echo "DETAILS=${details}" >> "$GITHUB_ENV"
+
+      - name: Isolation gates 2/2
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" isolation_2
+
+      - name: Collect the gate report
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
+
+      - name: Hand over the gate report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: quality-report-isolation_2
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
+          retention-days: 1
+          if-no-files-found: error
+
+  # The summary job (forsgren#425): the step summary isolation gate, beside the
+  # isolation jobs so the two gates run in parallel. The isolation jobs' setup.
+  # On ubuntu-latest (forsgren#447, step 3): the gate counts the bytes a
+  # self-test writes to a decoy step summary and needs no macOS tool.
+  summary:
+    name: Summary isolation gates
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Set up the gate environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
+          toolchain="$(./Scripts/go_toolchain.sh)"
+          echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Install tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./Scripts/install_tools_linux.sh Scripts/required_tools_linux_gates.txt
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start report
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
+          : > "$rows"
+          rm -rf "$details" && mkdir -p "$details"
+          echo "ROWS=${rows}" >> "$GITHUB_ENV"
+          echo "DETAILS=${details}" >> "$GITHUB_ENV"
+
+      - name: Summary isolation gates
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" summary
+
+      - name: Collect the gate report
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
+
+      - name: Hand over the gate report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: quality-report-summary
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
+          retention-days: 1
+          if-no-files-found: error
+
+  # The browser self-test jobs (forsgren#641; in quality.yml up to
+  # forsgren#686). browser_1 and browser_2: the browser gate self-test in two
+  # shards (Scripts/ci_job_groups.txt: --shard 1/2 and 2/2, dealt by the
+  # seconds of Scripts/browser_gate_selftest_weights.txt, about 390 s each),
+  # browser_1 also the fixture site self-test (from Quality's browser_3) and
+  # browser_2 the process self-test (forsgren#386). On ubuntu-latest
+  # (forsgren#642), with the Linux browser jobs' setup: setup-go, the gate
+  # environment without Homebrew prefixes, setup-node,
+  # Scripts/install_tools_linux.sh with the job's own list (held to go.mod and
+  # .nvmrc) and npm ci; the hosted image's Chrome (/usr/bin/google-chrome, the
+  # first Linux path Scripts/browser_gate.mjs tries) is the one the self-tests
+  # open, puppeteer-core comes from npm ci. No site build: all are PRE rows that
+  # read no built site.
+  browser_1:
+    name: Browser self-tests 1/2
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # On Linux: no Homebrew prefixes (forsgren#642); the tools come from
+      # setup-go, setup-node and Scripts/install_tools_linux.sh.
+      - name: Set up the gate environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          toolchain="$(./Scripts/go_toolchain.sh)"
+          echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      # Only the tools its self-tests run: go and node.
+      - name: Install tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./Scripts/install_tools_linux.sh Scripts/required_tools_browser_1_gates.txt
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start report
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
+          : > "$rows"
+          rm -rf "$details" && mkdir -p "$details"
+          echo "ROWS=${rows}" >> "$GITHUB_ENV"
+          echo "DETAILS=${details}" >> "$GITHUB_ENV"
+
+      - name: Browser self-tests 1/2
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" browser_1
+
+      - name: Collect the gate report
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
+
+      - name: Hand over the gate report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: quality-report-browser_1
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
+          retention-days: 1
+          if-no-files-found: error
+
+  browser_2:
+    name: Browser self-tests 2/2
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Set up the gate environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          toolchain="$(./Scripts/go_toolchain.sh)"
+          echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      # Only the tool its self-tests run: node.
+      - name: Install tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./Scripts/install_tools_linux.sh Scripts/required_tools_browser_2_gates.txt
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start report
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          mkdir -p "$dir"
+          : > "$rows"
+          rm -rf "$details" && mkdir -p "$details"
+          echo "ROWS=${rows}" >> "$GITHUB_ENV"
+          echo "DETAILS=${details}" >> "$GITHUB_ENV"
+
+      - name: Browser self-tests 2/2
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" browser_2
+
+      - name: Collect the gate report
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${dir}/handover"
+
+      - name: Hand over the gate report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: quality-report-browser_2
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
+          retention-days: 1
+          if-no-files-found: error
+
+  # The one Self-tests report: merges what every self-test job handed over and
+  # renders the gate table on this job's run page, cut down to this workflow's
+  # rows by Scripts/merge_quality_report.sh view (the order file also holds
+  # Quality's rows, which would otherwise show as unmeasured). needs: every
+  # self-test job, `if: always()`: the run that most needs a report is the one
+  # where a job failed or was cancelled. Its last command turns the check red
+  # when a self-test job did not succeed. Every expression comes in through
+  # env:, never inside run:.
+  report:
+    name: Self-tests report
+    needs: [selftest_mac_1, selftest_mac_2, selftest_linux, isolation_1, isolation_2, summary, browser_1, browser_2]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download the gate reports
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          pattern: quality-report-*
+          path: ${{ runner.temp }}/quality_${{ github.run_id }}_${{ github.run_attempt }}_${{ github.job }}/handover
+
+      - name: Render the report
+        if: always()
+        shell: bash
+        env:
+          QS_SELFTEST_MAC_1_RESULT: ${{ needs.selftest_mac_1.result }}
+          QS_SELFTEST_MAC_2_RESULT: ${{ needs.selftest_mac_2.result }}
+          QS_SELFTEST_LINUX_RESULT: ${{ needs.selftest_linux.result }}
+          QS_ISOLATION_1_RESULT: ${{ needs.isolation_1.result }}
+          QS_ISOLATION_2_RESULT: ${{ needs.isolation_2.result }}
+          QS_SUMMARY_RESULT: ${{ needs.summary.result }}
+          QS_BROWSER_1_RESULT: ${{ needs.browser_1.result }}
+          QS_BROWSER_2_RESULT: ${{ needs.browser_2.result }}
+        run: |
+          set -uo pipefail
+          rc=0
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          art="${dir}/handover"
+          rows="${dir}/quality_rows.md"
+          details="${dir}/quality_details"
+          groups="${dir}/selftests_groups.txt"
+          order="${dir}/selftests_order.txt"
+          mkdir -p "$art"
+          ./Scripts/merge_quality_report.sh view Scripts/ci_job_groups.txt Scripts/gate_report_order.txt "$groups" "$order" \
+            selftest_mac_1 selftest_mac_2 selftest_linux isolation_1 isolation_2 summary browser_1 browser_2 || rc=$?
+          ./Scripts/merge_quality_report.sh merge "$art" "$rows" "$details" || rc=$?
+          ./Scripts/render_quality_report.sh "$rows" "$details" "$order" >> "$GITHUB_STEP_SUMMARY" || rc=$?
+          ./Scripts/merge_quality_report.sh verdict \
+            "selftest_mac_1=$QS_SELFTEST_MAC_1_RESULT" "selftest_mac_2=$QS_SELFTEST_MAC_2_RESULT" \
+            "selftest_linux=$QS_SELFTEST_LINUX_RESULT" "isolation_1=$QS_ISOLATION_1_RESULT" \
+            "isolation_2=$QS_ISOLATION_2_RESULT" "summary=$QS_SUMMARY_RESULT" \
+            "browser_1=$QS_BROWSER_1_RESULT" "browser_2=$QS_BROWSER_2_RESULT" || rc=$?
+          exit "$rc"
+
+  # A red run on main opens ONE issue (forsgren#686), named after the run, so
+  # the red is seen although nothing waits on this workflow: a push to main
+  # whose self-tests fail still releases and deploys on a green Quality. Only
+  # on a push (a run by hand is watched by whoever started it), and only after
+  # the report, whose verdict is red when any self-test job is. No label: a red
+  # self-test is a broken test of a gate, not a failure users hit, so it must
+  # not feed the change fail rate or the recovery time this repository measures
+  # of itself. Scripts/open_selftests_failure_issue.sh opens it with the job's
+  # own token (issues: write on this job only; no other secret) and opens no
+  # second one when the run is rerun. Every expression reaches it through env:.
+  failure_issue:
+    name: Failure issue
+    needs: [selftest_mac_1, selftest_mac_2, selftest_linux, isolation_1, isolation_2, summary, browser_1, browser_2, report]
+    if: failure() && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read   # the checkout of Scripts/open_selftests_failure_issue.sh
+      issues: write    # the one issue
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Open the failure issue
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SELFTESTS_REPOSITORY: ${{ github.repository }}
+          SELFTESTS_RUN_ID: ${{ github.run_id }}
+          SELFTESTS_SHA: ${{ github.sha }}
+          SELFTESTS_SERVER_URL: ${{ github.server_url }}
+        run: ./Scripts/open_selftests_failure_issue.sh

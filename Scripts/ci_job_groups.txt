@@ -1,6 +1,6 @@
 # Scripts/ci_job_groups.txt
 #
-# Which Quality job runs which gate (forsgren#259, decision #260). One row per
+# Which CI job runs which gate (forsgren#259, decision #260). One row per
 # gate that does NOT run in the main job:
 #
 #   <job>|<label of the row in Scripts/gate_report_order.txt>
@@ -9,12 +9,34 @@
 # one job and never in none. Scripts/run_ci_phase.sh reads it (its optional
 # fourth argument is the job) and is red when a label here is no row of the
 # order file. The label must be the exact label of the order file; the phase
-# comes from the order file. sfl.sh and FBP.sh run every row, this file or not.
-# Scripts/test_quality_jobs.sh pins the rows below and quality.yml's jobs.
+# comes from the order file. Scripts/test_quality_jobs.sh pins the rows below
+# and the jobs of both workflows.
+#
+# TWO WORKFLOWS (forsgren#686). Each job below belongs to one of two workflows:
+# the one whose step runs `./Scripts/run_ci_phase.sh <phase> "$ROWS" "$DETAILS" <job>`.
+#   .github/workflows/quality.yml    Quality: the real gates, in the jobs
+#                                    quality (the main job: every row listed
+#                                    nowhere here), quality_2, lint, workflows
+#                                    and browser_3
+#   .github/workflows/selftests.yml  Self-tests: the tests of the gates
+#                                    themselves, in the jobs selftest_mac_1,
+#                                    selftest_mac_2, selftest_linux,
+#                                    isolation_1, isolation_2, summary,
+#                                    browser_1 and browser_2
+# THE RULE: a self-test row is a row whose label ends in " self-test" or starts
+# with "mutation: ", and the step summary isolation gate, which runs the
+# self-tests that write to the step summary and so is a self-test in full (the
+# git sandbox isolation self-test already ends in " self-test"). Self-test rows
+# run in selftests.yml, every other runnable row in quality.yml. The one
+# exception: the secret-scan self-test is secret-class (its first case scans
+# the real tree, forsgren#570), so it stays in Quality's main job and in every
+# local run, before a commit. Scripts/test_gate_wiring.sh (pin 8) proves that
+# every runnable row runs in exactly one of the two workflows, the one the rule
+# names; Scripts/selftest_rows.sh lists the rows of selftests.yml's jobs, which
+# sfl.sh skips locally by default (--with-selftests runs them).
 #
 # The isolation jobs: the slowest gate that no other gate waits for (measured in
-# forsgren#259, step 1). The git sandbox isolation SCOPE self-test stays in the
-# main job: it is short. Since forsgren#425 the step summary isolation gate has
+# forsgren#259, step 1). Since forsgren#425 the step summary isolation gate has
 # its own job, below: together the two took 15 minutes (the git sandbox
 # self-test 9 min 27 s, the step summary gate 4 min 15 s, the setup 1.5 min).
 #
@@ -31,7 +53,7 @@
 # and Scripts/merge_quality_report.sh joins the shards into the gate's one row,
 # red when a shard is red or reported nothing. Another long gate shards the
 # same way: add its rows here with --shard, one job each, and the jobs in
-# quality.yml (Scripts/test_quality_jobs.sh pins the jobs it knows).
+# the workflow (Scripts/test_quality_jobs.sh pins the jobs it knows).
 isolation_1|git sandbox isolation self-test|--shard 1/2
 isolation_2|git sandbox isolation self-test|--shard 2/2
 #
@@ -39,54 +61,48 @@ isolation_2|git sandbox isolation self-test|--shard 2/2
 # runs beside the git sandbox self-test and not after it.
 summary|step summary isolation
 #
-# The three browser jobs (forsgren#447, #641). Measured on five green Quality
-# runs of main before #641: the browser gate self-test 734 to 799 s, the
-# fixture site self-test 186 to 201 s, the process self-test 67 to 105 s, the
-# browser gate 159 to 170 s, the fixture-site gate 105 to 115 s.
+# The browser self-test jobs (forsgren#447, #641). Measured on five green
+# Quality runs of main before #641: the browser gate self-test 734 to 799 s,
+# the fixture site self-test 186 to 201 s, the process self-test 67 to 105 s.
 # browser_1 and browser_2: the browser gate self-test in two shards, dealt by
-# Scripts/browser_gate_selftest_weights.txt (about 390 s each), and in
-# browser_2 the process self-test split from it (forsgren#386). All are PRE
-# rows that read no built site: neither job builds one, and both need node only.
+# Scripts/browser_gate_selftest_weights.txt (about 390 s each), in browser_2
+# the process self-test split from it (forsgren#386), and in browser_1 the
+# fixture site self-test (forsgren#686: it ran in browser_3 beside the browser
+# gates; Scripts/build_fixture_site.sh runs go build, so browser_1 lists go and
+# node). All are PRE rows that read no built site: neither job builds one.
 browser_1|browser gate self-test|--shard 1/2
+browser_1|browser gate (fixture site) self-test
 browser_2|browser gate self-test|--shard 2/2
 browser_2|browser gate process self-test
 #
 # The browser_3 job (forsgren#259, step 3; `browser` up to forsgren#641): the
-# fixture site self-test, the browser gate and the browser gate on the fixture
-# site. The job builds its own site between its pre and post rows; the fixture
-# site and its self-test build theirs (Scripts/build_fixture_site.sh runs go
-# build), so the job lists go and node.
-browser_3|browser gate (fixture site) self-test
+# browser gate and the browser gate on the fixture site. The job builds its own
+# site between its pre and post rows; the fixture site builds its own
+# (Scripts/build_fixture_site.sh runs go build), so the job lists go and node.
 browser_3|browser gate
 browser_3|browser gate (fixture site)
 #
-# The lint job (forsgren#282): the fast static lint gates and their self-tests,
-# so a lint finding is its own red check on the Quality run. The order file is
-# unchanged: the rows keep their pre phase and their place in the static block,
-# so sfl.sh and FBP.sh run them, and stop after them, as before.
-lint|actionlint self-test
-lint|actionlint forsgren cases self-test
+# The lint job (forsgren#282): the fast static lint gates, so a lint finding is
+# its own red check on the Quality run. The order file is unchanged: the rows
+# keep their pre phase and their place in the static block, so sfl.sh and
+# FBP.sh run them, and stop after them, as before. Their self-tests run in
+# selftest_linux (forsgren#686).
 lint|actionlint
-lint|shellcheck self-test
 lint|shellcheck
-lint|yamllint self-test
 lint|yamllint
-lint|zizmor self-test
 lint|zizmor
 #
-# The Go lint pair (forsgren#447, step 5): Go lint and its self-test, about 124 s
-# on the Mac (146 s at most), moved from quality_2. Both are PRE rows that read
-# only Go sources and the go.mod tools, no built site. Go ships with the hosted
+# Go lint (forsgren#447, step 5), moved from quality_2: a PRE row that reads only
+# Go sources and the go.mod tools, no built site. Go ships with the hosted
 # Linux image and GOTOOLCHAIN comes from go.mod (Scripts/go_toolchain.sh), so
 # the job needs no tool of its own list.
-lint|Go lint self-test
 lint|Go lint
 #
 # The Go test duplication gate (forsgren#591): the slowest gate left in the
 # main job, 67 s by the median of ten green runs (docs/ci.md). It runs the same
 # go.mod-pinned golangci-lint as Go lint, through Scripts/lib_go_tool.sh, with
-# go list, mktemp -d and grep: nothing macOS-only, and its self-test already
-# runs on Linux in the workflows job. A PRE row that reads only Go sources.
+# go list, mktemp -d and grep: nothing macOS-only. A PRE row that reads only Go
+# sources.
 lint|Go test duplication
 #
 # The workflows job (forsgren#408): the gates that read only the workflows and
@@ -95,7 +111,6 @@ lint|Go test duplication
 # its PRE step 11 to 14 minutes). None needs the built site or a secret. They
 # keep their pre phase and their place in the order file.
 workflows|gate wiring
-workflows|mutation: checkout pins
 workflows|metrics workflow
 workflows|release workflow
 workflows|starter page workflow
@@ -104,87 +119,141 @@ workflows|preview workflow
 workflows|vulncheck workflow
 workflows|auto-update workflow
 #
-# Three Go-only gates of the main job (forsgren#447, step 6), about 85 s on the
-# Mac (106 s at most): go mod tidy, and the self-tests of the Go test
-# duplication and Go vulnerabilities gates (the Go vulnerabilities gate stays
-# on macOS, in the quality_3 job since forsgren#672; the Go test duplication
-# gate is in the lint job since forsgren#591). Go ships with the hosted Linux image, as for the Go lint pair.
+# go mod tidy (forsgren#447, step 6): Go ships with the hosted Linux image, as
+# for Go lint.
 workflows|go mod tidy
-workflows|Go test duplication self-test
-workflows|Go vulnerabilities self-test
 #
-# Eleven Linux-safe tail gates of the main job (forsgren#447, step 8b), about
-# 85 s on the Mac (100 s at most; 8 to 15 s the longest): the main job, still
-# 9.1 to 10.0 minutes after step 8, keeps the full macOS install and a long
-# tail of 3 to 12 s gates. All are PRE rows that run bash, grep, awk, sed and jq
-# against fixtures or stubs (the release scripts, the DCO check, the gate
-# selection, the order file reader, and Go tests on a fixture module), with no
-# BSD-only flag, no secret and no site. Their fixture repositories are
-# temporary ones from the sandbox library, and the checkout has fetch-depth 0.
-workflows|release pins self-test
-workflows|browser gate selection self-test
-workflows|Go tests self-test
-workflows|release precheck self-test
-workflows|community-files self-test
-workflows|DCO sign-off self-test
+# A Linux-safe tail gate of the main job (forsgren#447, step 8b): a PRE row that
+# runs bash, grep, awk and sed against the order file, with no BSD-only flag,
+# no secret and no site.
 workflows|sfl drives from the order file
-workflows|release plan self-test
-workflows|release report self-test
-workflows|release check self-test
-workflows|release metrics self-test
 #
-# The quality_2 job (forsgren#447): nine of the longest gates of the main
-# job, with Go tests and Go coverage (the Go lint pair moved to the lint job,
-# step 5), about 180 s together after step 5 (measured in forsgren#447 on three green Quality
-# runs of main), so the main job and the browser job are not the only long
-# ones. Go tests and Go coverage stay together: the coverage gate reads the
-# profile (.build/go-coverage.out) that the Go tests gate writes. All are PRE
-# rows and none reads the built site (.build/site). They keep their pre phase
-# and their place in the order file.
+# The quality_2 job (forsgren#447): the longest real gates of the main job,
+# with Go tests and Go coverage, which stay together: the coverage gate reads
+# the profile (.build/go-coverage.out) that the Go tests gate writes. All are
+# PRE rows and none reads the built site (.build/site). They keep their pre
+# phase and their place in the order file. macOS: the exit-trap completion
+# behaviour gate tests the bash 3.2 of macOS (/bin/bash).
 quality_2|Go tests
 quality_2|Go coverage
-quality_2|browser gate inputs self-test
 quality_2|golden pages
-quality_2|git sandbox isolation scope self-test
 quality_2|exit-trap completion behaviour
-quality_2|CI phase runner self-test
 quality_2|quality-run summary
-quality_2|markdown-links self-test
-quality_2|HTMLHint self-test
-quality_2|html duplication, generated page self-test
 #
-# The quality_3 job (forsgren#672, decision #672 A): the main job's PRE gates
-# took 481 to 658 s (median sum 578 s) in four green Quality runs of main
-# (43627000625, 43623807626, 43619206241, 43598239235), all one after the other,
-# and the main job 9 to 13 minutes. These eighteen PRE gates, picked by their
-# measured seconds and not by their number, took 308 s by the median of the
-# same runs (privacy-posture self-test 108, browser gate (TBD tables) self-test
-# 57, Go vulnerabilities 13, FBP aborted run 13, browser gate (default TBD
-# fixture) self-test 12, Go coverage self-test 12, html-duplication self-test
-# 10, bare mktemp self-test 10, markdown links 9, build-site self-test 9, FBP
-# --no-push self-test 8, tmp failure stops, sfl pull rebase and FBP
-# push-or-rebase self-tests 8 each, workflow-triggers self-test, required-pages
-# self-test and bare mktemp 7 each, npm-audit self-test 7), and 270 s stay in
-# the main job, which also builds the site and runs the POST gates (about
-# 25 s). All need only go, node and jq and name no other tool of
-# Scripts/required_tools.txt (the two dependabot merge policy gates, 75 s, name
-# zizmor and stay in the main job), read no secret and no built site; they keep
-# their pre phase and their place in the order file.
-quality_3|privacy-posture self-test
-quality_3|browser gate (TBD tables) self-test
-quality_3|Go vulnerabilities
-quality_3|FBP aborted run
-quality_3|browser gate (default TBD fixture) self-test
-quality_3|Go coverage self-test
-quality_3|html-duplication self-test
-quality_3|bare mktemp self-test
-quality_3|markdown links
-quality_3|build-site self-test
-quality_3|FBP --no-push self-test
-quality_3|tmp failure stops self-test
-quality_3|sfl pull rebase self-test
-quality_3|FBP push-or-rebase self-test
-quality_3|workflow-triggers self-test
-quality_3|required-pages self-test
-quality_3|bare mktemp
-quality_3|npm-audit self-test
+# THE SELF-TEST JOBS of selftests.yml (forsgren#686). Each self-test row runs
+# on the runner it ran on in Quality before the split, so it sees the same
+# platform: the ones of the main, quality_2 and quality_3 jobs on macos-latest
+# (selftest_mac_1, selftest_mac_2), the ones of the lint and workflows jobs on
+# ubuntu-latest (selftest_linux). The seconds below are those of the green
+# Quality run 44116366618 of main.
+#
+# selftest_mac_1: the self-tests of the old quality_3 job (246 s) and the
+# browser gate inputs self-test (117 s), about 363 s. All need only go, node
+# and jq, read no secret and no built site.
+selftest_mac_1|sfl pull rebase self-test
+selftest_mac_1|required-pages self-test
+selftest_mac_1|html-duplication self-test
+selftest_mac_1|FBP --no-push self-test
+selftest_mac_1|FBP push-or-rebase self-test
+selftest_mac_1|bare mktemp self-test
+selftest_mac_1|tmp failure stops self-test
+selftest_mac_1|Go coverage self-test
+selftest_mac_1|npm-audit self-test
+selftest_mac_1|privacy-posture self-test
+selftest_mac_1|build-site self-test
+selftest_mac_1|workflow-triggers self-test
+selftest_mac_1|browser gate (TBD tables) self-test
+selftest_mac_1|browser gate (default TBD fixture) self-test
+selftest_mac_1|browser gate inputs self-test
+#
+# selftest_mac_2: the self-tests of the main job (217 s, the secret-scan
+# self-test excepted, above) and the rest of quality_2's (188 s), about 405 s,
+# and the two self-tests forsgren#686 added (the self-test skip of sfl and the
+# self-tests' failure issue). The job keeps the main job's tools (gitleaks, go,
+# jq, languagetool and node), the environment these self-tests ran in.
+selftest_mac_2|data guard self-test
+selftest_mac_2|private-names self-test
+selftest_mac_2|gofmt self-test
+selftest_mac_2|private-names secret sync self-test
+selftest_mac_2|private-names local file self-test
+selftest_mac_2|sfl self-test skip self-test
+selftest_mac_2|npm manifest policy self-test
+selftest_mac_2|tool install self-test
+selftest_mac_2|Linux tool install self-test
+selftest_mac_2|npm install sync self-test
+selftest_mac_2|site-settings self-test
+selftest_mac_2|HTMLHint self-test
+selftest_mac_2|Stylelint self-test
+selftest_mac_2|Stylelint source-fix self-test
+selftest_mac_2|language gate self-test
+selftest_mac_2|language pages wrapper self-test
+selftest_mac_2|baseline report self-test
+selftest_mac_2|html duplication, generated page self-test
+selftest_mac_2|golden-pages self-test
+selftest_mac_2|temp helper self-test
+selftest_mac_2|local hook self-test
+selftest_mac_2|CI phase runner self-test
+selftest_mac_2|go mod tidy self-test
+selftest_mac_2|Go tool helper self-test
+selftest_mac_2|Go file length self-test
+selftest_mac_2|Go dead code self-test
+selftest_mac_2|lint-coverage self-test
+selftest_mac_2|manifest-covers-site self-test
+selftest_mac_2|repository-links self-test
+selftest_mac_2|exit-trap completion self-test
+selftest_mac_2|pipe into grep -q self-test
+selftest_mac_2|markdown-links self-test
+selftest_mac_2|script references self-test
+selftest_mac_2|Node pin self-test
+selftest_mac_2|Node pin gate self-test
+selftest_mac_2|Go toolchain pin self-test
+selftest_mac_2|starter page build self-test
+selftest_mac_2|starter page links self-test
+selftest_mac_2|starter page gates self-test
+selftest_mac_2|dependabot merge policy self-test
+selftest_mac_2|dependabot pull-request comment self-test
+selftest_mac_2|npm lockfile sync self-test
+selftest_mac_2|dispatch preview self-test
+selftest_mac_2|parallel mutants library self-test
+selftest_mac_2|browser gate baseline choice self-test
+selftest_mac_2|browser gate skip self-test
+selftest_mac_2|live check self-test
+selftest_mac_2|release quality self-test
+selftest_mac_2|release publish self-test
+selftest_mac_2|release resume self-test
+selftest_mac_2|release token expiry self-test
+selftest_mac_2|token expiry probe self-test
+selftest_mac_2|release verify pin self-test
+selftest_mac_2|release verify install self-test
+selftest_mac_2|release agent proofs self-test
+selftest_mac_2|merge quality report self-test
+selftest_mac_2|self-tests failure issue self-test
+selftest_mac_2|git sandbox isolation scope self-test
+selftest_mac_2|git sandbox guard self-test
+selftest_mac_2|static block self-test
+selftest_mac_2|commit messages self-test
+#
+# selftest_linux: the self-tests of the lint job (84 s) and of the workflows
+# job (119 s), about 203 s, on ubuntu-latest with the four Linux lint tools
+# (Scripts/required_tools_linux.txt: the lint self-tests run the real
+# actionlint, shellcheck, yamllint and zizmor; shellcheck and yamllint are the
+# ones the workflows job's self-tests needed).
+selftest_linux|actionlint self-test
+selftest_linux|actionlint forsgren cases self-test
+selftest_linux|shellcheck self-test
+selftest_linux|yamllint self-test
+selftest_linux|zizmor self-test
+selftest_linux|Go lint self-test
+selftest_linux|mutation: checkout pins
+selftest_linux|Go test duplication self-test
+selftest_linux|Go vulnerabilities self-test
+selftest_linux|release pins self-test
+selftest_linux|browser gate selection self-test
+selftest_linux|Go tests self-test
+selftest_linux|release precheck self-test
+selftest_linux|community-files self-test
+selftest_linux|DCO sign-off self-test
+selftest_linux|release plan self-test
+selftest_linux|release report self-test
+selftest_linux|release check self-test
+selftest_linux|release metrics self-test

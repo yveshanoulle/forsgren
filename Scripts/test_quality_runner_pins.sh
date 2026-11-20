@@ -54,6 +54,11 @@ cd "$(dirname "$0")/.."
 #   6. at most MACOS_SLOTS (5) `macos-latest` jobs start together, the jobs
 #      with no `needs:` (forsgren#447): GitHub runs at most 5 macOS jobs at
 #      once for the account, so a sixth would wait in the queue for a slot.
+#   7. (forsgren#686) every job of .github/workflows/selftests.yml runs on the
+#      image this check names for it (the same LINUX_JOBS; `selftest_mac_1`
+#      and `selftest_mac_2` on macos-latest), and the macOS jobs both
+#      workflows start on a push to main are at most MACOS_SLOTS together:
+#      both start on the same push.
 #
 # PINS 3 AND 5 GO TOGETHER (Yves's rulings on forsgren#1, road to public,
 # the runner swap). Quality runs on GitHub's `macos-latest`, a throwaway
@@ -140,7 +145,10 @@ judge_event() {
 # browser_1, browser_2 and browser_3 (forsgren#642): their gates open the
 # hosted image's Chrome with Node, and the Linux widths have their own
 # baseline files (Scripts/gate_browser.sh picks the file by the platform).
-LINUX_JOBS=(lint workflows report summary isolation_1 isolation_2 browser_1 browser_2 browser_3)
+# forsgren#686: summary, isolation_1, isolation_2, browser_1 and browser_2 moved
+# to selftests.yml with selftest_linux (the lint and workflows jobs'
+# self-tests) and failure_issue (gh only); report is a job of both.
+LINUX_JOBS=(lint workflows report browser_3 selftest_linux summary isolation_1 isolation_2 browser_1 browser_2 failure_issue)
 # MACOS_SLOTS: GitHub's limit of macOS jobs running at once for the account
 # (pin 6, forsgren#447: measured, 5 started and the sixth waited).
 MACOS_SLOTS=5
@@ -224,7 +232,35 @@ judge() {
   fi
 }
 
+# runner_problems <workflow-file>: one line per job not on the image pin 5
+# names for it (pin 7 reads selftests.yml with it).
+runner_problems() {
+  local job runner needs want
+  while IFS=$'\t' read -r job runner needs; do
+    [[ -n "$job" ]] || continue
+    want="$(want_runner "$job")"
+    [[ "$runner" == "$want" ]] && continue
+    echo "has a job (${job}) on runs-on: ${runner:-none}, not ${want}"
+  done <<< "$(job_runners "$1")"
+}
+
+# macos_starting <workflow-file>: how many macos-latest jobs it starts with no
+# needs:.
+macos_starting() {
+  job_runners "$1" | awk -F'\t' '$2 == "macos-latest" && $3 == "no"' | wc -l | tr -d ' '
+}
+
+# slots_problem <quality.yml> <selftests.yml>: pin 7's count over both.
+slots_problem() {
+  local n
+  n=$(($(macos_starting "$1") + $(macos_starting "$2")))
+  if [[ "$n" -gt "$MACOS_SLOTS" ]]; then
+    echo "Quality and Self-tests start ${n} macos-latest jobs together on a push, more than the ${MACOS_SLOTS} macOS jobs GitHub runs at once for the account"
+  fi
+}
+
 WF=".github/workflows/quality.yml"
+SWF=".github/workflows/selftests.yml"
 if [[ ! -f "$WF" ]]; then
   echo "FAIL: $WF not found" >&2
   exit 1
@@ -240,6 +276,21 @@ else
   echo "  ok: ${WF} runs on every push to and pull request into main, with no paths filter, and by hand," \
     "the jobs ${LINUX_JOBS[*]} on ubuntu-latest and the others on macos-latest, ${starting_macos} macOS" \
     "jobs starting together (at most ${MACOS_SLOTS})"
+fi
+
+# Pin 7 (forsgren#686).
+if [[ ! -f "$SWF" ]]; then
+  fail "${SWF} not found: the self-tests run in no workflow"
+else
+  out="$(runner_problems "$SWF"; slots_problem "$WF" "$SWF")"
+  if [[ -n "$out" ]]; then
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && fail "${SWF} ${line}"
+    done <<< "$out"
+  else
+    echo "  ok: ${SWF} runs each job on its image, and both workflows start" \
+      "$(($(macos_starting "$WF") + $(macos_starting "$SWF")))" "macOS jobs together (at most ${MACOS_SLOTS})"
+  fi
 fi
 
 # shellcheck source=Scripts/lib_tmp.sh
@@ -402,6 +453,27 @@ if [[ -z "$verdict" ]]; then
   echo "  ok: five macOS jobs starting together, a sixth with needs: and a Linux job are accepted"
 else
   fail "the synthetic workflow with five macOS jobs starting together was REJECTED (${verdict})"
+fi
+
+# Pin 7: a self-test job on the wrong image, and four macOS self-test jobs
+# beside Quality's two, are red.
+write_jobs st_wrong selftest_linux:macos-latest:no selftest_mac_1:macos-latest:no
+if grep -qF "(selftest_linux) on runs-on: macos-latest, not ubuntu-latest" <<< "$(runner_problems "${TMP}/st_wrong.yml")"; then
+  echo "  ok: a Linux self-test job on macOS is rejected"
+else
+  fail "a selftests.yml with selftest_linux on macos-latest was ACCEPTED"
+fi
+write_jobs st_mac_on_linux selftest_mac_2:ubuntu-latest:no
+if grep -qF "(selftest_mac_2) on runs-on: ubuntu-latest, not macos-latest" <<< "$(runner_problems "${TMP}/st_mac_on_linux.yml")"; then
+  echo "  ok: a macOS self-test job on Linux is rejected"
+else
+  fail "a selftests.yml with selftest_mac_2 on ubuntu-latest was ACCEPTED"
+fi
+write_jobs st_four selftest_mac_1:macos-latest:no selftest_mac_2:macos-latest:no extra_1:macos-latest:no extra_2:macos-latest:no
+if grep -qF "start 6 macos-latest jobs together" <<< "$(slots_problem "$WF" "${TMP}/st_four.yml")"; then
+  echo "  ok: four macOS self-test jobs beside Quality's two are rejected"
+else
+  fail "four macOS self-test jobs beside Quality's two were ACCEPTED: $(slots_problem "$WF" "${TMP}/st_four.yml")"
 fi
 
 right_verdict="$(judge "${TMP}/right.yml")"

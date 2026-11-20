@@ -21,6 +21,10 @@
 #   3b-3e (forsgren#426). the shard rows of one gate (`<gate> (shard N/M)`) are
 #      joined into the gate's one row: green only when every shard is green,
 #      red naming the shard that failed or reported no row
+#   6 (forsgren#686). view: the part of the order and group files that runs in
+#      the jobs named (main: the rows of no job, and the n/a rows), so each
+#      workflow reports its own rows; a job the group file does not name and a
+#      missing file are red
 #   (also: what a job hands over, full and empty, and merged back)
 # Each is proved against a mutant of the script that breaks it.
 
@@ -209,6 +213,51 @@ want_rc "merge without its outputs is a usage error" 64
 capture "$SCRIPT" status
 want_rc "status without a result is a usage error" 64
 
+# --- 6. view (forsgren#686): each workflow's part of the order and group files.
+VG="${TMP}/view_groups.txt"
+VO="${TMP}/view_order.txt"
+cat > "$VG" << 'GROUPS'
+# a made-up groups file
+lint|real lint
+selftest_1|site self-test
+sandbox_1|sandbox isolation|--shard 1/2
+sandbox_2|sandbox isolation|--shard 2/2
+GROUPS
+cat > "$VO" << 'ORDER'
+# a made-up order file
+#! static-block-start
+real pre|Scripts/gate_real_pre.sh|pre|
+real lint|Scripts/gate_real_lint.sh|pre|
+#! static-block-end
+site self-test|Scripts/fake_site_selftest.sh|pre|
+sandbox isolation|Scripts/fake_sandbox.sh|pre|
+not a gate|n/a|declared for the report|
+real post|Scripts/gate_real_post.sh|post|
+ORDER
+capture "$SCRIPT" view "$VG" "$VO" "${TMP}/q_groups.txt" "${TMP}/q_order.txt" main lint
+want_green "6: the view of the main and lint jobs is made" "view: 2 jobs, 1 group rows, 4 rows of"
+if [[ "$(cut -d'|' -f1 "${TMP}/q_order.txt" | paste -sd, -)" == "real pre,real lint,not a gate,real post" ]]; then
+  echo "  ok: 6: Quality's view holds the main job's rows, the lint job's row and the n/a row, in order, no comment"
+else
+  fail "6: Quality's view of the order file is: $(paste -sd, - < "${TMP}/q_order.txt")"
+fi
+if [[ "$(cat "${TMP}/q_groups.txt")" == "lint|real lint" ]]; then echo "  ok: 6: Quality's view of the group file is the lint row alone"; else fail "6: Quality's view of the group file is: $(cat "${TMP}/q_groups.txt")"; fi
+capture "$SCRIPT" view "$VG" "$VO" "${TMP}/s_groups.txt" "${TMP}/s_order.txt" selftest_1 sandbox_1 sandbox_2
+want_green "6: the view of the self-test jobs is made" "view: 3 jobs, 3 group rows, 2 rows of"
+if [[ "$(cut -d'|' -f1 "${TMP}/s_order.txt" | paste -sd, -)" == "site self-test,sandbox isolation" ]]; then
+  echo "  ok: 6: the self-tests' view holds their rows only: no main-job row, no n/a row"
+else
+  fail "6: the self-tests' view of the order file is: $(paste -sd, - < "${TMP}/s_order.txt")"
+fi
+capture "$SCRIPT" view "$VG" "$VO" "${TMP}/x_groups.txt" "${TMP}/x_order.txt" main ghost
+want_exit "6: a job the group file does not name is red, named" 1 "ghost is no job of"
+capture "$SCRIPT" view "$VG" "${TMP}/absent.txt" "${TMP}/x_groups.txt" "${TMP}/x_order.txt" main
+want_exit "6: a missing order file is red, named" 1 "is missing, so no view can be made"
+capture "$SCRIPT" view "$VG" "$VO" "${TMP}/x_groups.txt" "${TMP}/x_order.txt"
+want_rc "6: a view without a job is a usage error" 64
+capture "$SCRIPT" view "$VG" "$VO" "${TMP}/x_groups.txt" "${TMP}/x_order.txt" 'bad job'
+want_rc "6: a job name with a space is a usage error" 64
+
 # --- mutation proofs
 run_mutant() {
   local name="$1" expr="$2"
@@ -240,4 +289,15 @@ if run_mutant forgive 's/^    \[ "[$]state" = "ok" \] [|][|] mark="❌"$/    :/'
   if grep -qxF 'split gate|✅' "${TMP}/m4.rows"; then echo "  ok: mutation proof: a merge that forgives a missing shard leaves the gate green, so cases 3c and 3d catch it"; else fail "mutation proof: the forgiving mutant still made the gate red"; fi
 fi
 
-selftest_end "the quality report merge does not hold" "merge_quality_report.sh merges the jobs' rows and details, refuses a gate reported twice and judges the run's status (each proved against a mutant)"
+# View (forsgren#686): a view that ignores the job list puts the other
+# workflow's rows in, and one that forgets the main job drops Quality's.
+if run_mutant viewall 's/^    ([$]1 in mine) || (!([$]1 in grouped) \&\& index(jobs, " main ")) { print }$/    { print }/'; then
+  capture "$MUT" view "$VG" "$VO" "${TMP}/m5_groups.txt" "${TMP}/m5_order.txt" selftest_1 sandbox_1 sandbox_2
+  if grep -q '^real pre|' "${TMP}/m5_order.txt"; then echo "  ok: mutation proof: a view that keeps every row is caught by case 6"; else fail "mutation proof: the keep-every-row view mutant still left Quality's rows out"; fi
+fi
+if run_mutant viewnomain 's/ || (!([$]1 in grouped) \&\& index(jobs, " main "))//'; then
+  capture "$MUT" view "$VG" "$VO" "${TMP}/m6_groups.txt" "${TMP}/m6_order.txt" main lint
+  if ! grep -q '^real pre|' "${TMP}/m6_order.txt"; then echo "  ok: mutation proof: a view without the main job's rows is caught by case 6"; else fail "mutation proof: the no-main view mutant still kept the main job's rows"; fi
+fi
+
+selftest_end "the quality report merge does not hold" "merge_quality_report.sh merges the jobs' rows and details, refuses a gate reported twice, judges the run's status and cuts each workflow's view (each proved against a mutant)"

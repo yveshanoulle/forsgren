@@ -1,15 +1,18 @@
-# Tools the browser_1 job of quality.yml needs (forsgren#447, step 4), one per
-# line. Read by Scripts/install_tools_linux.sh on ubuntu-latest (forsgren#642),
-# which holds each to its pin in Scripts/linux_tool_pins.txt: node is a setup
-# tool, installed by the job's actions/setup-node and held to .nvmrc. sfl.sh
-# keeps the full list of Scripts/required_tools.txt.
+# Tools the browser_1 job of selftests.yml needs (forsgren#447, step 4; in
+# quality.yml up to forsgren#686), one per line. Read by
+# Scripts/install_tools_linux.sh on ubuntu-latest (forsgren#642), which holds
+# each to its pin in Scripts/linux_tool_pins.txt: go and node are setup tools,
+# installed by the job's actions/setup-go and actions/setup-node and held to
+# go.mod and .nvmrc. sfl.sh keeps the full list of Scripts/required_tools.txt.
 #
-# ONLY what its gate runs: the browser gate self-test --shard 1/2
+# ONLY what its self-tests run: the browser gate self-test --shard 1/2
 # (Scripts/test_gate_browser.sh, forsgren#641), which drives
-# Scripts/browser_gate.mjs with Node. The fixture site self-test, which builds
-# its site with Go, moved to browser_3 in forsgren#641. The job builds no site
-# of its own. Chrome comes with the hosted image and puppeteer-core with npm
-# ci. A tool the gate calls but this list lacks fails the gate, never skips it;
-# Scripts/test_quality_jobs.sh is red when a listed gate names a tool of
+# Scripts/browser_gate.mjs with Node, and the fixture site self-test
+# (forsgren#686: from browser_3), which builds its site with Go
+# (Scripts/build_fixture_site.sh). The job builds no site of its own. Chrome
+# comes with the hosted image and puppeteer-core with npm ci. A tool a
+# self-test calls but this list lacks fails it, never skips it;
+# Scripts/test_quality_jobs.sh is red when a listed row names a tool of
 # Scripts/required_tools.txt that is not here.
+go
 node

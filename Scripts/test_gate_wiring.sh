@@ -43,6 +43,11 @@ cd "$(dirname "$0")/.."
 #      a phase with no row, a missing or non-executable script and a gate that
 #      changes the checked-out tree, and survives GitHub's
 #      `bash -e -o pipefail`.
+#   8. TWO WORKFLOWS (forsgren's own arm of the sibling sites' pin 8,
+#      forsgren#686). quality.yml runs the real gates and selftests.yml the
+#      self-test rows; every runnable row runs in exactly one of them, the one
+#      its kind names, with the secret-scan self-test the one written
+#      exception (see "Pin 8" below).
 #   5. PROOFS. Mutation proofs re-run this whole check against a copy of a
 #      runner (or of the order file) with one invocation commented out or one
 #      rule broken, and require the rejection by name; konenki's matcher
@@ -198,11 +203,11 @@ fi
 # (forsgren#269), and up to 167 for the temp helper self-test, the bare mktemp
 # self-test and the bare mktemp gate (forsgren#612), and up to 168 for the tmp
 # failure stops self-test (forsgren#615), and up to 169 for the local hook
-# self-test (forsgren#290), and up to 170 for the FBP forwarder self-test (forsgren#627), and up to 171 for the TBD tables browser self-test (forsgren#626), and up to 173 for the default TBD fixture self-test and gate (forsgren#626), and up to 174 for the browser gate baseline choice self-test (forsgren#642), and down to 173 when the FBP forwarder self-test went with the forwarder it tested, and up to 175 for the Dependabot merge policy and pull-request comment self-tests (forsgren#664), and up to 176 for the reusable Dependabot merge policy workflow pin (forsgren#666).
+# self-test (forsgren#290), and up to 170 for the FBP forwarder self-test (forsgren#627), and up to 171 for the TBD tables browser self-test (forsgren#626), and up to 173 for the default TBD fixture self-test and gate (forsgren#626), and up to 174 for the browser gate baseline choice self-test (forsgren#642), and down to 173 when the FBP forwarder self-test went with the forwarder it tested, and up to 175 for the Dependabot merge policy and pull-request comment self-tests (forsgren#664), and up to 176 for the reusable Dependabot merge policy workflow pin (forsgren#666), and up to 178 for the self-test skip of sfl and the self-tests' failure issue self-tests (forsgren#686).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=176
+MIN_GATES=178
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -409,6 +414,28 @@ for path in Scripts/*.sh; do
       runs_script "$CI" "$base" \
         || fail "${base} merges the Quality jobs' reports and ${CI} never invokes it — each job's gates would be missing from the report"
       require_fixture "$base"
+      ;;
+
+    # PRE-FLIGHT, not a gate (forsgren#686): it lists the self-test rows, the
+    # rows of selftests.yml's jobs, which sfl.sh skips locally by default. sfl
+    # must call it (or every self-test would run locally again, or none), and
+    # its self-test, Scripts/test_sfl_selftest_skip.sh, must be a row.
+    selftest_rows.sh)
+      runs_script "$SFL" "$base" \
+        || fail "${base} lists the self-test rows sfl.sh skips and ${SFL} never invokes it — the local run would not run what Quality runs"
+      order_names "test_sfl_selftest_skip.sh" \
+        || fail "Scripts/test_sfl_selftest_skip.sh is not an order-file row — the self-test list sfl relies on would go unproven"
+      ;;
+
+    # SELF-TESTS WORKFLOW STEP, not a gate (forsgren#686): it opens the one
+    # issue of a red Self-tests run on main. The failure_issue job of
+    # selftests.yml runs it, and its self-test,
+    # Scripts/test_selftests_failure_issue.sh, must be a row.
+    open_selftests_failure_issue.sh)
+      runs_script ".github/workflows/selftests.yml" "$base" \
+        || fail "${base} opens the issue of a red Self-tests run and selftests.yml never invokes it — a red self-test on main would be seen by nobody"
+      order_names "test_selftests_failure_issue.sh" \
+        || fail "Scripts/test_selftests_failure_issue.sh is not an order-file row — the failure issue would go unproven"
       ;;
 
     # PRESENTATION, not a gate (forsgren#8): the run's key numbers, rendered
@@ -1434,6 +1461,138 @@ fi
 
 if [[ "$n_gate" -eq 0 ]]; then
   fail "no Scripts/*.sh is named by an order-file row — the glob or the parse is broken, so this check verified nothing"
+fi
+
+# Pin 8 (forsgren's own arm, forsgren#686; the sibling sites' pin 8 adapted):
+# THE SELF-TESTS RUN IN THEIR OWN WORKFLOW, THE REAL GATES IN QUALITY, EACH ROW
+# IN EXACTLY ONE. selftests.yml runs the self-test rows, quality.yml every other
+# row; both run their jobs through Scripts/run_ci_phase.sh, and
+# Scripts/ci_job_groups.txt gives each row to one job, or to shard jobs, while a
+# row it lists for no job runs in Quality's main job (`main`, forsgren's default
+# job). What this pins on top: the workflow a job belongs to is the one whose
+# step runs `run_ci_phase.sh <phase> "$ROWS" "$DETAILS" <job>`, every job of
+# the groups file runs in exactly one of the two workflows, and each runnable
+# row runs in the workflow its kind wants and in no other:
+#   a self-test row (is_selftest_row): its label ends in " self-test" or starts
+#     with "mutation: ", or it is the step summary isolation gate, a self-test
+#     in full (the git sandbox isolation self-test already ends in
+#     " self-test") -> selftests.yml only;
+#   every other runnable row, a real gate -> quality.yml only;
+#   the one written exception: the secret-scan self-test is secret-class (its
+#     first case scans the real tree, forsgren#570), so it stays in Quality and
+#     in every local run, before a commit.
+# So nothing is dropped (a row in neither workflow) and nothing is doubled (a
+# row in both). Scripts/selftest_rows.sh reads the same files for the rows sfl
+# skips locally, so the local skip set is this CI self-test set
+# (Scripts/test_sfl_selftest_skip.sh, case 7). Mutation proofs below.
+if ! is_mutation_rerun; then
+  SELFTESTS_WF=".github/workflows/selftests.yml"
+  JOB_GROUPS_FILE="Scripts/ci_job_groups.txt"
+  # The step summary isolation gate is named by its script, its label read from
+  # the order file.
+  SUMMARY_ISOLATION_LABEL="$(awk -F'|' '$2 == "Scripts/test_step_summary_isolation.sh" { print $1; exit }' "$ORDER")"
+  is_selftest_row() {
+    [[ "$1" != "secret-scan self-test" ]] || return 1
+    [[ "$1" != "$SUMMARY_ISOLATION_LABEL" ]] || return 0
+    case "$1" in
+      *" self-test" | "mutation: "*) return 0 ;;
+    esac
+    return 1
+  }
+  # phase_jobs <workflow>: the jobs whose run_ci_phase.sh calls the workflow
+  # makes, once each (the reading of Scripts/selftest_rows.sh).
+  phase_jobs() {
+    grep -vE '^[[:space:]]*#' "$1" \
+      | sed -nE 's#^[[:space:]]*\./Scripts/run_ci_phase\.sh (pre|post) "[$]ROWS" "[$]DETAILS" ([A-Za-z0-9_-]+)[[:space:]]*$#\2#p' \
+      | sort -u
+  }
+  # split_problems <quality.yml> <selftests.yml> <groups> <order>: one line per
+  # problem; nothing means it holds.
+  split_problems() {
+    local quality="$1" selftests="$2" groups="$3" order="$4" q_jobs s_jobs job label where want
+    [[ -f "$selftests" ]] || { echo "no ${selftests}: the self-tests run in no workflow"; return 0; }
+    q_jobs="$(phase_jobs "$quality")"
+    s_jobs="$(phase_jobs "$selftests")"
+    if has -qxF -- main <<< "$s_jobs"; then
+      echo "selftests.yml runs the main job, whose rows are Quality's"
+    fi
+    while IFS= read -r job; do
+      [[ -n "$job" ]] || continue
+      if has -qxF -- "$job" <<< "$q_jobs" && has -qxF -- "$job" <<< "$s_jobs"; then
+        echo "job ${job} runs in both quality.yml and selftests.yml: its gates would run twice"
+      elif ! has -qxF -- "$job" <<< "$q_jobs" && ! has -qxF -- "$job" <<< "$s_jobs"; then
+        echo "job ${job} of ${groups} runs in neither quality.yml nor selftests.yml: its gates would run nowhere"
+      fi
+    done < <(grep -v '^#' "$groups" | grep '|' | cut -d'|' -f1 | sort -u)
+    while IFS= read -r label; do
+      [[ -n "$label" ]] || continue
+      where=""
+      if ! grep -v '^#' "$groups" | awk -F'|' -v l="$label" '$2 == l { f = 1 } END { exit !f }'; then
+        # No group row: the main job, Quality's when quality.yml runs it.
+        if has -qxF -- main <<< "$q_jobs"; then where="quality.yml"; fi
+      fi
+      while IFS= read -r job; do
+        [[ -n "$job" ]] || continue
+        if has -qxF -- "$job" <<< "$q_jobs"; then where="${where}"$'\n'"quality.yml"; fi
+        if has -qxF -- "$job" <<< "$s_jobs"; then where="${where}"$'\n'"selftests.yml"; fi
+      done < <(grep -v '^#' "$groups" | awk -F'|' -v l="$label" '$2 == l { print $1 }')
+      where="$(grep . <<< "$where" | sort -u | tr '\n' ' ' | sed 's/ $//' || true)"
+      if is_selftest_row "$label"; then want="selftests.yml"; else want="quality.yml"; fi
+      if [[ -z "$where" ]]; then
+        echo "row ${label} runs in no workflow, want ${want}"
+      elif [[ "$where" != "$want" ]]; then
+        echo "row ${label} runs in ${where}, want ${want} only"
+      fi
+    done < <(grep -v '^#' "$order" | awk -F'|' '$2 != "" && $2 != "n/a" { print $1 }')
+    # selftests.yml, like quality.yml in pin 2, names no gate itself.
+    if grep -vE '^[[:space:]]*#' "$selftests" | grep -vE 'run_ci_phase\.sh|merge_quality_report\.sh|render_quality_report\.sh|open_selftests_failure_issue\.sh|install_tools(_linux)?\.sh|go_toolchain\.sh' \
+      | has -qE '(^|[^A-Za-z0-9_./-])(\./)?Scripts/[A-Za-z0-9_]+\.sh'; then
+      echo "selftests.yml names a gate itself; the order file and ${groups} decide which rows a job runs"
+    fi
+  }
+  problems="$(split_problems "$CI" "$SELFTESTS_WF" "$JOB_GROUPS_FILE" "$ORDER")"
+  [[ -z "$problems" ]] || fail "every self-test row must run in selftests.yml and every other row in quality.yml, each in exactly one: ${problems}"
+  _t="$(tmp_dir test_gate_wiring)" || exit 1
+  # split_case <name> <reason> <groups|selftests|quality> <sed -E expression>:
+  # the copy of that file, mutated, is rejected with <reason>.
+  split_case() {
+    local q="$CI" s="$SELFTESTS_WF" g="$JOB_GROUPS_FILE" src out got
+    case "$3" in
+      groups) src="$g"; g="${_t}/groups_$1.txt"; out="$g" ;;
+      selftests) src="$s"; s="${_t}/selftests_$1.yml"; out="$s" ;;
+      *) src="$q"; q="${_t}/quality_$1.yml"; out="$q" ;;
+    esac
+    sed -E "$4" "$src" > "$out"
+    if cmp -s "$src" "$out"; then
+      fail "pin 8 proof $1: the mutation $4 changed nothing, so the proof would be vacuous"
+      return 0
+    fi
+    got="$(split_problems "$q" "$s" "$g" "$ORDER")"
+    if has -qF -- "$2" <<< "$got"; then
+      echo "  ok: pin 8 proof $1 is rejected"
+    else
+      fail "pin 8 proof $1 was accepted: expected '$2'. Got: ${got:-nothing}"
+    fi
+  }
+  split_case selftest-in-quality "row data guard self-test runs in quality.yml, want selftests.yml only" groups 's/^selftest_mac_2\|data guard self-test$/quality_2|data guard self-test/'
+  split_case selftest-left-in-main "row private-names self-test runs in quality.yml, want selftests.yml only" groups '/^selftest_mac_2\|private-names self-test$/d'
+  split_case gate-in-selftests "row shellcheck runs in selftests.yml, want quality.yml only" groups 's/^lint\|shellcheck$/selftest_linux|shellcheck/'
+  split_case mutation-in-quality "row mutation: checkout pins runs in quality.yml, want selftests.yml only" groups 's/^selftest_linux\|mutation: checkout pins$/workflows|mutation: checkout pins/'
+  split_case sandbox-shard-in-quality "row git sandbox isolation self-test runs in quality.yml selftests.yml, want selftests.yml only" groups 's/^isolation_2\|git sandbox isolation self-test\|/quality_2|git sandbox isolation self-test|/'
+  split_case summary-in-quality "row ${SUMMARY_ISOLATION_LABEL} runs in quality.yml, want selftests.yml only" groups "s/^summary\\|${SUMMARY_ISOLATION_LABEL}\$/workflows|${SUMMARY_ISOLATION_LABEL}/"
+  split_case exception-moved "row secret-scan self-test runs in selftests.yml, want quality.yml only" groups 's/^(selftest_mac_2\|data guard self-test)$/\1\
+selftest_mac_2|secret-scan self-test/'
+  split_case job-in-no-workflow "job selftest_mac_2 of ${JOB_GROUPS_FILE} runs in neither quality.yml nor selftests.yml" selftests 's#(run_ci_phase\.sh pre "[$]ROWS" "[$]DETAILS") selftest_mac_2$#\1 selftest_mac_1#'
+  split_case job-in-both "job isolation_1 runs in both quality.yml and selftests.yml" quality 's#^( *)(\./Scripts/run_ci_phase\.sh pre "[$]ROWS" "[$]DETAILS" )lint$#&\
+\1\2isolation_1#'
+  split_case main-job-gone "row secret scan runs in no workflow, want quality.yml" quality 's#("[$]DETAILS") main( |$)#\1 mainless\2#'
+  split_case main-in-selftests "selftests.yml runs the main job, whose rows are Quality's" selftests 's#(run_ci_phase\.sh pre "[$]ROWS" "[$]DETAILS") summary$#\1 main#'
+  split_case selftests-names-a-gate "selftests.yml names a gate itself" selftests 's#^( *)\./Scripts/run_ci_phase\.sh pre "[$]ROWS" "[$]DETAILS" isolation_2$#&\
+\1./Scripts/check_secrets.sh#'
+  if [[ "$(split_problems "$CI" "${_t}/absent.yml" "$JOB_GROUPS_FILE" "$ORDER")" != *"the self-tests run in no workflow"* ]]; then
+    fail "pin 8: a missing selftests.yml was accepted"
+  fi
+  rm -rf "$_t"
 fi
 
 # Pin 6 (forsgren#214, canon from the sister site repositories): FBP FIXES, CI

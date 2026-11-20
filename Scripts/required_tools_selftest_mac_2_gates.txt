@@ -1,0 +1,31 @@
+# Tools the selftest_mac_2 job of selftests.yml needs (forsgren#686), one per
+# line. Read by Scripts/install_tools.sh, which the job runs with this file in
+# place of Scripts/required_tools.txt; sfl.sh keeps the full list.
+#
+# The self-tests of this job ran in Quality's main job up to forsgren#686, so
+# the job keeps the main job's list (Scripts/required_tools_quality_gates.txt):
+# the same environment as before the split. The self-tests of the secret scan,
+# the language gate and the tool installers mostly run stubs of gitleaks,
+# LanguageTool and the lint tools, but a self-test that reaches the real tool
+# still finds it. Scripts/test_quality_jobs.sh holds the list to these five and
+# is red when a script one of the rows reaches runs a tool of
+# Scripts/required_tools.txt that is not here (the main job's reading: a line
+# that runs the tool, not one that names it in a stub).
+
+# gitleaks: the secret scan the data guard and private names self-tests reach.
+gitleaks
+
+# go: the site, fixture and Go tool builds of the Go self-tests and of the
+# build, starter page and release self-tests.
+go
+
+# jq: the self-tests whose gates or stubs read JSON (the release, dependabot
+# and npm ones).
+jq
+
+# languagetool: the language gate its self-tests reach.
+languagetool
+
+# node: npm and node, for the HTMLHint, Stylelint, npm and starter page
+# self-tests and the FBP and sfl self-tests.
+node

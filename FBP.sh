@@ -43,6 +43,10 @@ usage() {
   echo "                           gates are skipped and named, no build or POST phase,"
   echo "                           the RED commit is made, nothing is pushed)"
   # canon-block: stop-at-first-red v1 end
+  echo "  $0 --with-selftests [...]  also run the self-test rows here (forsgren#686);"
+  echo "                           by default they run in the Self-tests workflow on"
+  echo "                           GitHub after the push (combinable with the flags"
+  echo "                           above; same as SFL_WITH_SELFTESTS=1)"
   echo
   echo "On ordinary red the script continues where safe, then commits locally so"
   echo "WIP isn't lost, but skips the push. The subject becomes '*** RED ****'"
@@ -68,11 +72,16 @@ while [ "$#" -gt 0 ]; do
       shift
       ;;
     # canon-block: stop-at-first-red v1 end
+    # forsgren#686: sfl.sh reads SFL_WITH_SELFTESTS from the environment.
+    --with-selftests)
+      export SFL_WITH_SELFTESTS=1
+      shift
+      ;;
     -*|/*)
       # The argument is NOT printed back (forsgren#54): it may be a commit
       # message, and this runs before the private-names check.
       echo "❌ ERROR: unrecognised option; usage: $0 \"<commit message>\" or $0 --no-commit"
-      echo "Did you mean --no-commit, --no-push or --all?"
+      echo "Did you mean --no-commit, --no-push, --all or --with-selftests?"
       echo "(Commit messages cannot start with '-' or '/' — quote your message if needed.)"
       exit 1
       ;;
@@ -156,7 +165,10 @@ fi
 # summary ran to its end.
 # v15 (forsgren#290) sources an optional git-ignored .fbp-local.sh before the
 # first gate; a failing hook stops the run with a ❌ line.
-FBP_VERSION=15
+# v16 (forsgren#686) --with-selftests (SFL_WITH_SELFTESTS=1 for sfl.sh) runs the
+# self-test rows here too; without it the summary repeats sfl's line on the
+# self-test rows it skipped, which run in the Self-tests workflow after the push.
+FBP_VERSION=16
 
 STARTED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 START_EPOCH="$(date +%s)"
@@ -181,6 +193,9 @@ POST_COUNTS=""
 # appends). The summary names them, so a skipped gate is never read as a
 # passed one.
 SFL_SKIPS_FILE=".build/sfl-skips.log"
+# forsgren#686: sfl.sh's one line on the self-test rows it skipped (pre empties
+# it, a phase that skipped any appends its line); the summary repeats it.
+SFL_SELFTESTS_FILE=".build/sfl-selftests-skipped.log"
 # Issue #8: default tail for the build-site row, same shape as PRE/POST
 # before their own counts arrive. Overwritten with "<N> pages generated
 # (<duration>s)" once build_site.sh's page count is confirmed good.
@@ -319,6 +334,14 @@ print_selection_skips() {
   printf '%s' "$lines"
 }
 
+# print_selftest_skip: sfl's line on the self-test rows it skipped, as sfl
+# wrote it (forsgren#686). Nothing when it skipped none (--with-selftests).
+print_selftest_skip() {
+  [ -s "$SFL_SELFTESTS_FILE" ] || return 0
+  echo
+  cat "$SFL_SELFTESTS_FILE"
+}
+
 # build_fails_with <reason> — the build step fails with <reason> named in
 # its summary row, and POST is skipped as for any failed build.
 build_fails_with() {
@@ -393,6 +416,7 @@ summary_body() {
   printf "  %-16s %s  (%ss)\n" "git" "$GIT_STATUS" "$GIT_DURATION"
 
   print_selection_skips
+  print_selftest_skip
 
   # The reasons, not just the glyphs. Reprint sfl's own failure blocks rather
   # than recomputing them so the summary cannot disagree with either phase.
@@ -478,6 +502,7 @@ if ! GATE_FIX=1 ./Scripts/fix_source_css.sh; then
 fi
 
 rm -f "$SFL_SKIPS_FILE"
+rm -f "$SFL_SELFTESTS_FILE"
 
 # Remove a previous run's sink before starting this phase. Otherwise an sfl
 # failure before rendering could make PRE inherit stale counts from an earlier

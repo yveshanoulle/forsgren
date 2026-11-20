@@ -50,6 +50,38 @@ so the installer puts them there; installing and upgrading costs nothing
 lasting on a machine that is thrown away after the job. A tool still missing
 after it fails the Install tools step by name.
 
+**The self-tests run in their own workflow** (forsgren#686).
+`.github/workflows/selftests.yml` (Actions → Self-tests) runs the tests of the
+gates themselves after every push to `main` and by hand; `quality.yml` runs the
+real gates. A self-test row is a row of `Scripts/gate_report_order.txt` whose
+label ends in ` self-test` or starts with `mutation: `, and the step summary
+isolation gate, which runs the self-tests that write to the step summary and so
+is a self-test in full (the git sandbox isolation self-test already ends in
+` self-test`). The one exception: the secret-scan self-test is secret-class (its
+first case scans the real tree, forsgren#570), so it stays in Quality's main job
+and in every local run, before a commit. `Scripts/ci_job_groups.txt` gives each
+self-test row to a job of `selftests.yml`, and pin 8 of
+`Scripts/test_gate_wiring.sh` proves that every runnable row runs in exactly one
+of the two workflows, the one the rule names: nothing dropped, nothing doubled.
+Self-tests gates nothing: the Release (`Scripts/release_quality.sh` reads the run
+of the workflow named Quality) and the preview chain to Quality only. A red
+Self-tests run on `main` opens one issue, titled after the run, through
+`Scripts/open_selftests_failure_issue.sh` (the `failure_issue` job, the only one
+with `issues: write`; no label, so it never counts as a failure users hit). Its
+`report` job renders the gate table of the self-test rows only:
+`Scripts/merge_quality_report.sh view` cuts the order and group files to the
+workflow's own jobs, and Quality's report does the same for its jobs, so
+neither lists the other's rows as unmeasured.
+
+Locally, `./sfl.sh` runs what Quality runs: it skips the rows
+`Scripts/selftest_rows.sh` lists (the rows of `selftests.yml`'s jobs, read from
+the same two files CI runs from), counts the steps it runs without them, and
+prints one line, `self-tests skipped locally (N rows): they run in the
+Self-tests workflow on GitHub after the push — use --with-selftests to run them
+here`, which `./FBP.sh`'s summary repeats. `./FBP.sh --with-selftests` (or
+`./sfl.sh --with-selftests`, or `SFL_WITH_SELFTESTS=1`) runs every row.
+`Scripts/test_sfl_selftest_skip.sh` proves the skip set is the CI self-test set.
+
 **Which tools each macOS job installs** (forsgren#447, step 4). Every macOS
 gate job passes `Scripts/install_tools.sh` a list of its own, so a job installs
 only what its gates and its site build run, not the full set of
@@ -59,52 +91,56 @@ jq, languagetool, node; forsgren#591 step 2): it runs the language gate
 (LanguageTool), the secret scan (gitleaks) and npm audit (jq), and no longer
 installs shellcheck, yamllint, actionlint and zizmor, whose gates all run in
 the `lint` job.
-`quality_2` takes `Scripts/required_tools_quality_2_gates.txt` (go, node, jq),
-`quality_3` takes `Scripts/required_tools_quality_3_gates.txt` (go, node, jq;
-forsgren#672), `browser_1` and `browser_2` take `Scripts/required_tools_browser_1_gates.txt`
-and `Scripts/required_tools_browser_2_gates.txt` (node), and `browser_3` takes
-`Scripts/required_tools_browser_3_gates.txt` (go, node; forsgren#641); since
-forsgren#642 the three browser jobs run on Linux and pass their list to
-`Scripts/install_tools_linux.sh` instead (see the browser jobs below). Each list
+`quality_2` takes `Scripts/required_tools_quality_2_gates.txt` (go, node, jq);
+in Self-tests, `selftest_mac_1` takes `Scripts/required_tools_selftest_mac_1_gates.txt`
+(go, node, jq; the list of the old `quality_3` job) and `selftest_mac_2`
+`Scripts/required_tools_selftest_mac_2_gates.txt` (the main job's five, the
+environment its self-tests ran in). The Linux jobs pass their list to
+`Scripts/install_tools_linux.sh`: `browser_1` (go, node), `browser_2` (node) and
+`browser_3` (go, node) their own, `lint` and `selftest_linux` the four lint
+tools of `Scripts/required_tools_linux.txt`, `workflows`, `isolation_1`,
+`isolation_2` and `summary` `Scripts/required_tools_linux_gates.txt`. Each list
 was read from the scripts of the job's rows in `Scripts/ci_job_groups.txt` and
 the scripts those call. A tool a gate needs and its list lacks is not skipped:
 the gate fails with `command not found`. `Scripts/test_quality_jobs.sh` pins
 each job's install command, each list's content, and that no gate of a job
 names a tool of the full list that the job's list lacks; a gate moved to
-another job (forsgren#447, steps 5 to 7) therefore needs its tools in that
-job's list in the same change.
+another job therefore needs its tools in that job's list in the same change.
 
-**The jobs at a glance** (forsgren#447, final layout). A gate not listed in
-`Scripts/ci_job_groups.txt` runs in the main job, so a new gate is in one job and
-never in none. The file names the groups below; the job ids are the keys of
-`quality.yml`.
+**The jobs at a glance** (forsgren#686 layout). A gate not listed in
+`Scripts/ci_job_groups.txt` runs in Quality's main job, so a new gate is in one
+job and never in none; a new self-test row needs a row there for a job of
+`selftests.yml`, or pin 8 is red. The job ids are the keys of the two
+workflows. The seconds are those of the green Quality run 44116366618 of
+`main`, before the split.
 
-| Job (name) | OS | Install tools step | Gates it runs |
-|---|---|---|---|
-| `quality` (Quality gates) | macOS | `Scripts/required_tools_quality_gates.txt` (gitleaks, go, jq, languagetool, node) | every gate no group names: the language gate, the secret scan, the site build and the POST gates, the long tail of small gates |
-| `quality_2` (Quality gates 2/3) | macOS | `Scripts/required_tools_quality_2_gates.txt` (go, node, jq) | Go tests and Go coverage, golden pages, and the slower self-tests, among them the exit-trap completion behaviour |
-| `quality_3` (Quality gates 3/3) | macOS | `Scripts/required_tools_quality_3_gates.txt` (go, node, jq) | eighteen PRE gates of the main job, about half of its PRE seconds (forsgren#672): the privacy-posture and two browser gate self-tests, Go vulnerabilities, markdown links, bare mktemp and slower self-tests of FBP, sfl and the build |
-| `browser_1` (Browser gates 1/3) | Linux | `Scripts/required_tools_browser_1_gates.txt` (node) | the browser gate self-test, shard 1/2 |
-| `browser_2` (Browser gates 2/3) | Linux | `Scripts/required_tools_browser_2_gates.txt` (node) | the browser gate self-test, shard 2/2, and the browser gate process self-test |
-| `browser_3` (Browser gates 3/3) | Linux | `Scripts/required_tools_browser_3_gates.txt` (go, node) | the fixture-site self-test, the browser gate and the fixture-site gate, with its own site build |
-| `lint` (Lint gates) | Linux | `Scripts/required_tools_linux.txt` | actionlint, shellcheck, yamllint, zizmor and Go lint, each with its self-test, and the Go test duplication gate |
-| `workflows` (Workflow gates) | Linux | `Scripts/required_tools_linux_gates.txt` | the gates that read only workflows and scripts, go mod tidy, three Go self-tests and eleven Linux-safe self-tests of the main job |
-| `isolation_1`, `isolation_2` | Linux | `Scripts/required_tools_linux_gates.txt` | the git sandbox isolation self-test, one shard each |
-| `summary` (Summary isolation gates) | Linux | `Scripts/required_tools_linux_gates.txt` | the step summary isolation gate |
-| `report` (Quality report) | Linux | none | merges and renders the hand-overs |
-| `preview` | macOS | none | starts the preview deploy; `needs:` every other job |
+| Workflow | Job (name) | OS | Install tools step | Gates it runs |
+|---|---|---|---|---|
+| Quality | `quality` (Quality gates) | macOS | `Scripts/required_tools_quality_gates.txt` | every row no group names: the secret scan and its self-test, the language gate, the site build and the POST gates, the tail of real gates (about 220 s) |
+| Quality | `quality_2` (Quality gates 2/2) | macOS | `Scripts/required_tools_quality_2_gates.txt` | Go tests and Go coverage, golden pages, the exit-trap completion behaviour, the quality-run summary (about 130 s) |
+| Quality | `lint` (Lint gates) | Linux | `Scripts/required_tools_linux.txt` | actionlint, shellcheck, yamllint, zizmor, Go lint and the Go test duplication gate (about 50 s) |
+| Quality | `workflows` (Workflow gates) | Linux | `Scripts/required_tools_linux_gates.txt` | the workflow pins and gate wiring, go mod tidy, sfl drives from the order file (about 380 s, the quality jobs pin 265 of it) |
+| Quality | `browser_3` (Browser gates) | Linux | `Scripts/required_tools_browser_3_gates.txt` | the browser gate and the fixture-site gate, after its own site build (about 250 s) |
+| Quality | `report`, `preview` | Linux, macOS | none | the Quality report; the preview deploy, after every job |
+| Self-tests | `selftest_mac_1` | macOS | `Scripts/required_tools_selftest_mac_1_gates.txt` | the self-tests of the old `quality_3` job and the browser gate inputs self-test (about 360 s) |
+| Self-tests | `selftest_mac_2` | macOS | `Scripts/required_tools_selftest_mac_2_gates.txt` | the self-tests of the main job and the rest of `quality_2`'s (about 405 s) |
+| Self-tests | `selftest_linux` | Linux | `Scripts/required_tools_linux.txt` | the self-tests of the `lint` and `workflows` jobs (about 205 s) |
+| Self-tests | `isolation_1`, `isolation_2` | Linux | `Scripts/required_tools_linux_gates.txt` | the git sandbox isolation self-test, one shard each (about 540 and 215 s) |
+| Self-tests | `summary` | Linux | `Scripts/required_tools_linux_gates.txt` | the step summary isolation gate (about 315 s) |
+| Self-tests | `browser_1`, `browser_2` | Linux | their own lists | the browser gate self-test, one shard each, with the fixture site self-test in `browser_1` and the process self-test in `browser_2` (about 495 and 405 s) |
+| Self-tests | `report`, `failure_issue` | Linux | none | the Self-tests report; the issue of a red run on `main` |
 
-**Why some gates stay on macOS.** The main job holds the secret scan (Homebrew's
+**Why some jobs run on macOS.** The main job holds the secret scan (Homebrew's
 gitleaks) and the language gate (`sandbox-exec`, LanguageTool and its Java), and
 builds the site its POST gates read. `quality_2` holds the exit-trap completion
 behaviour gate, which proves the idiom against bash 3.2, the bash a Mac runs
-scripts with. Every other gate reads files with bash, awk, sed, grep and jq,
-runs Go, or opens Chrome (the three browser jobs, on Linux since forsgren#642),
-and runs on Linux. `quality_3` (forsgren#672) holds gates the main job ran on
-macOS, kept there with it. Quality starts 3 macOS gate jobs together
-(`quality`, `quality_2` and `quality_3`), under GitHub's limit of 5 macOS jobs
-at once for the account; `preview`, the fourth macOS job, starts only after
-every gate job.
+scripts with. Each self-test runs on the runner it ran on before the split, so
+the self-tests of Quality's macOS jobs run in `selftest_mac_1` and
+`selftest_mac_2`. A push starts 4 macOS jobs together (2 in each workflow),
+under GitHub's limit of 5 macOS jobs at once for the account; `preview` starts
+only after every Quality job. Quality's slowest job is now `workflows`, about
+7 minutes with its setup, against 13 minutes for the whole run before the
+split; the slowest self-test job, `isolation_1`, about 10 minutes.
 
 **The tools check is derived.** `Scripts/test_quality_jobs.sh` reads the scripts
 of each job's gates and the `Scripts/*.sh` those call, transitively (the
