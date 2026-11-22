@@ -1,111 +1,77 @@
 #!/usr/bin/env bash
-# canon: test_gate_wiring v14
+# canon: test_gate_wiring v15
 # Scripts/test_gate_wiring.sh
 #
-# The sites' version notes, as they apply here (forsgren#689):
-# v14: MIN_GATES and the history of its raises live in the data file
-#   Scripts/gate_wiring_floor.txt, so this file carries no repository value; a
-#   missing file, no value, 0, a value that is no whole number or two value
-#   lines are red (fail closed); the verdict's cases read the floor from a
-#   file, with three more mutation proofs (part 1b).
+# v15 (estate issue 850): one text in every repository of the estate. What
+#   differs per repository (its exemption arms, its own pins and their mutation
+#   proofs, the files only its proofs replace) lives in the repository's own
+#   Scripts/gate_wiring_local_cases.sh, which this file sources and requires;
+#   the floor stays in Scripts/gate_wiring_floor.txt. Shared: the fixture loop,
+#   the script loop and its default verdict, the Node pin, the GATE_FIX pin,
+#   the gate count ratchet, the mutation proof engine (a proof names the text
+#   its mutant must keep) and the matcher self-proof; the baseline steps pin
+#   is a function the local cases call where the workflow has those steps.
+# v14: MIN_GATES and the history of its raises live in the per-repository data
+#   file Scripts/gate_wiring_floor.txt; a missing file, no value, 0, a value
+#   that is no whole number or two value lines are red (fail closed); three
+#   more mutation proofs (the file ignored, a missing file passing, comment
+#   lines counted).
 # v13: the gate count is red below MIN_GATES, green at it, and green above it
 #   with the warning "Raise MIN_GATES from X to Y" (a `⚠️ warn: ` line and a
-#   warning annotation on the CI run's summary page; sfl.sh has no warn row
-#   for a passing gate, so locally the line is in the gate's log); the
-#   removed-gate self-proof shrinks the order file to one row under the floor;
-#   twelve cases and ten mutation proofs (part 1b).
-# v12: a sites' sourced helper of their Dependabot merge policy self-test;
-#   forsgren has no such helper, nothing to take over.
-# v11: lib_isolation_local.sh is a sourced helper of the git sandbox
-#   isolation gate, which must source it: forsgren's arm since forsgren#569.
-# The sites' pins taken over besides: the Node pin in sfl's pre-flight (their
-# pin 1b, part 1c here). Their pin 1 (sfl.sh runs no gate script by name) is
-# Scripts/test_sfl_drives_from_order_file.sh's pin 2b here, one list instead of
-# two. Not taken over, because forsgren has no counterpart: their pin 7 (sfl.sh
-# runs the local private-names pre-flight; forsgren's FBP.sh runs it, the
-# ensure_private_names_file.sh arm of part 3), their pin 5 (a feta deploy
-# workflow keyed off Quality) and their build boundary, built site check and
-# CI exemption list arms (forsgren's own runner pins are parts 2 and 2b).
+#   warning annotation on the CI run's summary page); the removed-gate
+#   self-proof shrinks the order file to one row under the floor.
+# v12, v11: a sourced helper of one self-test is exempt only when that
+#   self-test sources it by name (now arms of the local cases).
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 # Every gate must be wired into BOTH runners, sfl.sh and CI — the sfl/CI
-# parity guard.
+# parity guard (unit 396, rewritten by estate issue 301 step 3-9).
 #
-# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 14), its
-# unit 396 and issues #13, #15 and #18 (issue numbers below are konenki's
-# unless they say forsgren). ADAPTED, because the two repos wire CI the
-# opposite way. konenki names each gate in its own quality.yml step, so its
-# check asks, per script, "does sfl's order file name it, and does a
-# quality.yml step run it?". forsgren's quality.yml names no gate: it runs
-# Scripts/gate_report_order.txt through Scripts/run_ci_phase.sh, phase by
-# phase, as sfl.sh does. So the question becomes whether both runners read
-# every row the same way, and this check answers it in five parts:
+# sfl.sh dispatches every gate from Scripts/gate_report_order.txt, and CI runs
+# the same file through Scripts/run_ci_phase.sh, phase by phase, so a gate
+# declared there runs in both runners with no second registration. What this
+# check pins:
+#   - every fixture (Scripts/test_*.sh) is declared in the order file, unless
+#     the local cases say why it is not;
+#   - every other Scripts/*.sh is either declared there, or a declared
+#     exemption of the local cases, each with its reason and the runner or
+#     consumer it must still be invoked by (a validator nobody invokes is a
+#     file, not a gate);
+#   - the pins below and the local cases' own pins on the runners themselves.
 #
-#   1. ROWS. Every runnable row of the order file has phase `pre` or `post`
-#      and class empty or `secret-class`. Both runners run only pre and post
-#      rows, so a row with any other phase ("Pre", "build", a typo, nothing)
-#      runs in NEITHER, and nothing else reports it missing.
-#   2. RUNNERS. FBP.sh runs `./sfl.sh pre`, Scripts/build_site.sh and
-#      `./sfl.sh post`, in that order; quality.yml runs
-#      `Scripts/run_ci_phase.sh pre`, Scripts/build_site.sh and
-#      `Scripts/run_ci_phase.sh post`, in that order, then the report. And
-#      sfl.sh and run_ci_phase.sh carry the same row rules, line for line.
-#   3. SCRIPTS OUTSIDE THE ORDER FILE. Every Scripts/*.sh that is not a
-#      fixture is either named by an order-file row (then parts 1 and 2 run
-#      it in both), or a declared exemption, each with its reason and the
-#      runner it must still be invoked by. Anything else is a validator
-#      nobody runs. (That every Scripts/test_*.sh is named by a row is
-#      Scripts/test_sfl_drives_from_order_file.sh's pin 4, not repeated here.)
-#   4. THE CI LOOP, AT RUNTIME. Pinned by Scripts/test_run_ci_phase.sh, its
-#      own order-file row: run_ci_phase.sh over the REAL order file with a
-#      stub at every declared path runs every runnable row exactly once across
-#      its two phases, each in its own phase, in file order; and over
-#      synthetic order files it skips what sfl skips, keeps going after a
-#      failure, exits 2 on a secret-class failure, is red on a malformed row,
-#      a phase with no row, a missing or non-executable script and a gate that
-#      changes the checked-out tree, and survives GitHub's
-#      `bash -e -o pipefail`.
-#   8. TWO WORKFLOWS (forsgren's own arm of the sibling sites' pin 8,
-#      forsgren#686). quality.yml runs the real gates and selftests.yml the
-#      self-test rows; every runnable row runs in exactly one of them, the one
-#      its kind names, with the secret-scan self-test the one written
-#      exception (see "Pin 8" below).
-#   5. PROOFS. Mutation proofs re-run this whole check against a copy of a
-#      runner (or of the order file) with one invocation commented out or one
-#      rule broken, and require the rejection by name; konenki's matcher
-#      self-proof feeds runs_script its sample files.
+# Matching is on `Scripts/<name>` and NOT on the bare basename: every gate's
+# name is a substring of its own fixture's name (`check_actionlint.sh` inside
+# `test_check_actionlint.sh`), so a basename search would report a gate as
+# wired when only its fixture was.
 #
-# The failure this prevents is silent in the direction that matters: a gate
-# that runs only in sfl still passes locally, so it looks wired. It is CI
-# that stops running it, and CI is the gatekeeper.
-#
-# Only a word that RUNS something counts as an invocation (runs_script,
-# konenki issues #13, #15 and #18): the script must stand where a command
+# Only a word that RUNS something counts as an invocation (runs_script, the
+# estate's issues 13, 15 and 18): the script must stand where a command
 # stands, so a script that is only mentioned (in a comment, an echo, a YAML
 # name: or as another command's argument) is not wired. runs_script lives in
-# Scripts/lib_runs_script.sh, byte-identical with konenki's.
+# Scripts/lib_runs_script.sh; its header lists what it models. After its
+# verdicts on the real runners, the matcher self-proof near the end of this
+# file feeds it sample files.
 
-# The runner paths are overridable ONLY so the mutation proofs in part 5 can
-# re-run this whole check against a mutated copy of sfl.sh, FBP.sh,
-# quality.yml, dco.yml, starter_page.yml or the order file. Nothing else sets them; sfl and CI
-# always run against the real files.
+# The runner paths are overridable ONLY so the mutation proofs near the end of
+# this file can re-run this whole check against a mutated copy of sfl.sh,
+# FBP.sh, quality.yml or the order file (the local cases may add files of
+# their own). Nothing else sets them; sfl and CI always run against the real
+# files.
 SFL="${GATE_WIRING_SFL_OVERRIDE:-sfl.sh}"
-FBP="${GATE_WIRING_FBP_OVERRIDE:-FBP.sh}"
+FULL_BUILD="${GATE_WIRING_FBP_OVERRIDE:-FBP.sh}"
 CI="${GATE_WIRING_CI_OVERRIDE:-.github/workflows/quality.yml}"
 ORDER="${GATE_WIRING_ORDER_OVERRIDE:-Scripts/gate_report_order.txt}"
-DCO_WF="${GATE_WIRING_DCO_OVERRIDE:-.github/workflows/dco.yml}"
-STARTER_WF="${GATE_WIRING_STARTER_OVERRIDE:-.github/workflows/starter_page.yml}"
-RELEASE_WF=".github/workflows/release.yml"
-CI_RUNNER="Scripts/run_ci_phase.sh"
+# This repository's own arms and pins (see the header).
+LOCAL_CASES="Scripts/gate_wiring_local_cases.sh"
 
 # is_mutation_rerun: this run is a proof re-running the check with one of
-# the files above replaced, so it must not start proofs of its own, nor
-# repeat the runtime cases of part 4, which do not read those files.
+# the files above replaced, so it must not start proofs of its own.
 is_mutation_rerun() {
-  [[ -n "${GATE_WIRING_CI_OVERRIDE:-}${GATE_WIRING_FBP_OVERRIDE:-}${GATE_WIRING_SFL_OVERRIDE:-}${GATE_WIRING_ORDER_OVERRIDE:-}${GATE_WIRING_DCO_OVERRIDE:-}${GATE_WIRING_STARTER_OVERRIDE:-}" ]]
+  [[ -n "${GATE_WIRING_CI_OVERRIDE:-}${GATE_WIRING_FBP_OVERRIDE:-}${GATE_WIRING_SFL_OVERRIDE:-}${GATE_WIRING_ORDER_OVERRIDE:-}" ]] \
+    || gate_wiring_local_is_rerun
 }
 
 COMPLETED=0
@@ -126,7 +92,7 @@ fail() {
   failed=1
 }
 
-for f in "$SFL" "$FBP" "$CI" "$ORDER" "$CI_RUNNER"; do
+for f in "$SFL" "$FULL_BUILD" "$CI" "$ORDER"; do
   [[ -f "$f" ]] || {
     echo "❌ FAIL: $f not found" >&2
     exit 1
@@ -138,60 +104,240 @@ done
 source Scripts/lib_runs_script.sh
 # shellcheck source=Scripts/lib_has.sh
 source Scripts/lib_has.sh
-
-# Temp folders and files through Scripts/lib_tmp.sh (forsgren#612).
+# Temp folders and files through Scripts/lib_tmp.sh (estate issue 536).
 # shellcheck source=Scripts/lib_tmp.sh
 source Scripts/lib_tmp.sh
-# Pin 8 reads the workflows through git, so an exported GIT_DIR must not reach it
-# (git sandbox guard).
+# The local cases' pins may name sandbox gates by label, so this file counts as
+# git-using for the git sandbox guard; an exported GIT_DIR must not reach it.
 # shellcheck source=Scripts/lib_git_sandbox.sh
 source Scripts/lib_git_sandbox.sh
 
-# order_names <script-basename>: an order-file row names Scripts/<basename>.
+# sfl_runs <script-basename> (also order_names): an order-file row names
+# Scripts/<basename>. sfl's invocation list IS the order file (unit 409 step
+# 3), and CI's loop reads the same file.
+sfl_runs() {
+  grep -qxF "Scripts/$1" <<< "$(grep -v '^#' "$ORDER" | cut -d'|' -f2)"
+}
 order_names() {
-  grep -v '^#' "$ORDER" | cut -d'|' -f2 | has -qxF "Scripts/$1"
+  sfl_runs "$1"
 }
 
 # require_fixture <script> [consequence]: an exempted script that must still
-# carry its own Scripts/test_<script>.
+# carry its own Scripts/test_<script>. The consequence, when given, follows
+# the fail line after a dash.
 require_fixture() {
   [[ -f "Scripts/test_$1" ]] \
     || fail "${1} has no Scripts/test_${1}${2:+ — $2}"
 }
 
-# --- 1. ROWS ----------------------------------------------------------------
-n_rows=0
-while IFS='|' read -r label script phase gate_class || [[ -n "${label:-}" ]]; do
-  case "$label" in \#*|'') continue ;; esac
-  [[ "${script:-}" == "n/a" ]] && continue
-  n_rows=$((n_rows + 1))
-  case "${phase:-}" in
-    pre|post) ;;
-    *) fail "'${label}' declares phase '${phase:-}' in ${ORDER} — sfl.sh and ${CI_RUNNER} run only pre and post rows, so this gate runs in neither, and nothing else reports it missing" ;;
-  esac
-  case "${gate_class:-}" in
-    ''|secret-class) ;;
-    *) fail "'${label}' declares class '${gate_class}' in ${ORDER} — sfl.sh and ${CI_RUNNER} understand only secret-class, so this row is an ordinary red in both, which is not what was declared" ;;
-  esac
-done < "$ORDER"
+# The local cases define, and this file calls:
+#   gate_wiring_local_is_rerun        a file only they override is replaced
+#   gate_wiring_local_original <var>  prints the file their override <var>
+#                                     replaces (none: nothing, status 1)
+#   gate_wiring_local_fixture <base>  status 0 when they judged that fixture
+#                                     themselves, 1 for the default (a row)
+#   gate_wiring_local_script <base>   status 0 when <base> is a declared
+#                                     exemption they judged, 1 for the
+#                                     default (a row, else red)
+#   gate_wiring_local_pins            their pins, after both loops
+#   gate_wiring_local_proofs          their mutation proofs (top level only)
+if [[ ! -f "$LOCAL_CASES" ]]; then
+  echo "❌ FAIL: ${LOCAL_CASES} is missing — this repository's exemption arms and pins have no home, so the check cannot judge its scripts" >&2
+  exit 1
+fi
+# shellcheck source=Scripts/gate_wiring_local_cases.sh
+source "$LOCAL_CASES"
 
-if [[ "$n_rows" -eq 0 ]]; then
-  fail "no runnable row found in ${ORDER} — the parse is broken, so this check verified nothing"
+# --- The fixtures ----------------------------------------------------------
+#
+# CI runs a fixture through run_ci_phase.sh, which reads the same order file; a
+# fixture declared there is therefore run by both runners.
+n_fixture=0
+for path in Scripts/test_*.sh; do
+  [[ -f "$path" ]] || continue
+  base="$(basename "$path")"
+  n_fixture=$((n_fixture + 1))
+  gate_wiring_local_fixture "$base" && continue
+  sfl_runs "$base" \
+    || fail "${base} is not declared in ${ORDER}, which is what sfl runs and what CI's loop runs — it passes nowhere but the file system"
+done
+
+if [[ "$n_fixture" -eq 0 ]]; then
+  fail "no Scripts/test_*.sh matched — the glob is broken, so this check verified nothing"
 fi
 
-# --- 1b. THE GATE COUNT IS A RATCHET: gates go up, never down -----------------
+# --- The scripts outside the fixtures ----------------------------------------
 #
-# THE VERDICT (canon v13, the ruling on decision 81, taken over in forsgren#689):
+# DECLARED EXEMPTIONS are the local cases' arms. Each names WHY, so the list
+# reads as decisions rather than as the check being worn down, and each names
+# the runner or consumer the script must still be invoked by. Anything that is
+# neither declared nor exempt is a validator nobody runs.
+n_gate=0
+n_exempt=0
+for path in Scripts/*.sh; do
+  base="$(basename "$path")"
+  case "$base" in
+    test_*) continue ;;
+  esac
+
+  # THIS FILE'S OWN DATA, not a gate: the local cases are sourced by this
+  # check, by the name it holds, and never run alone.
+  if [[ "$base" == "$(basename "$LOCAL_CASES")" ]]; then
+    n_exempt=$((n_exempt + 1))
+    grep -qxF "LOCAL_CASES=\"Scripts/${base}\"" Scripts/test_gate_wiring.sh \
+      || fail "${base} holds this repository's arms and pins and Scripts/test_gate_wiring.sh never names it — a library nobody uses is a file"
+    continue
+  fi
+
+  if gate_wiring_local_script "$base"; then
+    n_exempt=$((n_exempt + 1))
+    continue
+  fi
+
+  n_gate=$((n_gate + 1))
+  sfl_runs "$base" \
+    || fail "${base} is a script no order-file row names and no declared exemption covers — a validator nobody runs is a file, not a gate"
+done
+
+if [[ "$n_gate" -eq 0 ]]; then
+  fail "no Scripts/*.sh is named by an order-file row — the glob or the parse is broken, so this check verified nothing"
+fi
+
+# --- The order file and the CI loop ------------------------------------------
+#
+# The one property kept from the retired label comparison (unit 409 step 3):
+# sfl dispatches every gate FROM the file, so a literal label at a call site
+# would decide that gate's position outside it.
+# Scripts/test_sfl_drives_from_order_file.sh pins the rest.
+if grep -qE 'run_gate[a-z_]* "[A-Za-z]' "$SFL"; then
+  fail "sfl.sh has gone back to naming a gate label literally — its position would then be decided at the call site rather than by ${ORDER}, which is the drift this check used to detect after the fact and unit 409 removed the possibility of"
+fi
+# CI reads the order file through the loop the local cases' pins require of
+# quality.yml.
+grep -qF 'gate_report_order.txt' Scripts/run_ci_phase.sh \
+  || fail "Scripts/run_ci_phase.sh does not read gate_report_order.txt — CI would report a different order from sfl"
+
+# --- The Node pin in sfl's pre-flight (estate issue 301 step 3-25) -----------
+#
+# The Node pin runs in sfl's pre-flight, after install_tools.sh (which may
+# install Node) and before npm_sync_install.sh (whose stamp records the Node
+# major). check_node_pin.sh is also a PRE row, but the pre-flight call is what
+# makes the install step see a wrong Node first, so it is pinned here.
+sfl_node_pin_problems() {
+  local file="$1" install pin sync
+  install="$(grep -nE '^\./Scripts/install_tools\.sh' "$file" | head -n 1 | cut -d: -f1 || true)"
+  pin="$(grep -nE '^\./Scripts/check_node_pin\.sh' "$file" | head -n 1 | cut -d: -f1 || true)"
+  sync="$(grep -nE '^\./Scripts/npm_sync_install\.sh' "$file" | head -n 1 | cut -d: -f1 || true)"
+  if [[ -z "$pin" ]]; then echo "sfl.sh never runs Scripts/check_node_pin.sh"; return; fi
+  if [[ -z "$install" || "$pin" -le "$install" ]]; then echo "sfl.sh runs check_node_pin.sh before install_tools.sh"; fi
+  if [[ -z "$sync" || "$pin" -ge "$sync" ]]; then echo "sfl.sh runs check_node_pin.sh after npm_sync_install.sh"; fi
+}
+problems="$(sfl_node_pin_problems "$SFL")"
+[[ -z "$problems" ]] || fail "sfl.sh's Node pin call is misplaced: ${problems}"
+_t="$(tmp_dir test_gate_wiring)" || exit 1
+sed -E 's#^\./Scripts/check_node_pin\.sh.*$#: skipped#' "$SFL" > "${_t}/nopin.sh"
+awk '/^\.\/Scripts\/check_node_pin\.sh/ { next } { print } /^\.\/Scripts\/npm_sync_install\.sh/ { print "./Scripts/check_node_pin.sh || exit 1" }' "$SFL" > "${_t}/late.sh"
+cmp -s "$SFL" "${_t}/nopin.sh" && fail "the no-node-pin mutation changed nothing — the Node pin check matches something other than the call"
+grep -qF 'never runs Scripts/check_node_pin.sh' <<< "$(sfl_node_pin_problems "${_t}/nopin.sh")" \
+  || fail "an sfl.sh without the Node pin call was accepted — the Node pin check does not guard it"
+grep -qF 'after npm_sync_install.sh' <<< "$(sfl_node_pin_problems "${_t}/late.sh")" \
+  || fail "an sfl.sh running the Node pin after the npm install was accepted — the Node pin check does not guard the order"
+rm -rf "$_t"
+
+# --- The baselines on the run page (estate issue 300) ------------------------
+#
+# Called by the local cases of a repository whose Quality run shows the
+# baselines: one step per gate, each by name, each `if: always()` (so it shows
+# when a gate is red), each calling Scripts/report_baselines.sh with its own
+# section: Language baselines, Browser baselines, Image baselines.
+baseline_step_problems() {
+  local wf="$1" pair name arg block
+  for pair in "Language baselines:language" "Browser baselines:browser" "Image baselines:image"; do
+    name="${pair%%:*}"
+    arg="${pair##*:}"
+    block="$(awk -v n="      - name: ${name}" '
+      $0 == n { on = 1; print; next }
+      on && /^      - / { exit }
+      on { print }
+    ' "$wf")"
+    if [[ -z "$block" ]]; then
+      echo "the workflow has no step named '${name}'"
+      continue
+    fi
+    grep -qE '^[[:space:]]+if: always\(\)[[:space:]]*$' <<< "$block" \
+      || echo "the step '${name}' is not 'if: always()', so it would vanish when a gate is red"
+    grep -qE "^[[:space:]]*\./Scripts/report_baselines\.sh ${arg}[[:space:]]*$" <<< "$(grep -vE '^[[:space:]]*#' <<< "$block")" \
+      || echo "the step '${name}' does not run ./Scripts/report_baselines.sh ${arg}"
+  done
+}
+# baseline_step_pin: the pin on quality.yml, and, at the top level, its
+# mutation proofs.
+baseline_step_pin() {
+  local problems _t
+  problems="$(baseline_step_problems "$CI")"
+  [[ -z "$problems" ]] || fail "quality.yml must show the baselines, one step per gate: ${problems}"
+  is_mutation_rerun && return 0
+  _t="$(tmp_dir test_gate_wiring)" || exit 1
+  sed -E 's#^      - name: Browser baselines$#      - name: Browser baselines (renamed)#' "$CI" > "${_t}/renamed.yml"
+  sed -E '/name: Image baselines/,$ s#^        if: always\(\)$#        if: success()#' "$CI" > "${_t}/notalways.yml"
+  sed -E 's#^( *)\./Scripts/report_baselines\.sh language$#\1: report_baselines.sh language#' "$CI" > "${_t}/nocall.yml"
+  cmp -s "$CI" "${_t}/renamed.yml" && fail "the renamed-step mutation changed nothing — the baseline steps pin matches something other than the step names"
+  cmp -s "$CI" "${_t}/notalways.yml" && fail "the not-always mutation changed nothing — the baseline steps pin matches something other than the condition"
+  cmp -s "$CI" "${_t}/nocall.yml" && fail "the no-call mutation changed nothing — the baseline steps pin matches something other than the call"
+  grep -qF "no step named 'Browser baselines'" <<< "$(baseline_step_problems "${_t}/renamed.yml")" \
+    || fail "a quality.yml without the Browser baselines step was accepted — the baseline steps pin does not guard the step names"
+  grep -qF "'Image baselines' is not 'if: always()'" <<< "$(baseline_step_problems "${_t}/notalways.yml")" \
+    || fail "a quality.yml whose Image baselines step is not always() was accepted — the baseline steps pin does not guard the condition"
+  grep -qF "does not run ./Scripts/report_baselines.sh language" <<< "$(baseline_step_problems "${_t}/nocall.yml")" \
+    || fail "a quality.yml whose Language baselines step does not call the report was accepted — the baseline steps pin does not guard the call"
+  rm -rf "$_t"
+}
+
+# --- This repository's own pins ----------------------------------------------
+gate_wiring_local_pins
+
+# --- FBP FIXES, CI ONLY CHECKS (estate issue 301 step 3-5) -------------------
+#
+# sfl.sh exports GATE_FIX=1 (the gates that can fix, fix under it); no workflow
+# may set it, or CI would change files instead of reporting what the commit
+# contains. Mutations built here: an sfl.sh without the export, and a workflow
+# copy that mentions GATE_FIX, must each be rejected. Not re-run inside a
+# mutation rerun, where sfl.sh is a deliberately mutated copy.
+fix_wiring_problems() {
+  local sfl="$1" wf="$2"
+  grep -qE '^export GATE_FIX=1$' "$sfl" || echo "sfl.sh does not export GATE_FIX=1"
+  if grep -rqF 'GATE_FIX' "$wf"; then echo "a workflow mentions GATE_FIX"; fi
+}
+if ! is_mutation_rerun; then
+  WF_DIR=".github/workflows"
+  problems="$(fix_wiring_problems "$SFL" "$WF_DIR")"
+  [[ -z "$problems" ]] || fail "FBP must fix and CI only check: ${problems}"
+  _t="$(tmp_dir test_gate_wiring)" || exit 1
+  grep -v '^export GATE_FIX=1$' "$SFL" > "${_t}/sfl.sh"
+  mkdir -p "${_t}/wf"
+  cp "$WF_DIR"/*.yml "${_t}/wf/"
+  printf '# GATE_FIX=1\n' >> "${_t}/wf/quality.yml"
+  if cmp -s "$SFL" "${_t}/sfl.sh"; then
+    fail "the no-export mutation changed nothing — the GATE_FIX pin matches something other than the export line"
+  elif ! grep -qF 'does not export' <<< "$(fix_wiring_problems "${_t}/sfl.sh" "$WF_DIR")"; then
+    fail "an sfl.sh without the GATE_FIX export was accepted — the GATE_FIX pin does not guard it"
+  fi
+  if ! grep -qF 'a workflow mentions' <<< "$(fix_wiring_problems "$SFL" "${_t}/wf")"; then
+    fail "a workflow that mentions GATE_FIX was accepted — the GATE_FIX pin does not guard CI staying check-only"
+  fi
+  rm -rf "$_t"
+fi
+
+# --- The gate count is a RATCHET: gates go up, never down --------------------
+#
+# THE VERDICT (canon v13, the ruling on decision 81):
 #   below MIN_GATES  red: a gate was removed;
 #   equal            green;
 #   above            green, with the warning "Raise MIN_GATES from X to Y",
 #                    Y the counted rows: in CI a warning annotation, which the
-#                    run's summary page lists (Scripts/run_ci_phase.sh echoes
-#                    every gate's output to the log), and a `⚠️ warn: ` line
-#                    in the gate's output. The warning never fails the run.
-#                    (sfl.sh's step table has no warn class for a gate that
-#                    passed, so locally the line is in the gate's log only:
-#                    the canon's "sfl warn row" does not exist in sfl.sh.)
+#                    run's summary page lists, and a `⚠️ warn: ` line in the
+#                    gate's output (a warn row where sfl.sh has one). The
+#                    warning never fails the run.
 # Why an annotation and not a line this check appends to $GITHUB_STEP_SUMMARY:
 # the step summary isolation gate runs this check (it names the summary
 # renderers) with the summary pointed at a decoy that must stay empty, so a
@@ -201,8 +347,8 @@ fi
 # not a positive whole number is red: a floor of 0 or of nothing measures
 # nothing.
 #
-# THE FLOOR FILE (canon v14, the 9 Nov part of the ruling on decision 81):
-# forsgren keeps its MIN_GATES, and the history of its raises, in
+# THE FLOOR FILE (canon v14, the 9 Nov part of the ruling on decision 81): each
+# repository keeps its MIN_GATES, and the history of its raises, in
 # Scripts/gate_wiring_floor.txt, so this file carries no repository value. The
 # value is the one line of that file that is neither blank nor a comment,
 # spaces around it ignored. A missing file is red, and so is a value that is
@@ -210,11 +356,12 @@ fi
 #
 # Yves, 2026-08-31: "so that gates can not go down, only up". Same rule as the
 # coverage ratchet and the duplication ceiling: raise MIN_GATES whenever a row
-# lands, never lower it to make a red go away. It counts the runnable rows of
-# the order file (n/a rows included: a declared absence is a row). It counts
-# rather than pinning the list, deliberately: swapping one gate for another
-# keeps the count and passes; the estate's gate-parity axis catches that from
-# outside, because the removed one reappears as missing against the canon.
+# lands, never lower it to make a red go away. It counts the rows of the order
+# file that are not comments (n/a rows included: a declared absence is a row).
+# It counts rather than pinning the list, deliberately: swapping one gate for
+# another keeps the count and passes; the named arms and the estate's
+# gate-parity axis catch that from outside, because the removed one reappears
+# as missing against the canon.
 #
 # Until canon v13 the self-proof below removed one row and required the count
 # to fall under the floor, so the floor had to track the count exactly. Since
@@ -251,7 +398,7 @@ gate_floor_verdict() {
 
 # gate_floor_warn <text>: the warning where each runner shows it: a
 # `⚠️ warn: ` line in the gate's output, and the `::warning` line, which the
-# CI runner (Scripts/run_ci_phase.sh echoes every gate's output) turns into an
+# CI runner (Scripts/run_ci_phase.sh prints every gate's output) turns into an
 # annotation on the run's summary page.
 gate_floor_warn() {
   echo "⚠️ warn: $1"
@@ -290,27 +437,25 @@ gate_floor_from_file() {
 }
 # FLOOR VERDICT END
 
-if [[ -f "$ORDER" ]]; then
-  declared="$(gate_count_of "$ORDER")"
-  gate_floor_from_file "$declared" "$GATE_FLOOR_FILE" || failed=1
-  MIN_GATES=""
-  if [[ -f "$GATE_FLOOR_FILE" ]]; then
-    MIN_GATES="$(gate_floor_of "$GATE_FLOOR_FILE")"
-  fi
+declared="$(gate_count_of "$ORDER")"
+gate_floor_from_file "$declared" "$GATE_FLOOR_FILE" || failed=1
+MIN_GATES=""
+if [[ -f "$GATE_FLOOR_FILE" ]]; then
+  MIN_GATES="$(gate_floor_of "$GATE_FLOOR_FILE")"
+fi
 
-  # Self-proof: the same verdict, against a copy of the order file shrunk to
-  # one row under the floor, MUST be red. Without this the ratchet would pass
-  # the moment it stopped reading the file, and could never be shown failing.
-  if [[ "$MIN_GATES" =~ ^[1-9][0-9]*$ && "$declared" -ge "$MIN_GATES" ]]; then
-    SHRUNK="$(tmp_file test_gate_wiring_shrunk)" || exit 1
-    grep -v '^#' "$ORDER" | grep . | tail -n +"$((declared - MIN_GATES + 2))" > "$SHRUNK"
-    if [[ "$(gate_count_of "$SHRUNK")" -ne "$((MIN_GATES - 1))" ]]; then
-      fail "the shrunk copy of ${ORDER} has $(gate_count_of "$SHRUNK") rows, not MIN_GATES - 1 = $((MIN_GATES - 1)) — the self-proof proves nothing"
-    elif gate_floor_verdict "$(gate_count_of "$SHRUNK")" "$MIN_GATES" > /dev/null; then
-      fail "the ratchet cannot detect a removed gate — it is measuring nothing"
-    fi
-    rm -f "$SHRUNK"
+# Self-proof: the same verdict, against a copy of the order file shrunk to
+# one row under the floor, MUST be red. Without this the ratchet would pass
+# the moment it stopped reading the file, and could never be shown failing.
+if [[ "$MIN_GATES" =~ ^[1-9][0-9]*$ && "$declared" -ge "$MIN_GATES" ]]; then
+  SHRUNK="$(tmp_file test_gate_wiring_shrunk)" || exit 1
+  grep -v '^#' "$ORDER" | grep . | tail -n +"$((declared - MIN_GATES + 2))" > "$SHRUNK"
+  if [[ "$(gate_count_of "$SHRUNK")" -ne "$((MIN_GATES - 1))" ]]; then
+    fail "the shrunk copy of ${ORDER} has $(gate_count_of "$SHRUNK") rows, not MIN_GATES - 1 = $((MIN_GATES - 1)) — the self-proof proves nothing"
+  elif gate_floor_verdict "$(gate_count_of "$SHRUNK")" "$MIN_GATES" > /dev/null; then
+    fail "the ratchet cannot detect a removed gate — it is measuring nothing"
   fi
+  rm -f "$SHRUNK"
 fi
 
 # The verdict's cases (the ruling on decision 81, the floor in a data file
@@ -410,825 +555,36 @@ if ! is_mutation_rerun; then
   rm -rf "$floor_tmp" "$floor_case_dir"
 fi
 
-# --- 1c. THE NODE PIN IN SFL'S PRE-FLIGHT (the sites' pin 1b, forsgren#689) --
+# --- Mutation proofs: a mention is not an invocation -------------------------
 #
-# The Node pin runs in sfl's pre-flight, after install_tools.sh (which may
-# install Node) and before npm_sync_install.sh (whose stamp records the Node
-# major). check_node_pin.sh is also a PRE row, but the pre-flight call is what
-# makes the install step see a wrong Node first, so it is pinned here.
-sfl_node_pin_problems() {
-  local file="$1" install pin sync
-  install="$(grep -nE '^\./Scripts/install_tools\.sh' "$file" | head -n 1 | cut -d: -f1 || true)"
-  pin="$(grep -nE '^\./Scripts/check_node_pin\.sh' "$file" | head -n 1 | cut -d: -f1 || true)"
-  sync="$(grep -nE '^\./Scripts/npm_sync_install\.sh' "$file" | head -n 1 | cut -d: -f1 || true)"
-  if [[ -z "$pin" ]]; then echo "sfl.sh never runs Scripts/check_node_pin.sh"; return; fi
-  if [[ -z "$install" || "$pin" -le "$install" ]]; then echo "sfl.sh runs check_node_pin.sh before install_tools.sh"; fi
-  if [[ -z "$sync" || "$pin" -ge "$sync" ]]; then echo "sfl.sh runs check_node_pin.sh after npm_sync_install.sh"; fi
-}
-problems="$(sfl_node_pin_problems "$SFL")"
-[[ -z "$problems" ]] || fail "sfl.sh's Node pin call is misplaced: ${problems}"
-_t="$(tmp_dir test_gate_wiring)" || exit 1
-sed -E 's#^\./Scripts/check_node_pin\.sh.*$#: skipped#' "$SFL" > "${_t}/nopin.sh"
-awk '/^\.\/Scripts\/check_node_pin\.sh/ { next } { print } /^\.\/Scripts\/npm_sync_install\.sh/ { print "./Scripts/check_node_pin.sh || exit 1" }' "$SFL" > "${_t}/late.sh"
-cmp -s "$SFL" "${_t}/nopin.sh" && fail "the no-node-pin mutation changed nothing — pin 1c matches something other than the call"
-grep -qF 'never runs Scripts/check_node_pin.sh' <<< "$(sfl_node_pin_problems "${_t}/nopin.sh")" \
-  || fail "an sfl.sh without the Node pin call was accepted — pin 1c does not guard it"
-grep -qF 'after npm_sync_install.sh' <<< "$(sfl_node_pin_problems "${_t}/late.sh")" \
-  || fail "an sfl.sh running the Node pin after the npm install was accepted — pin 1c does not guard the order"
-rm -rf "$_t"
-
-# --- 2. RUNNERS -------------------------------------------------------------
-#
-# first_line <file> <regex>: the number of the first line of <file> matching
-# <regex>, or nothing. Each regex below anchors the command at the start of
-# its line, so a comment or an echo naming it never matches.
-first_line() {
-  grep -nE "$2" "$1" | head -n 1 | cut -d: -f1 || true
-}
-
-BUILD_RE='^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*\./Scripts/build_site\.sh([[:space:]]|$)'
-
-# phases_in_order <runner-file> <pre-regex> <post-regex> <pre-what> <post-what>
-phases_in_order() {
-  local file="$1" pre_re="$2" post_re="$3" pre_what="$4" post_what="$5"
-  local pre build post
-  pre="$(first_line "$file" "$pre_re")"
-  build="$(first_line "$file" "$BUILD_RE")"
-  post="$(first_line "$file" "$post_re")"
-  [[ -n "$pre" ]] || fail "${file} never runs the PRE phase (${pre_what}) — every pre row of ${ORDER} goes unrun there"
-  [[ -n "$build" ]] || fail "${file} never runs ./Scripts/build_site.sh — the POST gates would read a site nobody built"
-  [[ -n "$post" ]] || fail "${file} never runs the POST phase (${post_what}) — every post row of ${ORDER} goes unrun there"
-  if [[ -n "$pre" && -n "$build" && -n "$post" ]]; then
-    if [[ "$pre" -lt "$build" && "$build" -lt "$post" ]]; then
-      echo "  ok: ${file} runs PRE (line ${pre}), the build (line ${build}) and POST (line ${post}), in that order"
-    else
-      fail "${file} runs PRE (line ${pre}), the build (line ${build}) and POST (line ${post}) out of order — PRE validates the inputs before the build, POST the site after it"
-    fi
-  fi
-}
-
-phases_in_order "$FBP" \
-  '^[[:space:]]*\./sfl\.sh pre([[:space:]]|$)' \
-  '^[[:space:]]*\./sfl\.sh post([[:space:]]|$)' \
-  "./sfl.sh pre" "./sfl.sh post"
-
-phases_in_order "$CI" \
-  '^[[:space:]]*\./Scripts/run_ci_phase\.sh pre[[:space:]]' \
-  '^[[:space:]]*\./Scripts/run_ci_phase\.sh post[[:space:]]' \
-  "./Scripts/run_ci_phase.sh pre" "./Scripts/run_ci_phase.sh post"
-
-# The two loops must read a row the same way. These are sfl.sh's own lines;
-# run_ci_phase.sh repeats them on purpose. If one changes, the other must,
-# and this says which line.
-#   - the read that keeps a last line with no trailing newline (a row with
-#     only a label counts as a last line too)
-#   - the n/a skip
-#   - the phase filter, after the row is validated
-#   - the validation: a malformed row (no label, no script, a script that is
-#     not a Scripts/<name>.sh path, a phase other than pre or post, an
-#     unknown class) is a red row in whichever phase runs, never skipped
-#   - the order file both read
-#
-# Each rule must be a whole line of each runner, indentation aside, so a
-# commented-out copy does not count. The rules come from a quoted heredoc:
-# they are shell text, compared as text, never expanded.
-while IFS= read -r rule; do
-  for runner in "$SFL" "$CI_RUNNER"; do
-    sed 's/^[[:space:]]*//' "$runner" | has -qxF -- "$rule" \
-      || fail "${runner} no longer has the row rule: ${rule} — sfl.sh and ${CI_RUNNER} read ${ORDER} with the same rules, so they run the same rows; change both or neither"
-  done
-done <<'RULES'
-while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:-}" ]; do
-[ "${script:-}" = "n/a" ] && continue
-[ "$phase" = "$PHASE" ] || continue
-bad="the row has no label"
-bad="the row names no script"
-*) bad="its script ${script} is not a Scripts/<name>.sh path" ;;
-*) bad="its phase '${phase:-}' is neither pre nor post, so no phase would ever run it" ;;
-*) bad="its class '${gate_class:-}' is neither empty nor secret-class" ;;
-RULES
-grep -qF 'done < Scripts/gate_report_order.txt' "$SFL" \
-  || fail "${SFL} no longer reads Scripts/gate_report_order.txt — sfl and CI must run the same rows"
-grep -qF 'ORDER="Scripts/gate_report_order.txt"' "$CI_RUNNER" \
-  || fail "${CI_RUNNER} no longer reads Scripts/gate_report_order.txt — sfl and CI must run the same rows"
-
-# --- 2b. THE BASELINES ON THE RUN PAGE (forsgren#220) -----------------------
-#
-# The baselines are shown on the Quality run page, one step per gate, each by
-# name, each `if: always()` (so it shows when a gate is red), each calling
-# Scripts/report_baselines.sh with its own section.
-baseline_step_problems() {
-  local wf="$1" pair name arg block
-  for pair in "Language baselines:language" "Browser baselines:browser" "Image baselines:image"; do
-    name="${pair%%:*}"
-    arg="${pair##*:}"
-    block="$(awk -v n="      - name: ${name}" '
-      $0 == n { on = 1; print; next }
-      on && /^      - / { exit }
-      on { print }
-    ' "$wf")"
-    if [[ -z "$block" ]]; then
-      echo "the workflow has no step named '${name}'"
-      continue
-    fi
-    grep -qE '^[[:space:]]+if: always\(\)[[:space:]]*$' <<< "$block" \
-      || echo "the step '${name}' is not 'if: always()', so it would vanish when a gate is red"
-    grep -vE '^[[:space:]]*#' <<< "$block" | has -qE "^[[:space:]]*\./Scripts/report_baselines\.sh ${arg}[[:space:]]*$" \
-      || echo "the step '${name}' does not run ./Scripts/report_baselines.sh ${arg}"
-  done
-}
-problems="$(baseline_step_problems "$CI")"
-[[ -z "$problems" ]] || fail "quality.yml must show the baselines, one step per gate: ${problems}"
-
-# --- 3. SCRIPTS OUTSIDE THE ORDER FILE --------------------------------------
-n_gate=0
-n_exempt=0
-
-for path in Scripts/*.sh; do
-  base="$(basename "$path")"
-
-  case "$base" in
-    test_*) continue ;;
-  esac
-
-  if order_names "$base"; then
-    n_gate=$((n_gate + 1))
-    continue
-  fi
-
-  n_exempt=$((n_exempt + 1))
-
-  # DECLARED EXEMPTIONS. Each names WHY, so the list reads as decisions
-  # rather than as the check being worn down. Adding one without a reason is
-  # how a wiring check stops meaning anything.
-  case "$base" in
-    # BUILD BOUNDARY, not a gate. Part 2 checks where both runners call it;
-    # this checks that each call is a real one.
-    build_site.sh)
-      runs_script "$FBP" "$base" \
-        || fail "${base} is the local build boundary and ${FBP} never invokes it"
-      runs_script "$CI" "$base" \
-        || fail "${base} is the CI build boundary and ${CI} never invokes it"
-      ;;
-
-    # CI's gate loop: quality.yml runs it once per phase. Its tests are
-    # part 4 of this file.
-    run_ci_phase.sh)
-      runs_script "$CI" "$base" \
-        || fail "${base} is CI's gate loop and ${CI} never invokes it — no gate would run in CI at all"
-      ;;
-
-    # PRESENTATION, not a gate. It renders CI's step summary from the rows
-    # and details run_ci_phase.sh writes. Required in the runner that uses
-    # it, AND required to have a fixture: a presentation script that breaks
-    # makes the report lie, and nothing else is watching it.
-    render_quality_report.sh)
-      runs_script "$CI" "$base" \
-        || fail "${base} renders CI's step summary and CI never invokes it — a renderer nobody calls is a file, not a report"
-      require_fixture "$base"
-      ;;
-
-    # PRESENTATION, not a gate (forsgren#220): it renders the baseline data
-    # files as markdown tables on CI's run page, one Quality step per gate
-    # (pin 2b below). Same terms as the report renderer: CI must call it and it
-    # must have a fixture.
-    report_baselines.sh)
-      runs_script "$CI" "$base" \
-        || fail "${base} renders the baselines on CI's run page and ${CI} never invokes it — a renderer nobody calls is a file, not a report"
-      require_fixture "$base"
-      ;;
-
-    # THE CANON LANGUAGE GATE (forsgren#220): the order file runs it through
-    # Scripts/gate_language_pages.sh, which puts the metrics site and the
-    # starter page in one directory (a row names a script, not a command
-    # line). The wrapper must still call it, and it must keep its fixture.
-    gate_language.sh)
-      runs_script "Scripts/gate_language_pages.sh" "$base" \
-        || fail "${base} is the language gate and Scripts/gate_language_pages.sh, the row that runs it, never invokes it"
-      require_fixture "$base"
-      ;;
-
-    # BUILD HELPER, not a gate (forsgren#226): it renders the site from the
-    # made-up fixture, which the browser gate opens as its data site. The gate
-    # (a row of its own) must still build it. Its fixture is cases 20 to 30 of
-    # test_build_site.sh, a row of its own, not a test_build_fixture_site.sh.
-    build_fixture_site.sh)
-      runs_script "Scripts/gate_browser_fixture.sh" "$base" \
-        || fail "${base} renders the data site and Scripts/gate_browser_fixture.sh, the row that opens it, never invokes it — the History, Daily and Issues pages would not be opened"
-      ;;
-
-    # PRESENTATION, not a gate (forsgren#259): it hands over each Quality
-    # job's rows and details and merges them into the one report the renderers
-    # read, and judges the run's status from the jobs' results. CI must call
-    # it and it must have a fixture, as for the renderers.
-    merge_quality_report.sh)
-      runs_script "$CI" "$base" \
-        || fail "${base} merges the Quality jobs' reports and ${CI} never invokes it — each job's gates would be missing from the report"
-      require_fixture "$base"
-      ;;
-
-    # PRE-FLIGHT, not a gate (forsgren#686): it lists the self-test rows, the
-    # rows of selftests.yml's jobs, which sfl.sh skips locally by default. sfl
-    # must call it (or every self-test would run locally again, or none), and
-    # its self-test, Scripts/test_sfl_selftest_skip.sh, must be a row.
-    selftest_rows.sh)
-      runs_script "$SFL" "$base" \
-        || fail "${base} lists the self-test rows sfl.sh skips and ${SFL} never invokes it — the local run would not run what Quality runs"
-      order_names "test_sfl_selftest_skip.sh" \
-        || fail "Scripts/test_sfl_selftest_skip.sh is not an order-file row — the self-test list sfl relies on would go unproven"
-      ;;
-
-    # SELF-TESTS WORKFLOW STEP, not a gate (forsgren#686): it opens the one
-    # issue of a red Self-tests run on main. The failure_issue job of
-    # selftests.yml runs it, and its self-test,
-    # Scripts/test_selftests_failure_issue.sh, must be a row.
-    open_selftests_failure_issue.sh)
-      runs_script ".github/workflows/selftests.yml" "$base" \
-        || fail "${base} opens the issue of a red Self-tests run and selftests.yml never invokes it — a red self-test on main would be seen by nobody"
-      order_names "test_selftests_failure_issue.sh" \
-        || fail "Scripts/test_selftests_failure_issue.sh is not an order-file row — the failure issue would go unproven"
-      ;;
-
-    # PRESENTATION, not a gate (forsgren#8): the run's key numbers, rendered
-    # above the gate report in CI's step summary from what the run wrote.
-    # Same two requirements as the report renderer, for the same reason.
-    render_quality_summary.sh)
-      runs_script "$CI" "$base" \
-        || fail "${base} renders the run summary at the top of CI's step summary and CI never invokes it — a renderer nobody calls is a file, not a summary"
-      require_fixture "$base"
-      ;;
-
-    # PRE-FLIGHT, not a gate: it prints go.mod's toolchain line, which sfl,
-    # FBP and CI each export as GOTOOLCHAIN before any Go runs. A runner
-    # that stops calling it runs whatever Go the machine has.
-    go_toolchain.sh)
-      runs_script "$SFL" "$base" \
-        || fail "${base} pins Go and ${SFL} never invokes it — sfl's gates would run whatever Go this machine has"
-      runs_script "$FBP" "$base" \
-        || fail "${base} pins Go and ${FBP} never invokes it — FBP's gofmt and build would run whatever Go this machine has"
-      runs_script "$CI" "$base" \
-        || fail "${base} pins Go and ${CI} never invokes it — CI's gates would run whatever Go the runner has"
-      require_fixture "$base" "the pin would be untested"
-      ;;
-
-    # PRE-FLIGHT, not a gate (konenki unit 414): it installs the tools the
-    # gates need, in sfl AND in CI. CI runs on GitHub's macos-latest, a
-    # fresh machine per run with none of forsgren's tools (forsgren#1, the
-    # runner swap), so without the installer there every gate needing one
-    # would be red with `command not found`. Required to carry a fixture: an
-    # installer that silently stops installing leaves every gate reading
-    # whatever is on the machine.
-    install_tools.sh)
-      runs_script "$SFL" "$base" \
-        || fail "${base} installs the tools the gates need and sfl never invokes it — the gates then run against whatever this machine happens to have"
-      runs_script "$CI" "$base" \
-        || fail "${base} installs the tools the gates need and ${CI} never invokes it — on a fresh hosted runner every gate needing a Homebrew tool would fail with command not found"
-      require_fixture "$base" "an installer with no fixture fails by leaving a machine looking correctly configured"
-      ;;
-
-    # THE LINUX PATH OF THE INSTALLER (forsgren#427), not a gate: forsgren's
-    # own. The Linux jobs of quality.yml run it, in their Install tools step
-    # (the estate's install_tools.sh stays byte-identical). Its own fixture
-    # runs as a row of the order file.
-    install_tools_linux.sh)
-      runs_script "$CI" "$base" \
-        || fail "${base} installs the pinned Linux tools and ${CI} never invokes it — \
-the Lint gates job would have no way to install a tool"
-      require_fixture "$base" "an installer with no fixture fails by leaving a machine looking correctly configured"
-      ;;
-
-    # READER, not a gate (forsgren#2): it prints the Node major pinned in
-    # .nvmrc for check_node_pin.sh, the gate (a row of its own), which must
-    # still call it, and for CI's setup-node step later. Fixture required.
-    node_pin.sh)
-      runs_script "Scripts/check_node_pin.sh" "$base" \
-        || fail "${base} reads the Node pin and Scripts/check_node_pin.sh never invokes it — the gate would not read .nvmrc"
-      require_fixture "$base" "a pin reader with no fixture can print the wrong major and nothing would notice"
-      ;;
-
-    # PRE-FLIGHT, not a gate (forsgren#2): sfl's npm install step. It runs
-    # `npm ci` when node_modules is missing or older than the lockfile. CI
-    # checks out a fresh tree and runs `npm ci` itself, so only sfl calls it.
-    npm_sync_install.sh)
-      runs_script "$SFL" "$base" \
-        || fail "${base} reinstalls node_modules on a lockfile change and ${SFL} never invokes it — sfl would run the old node_modules after a lockfile bump"
-      require_fixture "$base" "an install step with no fixture can skip the install and nothing would notice"
-      ;;
-
-    # PRE-FLIGHT SYNCHRONISATION, not a gate. sfl sources it before PRE so
-    # the run starts from the latest upstream state: a fast-forward, or a
-    # rebase over incoming commits on other files (forsgren#283, step 2). CI
-    # checks out the exact commit it evaluates and must not pull another.
-    sfl_pull.sh)
-      runs_script "$SFL" "$base" \
-        || fail "${base} provides sfl's opening pull and sfl never sources it"
-      require_fixture "$base" "the pull contract would be untested"
-      ;;
-
-    # PRESENTATION, not a gate: sfl's end-of-run block. CI builds its report
-    # from the rows and details instead.
-    summarize_gate_failure.sh|render_step_table.sh)
-      runs_script "$SFL" "$base" \
-        || fail "${base} renders part of sfl's end-of-run output and sfl never invokes it — a renderer nobody calls is a file, not a report"
-      require_fixture "$base" "a presentation script with no fixture fails silently, because nothing else reads its output closely enough to notice"
-      ;;
-
-    # SOURCED HELPER, not a gate (konenki issue #14): the throwaway FBP
-    # sandbox both FBP fixtures drive. They are its test, and both must
-    # still source it.
-    lib_fbp_sandbox.sh)
-      for consumer in test_fbp_commit_message.sh test_fbp_build_pagecount.sh test_fbp_aborted.sh; do
-        runs_script "Scripts/${consumer}" "$base" \
-          || fail "${base} holds the shared FBP sandbox and Scripts/${consumer} never sources it"
-      done
-      ;;
-
-    # SOURCED HELPER, not a gate (forsgren#228): unsets the variables by which
-    # git locates a repository. Scripts/test_git_sandbox_guard.sh is its test
-    # and holds that every git-using self-test sources it; this guards the
-    # other way, that the guard itself does.
-    lib_git_sandbox.sh)
-      runs_script "Scripts/test_git_sandbox_guard.sh" "$base" \
-        || fail "${base} isolates the self-tests from an exported GIT_DIR and Scripts/test_git_sandbox_guard.sh never sources it"
-      ;;
-
-    # SOURCED HELPER, not a gate (forsgren#446): deals the git sandbox isolation
-    # self-tests to the shards by their weights. The isolation gate runs the
-    # shards, and its scope self-test sources it to hold the balance.
-    lib_isolation_shard.sh)
-      for consumer in test_git_sandbox_isolation.sh test_git_sandbox_isolation_scope.sh; do
-        runs_script "Scripts/${consumer}" "$base" \
-          || fail "${base} deals the isolation shards and Scripts/${consumer} never sources it"
-      done
-      ;;
-
-    # SOURCED HELPER, not a gate (forsgren#569): starts the isolation shards side
-    # by side locally. The isolation gate runs them, and its scope self-test
-    # sources it to prove the concurrency and the failed and missing shard.
-    lib_isolation_local.sh)
-      for consumer in test_git_sandbox_isolation.sh test_git_sandbox_isolation_scope.sh; do
-        runs_script "Scripts/${consumer}" "$base" \
-          || fail "${base} starts the local isolation shards and Scripts/${consumer} never sources it"
-      done
-      ;;
-
-    # SOURCED HELPER, not a gate (forsgren#262): the changed files, the script
-    # closure and gate_select. Scripts/test_gate_select.sh is its test, and the
-    # inputs self-test and the git sandbox isolation gate are the other two
-    # that must source it, as no copy of its functions is left in them.
-    lib_gate_select.sh)
-      for consumer in test_gate_select.sh test_gate_inputs.sh test_git_sandbox_isolation.sh; do
-        runs_script "Scripts/${consumer}" "$base" \
-          || fail "${base} holds the gate selection and Scripts/${consumer} never sources it"
-      done
-      ;;
-
-    # SOURCED HELPER, not a gate (forsgren#264): the scripts that write the step
-    # summary and the self-tests that name them. The step summary isolation gate
-    # and the inputs self-test must source it, so the two find the same files.
-    lib_summary_writers.sh)
-      for consumer in test_step_summary_isolation.sh test_gate_inputs.sh; do
-        runs_script "Scripts/${consumer}" "$base" \
-          || fail "${base} finds the step summary writers and Scripts/${consumer} never sources it"
-      done
-      ;;
-
-    # SOURCED HELPER, not a gate (konenki issue #18): runs_script, the one
-    # definition of what counts as running a script. Its test is the matcher
-    # self-proof in part 5 of this file, which sources it.
-    lib_runs_script.sh)
-      runs_script "Scripts/test_gate_wiring.sh" "$base" \
-        || fail "${base} holds runs_script and Scripts/test_gate_wiring.sh never sources it"
-      ;;
-
-    # SOURCED HELPER, not a gate (forsgren#1, ladder step 24): the harness of
-    # forsgren's own self-tests. Every self-test that calls selftest_begin
-    # is its test, and must source it; one that stopped would die at its
-    # first case, so this guards the other way: a lib no self-test uses is a
-    # file, not a harness.
-    lib_selftest.sh)
-      selftest_users="$(grep -l '^selftest_begin ' Scripts/test_*.sh || true)"
-      [[ -n "$selftest_users" ]] \
-        || fail "${base} holds the self-test harness and no Scripts/test_*.sh calls selftest_begin — a harness nobody uses is a file"
-      for consumer in $selftest_users; do
-        runs_script "$consumer" "$base" \
-          || fail "${base} holds selftest_begin and ${consumer} calls it without sourcing ${base}"
-      done
-      ;;
-
-    # SOURCED HELPER, not a gate (forsgren#52, refactor): the private-names
-    # list parsing the gate and the secret sync share. Their self-tests are
-    # its test, and both must still source it.
-    lib_private_names.sh)
-      for consumer in check_private_names.sh sync_private_names_secrets.sh; do
-        runs_script "Scripts/${consumer}" "$base" \
-          || fail "${base} holds the private-names list parsing and Scripts/${consumer} never sources it"
-      done
-      ;;
-
-    # SOURCED HELPER, not a gate (forsgren#204): the one listing of the
-    # files a gate judges, tracked plus untracked and not ignored. The
-    # self-tests of the five gates that source it are its test, and all five
-    # must still source it (a plain grep: the data guard's mutants source it
-    # from beside them, so the path is not always Scripts/<name>).
-    lib_repo_files.sh)
-      for consumer in check_shellcheck.sh check_yamllint.sh check_markdown_links.sh check_guardrail_packages.sh check_data_guard.sh; do
-        grep -qE '^source .*lib_repo_files\.sh"?$' "Scripts/${consumer}" \
-          || fail "${base} holds the file listing and Scripts/${consumer} never sources it"
-      done
-      ;;
-
-    # SOURCED HELPER, not a gate (forsgren#287): the GitHub API call of the
-    # DCO workflow's two listings, asked once more when it fails. Their
-    # self-tests are its test; both must still source it, and both jobs of
-    # dco.yml must check it out beside them, or the sparse checkout would
-    # leave the push check and the pull request listing without it.
-    lib_dco_api.sh)
-      for consumer in dco_push_check.sh dco_pr_commits.sh; do
-        grep -qE '^source .*lib_dco_api\.sh"?$' "Scripts/${consumer}" \
-          || fail "${base} holds the DCO scripts' API call and Scripts/${consumer} never sources it"
-      done
-      [[ "$(grep -cE '^[[:space:]]+Scripts/lib_dco_api\.sh$' "$DCO_WF")" -eq 2 ]] \
-        || fail "${base} is sourced by the DCO listings and ${DCO_WF} does not check it out in both jobs — the job would stop on a missing file"
-      ;;
-
-    # SOURCED HELPER, not a gate (forsgren#59, refactor): the awk readers of
-    # a workflow file the pins of the reusable workflows share. Those pins
-    # are its test, and each must still source it.
-    lib_workflow_steps.sh)
-      for consumer in test_metrics_workflow.sh test_auto_update_workflow.sh test_dependabot_merge_policy_workflow.sh; do
-        runs_script "Scripts/${consumer}" "$base" \
-          || fail "${base} holds the workflow readers and Scripts/${consumer} never sources it"
-      done
-      ;;
-
-    # DCO WORKFLOW CHECK, not a gate of sfl or Quality (road to public,
-    # step 4): every commit of a pull request, and of a push to main
-    # (forsgren#81), carries a DCO sign-off from its author. It judges the
-    # commits a pull request or a push brings, which neither runner has;
-    # .github/workflows/dco.yml runs it, on a GitHub-hosted runner, and its
-    # self-test is an order-file row, so sfl and Quality still prove it.
-    check_dco.sh)
-      runs_script "$DCO_WF" "$base" \
-        || fail "${base} checks a pull request's sign-offs and ${DCO_WF} never invokes it — no pull request would be checked"
-      require_fixture "$base" "the sign-off check would wave commits through unproven"
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the check dco.yml relies on"
-      ;;
-
-    # THE LIVE CHECK, not a local gate (forsgren#205, step 2 of 2): it checks
-    # the DEPLOYED forsgren.be with curl, so only the live-check job of
-    # .github/workflows/starter_page.yml can run it, after a deploy. Its
-    # self-test (stub curl, no network) is an order-file row, so sfl and
-    # Quality still prove it.
-    live_check.sh)
-      runs_script "$STARTER_WF" "$base" \
-        || fail "${base} checks the live site after a deploy and ${STARTER_WF} never invokes it — nothing would check forsgren.be"
-      require_fixture "$base" "the live check would be unproven"
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the check starter_page.yml runs"
-      ;;
-
-    # THE PREVIEW DISPATCH, not a local gate (forsgren#222): it starts the
-    # preview repository's deploy through the GitHub API with a token only
-    # CI holds, so only the preview job of .github/workflows/quality.yml can run it,
-    # after a push to main and Quality green. Its self-test (stub curl, no network) is an order-file
-    # row, so sfl and Quality still prove it.
-    dispatch_preview.sh)
-      runs_script "$CI" "$base" \
-        || fail "${base} starts the preview deploy and ${CI} never invokes it — no push would start a preview"
-      require_fixture "$base" "the preview start would be unproven"
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the script the preview job runs"
-      ;;
-
-    # THE RELEASE SCRIPTS, not gates (forsgren#221): the Release workflow
-    # (.github/workflows/release.yml) runs each of them, and its own pin
-    # (Scripts/test_release_workflow.sh) holds the order and the arguments.
-    # Their self-tests are order-file rows, so sfl and Quality prove them.
-    # A script the workflow never calls would be a release step nobody runs.
-    release_plan.sh|release_quality.sh|release_publish.sh|release_pins.sh|release_report.sh|release_resume.sh|release_token_expiry.sh|release_metrics.sh|release_verify_install.sh)
-      runs_script "$RELEASE_WF" "$base" \
-        || fail "${base} is a step of the release and ${RELEASE_WF} never invokes it — that step would be done by hand"
-      require_fixture "$base" "the release step would be unproven"
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
-      ;;
-
-    # THE TOKEN EXPIRY PROBE (forsgren#269), not a gate: the weekly workflow
-    # runs it; its self-test, an order-file row, also pins that workflow.
-    probe_token_expiry.sh)
-      runs_script ".github/workflows/token_expiry_probe.yml" "$base" \
-        || fail "${base} is the step of the token expiry probe and its workflow never invokes it — no token would be probed"
-      require_fixture "$base" "the token expiry probe would be unproven"
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
-      ;;
-
-    # THE DEPENDABOT MERGE POLICY (forsgren#664), not gates: the reusable merge
-    # workflow (forsgren#666), which installations and this repository's own
-    # dependabot_merge.yml call, runs both on Dependabot pull requests; their
-    # self-tests, order-file rows, also pin the caller and its config, and
-    # Scripts/test_dependabot_merge_policy_workflow.sh pins the called file.
-    dependabot_merge_policy.sh|dependabot_pr_comment.sh)
-      runs_script ".github/workflows/dependabot_merge_policy.yml" "$base" \
-        || fail "${base} is a step of the reusable Dependabot merge workflow and it never invokes it — no Dependabot pull request would be judged"
-      require_fixture "$base" "the Dependabot merge policy would be unproven"
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
-      ;;
-
-    # THE AGENT PROOF CHECK (forsgren#237, step 5b): a major release needs a
-    # proof run of every agent file on the new major. The plan decides the
-    # bump, so release_plan.sh, not the workflow, must invoke it.
-    release_agent_proofs.sh)
-      runs_script "Scripts/release_plan.sh" "$base" \
-        || fail "${base} holds a major release to the agent proofs and Scripts/release_plan.sh never invokes it — a major could be planned on unproved agent files"
-      require_fixture "$base" "the agent proof check would be unproven"
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
-      ;;
-
-    # THE PIN CHECK of the Release workflow's metrics step (forsgren#221, step 5):
-    # release_metrics.sh runs it on the pull request's files before it merges
-    # anything, so that script, not the workflow, must invoke it.
-    release_verify_pin.sh)
-      runs_script "Scripts/release_metrics.sh" "$base" \
-        || fail "${base} reads a pin pull request and Scripts/release_metrics.sh never invokes it — a pull request would be merged unread"
-      require_fixture "$base" "the pin check would be unproven"
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
-      ;;
-
-    # COMMIT MESSAGE CHECK, not a gate of sfl or Quality (forsgren#213): the
-    # private-names matcher on the message of every commit a pull request or
-    # a push brings. It judges commits neither runner has, so the second job
-    # of .github/workflows/dco.yml runs it, and its self-test is an
-    # order-file row, so sfl and Quality still prove it.
-    check_commit_messages.sh)
-      runs_script "$DCO_WF" "$base" \
-        || fail "${base} checks the private names in commit messages and ${DCO_WF} never invokes it — no commit message would be checked"
-      require_fixture "$base" "the commit message check would wave commits through unproven"
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the check dco.yml relies on"
-      ;;
-
-    # HELPER OF THE DCO CHECK AND THE COMMIT MESSAGE CHECK, not a gate
-    # (forsgren#213): lists a pull request's commits through gh, for both
-    # jobs of dco.yml. Scripts/test_check_commit_messages.sh, an order-file
-    # row, is its test and must still run it.
-    dco_pr_commits.sh)
-      runs_script "Scripts/test_check_commit_messages.sh" "$base" \
-        || fail "${base} lists a pull request's commits and Scripts/test_check_commit_messages.sh never runs it — the listing would be unproven"
-      runs_script "$DCO_WF" "$base" \
-        || fail "${base} lists a pull request's commits and ${DCO_WF} never invokes it — a pull request would not be checked"
-      ;;
-
-    # HELPER OF THE DCO CHECK, not a gate (forsgren#81): lists the commits of
-    # a push in check_dco.sh's input shape. Scripts/test_check_dco.sh, an
-    # order-file row, is its test and must still run it; dco.yml runs it on
-    # a push to main, and must trigger on one.
-    dco_push_commits.sh)
-      runs_script "Scripts/test_check_dco.sh" "$base" \
-        || fail "${base} lists a push's commits for the DCO check and Scripts/test_check_dco.sh never runs it — the listing would be unproven"
-      runs_script "$DCO_WF" "$base" \
-        || fail "${base} lists a push's commits for the DCO check and ${DCO_WF} never invokes it — a push to main would not be checked"
-      awk '/^  push:/ { p = 1; next } /^  [A-Za-z_]+:/ { p = 0 } p && /branches:.*"main"/ { f = 1 } END { exit !f }' "$DCO_WF" \
-        || fail "${DCO_WF} has no push trigger on main — ${base} would list commits nobody checks"
-      # forsgren#213: the commit message check lists a push with --fresh, so
-      # a new branch or a before the checkout lacks is never listed as its
-      # head commit alone, nor as nothing.
-      grep -qE '^[[:space:]]*\./Scripts/dco_push_commits\.sh --fresh ' "$DCO_WF" \
-        || fail "${DCO_WF} never lists a push with ${base} --fresh — a new branch or a force-push would be checked on its head commit alone"
-      ;;
-
-    # HELPER OF THE DCO CHECK (forsgren#267): the push path's judge, which
-    # leaves a merged pull request's commits to its own DCO run and hands every
-    # other commit to check_dco.sh. Scripts/test_check_dco.sh, an order-file
-    # row, is its test and must still run it; dco.yml runs it on a push.
-    dco_push_check.sh)
-      runs_script "Scripts/test_check_dco.sh" "$base" \
-        || fail "${base} judges a push for the DCO check and Scripts/test_check_dco.sh never runs it — the push check would be unproven"
-      runs_script "$DCO_WF" "$base" \
-        || fail "${base} judges a push for the DCO check and ${DCO_WF} never invokes it — a push to main would not be checked"
-      ;;
-
-    # HAND-RUN BY THE LOOP, never by sfl or a workflow: a thin exec wrapper
-    # around FBP.sh under the agent-Friend identity. Requiring a runner to
-    # invoke it would mean FBP invoking itself. CLAUDE.md declares it.
-    fbp_agent_friend.sh)
-      grep -qF 'Scripts/fbp_agent_friend.sh' CLAUDE.md \
-        || fail "${base} is run by hand and CLAUDE.md no longer declares it — an undeclared script nobody runs is a file, not a tool"
-      ;;
-
-    # HAND-RUN, not a gate (forsgren#52): run by hand to sync the private-names
-    # list into the FORSGREN_PRIVATE_NAMES Actions and Dependabot secrets. No
-    # runner invokes it (it needs the maintainer's gh login), so it must carry
-    # a fixture, and that fixture must be an order-file row.
-    sync_private_names_secrets.sh)
-      require_fixture "$base" "the secret sync would be untested"
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the secret sync"
-      ;;
-
-    # FBP'S REFUSED PUSH, not a gate (forsgren#283, step 1 of 2): FBP.sh runs
-    # it when its final push is refused (rebase over incoming commits on other
-    # files, or stop). CI never pushes, so only FBP runs it. It must carry a
-    # fixture, and that fixture must be an order-file row.
-    fbp_push_or_rebase.sh)
-      runs_script "$FBP" "$base" \
-        || fail "${base} handles a refused push and ${FBP} never invokes it — a push refused because the remote moved would stop the run again"
-      require_fixture "$base" "the rebase on a refused push would be untested"
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the refused-push handling"
-      ;;
-
-    # LOCAL PRE-FLIGHT, not a gate (forsgren#52): FBP.sh calls it before the
-    # PRE gates to create an empty private-names list when none is given. CI
-    # never runs FBP.sh, so CI stays strict. It must carry a fixture, and that
-    # fixture must be an order-file row.
-    ensure_private_names_file.sh)
-      runs_script "$FBP" "$base" \
-        || fail "${base} exists and FBP.sh never runs it — a contributor without the list could not run FBP"
-      require_fixture "$base" "the local list creation would be untested"
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the local list creation"
-      ;;
-
-    # SOURCE CSS FIX, not a gate (forsgren#215): FBP.sh runs it, with
-    # GATE_FIX=1, on the source internal/page/styles.css before the build.
-    # CI never runs it (it only checks), so no workflow may name it. Its
-    # self-test is an order-file row, so sfl and Quality prove it.
-    fix_source_css.sh)
-      runs_script "$FBP" "$base" \
-        || fail "${base} fixes the source CSS and ${FBP} never invokes it — the generated stylesheet would be fixed too late or not at all"
-      if grep -rqF "$base" .github/workflows; then
-        fail "a workflow names ${base} — CI only checks and must never fix the source CSS"
-      fi
-      require_fixture "$base" "the source CSS fix would be untested"
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the source CSS fix"
-      ;;
-
-    # SOURCED HELPER, not a gate (estate canon): the one reader of
-    # Scripts/site_settings.txt. The gates that need a per-repository value
-    # source it; its self-test is an order-file row, and the gates below must
-    # still source it.
-    lib_site_settings.sh)
-      for consumer in gate_htmlhint.sh gate_stylelint.sh check_lint_coverage.sh check_html_dupl.sh validate_required_pages.sh check_privacy_posture.sh; do
-        grep -qE '^[[:space:]]*source .*lib_site_settings\.sh"?$' "Scripts/${consumer}" \
-          || fail "${base} holds the settings reader and Scripts/${consumer} never sources it"
-      done
-      order_names "test_lib_site_settings.sh" \
-        || fail "Scripts/test_lib_site_settings.sh is not an order-file row — the settings reader would be unproven"
-      ;;
-
-    # SOURCED HELPER, not a gate (forsgren#216): how the four Go-tool gates
-    # resolve and run their go.mod-pinned tool. Each must still source it, and
-    # its self-test is an order-file row.
-    lib_go_tool.sh)
-      for consumer in check_govulncheck.sh check_deadcode.sh check_go_lint.sh check_test_dupl.sh; do
-        grep -qE '^source .*lib_go_tool\.sh"?$' "Scripts/${consumer}" \
-          || fail "${base} holds the Go tool resolver and Scripts/${consumer} never sources it"
-      done
-      order_names "test_lib_go_tool.sh" \
-        || fail "Scripts/test_lib_go_tool.sh is not an order-file row — the Go tool resolver would be unproven"
-      ;;
-
-    # WRITER/MAINTAINER TOOL, not a gate (forsgren#231, step 3): the read-only
-    # check before a Release starts. It runs release_plan.sh and
-    # release_report.sh, which the Release workflow runs too. A fixture,
-    # and its self-test is an order-file row.
-    release_precheck.sh | release_check.sh)
-      require_fixture "$base" "the release pre-check would be unproven"
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the release pre-check"
-      ;;
-
-    # GENERATOR, not a gate (forsgren#219): prints the "What we check" list of
-    # CONTRIBUTING.md from the order file. Scripts/test_render_quality_report.sh,
-    # an order-file row, runs it and compares its output with CONTRIBUTING.md.
-    render_gate_list.sh)
-      runs_script "Scripts/test_render_quality_report.sh" "$base" \
-        || fail "${base} generates the CONTRIBUTING.md gate list and Scripts/test_render_quality_report.sh, the row that keeps the two in sync, never runs it"
-      # Shared with the sites (forsgren#240): a shared helper carries its canon
-      # line, which the estate's parity check reads.
-      head -5 "Scripts/${base}" | has -qxF '# canon: render_gate_list v1' \
-        || fail "Scripts/${base} has no '# canon: render_gate_list v1' line in its first 5 lines — the sites' parity check could not tell it is the shared copy"
-      ;;
-
-    # SOURCED HELPER, not a gate (estate canon): the engine of the exit-trap
-    # behaviour test, which sources it. The test is its own order-file row.
-    lib_exit_trap_probe.sh)
-      runs_script "Scripts/test_exit_trap_completion_behaviour.sh" "$base" \
-        || fail "${base} holds the exit-trap probe engine and Scripts/test_exit_trap_completion_behaviour.sh never sources it"
-      ;;
-
-    # SOURCED HELPER, not a gate (forsgren#428): has, a quiet grep that reads
-    # all of stdin first. The self-test of the pipe into grep -q gate is its
-    # test, and every script that ends a pipe in has must still source it
-    # (without it the call would be a command not found, read as "no match").
-    lib_has.sh)
-      runs_script "Scripts/test_check_pipe_grep_q.sh" "$base" \
-        || fail "${base} holds has and Scripts/test_check_pipe_grep_q.sh, its test, never sources it"
-      while IFS= read -r consumer; do
-        grep -qE '^source .*lib_has\.sh"?$' "$consumer" \
-          || fail "${consumer} ends a pipe in has and never sources ${base}"
-      done < <(grep -lE '^[^#]*[|][[:space:]]*has ' Scripts/*.sh)
-      ;;
-
-    # SOURCED HELPER, not a gate (forsgren#612, the estate sweep): the one way
-    # a script makes a temp folder or file, so the path honours TMPDIR. Its
-    # test is Scripts/test_lib_tmp.sh, an order-file row (it sources the
-    # helper through a variable, which runs_script does not follow), and
-    # Scripts/check_bare_mktemp.sh keeps every other call templated. sfl.sh
-    # must still source it, and so must every script that calls tmp_dir or
-    # tmp_file, directly or through Scripts/lib_selftest.sh or
-    # Scripts/lib_fbp_sandbox.sh (without it the call is a command not found).
-    lib_tmp.sh)
-      runs_script "$SFL" "$base" \
-        || fail "${base} makes every temp path of this repository and ${SFL} never sources it — the helper would then be a file nobody uses"
-      order_names test_lib_tmp.sh \
-        || fail "Scripts/test_lib_tmp.sh is not an order-file row — ${base} would be unproven"
-      while IFS= read -r consumer; do
-        grep -qE '^[[:space:]]*(source|[.]) .*lib_(tmp|selftest|fbp_sandbox)\.sh"?$' "$consumer" \
-          || fail "${consumer} calls tmp_dir or tmp_file and never sources ${base}"
-      done < <(grep -lE '^[^#]*[$][(]tmp_(dir|file) ' FBP.sh sfl.sh Scripts/*.sh | grep -v '^Scripts/lib_tmp\.sh$')
-      ;;
-
-    # SOURCED HELPER, not a gate (forsgren#386, decision #411 A): what the two
-    # browser gate self-tests share. Both are order-file rows and both must
-    # still source it, else the page and site helpers they call would be missing.
-    lib_gate_browser_selftest.sh)
-      for consumer in test_gate_browser.sh test_gate_browser_process.sh; do
-        runs_script "Scripts/${consumer}" "$base" \
-          || fail "${base} holds the helpers of the browser gate self-tests and Scripts/${consumer} never sources it"
-        order_names "$consumer" \
-          || fail "Scripts/${consumer} is not an order-file row — the browser gate helpers would be unproven"
-      done
-      ;;
-
-    # SOURCED HELPER, not a gate (forsgren#382): runs a self-test's mutation
-    # proofs side by side. Its self-test is an order-file row, and the browser
-    # gate self-test must still source it, else its proofs would run one after
-    # the other again.
-    lib_parallel_mutants.sh)
-      runs_script "Scripts/test_gate_browser.sh" "$base" \
-        || fail "${base} holds the parallel mutants helper and Scripts/test_gate_browser.sh never sources it"
-      order_names "test_lib_parallel_mutants.sh" \
-        || fail "Scripts/test_lib_parallel_mutants.sh is not an order-file row — the parallel mutants helper would be unproven"
-      ;;
-
-    # SOURCED HELPER, not a gate (forsgren#642): which baseline file the two
-    # browser gates read on this platform (Darwin the macOS file, Linux the
-    # _linux one). Both gates must still source it, and its self-test is an
-    # order-file row.
-    lib_browser_baseline.sh)
-      for consumer in gate_browser.sh gate_browser_fixture.sh; do
-        runs_script "Scripts/${consumer}" "$base" \
-          || fail "${base} picks the baseline of the platform and Scripts/${consumer} never sources it"
-      done
-      order_names "test_gate_browser_baseline.sh" \
-        || fail "Scripts/test_gate_browser_baseline.sh is not an order-file row — the baseline choice would be unproven"
-      ;;
-
-    *)
-      fail "${base} is a script no order-file row names and no declared exemption covers — a validator nobody runs is a file, not a gate"
-      ;;
-  esac
-done
-
-
-# --- 4. THE CI LOOP, AT RUNTIME ----------------------------------------------
-#
-# Pinned by Scripts/test_run_ci_phase.sh (an order-file row, the estate canon):
-# the runner over throwaway order files with stub gates, over the REAL order
-# file with a stub at every declared path (each runnable row exactly once, in
-# its own phase, in file order), and against weakened copies of the runner.
-# The cases that used to sit here moved there unchanged in what they require.
-
-# --- 5. PROOFS ----------------------------------------------------------------
-#
-# Each proof re-runs this whole check against a copy of one runner file (or of
-# the order file) whose real invocation is turned into a comment, or one rule
-# broken, while other lines keep MENTIONING it. The check must reject that
-# copy, by name.
+# Each proof re-runs this whole check against a copy of one file (a runner,
+# the order file, or a file the local cases name) whose real invocation is
+# turned into a comment, or one rule broken, while other lines keep MENTIONING
+# it. The check under test must reject that copy, by name.
 #
 # mutation_proof <override-var> <mention> <sed-expr> <expected> <label>
-#   <override-var>  GATE_WIRING_CI_OVERRIDE, GATE_WIRING_FBP_OVERRIDE,
-#                   GATE_WIRING_SFL_OVERRIDE, GATE_WIRING_ORDER_OVERRIDE,
-#                   GATE_WIRING_DCO_OVERRIDE or GATE_WIRING_STARTER_OVERRIDE
+#   <override-var>  GATE_WIRING_CI_OVERRIDE (the sed mutates $CI),
+#                   GATE_WIRING_FBP_OVERRIDE ($FULL_BUILD),
+#                   GATE_WIRING_SFL_OVERRIDE ($SFL),
+#                   GATE_WIRING_ORDER_OVERRIDE ($ORDER), or one of the local
+#                   cases' (gate_wiring_local_original names its file)
 #   <mention>       text the mutant must still contain (else the proof tests
 #                   a deletion, not a mention)
 #   <sed-expr>      the -E expression that makes the mutant
 #   <expected>      the substring the rejecting fail line must contain
 #   <label>         what the mutant is, for the messages
 #
-# Three guards, all needed (konenki's): the mutant must differ from the
-# original (else the sed stopped matching and the proof proves nothing), the
-# mutant must still contain <mention>, and the re-run must fail WITH the
-# expected message (a non-zero exit for any other reason is not the check
-# biting).
+# Three guards, all needed: the mutant must differ from the original (else the
+# sed stopped matching and the proof proves nothing), the mutant must still
+# contain <mention>, and the re-run must fail WITH the expected message (a
+# non-zero exit for any other reason is not the check biting).
+#
+# Runs only at the top level: the re-run sees an override set and skips this
+# block, so it cannot recurse.
+#
+# rerun_with <override-var> <file>: re-runs this whole check with <file> in
+# place of the file <override-var> names, printing its output (stderr
+# included) and exiting with its status.
 rerun_with() {
   env "${1}=${2}" "./Scripts/$(basename "$0")" 2>&1
 }
@@ -1237,16 +593,18 @@ mutation_proof() {
   local override_var="$1" mention="$2" sed_expr="$3" expected="$4" label="$5"
   local original mutated rc out
 
+  # The override variable and the file it replaces are one pairing; deriving
+  # the file here means a call cannot mutate one file and inject it as another.
   case "$override_var" in
     GATE_WIRING_CI_OVERRIDE) original="$CI" ;;
-    GATE_WIRING_FBP_OVERRIDE) original="$FBP" ;;
+    GATE_WIRING_FBP_OVERRIDE) original="$FULL_BUILD" ;;
     GATE_WIRING_SFL_OVERRIDE) original="$SFL" ;;
     GATE_WIRING_ORDER_OVERRIDE) original="$ORDER" ;;
-    GATE_WIRING_DCO_OVERRIDE) original="$DCO_WF" ;;
-    GATE_WIRING_STARTER_OVERRIDE) original="$STARTER_WF" ;;
     *)
-      fail "mutation proof: unknown override variable ${override_var}"
-      return 0
+      if ! original="$(gate_wiring_local_original "$override_var")"; then
+        fail "mutation proof: unknown override variable ${override_var}"
+        return 0
+      fi
       ;;
   esac
 
@@ -1268,7 +626,7 @@ mutation_proof() {
   out="$(rerun_with "$override_var" "$mutated")" || rc=$?
 
   if [[ "$rc" -eq 0 ]]; then
-    fail "mutation proof: ${label} PASSED the gate wiring check"
+    fail "mutation proof: ${label} PASSED the gate wiring check — a mention is not an invocation"
   elif ! grep -qF -- "$expected" <<< "$out"; then
     fail "mutation proof: ${label} failed, but not with the expected message (${expected}). Output: ${out}"
   else
@@ -1276,22 +634,19 @@ mutation_proof() {
   fi
 }
 
-# Every line of konenki's matcher self-proof below is byte-identical with
-# another estate repository's Scripts/test_gate_wiring.sh; issue numbers in it are
-# konenki's. Its "guard" samples include konenki's report_ci_step.sh call
-# shape, which lib_runs_script.sh still models.
-# --- Matcher self-proof: runs_script on sample files — issue #18 ----------
+# --- Matcher self-proof: runs_script on sample files (the estate's issue 18) -
 #
 # The mutation proofs only show that runs_script rejects what the real
 # runners happen to contain today. These feed it sample files, one form per
 # file, each naming Scripts/probe.sh: a form that only MENTIONS the script
 # must be rejected, and a form that RUNS it must be accepted. The file
 # extension says what the sample is (.yml a workflow, .sh a shell script),
-# as it does for the real runners. Items are those of issue #18; "guard"
-# samples are the real call shapes of quality.yml, sfl.sh,
-# FBP.sh and the fixtures that source a helper, plus one call
-# through bash (no runner has that shape today; it pins the wrapper rule),
-# so that a stricter matcher cannot start rejecting them.
+# as it does for the real runners. Items are those of the estate's issue 18;
+# "guard" samples are the real call shapes of quality.yml, sfl.sh, FBP.sh and
+# the fixtures that source a helper, plus one call through bash (no runner
+# has that shape today; it pins the wrapper rule), so that a stricter matcher
+# cannot start rejecting them. The local cases may feed it samples of their
+# own.
 MATCHER_N=0
 
 # matcher_sample <ext>: copies stdin into a fresh sample file with extension
@@ -1305,7 +660,7 @@ matcher_sample() {
 # matcher_fail <item> <what went wrong>: fails naming the issue item and
 # shows the sample the verdict was wrong on.
 matcher_fail() {
-  fail "runs_script (issue #18 ${1}): ${2} Sample (${MATCHER_FILE##*/}):"
+  fail "runs_script (issue 18 ${1}): ${2} Sample (${MATCHER_FILE##*/}):"
   sed 's/^/      | /' "$MATCHER_FILE"
 }
 
@@ -1345,7 +700,7 @@ SAMPLE
   matcher_rejects "item 2" "a [ -x ] test of the script" sh <<'SAMPLE'
 [ -x ./Scripts/probe.sh ] || exit 1
 SAMPLE
-  matcher_rejects "item 2, #14 note a" "the script passed as an argument to another script" sh <<'SAMPLE'
+  matcher_rejects "item 2, issue 14 note a" "the script passed as an argument to another script" sh <<'SAMPLE'
 PATH="${dir}/bin:$PATH" "$BASH" "${dir}/driver.sh" "${ROOT}/Scripts/probe.sh" > "${dir}/run.out" 2>&1
 SAMPLE
 
@@ -1449,16 +804,6 @@ SAMPLE
   matcher_accepts "guard" "a one-line - run: call" yml <<'SAMPLE'
       - run: ./Scripts/probe.sh
 SAMPLE
-  matcher_accepts "guard" "a gate named after the -- of report_ci_step.sh" yml <<'SAMPLE'
-        run: |
-          ./Scripts/report_ci_step.sh "probe" "$ROWS" "$DETAILS" -- ./Scripts/probe.sh
-SAMPLE
-  matcher_accepts "guard" "a gate named after -- on a continuation line" yml <<'SAMPLE'
-        run: |
-          ./Scripts/report_ci_step.sh \
-            --heading "Probe" \
-            "probe" "$ROWS" "$DETAILS" -- ./Scripts/probe.sh "$GENERATED_SITE"
-SAMPLE
   matcher_accepts "guard" "a call captured in an if test" yml <<'SAMPLE'
         run: |
           if out="$(./Scripts/probe.sh "$GENERATED_SITE" Site 2>&1)"; then
@@ -1505,337 +850,12 @@ SAMPLE
 }
 
 if ! is_mutation_rerun; then
-  MUTATION_TMP="$(tmp_dir test_gate_wiring_mutation_tmp)" || exit 1
+  MUTATION_TMP="$(tmp_dir test_gate_wiring_mutations)" || exit 1
   trap 'rm -rf "$MUTATION_TMP"; finish' EXIT
   MUTANT_N=0
 
-  # quality.yml: the POST phase call becomes a comment; the comments that
-  # name the runner stay.
-  mutation_proof GATE_WIRING_CI_OVERRIDE "Scripts/run_ci_phase.sh" \
-    's|^([[:space:]]*)(\./Scripts/run_ci_phase\.sh post )|\1# \2|' \
-    "never runs the POST phase" \
-    "a quality.yml whose POST phase call is a comment"
-
-  # quality.yml: PRE and POST swapped, so PRE runs after the build.
-  mutation_proof GATE_WIRING_CI_OVERRIDE "Scripts/run_ci_phase.sh" \
-    's|run_ci_phase\.sh pre |run_ci_phase.sh SWAP |; s|run_ci_phase\.sh post |run_ci_phase.sh pre |; s|run_ci_phase\.sh SWAP |run_ci_phase.sh post |' \
-    "out of order" \
-    "a quality.yml that runs POST before the build and PRE after it"
-
-  # quality.yml: the build call becomes a comment.
-  mutation_proof GATE_WIRING_CI_OVERRIDE "Scripts/build_site.sh" \
-    's|^([[:space:]]*)(\./Scripts/build_site\.sh)|\1# \2|' \
-    "build_site.sh is the CI build boundary and" \
-    "a quality.yml that mentions build_site.sh only in comments"
-
-  # quality.yml: the baseline steps (forsgren#220), each broken once.
-  mutation_proof GATE_WIRING_CI_OVERRIDE "Browser baselines" \
-    's|^      - name: Browser baselines$|      - name: Browser baselines (renamed)|' \
-    "no step named 'Browser baselines'" \
-    "a quality.yml without the Browser baselines step"
-  mutation_proof GATE_WIRING_CI_OVERRIDE "Image baselines" \
-    '/name: Image baselines/,$ s|^        if: always\(\)$|        if: success()|' \
-    "'Image baselines' is not 'if: always()'" \
-    "a quality.yml whose Image baselines step is not always()"
-  mutation_proof GATE_WIRING_CI_OVERRIDE "report_baselines.sh language" \
-    's|^( *)\./Scripts/report_baselines\.sh language$|\1: report_baselines.sh language|' \
-    "does not run ./Scripts/report_baselines.sh language" \
-    "a quality.yml whose Language baselines step does not call the report"
-
-  # quality.yml: the report call becomes a comment.
-  mutation_proof GATE_WIRING_CI_OVERRIDE "Scripts/render_quality_report.sh" \
-    's|^([[:space:]]*)(\./Scripts/render_quality_report\.sh)|\1# \2|' \
-    "render_quality_report.sh renders CI's step summary and" \
-    "a quality.yml whose render_quality_report.sh call is a comment"
-
-  # quality.yml: the summary call becomes a comment (forsgren#8).
-  mutation_proof GATE_WIRING_CI_OVERRIDE "Scripts/render_quality_summary.sh" \
-    's|^([[:space:]]*)(\./Scripts/render_quality_summary\.sh)|\1# \2|' \
-    "render_quality_summary.sh renders the run summary" \
-    "a quality.yml whose render_quality_summary.sh call is a comment"
-
-  # quality.yml: the Go pin call becomes an echo of it.
-  mutation_proof GATE_WIRING_CI_OVERRIDE "Scripts/go_toolchain.sh" \
-    's|\((\./Scripts/go_toolchain\.sh)\)|(echo \1)|' \
-    "go_toolchain.sh pins Go and" \
-    "a quality.yml that echoes go_toolchain.sh instead of running it"
-
-  # quality.yml: the tool install call becomes a comment; the comments that
-  # name the installer stay.
-  mutation_proof GATE_WIRING_CI_OVERRIDE "Scripts/install_tools.sh" \
-    's|^([[:space:]]*)(\./Scripts/install_tools\.sh)|\1# \2|' \
-    "install_tools.sh installs the tools the gates need and" \
-    "a quality.yml whose install_tools.sh call is a comment"
-
-  # FBP.sh: the POST call becomes a comment.
-  mutation_proof GATE_WIRING_FBP_OVERRIDE "sfl.sh post" \
-    's|^([[:space:]]*)(\./sfl\.sh post )|\1# \2|' \
-    "never runs the POST phase" \
-    "an FBP.sh whose sfl.sh post call is a comment"
-
-  # FBP.sh: every non-comment line that runs build_site.sh becomes a
-  # comment; the commentary naming it stays.
-  mutation_proof GATE_WIRING_FBP_OVERRIDE "Scripts/build_site.sh" \
-    's|^([[:space:]]*)([^#[:space:]][^#]*\./Scripts/build_site\.sh)|\1# \2|' \
-    "build_site.sh is the local build boundary and" \
-    "an FBP.sh that mentions build_site.sh only in comments"
-
-  # sfl.sh: the pull source line becomes a comment.
-  mutation_proof GATE_WIRING_SFL_OVERRIDE "Scripts/sfl_pull.sh" \
-    's|^([[:space:]]*)(source Scripts/sfl_pull\.sh)|\1# \2|' \
-    "sfl_pull.sh provides sfl's opening pull and sfl never sources it" \
-    "an sfl.sh that mentions sfl_pull.sh only in comments"
-
-  # sfl.sh: the phase filter becomes a comment, so sfl would run every row in
-  # both phases while CI runs each in one.
-  mutation_proof GATE_WIRING_SFL_OVERRIDE "PHASE" \
-    's#^([[:space:]]*)(\[ "[$]phase" = )#\1\# \2#' \
-    "no longer has the row rule" \
-    "an sfl.sh whose phase filter is a comment"
-
-  # The order file: one row's phase misspelt, so neither runner runs it.
-  mutation_proof GATE_WIRING_ORDER_OVERRIDE "Scripts/check_gofmt.sh" \
-    's#^(gofmt\|Scripts/check_gofmt\.sh\|)pre\|#\1Pre|#' \
-    "declares phase 'Pre'" \
-    "an order file whose gofmt row declares phase Pre"
-
-  # The order file: a row naming a script that is no gate and no exemption
-  # becomes a comment; that script is then run by nobody.
-  mutation_proof GATE_WIRING_ORDER_OVERRIDE "Scripts/check_repo_links.sh" \
-    's#^(repository links\|Scripts/check_repo_links\.sh\|)#\# \1#' \
-    "check_repo_links.sh is a script no order-file row names" \
-    "an order file whose repository-links row is a comment"
-
-  # dco.yml: the check call becomes a comment; the comments naming it stay.
-  mutation_proof GATE_WIRING_DCO_OVERRIDE "Scripts/check_dco.sh" \
-    's|^([[:space:]]*)(\./Scripts/check_dco\.sh )|\1# \2|' \
-    "check_dco.sh checks a pull request's sign-offs and" \
-    "a dco.yml whose check_dco.sh call is a comment"
-
-  # dco.yml: the push-listing call becomes a comment, then the push trigger
-  # becomes another one.
-  mutation_proof GATE_WIRING_DCO_OVERRIDE "Scripts/dco_push_commits.sh" \
-    's|^([[:space:]]*)(\./Scripts/dco_push_commits\.sh )|\1# \2|' \
-    "dco_push_commits.sh lists a push's commits for the DCO check and" \
-    "a dco.yml whose dco_push_commits.sh call is a comment"
-  mutation_proof GATE_WIRING_DCO_OVERRIDE "Scripts/dco_push_check.sh" \
-    's|^([[:space:]]*)(\./Scripts/dco_push_check\.sh )|\1# \2|' \
-    "dco_push_check.sh judges a push for the DCO check and" \
-    "a dco.yml whose dco_push_check.sh call is a comment"
-  mutation_proof GATE_WIRING_DCO_OVERRIDE "Scripts/dco_push_commits.sh" \
-    's|^  push:|  workflow_dispatch:|' \
-    "has no push trigger on main" \
-    "a dco.yml with no push trigger"
-
-  # dco.yml: the commit message check call becomes a comment, the pull
-  # request listing too, and the --fresh of the push listing goes.
-  mutation_proof GATE_WIRING_DCO_OVERRIDE "Scripts/check_commit_messages.sh" \
-    's|^([[:space:]]*)(\./Scripts/check_commit_messages\.sh )|\1# \2|' \
-    "check_commit_messages.sh checks the private names in commit messages and" \
-    "a dco.yml whose check_commit_messages.sh call is a comment"
-  mutation_proof GATE_WIRING_DCO_OVERRIDE "Scripts/dco_pr_commits.sh" \
-    's|^([[:space:]]*)(\./Scripts/dco_pr_commits\.sh )|\1# \2|' \
-    "dco_pr_commits.sh lists a pull request's commits and" \
-    "a dco.yml whose dco_pr_commits.sh call is a comment"
-  mutation_proof GATE_WIRING_DCO_OVERRIDE "Scripts/dco_push_commits.sh" \
-    's|(dco_push_commits\.sh) --fresh |\1 |' \
-    "never lists a push with dco_push_commits.sh --fresh" \
-    "a dco.yml whose push listing for the messages has no --fresh"
-
-  # The order file: the commit messages self-test row becomes a comment.
-  mutation_proof GATE_WIRING_ORDER_OVERRIDE "Scripts/test_check_commit_messages.sh" \
-    's#^(commit messages self-test\|)#\# \1#' \
-    "Scripts/test_check_commit_messages.sh is not an order-file row" \
-    "an order file whose commit messages self-test row is a comment"
-
-  # starter_page.yml: the live check call becomes a comment.
-  mutation_proof GATE_WIRING_STARTER_OVERRIDE "Scripts/live_check.sh" \
-    's|^([[:space:]]*)(run: \./Scripts/live_check\.sh )|\1run: # \2|' \
-    "live_check.sh checks the live site after a deploy and" \
-    "a starter_page.yml whose live_check.sh call is a comment"
-
-  # The order file: the live check self-test row becomes a comment.
-  mutation_proof GATE_WIRING_ORDER_OVERRIDE "Scripts/test_live_check.sh" \
-    's#^(live check self-test\|)#\# \1#' \
-    "Scripts/test_live_check.sh is not an order-file row" \
-    "an order file whose live check self-test row is a comment"
-
-  # The order file: the DCO self-test row becomes a comment, so neither sfl
-  # nor Quality proves the check dco.yml runs.
-  mutation_proof GATE_WIRING_ORDER_OVERRIDE "Scripts/test_check_dco.sh" \
-    's#^(DCO sign-off self-test\|)#\# \1#' \
-    "Scripts/test_check_dco.sh is not an order-file row" \
-    "an order file whose DCO sign-off self-test row is a comment"
-
+  gate_wiring_local_proofs
   matcher_self_proof
-fi
-
-if [[ "$n_gate" -eq 0 ]]; then
-  fail "no Scripts/*.sh is named by an order-file row — the glob or the parse is broken, so this check verified nothing"
-fi
-
-# Pin 8 (forsgren's own arm, forsgren#686; the sibling sites' pin 8 adapted):
-# THE SELF-TESTS RUN IN THEIR OWN WORKFLOW, THE REAL GATES IN QUALITY, EACH ROW
-# IN EXACTLY ONE. selftests.yml runs the self-test rows, quality.yml every other
-# row; both run their jobs through Scripts/run_ci_phase.sh, and
-# Scripts/ci_job_groups.txt gives each row to one job, or to shard jobs, while a
-# row it lists for no job runs in Quality's main job (`main`, forsgren's default
-# job). What this pins on top: the workflow a job belongs to is the one whose
-# step runs `run_ci_phase.sh <phase> "$ROWS" "$DETAILS" <job>`, every job of
-# the groups file runs in exactly one of the two workflows, and each runnable
-# row runs in the workflow its kind wants and in no other:
-#   a self-test row (is_selftest_row): its label ends in " self-test" or starts
-#     with "mutation: ", or it is the step summary isolation gate, a self-test
-#     in full (the git sandbox isolation self-test already ends in
-#     " self-test") -> selftests.yml only;
-#   every other runnable row, a real gate -> quality.yml only;
-#   the one written exception: the secret-scan self-test is secret-class (its
-#     first case scans the real tree, forsgren#570), so it stays in Quality and
-#     in every local run, before a commit.
-# So nothing is dropped (a row in neither workflow) and nothing is doubled (a
-# row in both). Scripts/selftest_rows.sh reads the same files for the rows sfl
-# skips locally, so the local skip set is this CI self-test set
-# (Scripts/test_sfl_selftest_skip.sh, case 7). Mutation proofs below.
-if ! is_mutation_rerun; then
-  SELFTESTS_WF=".github/workflows/selftests.yml"
-  JOB_GROUPS_FILE="Scripts/ci_job_groups.txt"
-  # The step summary isolation gate is named by its script, its label read from
-  # the order file.
-  SUMMARY_ISOLATION_LABEL="$(awk -F'|' '$2 == "Scripts/test_step_summary_isolation.sh" { print $1; exit }' "$ORDER")"
-  is_selftest_row() {
-    [[ "$1" != "secret-scan self-test" ]] || return 1
-    [[ "$1" != "$SUMMARY_ISOLATION_LABEL" ]] || return 0
-    case "$1" in
-      *" self-test" | "mutation: "*) return 0 ;;
-    esac
-    return 1
-  }
-  # phase_jobs <workflow>: the jobs whose run_ci_phase.sh calls the workflow
-  # makes, once each (the reading of Scripts/selftest_rows.sh).
-  phase_jobs() {
-    grep -vE '^[[:space:]]*#' "$1" \
-      | sed -nE 's#^[[:space:]]*\./Scripts/run_ci_phase\.sh (pre|post) "[$]ROWS" "[$]DETAILS" ([A-Za-z0-9_-]+)[[:space:]]*$#\2#p' \
-      | sort -u
-  }
-  # split_problems <quality.yml> <selftests.yml> <groups> <order>: one line per
-  # problem; nothing means it holds.
-  split_problems() {
-    local quality="$1" selftests="$2" groups="$3" order="$4" q_jobs s_jobs job label where want
-    [[ -f "$selftests" ]] || { echo "no ${selftests}: the self-tests run in no workflow"; return 0; }
-    q_jobs="$(phase_jobs "$quality")"
-    s_jobs="$(phase_jobs "$selftests")"
-    if has -qxF -- main <<< "$s_jobs"; then
-      echo "selftests.yml runs the main job, whose rows are Quality's"
-    fi
-    while IFS= read -r job; do
-      [[ -n "$job" ]] || continue
-      if has -qxF -- "$job" <<< "$q_jobs" && has -qxF -- "$job" <<< "$s_jobs"; then
-        echo "job ${job} runs in both quality.yml and selftests.yml: its gates would run twice"
-      elif ! has -qxF -- "$job" <<< "$q_jobs" && ! has -qxF -- "$job" <<< "$s_jobs"; then
-        echo "job ${job} of ${groups} runs in neither quality.yml nor selftests.yml: its gates would run nowhere"
-      fi
-    done < <(grep -v '^#' "$groups" | grep '|' | cut -d'|' -f1 | sort -u)
-    while IFS= read -r label; do
-      [[ -n "$label" ]] || continue
-      where=""
-      if ! grep -v '^#' "$groups" | awk -F'|' -v l="$label" '$2 == l { f = 1 } END { exit !f }'; then
-        # No group row: the main job, Quality's when quality.yml runs it.
-        if has -qxF -- main <<< "$q_jobs"; then where="quality.yml"; fi
-      fi
-      while IFS= read -r job; do
-        [[ -n "$job" ]] || continue
-        if has -qxF -- "$job" <<< "$q_jobs"; then where="${where}"$'\n'"quality.yml"; fi
-        if has -qxF -- "$job" <<< "$s_jobs"; then where="${where}"$'\n'"selftests.yml"; fi
-      done < <(grep -v '^#' "$groups" | awk -F'|' -v l="$label" '$2 == l { print $1 }')
-      where="$(grep . <<< "$where" | sort -u | tr '\n' ' ' | sed 's/ $//' || true)"
-      if is_selftest_row "$label"; then want="selftests.yml"; else want="quality.yml"; fi
-      if [[ -z "$where" ]]; then
-        echo "row ${label} runs in no workflow, want ${want}"
-      elif [[ "$where" != "$want" ]]; then
-        echo "row ${label} runs in ${where}, want ${want} only"
-      fi
-    done < <(grep -v '^#' "$order" | awk -F'|' '$2 != "" && $2 != "n/a" { print $1 }')
-    # selftests.yml, like quality.yml in pin 2, names no gate itself.
-    if grep -vE '^[[:space:]]*#' "$selftests" | grep -vE 'run_ci_phase\.sh|merge_quality_report\.sh|render_quality_report\.sh|open_selftests_failure_issue\.sh|install_tools(_linux)?\.sh|go_toolchain\.sh' \
-      | has -qE '(^|[^A-Za-z0-9_./-])(\./)?Scripts/[A-Za-z0-9_]+\.sh'; then
-      echo "selftests.yml names a gate itself; the order file and ${groups} decide which rows a job runs"
-    fi
-  }
-  problems="$(split_problems "$CI" "$SELFTESTS_WF" "$JOB_GROUPS_FILE" "$ORDER")"
-  [[ -z "$problems" ]] || fail "every self-test row must run in selftests.yml and every other row in quality.yml, each in exactly one: ${problems}"
-  _t="$(tmp_dir test_gate_wiring)" || exit 1
-  # split_case <name> <reason> <groups|selftests|quality> <sed -E expression>:
-  # the copy of that file, mutated, is rejected with <reason>.
-  split_case() {
-    local q="$CI" s="$SELFTESTS_WF" g="$JOB_GROUPS_FILE" src out got
-    case "$3" in
-      groups) src="$g"; g="${_t}/groups_$1.txt"; out="$g" ;;
-      selftests) src="$s"; s="${_t}/selftests_$1.yml"; out="$s" ;;
-      *) src="$q"; q="${_t}/quality_$1.yml"; out="$q" ;;
-    esac
-    sed -E "$4" "$src" > "$out"
-    if cmp -s "$src" "$out"; then
-      fail "pin 8 proof $1: the mutation $4 changed nothing, so the proof would be vacuous"
-      return 0
-    fi
-    got="$(split_problems "$q" "$s" "$g" "$ORDER")"
-    if has -qF -- "$2" <<< "$got"; then
-      echo "  ok: pin 8 proof $1 is rejected"
-    else
-      fail "pin 8 proof $1 was accepted: expected '$2'. Got: ${got:-nothing}"
-    fi
-  }
-  split_case selftest-in-quality "row data guard self-test runs in quality.yml, want selftests.yml only" groups 's/^selftest_mac_2\|data guard self-test$/quality_2|data guard self-test/'
-  split_case selftest-left-in-main "row private-names self-test runs in quality.yml, want selftests.yml only" groups '/^selftest_mac_2\|private-names self-test$/d'
-  split_case gate-in-selftests "row shellcheck runs in selftests.yml, want quality.yml only" groups 's/^lint\|shellcheck$/selftest_linux|shellcheck/'
-  split_case mutation-in-quality "row mutation: checkout pins runs in quality.yml, want selftests.yml only" groups 's/^selftest_linux\|mutation: checkout pins$/workflows|mutation: checkout pins/'
-  split_case sandbox-shard-in-quality "row git sandbox isolation self-test runs in quality.yml selftests.yml, want selftests.yml only" groups 's/^isolation_2\|git sandbox isolation self-test\|/quality_2|git sandbox isolation self-test|/'
-  split_case summary-in-quality "row ${SUMMARY_ISOLATION_LABEL} runs in quality.yml, want selftests.yml only" groups "s/^summary\\|${SUMMARY_ISOLATION_LABEL}\$/workflows|${SUMMARY_ISOLATION_LABEL}/"
-  split_case exception-moved "row secret-scan self-test runs in selftests.yml, want quality.yml only" groups 's/^(selftest_mac_2\|data guard self-test)$/\1\
-selftest_mac_2|secret-scan self-test/'
-  split_case job-in-no-workflow "job selftest_mac_2 of ${JOB_GROUPS_FILE} runs in neither quality.yml nor selftests.yml" selftests 's#(run_ci_phase\.sh pre "[$]ROWS" "[$]DETAILS") selftest_mac_2$#\1 selftest_mac_1#'
-  split_case job-in-both "job isolation_1 runs in both quality.yml and selftests.yml" quality 's#^( *)(\./Scripts/run_ci_phase\.sh pre "[$]ROWS" "[$]DETAILS" )lint$#&\
-\1\2isolation_1#'
-  split_case main-job-gone "row secret scan runs in no workflow, want quality.yml" quality 's#("[$]DETAILS") main( |$)#\1 mainless\2#'
-  split_case main-in-selftests "selftests.yml runs the main job, whose rows are Quality's" selftests 's#(run_ci_phase\.sh pre "[$]ROWS" "[$]DETAILS") summary$#\1 main#'
-  split_case selftests-names-a-gate "selftests.yml names a gate itself" selftests 's#^( *)\./Scripts/run_ci_phase\.sh pre "[$]ROWS" "[$]DETAILS" isolation_2$#&\
-\1./Scripts/check_secrets.sh#'
-  if [[ "$(split_problems "$CI" "${_t}/absent.yml" "$JOB_GROUPS_FILE" "$ORDER")" != *"the self-tests run in no workflow"* ]]; then
-    fail "pin 8: a missing selftests.yml was accepted"
-  fi
-  rm -rf "$_t"
-fi
-
-# Pin 6 (forsgren#214, canon from the sister site repositories): FBP FIXES, CI
-# ONLY CHECKS. sfl.sh exports GATE_FIX=1 (the npm audit heal runs only under
-# it); no workflow may set it, or CI would change files instead of reporting
-# what the commit contains. Mutations built here: an sfl.sh without the
-# export, and a workflow copy that mentions GATE_FIX, must each be rejected.
-# Adapted from the canon only in its file names: forsgren's workflows live in
-# .github/workflows and quality.yml is the one the mutation appends to.
-if ! is_mutation_rerun; then
-  fix_wiring_problems() {
-    local sfl="$1" wf="$2"
-    grep -qE '^export GATE_FIX=1$' "$sfl" || echo "sfl.sh does not export GATE_FIX=1"
-    if grep -rqF 'GATE_FIX' "$wf"; then echo "a workflow mentions GATE_FIX"; fi
-  }
-  WF_DIR=".github/workflows"
-  problems="$(fix_wiring_problems "$SFL" "$WF_DIR")"
-  [[ -z "$problems" ]] || fail "FBP must fix and CI only check: ${problems}"
-  _t="$(tmp_dir test_gate_wiring)" || exit 1
-  grep -v '^export GATE_FIX=1$' "$SFL" > "${_t}/sfl.sh"
-  mkdir -p "${_t}/wf"
-  cp "$WF_DIR"/*.yml "${_t}/wf/"
-  printf '# GATE_FIX=1\n' >> "${_t}/wf/quality.yml"
-  if cmp -s "$SFL" "${_t}/sfl.sh"; then
-    fail "the no-export mutation changed nothing — pin 6 matches something other than the export line"
-  elif ! grep -qF 'does not export' <<< "$(fix_wiring_problems "${_t}/sfl.sh" "$WF_DIR")"; then
-    fail "an sfl.sh without the GATE_FIX export was accepted — pin 6 does not guard it"
-  fi
-  if ! grep -qF 'a workflow mentions' <<< "$(fix_wiring_problems "$SFL" "${_t}/wf")"; then
-    fail "a workflow that mentions GATE_FIX was accepted — pin 6 does not guard CI staying check-only"
-  fi
-  rm -rf "$_t"
 fi
 
 COMPLETED=1
@@ -1846,4 +866,4 @@ if [[ "$failed" -ne 0 ]]; then
   exit 1
 fi
 
-echo "OK: gate wiring (${n_rows} rows run by sfl and by CI in their declared phase, ${n_gate} gate scripts among them, ${n_exempt} declared exemptions run by their required runners)"
+echo "OK: gate wiring (${n_gate} gate scripts and ${n_fixture} fixtures declared in ${ORDER}, ${n_exempt} declared exemptions run by their required runners, the gate count ${declared} at or above the ratchet of ${MIN_GATES}, and this repository's own pins)"

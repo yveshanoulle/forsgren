@@ -478,6 +478,7 @@ step summary isolation|in|sfl.sh
 step summary isolation|in|Scripts/extract_markdown_links.awk
 step summary isolation|in|Scripts/markdown_heading_slugs.awk
 step summary isolation|in|Scripts/strip_markdown_code.awk
+step summary isolation|in|Scripts/gate_wiring_local_cases.sh
 
 # --- metrics workflow (forsgren#402) --------------------------------------
 # Scripts/test_metrics_workflow.sh pins metrics.yml, runs its steps with stubs and

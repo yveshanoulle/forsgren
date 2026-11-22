@@ -4,14 +4,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# Ported from another estate repository 2026-10-01 (forsgren#1), extended 2026-10-20 with case 6 (forsgren#243, start-of-line marker match); "here" in
-# the history below means another estate repository.
-# v4 (forsgren#689): the sites' v4 is this file's checks unchanged (cases 1-6
-# and the marker-anywhere mutation proof), the version line taken over as-is.
+# Extended 2026-10-20 with case 6 (start-of-line marker match).
 #
-# Pins for Scripts/summarize_gate_failure.sh — unit 404, ported from
-# coachretreat-website (its unit 402), where another estate repository's gate-parity axis now
-# reports this gate MISSING here until it lands.
+# Pins for Scripts/summarize_gate_failure.sh, shared by every repo of the
+# estate; the estate's gate-parity axis compares this text across them.
 #
 # sfl's end-of-run block prints "Errors:" and then the NAMES of the gates that
 # failed. Its own comment claims this saves "a scroll-back read". It does not:
@@ -122,7 +118,7 @@ else
 fi
 want "and it says how many it left out" "35 more" "$out5"
 
-# Case 6 (forsgren#243): only a line that STARTS with the marker (after any
+# Case 6: only a line that STARTS with the marker (after any
 # indentation) is a reason. A self-test's passing ok: lines quote the marker as
 # a needle; matched anywhere they fill the cap and push the real FAIL lines out.
 log6="${TMP}/quoting.log"
@@ -151,6 +147,7 @@ chmod +x "$mut"
 outm="$("$mut" "$log6")"
 want     "mutation (marker matched anywhere) shows the quoting ok lines" "quotes the marker" "$outm"
 want_not "mutation (marker matched anywhere) pushes the real failures out" "first real failure" "$outm"
+
 
 COMPLETED=1
 if [[ "$failed" -ne 0 ]]; then

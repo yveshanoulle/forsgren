@@ -6,26 +6,26 @@ cd "$(dirname "$0")/.." || exit 1
 
 # shellcheck source=Scripts/lib_git_sandbox.sh
 source Scripts/lib_git_sandbox.sh
+# v5 (estate issue 550): its temp folders come from tmp_dir, under a
+# normalised TMPDIR root.
 # shellcheck source=Scripts/lib_tmp.sh
 source Scripts/lib_tmp.sh
 
 # Scripts/test_sfl_pull.sh
 #
-# v5 (estate issue 550): its temp folders come from tmp_dir, under a
-# normalised TMPDIR root (forsgren since forsgren#612); each mutant sits in its
-# own folder; the pull must run before the gate-dispatch loop (forsgren#689).
-#
 # The sfl pull contract, shared by every repo of the estate: `git pull --ff-only`;
 # on anything else, print the manual recovery command to stderr and stop with
-# exit 3, never warn-and-continue. Since forsgren#283 step 2 a pull that cannot
+# exit 3, never warn-and-continue. Since estate issue 384 a pull that cannot
 # fast-forward is rebased instead when the incoming commits touch none of the
 # local files; that path is Scripts/test_sfl_pull_rebase.sh's, and against this
-# fixture's failing git stub it stops with exit 3 as before. Since forsgren#603
-# (an estate fix) sfl refuses a half-merged repo before it pulls; the stub reads
-# a clean repo for that check, and the refusal itself is
-# Scripts/test_sfl_pull_rebase.sh's, with real git. The recovery text must
-# warn that a conflicting autostash leaves unmerged files and the stash entry
-# behind.
+# fixture's failing git stub it stops with exit 3 as before. Since estate issue
+# 114 sfl refuses a half-merged repo before it pulls; the cases of that refusal
+# run with real git in Scripts/test_sfl_pull_rebase.sh, and the git stub here
+# reads a clean repo for it. The recovery text must warn that a conflicting
+# autostash leaves unmerged files and the stash entry behind.
+#
+# The fixture also proves the pull runs BEFORE the gate-dispatch loop starts
+# any gate.
 #
 # THIS FIXTURE ALSO PINS THE WIRING. It is not enough for Scripts/sfl_pull.sh
 # to behave correctly in isolation (cases 1/2/3 below) if sfl.sh never calls it, or if the old warn-and-continue
@@ -35,8 +35,7 @@ source Scripts/lib_tmp.sh
 # reverse — still reds here.
 #
 # sfl.sh sources Scripts/sfl_pull.sh and runs `sfl_pull_or_stop || exit 3` as
-# its opening pull; the wiring pins below keep it that way. One more pin
-# proves the pull runs BEFORE the gate-dispatch loop starts any gate.
+# its opening pull; the wiring pins below keep it that way.
 #
 # MUTATION PROOF, at the end: the behavioural cases run against weakened copies
 # of Scripts/sfl_pull.sh (a failed pull that returns 0, a pull without --ff-only,
@@ -76,8 +75,8 @@ else
   fail "sfl.sh does not source Scripts/sfl_pull.sh and call sfl_pull_or_stop with '|| exit 3' — its opening pull is not wired to the shared contract"
 fi
 
-# The pull runs before any gate does. The dispatch loop that runs the gates is
-# the boundary: everything above it is the opening step.
+# The pull runs before any gate does. The dispatch loop
+# that runs the gates is the boundary: everything above it is the opening step.
 if grep -qF 'sfl_pull_or_stop' sfl.sh; then
   pull_line="$(grep -n 'sfl_pull_or_stop' sfl.sh | head -1 | cut -d: -f1)"
   loop_line="$(grep -n "while IFS='|' read" sfl.sh | head -1 | cut -d: -f1)"
@@ -95,15 +94,15 @@ fi
 if [ ! -f "$SRC" ]; then
   fail "${SRC} does not exist yet — the shared pull contract has no implementation to source"
 else
-  TMP="$(tmp_dir test_sfl_pull)" || exit 1
+  TMP="$(tmp_dir test_sfl_pull)"
   mkdir -p "$TMP/bin"
 
   cat > "$TMP/bin/git" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$GIT_CALLS"
-# forsgren#603: the half-merged check before the pull (unmerged files, an
-# autostash entry) reads a clean repo; GIT_RESULT drives the pull and what
-# follows it.
+# Estate issue 114: the half-merged check before the pull (unmerged files,
+# an autostash entry) reads a clean repo; GIT_RESULT drives the pull and what
+# follows it. Scripts/test_sfl_pull_rebase.sh drives that check with real git.
 case "$1" in
   diff|stash) exit 0 ;;
 esac
@@ -155,8 +154,9 @@ EOF
   if ! grep -qF "git pull --rebase --autostash" "$TMP/stderr"; then
     fail "failure did not name the manual rebase/autostash recovery command"
   fi
-  # forsgren#603: the recovery command can itself leave the repo half-merged
-  # (the autostash re-apply conflicts, git exits 0); the text must say so.
+  # Estate issue 114: the recovery command can itself leave the repo
+  # half-merged (the autostash re-apply conflicts, git exits 0); the text must
+  # say so.
   if grep -qF "a conflicting autostash leaves unmerged files and keeps the stash entry" "$TMP/stderr" &&
     grep -qF "apply or drop the autostash entry" "$TMP/stderr"; then
     echo "OK:   the recovery text warns that a conflicting autostash must be resolved before re-running"
@@ -169,7 +169,7 @@ fi
 
 # --- Mutation proof: weakened copies of Scripts/sfl_pull.sh must be red here.
 if [ $# -eq 0 ]; then
-  MUT="$(tmp_dir test_sfl_pull_mut)" || exit 1
+  MUT="$(tmp_dir test_sfl_pull)"
   # Scripts/sfl_pull.sh sources the shared overlap list from its own
   # directory, so each mutant sits as sfl_pull.sh in its own directory beside
   # a plain copy of it: the mutant is red for what it mutates, never for a

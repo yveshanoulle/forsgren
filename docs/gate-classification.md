@@ -334,7 +334,7 @@ wrapper puts both in one temporary directory, the starter page as
 `Scripts/report_baselines.sh <section>` (`report_baselines v5`) renders one
 gate's baseline data as markdown tables, to stdout and to `$GITHUB_STEP_SUMMARY`.
 Quality has one step per section after the report, each `if: always()` so it shows
-when a gate is red, pinned by name in `Scripts/test_gate_wiring.sh` (pin 2b):
+when a gate is red, pinned by name in `Scripts/test_gate_wiring.sh` (its baseline steps pin, called by `Scripts/gate_wiring_local_cases.sh`):
 `Language baselines` (rows with the sentence where the text is used, and the allowlist words), `Browser baselines` (axe rows,
 CLS rows, sideways rows, counts by rule and by page) and `Image baselines`. forsgren has no image
 size gate, so that step prints that this site has no such file; that is correct

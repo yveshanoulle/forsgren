@@ -1,0 +1,44 @@
+# Scripts/sfl_drives_from_order_file_settings.txt
+#
+# This repository's values for Scripts/test_sfl_drives_from_order_file.sh
+# (canon v10, estate issue 850), which reads this file whole and is red on a
+# missing file, a line that is not <kind>|<value> or an unknown kind.
+#
+# preflight|<name>: a script sfl.sh may name outside its dispatch loop (pin 2b).
+# Each holds no order row, because it is no gate; its own self-test is a row.
+#   presentation helpers its own machinery calls, and the order file itself:
+preflight|summarize_gate_failure
+preflight|render_step_table
+preflight|gate_report_order
+#   PRE-FLIGHT steps that run before the dispatch loop because they make the
+#   gates able to run at all: install_tools.sh (the Homebrew tools),
+#   check_node_pin.sh, npm_sync_install.sh (npm ci when node_modules is
+#   missing or stale), go_toolchain.sh (the Go version the gates export as
+#   GOTOOLCHAIN), selftest_rows.sh (the self-test rows the dispatch loop
+#   leaves to selftests.yml without --with-selftests):
+preflight|install_tools
+preflight|check_node_pin
+preflight|npm_sync_install
+preflight|go_toolchain
+preflight|selftest_rows
+#   SOURCED libraries, never run: sfl_pull.sh (the opening pull; its row
+#   `sfl pull contract` / Scripts/test_sfl_pull.sh is in the order file),
+#   lib_gate_select.sh (the local-run selector asked before each row with
+#   `in` rows in Scripts/gate_inputs.txt; it moves no row), lib_tmp.sh (the
+#   gate log folder):
+preflight|sfl_pull
+preflight|lib_gate_select
+preflight|lib_tmp
+#
+# ci_only_fixture|<path>: none (forsgren has no built-site consistency
+# fixture; pin 4 has no exemption here).
+#
+# secret_class|<label>: the rows beyond the secret scan and its self-test.
+# The data guard (ruling of 2026-10-02, forsgren#1 step 12.2: "it works like
+# the secret scan"): what it guards, an installation's config or data, must
+# never reach a public history. The anchor names the row, not its self-test,
+# whose label also starts with "data guard".
+secret_class|data guard
+# The private names gate (forsgren#52): a private repository name in a public
+# file must never reach a public history.
+secret_class|private names

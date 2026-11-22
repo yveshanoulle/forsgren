@@ -1,36 +1,27 @@
 #!/usr/bin/env bash
-# canon: test_sfl_drives_from_order_file v9
+# canon: test_sfl_drives_from_order_file v10
 # Scripts/test_sfl_drives_from_order_file.sh
 #
-# Ported from another estate repository 2026-10-01 (forsgren#1). forsgren's change:
-# pin 4 has no CI-only exemption (forsgren has no test_check_built_site.sh).
-# Pin 5 (the secret-class tier on the secret scan row) came back with the
-# secret scan, ladder step 3. Pin 6 (the same tier on the data guard row) is
-# forsgren's own: Yves's ruling of 2026-10-02 (forsgren#1, step 12.2) that the
-# data guard works like the secret scan. Pin 7 (the same tier on the private
-# names row) is #52's: the gate guards what must never reach a public history.
-#
-# v9 (forsgren#689, the sites' version): pin 2b (no gate script run by name in
-# sfl.sh, only the pre-flight and presentation helpers forsgren's sfl.sh names)
-# and pin 2c (no raw linter invocation in sfl.sh) taken over. Not taken over:
-# the sites' CI-only exemption in pin 4 for their built-site consistency
-# fixture, which forsgren does not have (pin 4 stays without exemptions), and
-# the sites' plainer tier-stripping proofs: forsgren's proofs also require the
-# pin's own FAIL text (forsgren#54), a stronger check of the same thing.
+# v10 (estate issue 850): one text in every repository of the estate. What
+# differs per repository lives in its Scripts/sfl_drives_from_order_file_settings.txt,
+# which this file reads and requires: the pre-flight and presentation scripts
+# sfl.sh may name (pin 2b), the CI-only fixtures pin 4 forbids from the order
+# file, and the rows beyond the secret scan and its self-test that carry the
+# secret-class tier. Every tier pin's non-vacuity proof now also requires the
+# pin's own FAIL text, not only a red.
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# shellcheck source=Scripts/lib_has.sh
-source Scripts/lib_has.sh
+# Temp folders through Scripts/lib_tmp.sh (estate issue 536).
 # shellcheck source=Scripts/lib_tmp.sh
 source Scripts/lib_tmp.sh
 
 # sfl derives its SEQUENCE AND ITS COMMANDS from Scripts/gate_report_order.txt
 # — unit 409 step 3.
 #
-# THIS IS WHAT CLOSES THE ORDER QUESTION. Another estate repository's gate-parity axis compares
+# THIS IS WHAT CLOSES THE ORDER QUESTION. The estate's gate-parity axis compares
 # each repo's order FILE against the canon; it cannot compare execution, because
 # execution is a runtime fact and the axis reads files at rest over the API. Of
 # the three ways to bridge that — commit a generated "executed order" file (an
@@ -65,9 +56,11 @@ source Scripts/lib_tmp.sh
 # tested script.
 
 SFL="sfl.sh"
-# Overridable so pin 5 can be shown FAILING against a mutated copy — a green
-# that was never seen red is a green that might assert nothing.
+# Overridable so the tier pins can be shown FAILING against a mutated copy — a
+# green that was never seen red is a green that might assert nothing.
 ORDER="${1:-Scripts/gate_report_order.txt}"
+# This repository's values (see the header). Missing or malformed is red.
+SETTINGS="Scripts/sfl_drives_from_order_file_settings.txt"
 
 COMPLETED=0
 finish() {
@@ -85,6 +78,42 @@ fail() {
   failed=1
 }
 
+# The settings: one `<kind>|<value>` per line, blank lines and `#` comments
+# ignored. The kinds:
+#   preflight|<name>        a script sfl.sh may name outside the dispatch loop
+#                           (a pre-flight step, a sourced helper or a
+#                           presentation helper; matched as in pin 2b's grep)
+#   ci_only_fixture|<path>  a Scripts/test_*.sh that pin 4 requires NOT to be
+#                           in the order file
+#   secret_class|<label>    one more row that must carry the PRE secret-class
+#                           tier (pins 5 and 8 always hold the secret scan and
+#                           its self-test)
+# Any other line is red: the file is read whole, never partly.
+if [[ ! -f "$SETTINGS" ]]; then
+  echo "❌ FAIL: ${SETTINGS} is missing — this repository's pre-flight list, CI-only fixtures and secret-class rows have no home" >&2
+  exit 1
+fi
+PREFLIGHT=()
+CI_ONLY=()
+SECRET_CLASS=()
+n=0
+while IFS= read -r line || [[ -n "$line" ]]; do
+  n=$((n + 1))
+  case "$line" in '' | '#'*) continue ;; esac
+  kind="${line%%|*}"
+  value="${line#*|}"
+  if [[ "$line" != *"|"* || -z "$value" || "$value" == *"|"* ]]; then
+    fail "${SETTINGS} line ${n} is not <kind>|<value>: ${line}"
+    continue
+  fi
+  case "$kind" in
+    preflight) PREFLIGHT+=("$value") ;;
+    ci_only_fixture) CI_ONLY+=("$value") ;;
+    secret_class) SECRET_CLASS+=("$value") ;;
+    *) fail "${SETTINGS} line ${n} has the unknown kind '${kind}': ${line}" ;;
+  esac
+done < "$SETTINGS"
+
 # Pin 1: the sequence comes from the file.
 if ! grep -qF "$ORDER" "$SFL"; then
   fail "sfl.sh never reads ${ORDER} — its order is whatever the call sites happen to say, which is the thing the axis cannot check"
@@ -100,32 +129,24 @@ fi
 # Pin 2b: a gate script invoked by name. The loop runs "./$script"; anything
 # naming a Scripts/*.sh literally is a gate running where the file cannot see
 # it. `^[^#]*` so a COMMENT mentioning a script is not read as running one.
-# Exempt are the scripts forsgren's sfl.sh names that hold no row because they
-# are no gate:
-# - presentation helpers its own machinery calls: summarize_gate_failure.sh,
-#   render_step_table.sh, and the order file itself;
-# - PRE-FLIGHT steps that run before the dispatch loop because they make the
-#   gates able to run at all: install_tools.sh (the Homebrew tools),
-#   check_node_pin.sh, npm_sync_install.sh (npm ci when node_modules is missing
-#   or stale), go_toolchain.sh (the Go version the gates export as
-#   GOTOOLCHAIN), selftest_rows.sh (the self-test rows the dispatch loop leaves
-#   to selftests.yml without --with-selftests);
-# - SOURCED libraries, never run: sfl_pull.sh (the opening pull; its row
-#   `sfl pull contract` / Scripts/test_sfl_pull.sh is in the order file),
-#   lib_gate_select.sh (the local-run selector asked before each row with `in`
-#   rows in Scripts/gate_inputs.txt; it moves no row), lib_tmp.sh (the gate log
-#   folder).
-# Each of these has its own self-test as an order row.
+# Exempt are the `preflight` names of the settings file, each with its reason
+# there: presentation helpers sfl's own machinery calls, PRE-FLIGHT steps that
+# run before the dispatch loop because they make the gates able to run at all,
+# and SOURCED libraries that run no gate. They hold no row; their self-tests
+# are order rows. An empty list exempts nothing.
+preflight_re="$(IFS='|'; echo "${PREFLIGHT[*]:-}")"
+[[ -n "$preflight_re" ]] || preflight_re='^$'
 if grep -nE '^[^#]*(\.?/)?Scripts/[a-z_]+\.sh' "$SFL" \
-   | grep -vE 'summarize_gate_failure|render_step_table|gate_report_order|install_tools|check_node_pin|npm_sync_install|go_toolchain|selftest_rows|sfl_pull|lib_gate_select|lib_tmp'; then
+   | grep -vE "$preflight_re"; then
   fail "the lines above run a gate script by name — its position is decided there and not by ${ORDER}, so the estate axis reports an order this run does not follow"
 fi
 
-# Pin 2c: a raw linter invocation. The order file names a script path, never a
-# command line, so a linter invoked by sfl.sh itself (`npx ...`,
-# `node_modules/.bin/...`) is a gate running where the order file cannot see
-# it. The npm install step is a Scripts/ wrapper (npm_sync_install.sh) for the
-# same reason.
+# Pin 2c: a raw linter invocation (estate issue 301 step 3-12). The order file
+# names a script path, never a command line, so a linter invoked by sfl.sh
+# itself (`npx ...`, `node_modules/.bin/...`) is a gate running where the order
+# file cannot see it. The npm install step is a Scripts/ wrapper
+# (npm_sync_install.sh) for the same reason: it decides on a lockfile stamp, not
+# on whether one marker binary exists.
 if grep -nE '^[^#]*\b(npx|node_modules/\.bin)\b' "$SFL"; then
   fail "the lines above invoke a linter directly — the order file names a script path, so the invocation belongs in a Scripts/ wrapper both runners can share"
 fi
@@ -161,21 +182,37 @@ fi
 # Pin 4: every fixture on disk that belongs to the sfl PRE/POST canon is
 # declared. A canonical fixture that runs unlabelled never appears in the
 # report — the same class of invisible as a gate that never runs.
+#
+# A `ci_only_fixture` of the settings file is deliberately different: a CI-only
+# integrity fixture (a comparison of CI's separately generated candidate with
+# committed output, which a local build-then-compare would make tautological),
+# so it must NOT be declared.
+declared_scripts="$(grep -v '^#' "$ORDER" | cut -d'|' -f2)"
 for f in Scripts/test_*.sh; do
   [ -f "$f" ] || continue
-
-  grep -v '^#' "$ORDER" | cut -d'|' -f2 | has -qxF "$f" \
+  ci_only=0
+  for c in ${CI_ONLY[@]+"${CI_ONLY[@]}"}; do
+    [[ "$f" == "$c" ]] && ci_only=1
+  done
+  if [[ "$ci_only" -eq 1 ]]; then
+    if grep -qxF "$f" <<< "$declared_scripts"; then
+      fail "${f} is declared in ${ORDER} — it is CI-only, not an sfl PRE/POST fixture"
+    fi
+    continue
+  fi
+  grep -qxF "$f" <<< "$declared_scripts" \
     || fail "${f} is not named by any row in ${ORDER} — it would run unlabelled and appear in no report"
 done
 
-# tier_stripping_proof <pin> <row label> <mutation name prefix> <tier noun>
-# — the non-vacuity proof of a secret-class tier pin (5, 6 and 7): the real
-# order file with that row's tier stripped must change, and running this
-# check on it must be red with the pin's OWN FAIL text ("the <row label> row
-# does not carry the PRE secret-class tier"), not for another reason
-# (forsgren#54 S5). Runs only on the real order file, never on a mutant.
+# tier_stripping_proof <pin> <row label> <tier noun> — the non-vacuity proof
+# of a secret-class tier pin: the real order file with that row's tier stripped
+# must change, and running this check on it must be red with the pin's OWN FAIL
+# text ("the <row label> row does not carry the PRE secret-class tier"), not
+# for another reason. Every other pin here fails loudly on a repo that has not
+# migrated; a tier pin is a single word in one row, and would sit green forever
+# if it matched nothing. Runs only on the real order file, never on a mutant.
 tier_stripping_proof() {
-  local pin="$1" label="$2" mutation="$3" noun="$4" _tmp _out
+  local pin="$1" label="$2" noun="$3" _tmp _out
   [ "$ORDER" = "Scripts/gate_report_order.txt" ] || return 0
   _tmp="$(tmp_dir test_sfl_drives_from_order_file)" || exit 1
   sed \
@@ -183,7 +220,7 @@ tier_stripping_proof() {
     "$ORDER" > "${_tmp}/order.txt"
 
   if cmp -s "$ORDER" "${_tmp}/order.txt"; then
-    fail "the ${mutation}tier-stripping mutation changed nothing — pin ${pin} is matching something other than the row it claims to"
+    fail "the ${label} tier-stripping mutation changed nothing — pin ${pin} is matching something other than the row it claims to"
   elif _out="$("$0" "${_tmp}/order.txt" 2>&1)"; then
     fail "an order file with ${noun} REMOVED was accepted — pin ${pin} does not actually guard it"
   elif ! grep -qF "the ${label} row does not carry the PRE secret-class tier" <<< "$_out"; then
@@ -195,6 +232,16 @@ tier_stripping_proof() {
   rm -rf "$_tmp"
 }
 
+# tier_pin <pin> <row label> <why>: the row carries the PRE secret-class tier,
+# with its non-vacuity proof.
+tier_pin() {
+  local pin="$1" label="$2" why="$3"
+  if ! grep -qE "^${label}\\|[^|]+\\|pre\\|secret-class\$" "$ORDER"; then
+    fail "the ${label} row does not carry the PRE secret-class tier — ${why}"
+  fi
+  tier_stripping_proof "$pin" "$label" "the ${label} row's secret-class tier"
+}
+
 # Pin 5: the SECRET-CLASS TIER lives in field 4 of the file. run_gate_secret is
 # what makes sfl exit 2, which FBP.sh reads as "do not commit at all"
 # — committing a secret puts it into history, where removing it is a rewrite
@@ -202,53 +249,22 @@ tier_stripping_proof() {
 # been the one behaviour the order file could not see, and losing it would be
 # silent: the scan would still run, still pass, and a real finding would drop
 # from blocking the commit to merely blocking the push.
-if ! grep -qE '^secret scan\|[^|]+\|pre\|secret-class$' "$ORDER"; then
-  fail "the secret scan row does not carry the PRE secret-class tier — the scan would still run, but a finding would stop blocking the COMMIT and only block the push"
-fi
+tier_pin 5 "secret scan" "the scan would still run, but a finding would stop blocking the COMMIT and only block the push"
 
-# Non-vacuity for pin 5: the same file with the tier stripped must be rejected.
-# Every other pin here fails loudly on a repo that has not migrated; this one is
-# a single word in one row, and would sit green forever if it matched nothing.
-tier_stripping_proof 5 "secret scan" "" "the secret-class tier"
+# Pin 8: the SECRET-SCAN SELF-TEST carries the tier as well. Its first case
+# scans the real working tree, so a real leak turns it red BEFORE `secret scan`
+# runs; sfl stops at the first red gate, and as an ordinary row it would let
+# FBP.sh commit the leak as a RED commit.
+tier_pin 8 "secret-scan self-test" "a leak in the real tree turns it red first, sfl stops there, and FBP.sh would commit the leak as a RED commit"
 
-# Pin 6: the DATA GUARD carries the same tier (Yves, 2026-10-02, forsgren#1
-# step 12.2: "it works like the secret scan"). What it guards, an
-# installation's config or data, is what must
-# never reach a public history, so a finding has to block the COMMIT, not only
-# the push. Losing the tier would be as silent as losing pin 5's: the guard
-# would still run and still be red, and the finding would be committed.
-if ! grep -qE '^data guard\|[^|]+\|pre\|secret-class$' "$ORDER"; then
-  fail "the data guard row does not carry the PRE secret-class tier — the guard would still run, but a finding would be committed locally and only block the push"
-fi
-
-# Non-vacuity for pin 6, as for pin 5: the same file with the data guard's
-# tier stripped must be rejected. The anchor names the row, not its
-# self-test, whose label also starts with "data guard".
-tier_stripping_proof 6 "data guard" "data-guard " "the data guard's secret-class tier"
-
-# Pin 7: the PRIVATE NAMES gate carries the same tier (forsgren#52). What it
-# guards, a private repository name in a public file, is what must never reach
-# a public history, so a finding has to block the COMMIT, not only the push.
-# Losing the tier would be as silent as losing pin 5's: the gate would still
-# run and still be red, and the finding would be committed.
-if ! grep -qE '^private names\|[^|]+\|pre\|secret-class$' "$ORDER"; then
-  fail "the private names row does not carry the PRE secret-class tier — the gate would still run, but a finding would be committed locally and only block the push"
-fi
-
-# Non-vacuity for pin 7, as for pins 5 and 6: the same file with the private
-# names row's tier stripped must be rejected.
-tier_stripping_proof 7 "private names" "private-names " "the private names row's secret-class tier"
-
-# Pin 8: the SECRET-SCAN SELF-TEST carries the tier as well (forsgren#570). Its
-# first case scans the real working tree, so a real leak turns it red BEFORE
-# `secret scan` runs; sfl stops at the first red gate, and as an ordinary row
-# it would let FBP.sh commit the leak as a RED commit.
-if ! grep -qE '^secret-scan self-test\|[^|]+\|pre\|secret-class$' "$ORDER"; then
-  fail "the secret-scan self-test row does not carry the PRE secret-class tier — a leak in the real tree turns it red first, sfl stops there, and FBP.sh would commit the leak as a RED commit"
-fi
-
-# Non-vacuity for pin 8, as for pins 5 to 7.
-tier_stripping_proof 8 "secret-scan self-test" "secret-scan-self-test " "the secret-scan self-test's secret-class tier"
+# Pins 5+: the `secret_class` rows of the settings file carry the same tier.
+# What each guards is what must never reach a public history, so a finding has
+# to block the COMMIT, not only the push. Losing the tier would be as silent as
+# losing pin 5's: the gate would still run and still be red, and the finding
+# would be committed.
+for label in ${SECRET_CLASS[@]+"${SECRET_CLASS[@]}"}; do
+  tier_pin "5+" "$label" "the gate would still run, but a finding would be committed locally and only block the push"
+done
 
 COMPLETED=1
 
