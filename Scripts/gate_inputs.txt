@@ -343,6 +343,7 @@ step summary isolation|in|Scripts/test_dependabot_merge_policy_workflow.sh
 step summary isolation|in|Scripts/test_gate_browser.sh
 step summary isolation|in|Scripts/lib_gate_browser_selftest.sh
 step summary isolation|in|Scripts/test_gate_wiring.sh
+step summary isolation|in|Scripts/gate_wiring_floor.txt
 step summary isolation|in|Scripts/test_git_sandbox_guard.sh
 step summary isolation|in|Scripts/test_git_sandbox_isolation.sh
 step summary isolation|in|Scripts/test_quality_jobs.sh

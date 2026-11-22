@@ -1,0 +1,65 @@
+# Scripts/gate_wiring_floor.txt
+#
+# The gate count floor (MIN_GATES) of Scripts/test_gate_wiring.sh, forsgren's
+# value (canon test_gate_wiring v14, taken over in forsgren#689): the test
+# carries no repository value, it reads the floor from this file.
+#
+# Format: the one line that is neither blank nor a comment is the floor, a
+# positive whole number (spaces around it are ignored). A missing file, no
+# value line, a value of 0, a value that is no whole number or more than one
+# value line is red: the check fails closed.
+#
+# The verdict: runnable rows of Scripts/gate_report_order.txt (n/a rows
+# included) below the floor are red (a gate was removed), equal is green, above
+# is green with the warning "Raise MIN_GATES from X to Y". Raising the floor to
+# the counted rows is routine and belongs in the change that adds the gates;
+# lowering it needs an explicit yes.
+#
+# History of the floor (moved here from the script in forsgren#689):
+# New in forsgren with forsgren#215; set to the row count of that change
+# (115), plus the Go tool helper self-test of forsgren#216 (116).
+# Raised to 118 for the browser gate and its self-test (forsgren#205), and to
+# 119 for the live check's self-test (forsgren#205, step 2 of 2), and to 123
+# for the language gate (its self-test, the pages wrapper's self-test and the gate)
+# and the baseline report self-test (forsgren#220), and to 125 for the two
+# self-tests of the release building blocks (forsgren#221, step 1 of 2), and to
+# 131 for the five self-tests of the release scripts and the pin of the Release
+# workflow (forsgren#221, step 2 of 2), and to 132 for the self-test of
+# release_resume.sh (forsgren#221, the resume), and to 133 for the self-test of
+# release_token_expiry.sh (forsgren#221, step 4), and to 135 for the self-tests of
+# release_verify_pin.sh and release_metrics.sh (forsgren#221, step 5), and
+# to 138 for the self-test of the bump diff check (forsgren#230, step 1), and to
+# 140 for the self-tests of the short Quality runner and the pin of quality.yml's scope
+# (forsgren#230, step 2), and to 142 for the preview deploy's script self-test and
+# workflow pin (forsgren#222), and to 143 for the pre-check's self-test
+# (forsgren#231, step 1), and to 144 for the static block's self-test
+# (forsgren#231, step 2), and to 145 for the release pre-check's self-test
+# (forsgren#231, step 3), and to 148 for the Quality runner pins gate
+# (forsgren#240, step 1), and to 151 for the commit messages self-test
+# (forsgren#213), and to 152 for the self-test of release_verify_install.sh
+# (forsgren#237, step 5a), and to 153 for the self-test of release_agent_proofs.sh
+# (forsgren#237, step 5b), and down to 148 when the five self-tests of the
+# bump, commit, bump diff, short Quality and quality scope pins went with the
+# scripts they proved (forsgren#237, step 6), and up to 149 for the Dependabot
+# configuration self-test (forsgren#86), and up to 152 for the Quality job
+# layout pin and the self-test of the report merge (forsgren#259, step 2), and up
+# to 153 for the browser gate inputs self-test (forsgren#262, step 1 of 3), and 154
+# for the gate selection self-test (step 2 of 3), and 155 for the sfl gate skip
+# self-test (step 3 of 3), and 156 for the FBP push-or-rebase self-test
+# (forsgren#283, step 1 of 2), and 157 for the sfl pull rebase self-test
+# (forsgren#283, step 2 of 2), and 158 for the removed names gate that left the
+# release workflow pin (forsgren#263), and down to 157 for the precheck
+# self-test that went with the retired precheck.sh (forsgren#439), and up to 158
+# for the release check self-test (forsgren#445), and up to 160 for the pipe
+# into grep -q gate and its self-test (forsgren#428), up to 161 for the Linux
+# tool install self-test (forsgren#427), and up to 162 for the browser gate
+# process self-test split from the browser gate self-test (forsgren#386,
+# decision #411 A), and up to 163 for the parallel mutants library self-test
+# (forsgren#382), and up to 164 for the token expiry probe self-test
+# (forsgren#269), and up to 167 for the temp helper self-test, the bare mktemp
+# self-test and the bare mktemp gate (forsgren#612), and up to 168 for the tmp
+# failure stops self-test (forsgren#615), and up to 169 for the local hook
+# self-test (forsgren#290), and up to 170 for the FBP forwarder self-test (forsgren#627), and up to 171 for the TBD tables browser self-test (forsgren#626), and up to 173 for the default TBD fixture self-test and gate (forsgren#626), and up to 174 for the browser gate baseline choice self-test (forsgren#642), and down to 173 when the FBP forwarder self-test went with the forwarder it tested, and up to 175 for the Dependabot merge policy and pull-request comment self-tests (forsgren#664), and up to 176 for the reusable Dependabot merge policy workflow pin (forsgren#666), and up to 178 for the self-test skip of sfl and the self-tests' failure issue self-tests (forsgren#686).
+# Moved into this file at 178 (forsgren#689), the rows counted that day.
+
+178

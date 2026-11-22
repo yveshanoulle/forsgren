@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_sfl_drives_from_order_file v2
+# canon: test_sfl_drives_from_order_file v9
 # Scripts/test_sfl_drives_from_order_file.sh
 #
 # Ported from another estate repository 2026-10-01 (forsgren#1). forsgren's change:
@@ -9,6 +9,14 @@
 # forsgren's own: Yves's ruling of 2026-10-02 (forsgren#1, step 12.2) that the
 # data guard works like the secret scan. Pin 7 (the same tier on the private
 # names row) is #52's: the gate guards what must never reach a public history.
+#
+# v9 (forsgren#689, the sites' version): pin 2b (no gate script run by name in
+# sfl.sh, only the pre-flight and presentation helpers forsgren's sfl.sh names)
+# and pin 2c (no raw linter invocation in sfl.sh) taken over. Not taken over:
+# the sites' CI-only exemption in pin 4 for their built-site consistency
+# fixture, which forsgren does not have (pin 4 stays without exemptions), and
+# the sites' plainer tier-stripping proofs: forsgren's proofs also require the
+# pin's own FAIL text (forsgren#54), a stronger check of the same thing.
 
 set -euo pipefail
 
@@ -87,6 +95,39 @@ fi
 # one gate the axis reports as correctly ordered while it runs somewhere else.
 if grep -nE 'run_gate[a-z_]* "[A-Za-z]' "$SFL"; then
   fail "the lines above call run_gate with a LITERAL label — every gate is dispatched from the order file, so a literal call site means that gate's position is not the file's to decide"
+fi
+
+# Pin 2b: a gate script invoked by name. The loop runs "./$script"; anything
+# naming a Scripts/*.sh literally is a gate running where the file cannot see
+# it. `^[^#]*` so a COMMENT mentioning a script is not read as running one.
+# Exempt are the scripts forsgren's sfl.sh names that hold no row because they
+# are no gate:
+# - presentation helpers its own machinery calls: summarize_gate_failure.sh,
+#   render_step_table.sh, and the order file itself;
+# - PRE-FLIGHT steps that run before the dispatch loop because they make the
+#   gates able to run at all: install_tools.sh (the Homebrew tools),
+#   check_node_pin.sh, npm_sync_install.sh (npm ci when node_modules is missing
+#   or stale), go_toolchain.sh (the Go version the gates export as
+#   GOTOOLCHAIN), selftest_rows.sh (the self-test rows the dispatch loop leaves
+#   to selftests.yml without --with-selftests);
+# - SOURCED libraries, never run: sfl_pull.sh (the opening pull; its row
+#   `sfl pull contract` / Scripts/test_sfl_pull.sh is in the order file),
+#   lib_gate_select.sh (the local-run selector asked before each row with `in`
+#   rows in Scripts/gate_inputs.txt; it moves no row), lib_tmp.sh (the gate log
+#   folder).
+# Each of these has its own self-test as an order row.
+if grep -nE '^[^#]*(\.?/)?Scripts/[a-z_]+\.sh' "$SFL" \
+   | grep -vE 'summarize_gate_failure|render_step_table|gate_report_order|install_tools|check_node_pin|npm_sync_install|go_toolchain|selftest_rows|sfl_pull|lib_gate_select|lib_tmp'; then
+  fail "the lines above run a gate script by name — its position is decided there and not by ${ORDER}, so the estate axis reports an order this run does not follow"
+fi
+
+# Pin 2c: a raw linter invocation. The order file names a script path, never a
+# command line, so a linter invoked by sfl.sh itself (`npx ...`,
+# `node_modules/.bin/...`) is a gate running where the order file cannot see
+# it. The npm install step is a Scripts/ wrapper (npm_sync_install.sh) for the
+# same reason.
+if grep -nE '^[^#]*\b(npx|node_modules/\.bin)\b' "$SFL"; then
+  fail "the lines above invoke a linter directly — the order file names a script path, so the invocation belongs in a Scripts/ wrapper both runners can share"
 fi
 
 # Pin 3: every runnable row names a script that exists and is executable. This

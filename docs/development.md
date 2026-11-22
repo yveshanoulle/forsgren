@@ -355,7 +355,8 @@ broken runner cannot report green:
 
 - **sfl pull contract** (`Scripts/test_sfl_pull.sh`): sfl pulls with
   `--ff-only` and stops with exit 3, naming the recovery command and the
-  autostash warning, when it can neither fast-forward nor rebase.
+  autostash warning, when it can neither fast-forward nor rebase, and
+  `sfl.sh` pulls before its gate-dispatch loop runs any gate.
 - **sfl pull rebase self-test** (`Scripts/test_sfl_pull_rebase.sh`): the
   opening pull's rebase over unrelated incoming commits, its stop on an
   overlap with the local side untouched, and its refusal of a half-merged repo
@@ -390,7 +391,9 @@ broken runner cannot report green:
   step table, with their counts.
 - **sfl drives from the order file**
   (`Scripts/test_sfl_drives_from_order_file.sh`): sfl names no gate label
-  itself, every row names an executable script, every `Scripts/test_*.sh`
+  itself, runs no gate script by name (only its pre-flight and presentation
+  helpers) and invokes no linter directly (`npx`, `node_modules/.bin`), every
+  row names an executable script, every `Scripts/test_*.sh`
   is declared by a row, and the secret scan, the data guard and the
   private-names gate each carry `secret-class`; each of those three pins
   is seen rejecting the order file with its tier stripped, by its own

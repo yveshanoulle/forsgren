@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_sfl_pull v3
+# canon: test_sfl_pull v5
 set -euo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
@@ -11,6 +11,10 @@ source Scripts/lib_tmp.sh
 
 # Scripts/test_sfl_pull.sh
 #
+# v5 (estate issue 550): its temp folders come from tmp_dir, under a
+# normalised TMPDIR root (forsgren since forsgren#612); each mutant sits in its
+# own folder; the pull must run before the gate-dispatch loop (forsgren#689).
+#
 # The sfl pull contract, shared by every repo of the estate: `git pull --ff-only`;
 # on anything else, print the manual recovery command to stderr and stop with
 # exit 3, never warn-and-continue. Since forsgren#283 step 2 a pull that cannot
@@ -19,7 +23,9 @@ source Scripts/lib_tmp.sh
 # fixture's failing git stub it stops with exit 3 as before. Since forsgren#603
 # (an estate fix) sfl refuses a half-merged repo before it pulls; the stub reads
 # a clean repo for that check, and the refusal itself is
-# Scripts/test_sfl_pull_rebase.sh's, with real git.
+# Scripts/test_sfl_pull_rebase.sh's, with real git. The recovery text must
+# warn that a conflicting autostash leaves unmerged files and the stash entry
+# behind.
 #
 # THIS FIXTURE ALSO PINS THE WIRING. It is not enough for Scripts/sfl_pull.sh
 # to behave correctly in isolation (cases 1/2/3 below) if sfl.sh never calls it, or if the old warn-and-continue
@@ -29,12 +35,14 @@ source Scripts/lib_tmp.sh
 # reverse — still reds here.
 #
 # sfl.sh sources Scripts/sfl_pull.sh and runs `sfl_pull_or_stop || exit 3` as
-# its opening pull; the wiring pins below keep it that way.
+# its opening pull; the wiring pins below keep it that way. One more pin
+# proves the pull runs BEFORE the gate-dispatch loop starts any gate.
 #
 # MUTATION PROOF, at the end: the behavioural cases run against weakened copies
 # of Scripts/sfl_pull.sh (a failed pull that returns 0, a pull without --ff-only,
 # a silent failure, a recovery text without the autostash warning), and each
-# copy must be red. The script under test is the
+# copy must be red. Each copy sits as sfl_pull.sh in its own directory beside a
+# plain copy of Scripts/fbp_push_or_rebase.sh. The script under test is the
 # optional first argument; without one it is the real script and the mutation
 # proof runs.
 SRC="${1:-Scripts/sfl_pull.sh}"
@@ -66,6 +74,20 @@ if grep -q 'source Scripts/sfl_pull.sh' sfl.sh && grep -qE 'sfl_pull_or_stop *\|
   echo "OK:   sfl.sh sources Scripts/sfl_pull.sh and stops with exit 3 when sfl_pull_or_stop fails"
 else
   fail "sfl.sh does not source Scripts/sfl_pull.sh and call sfl_pull_or_stop with '|| exit 3' — its opening pull is not wired to the shared contract"
+fi
+
+# The pull runs before any gate does. The dispatch loop that runs the gates is
+# the boundary: everything above it is the opening step.
+if grep -qF 'sfl_pull_or_stop' sfl.sh; then
+  pull_line="$(grep -n 'sfl_pull_or_stop' sfl.sh | head -1 | cut -d: -f1)"
+  loop_line="$(grep -n "while IFS='|' read" sfl.sh | head -1 | cut -d: -f1)"
+  if [ -z "${loop_line:-}" ]; then
+    fail "sfl.sh has no gate-dispatch loop to check the pull against — cannot confirm ordering"
+  elif [ "${pull_line:-0}" -gt "${loop_line}" ]; then
+    fail "sfl_pull_or_stop is wired in AFTER the gate-dispatch loop starts — gates would already be running before the pull is even attempted"
+  else
+    echo "OK:   sfl.sh pulls before its gate-dispatch loop runs any gate"
+  fi
 fi
 
 # --- Behavioural pins on Scripts/sfl_pull.sh itself --------------------
@@ -149,10 +171,14 @@ fi
 if [ $# -eq 0 ]; then
   MUT="$(tmp_dir test_sfl_pull_mut)" || exit 1
   # Scripts/sfl_pull.sh sources the shared overlap list from its own
-  # directory, so each mutant sits beside a plain copy of it.
-  cp Scripts/fbp_push_or_rebase.sh "$MUT/"
+  # directory, so each mutant sits as sfl_pull.sh in its own directory beside
+  # a plain copy of it: the mutant is red for what it mutates, never for a
+  # missing file.
   mutant_must_fail() { # <label> <sed-expression>
-    local m="$MUT/sfl_pull_$RANDOM.sh"
+    local d m
+    d="$(mktemp -d "$MUT/mutant.XXXXXX")"
+    m="$d/sfl_pull.sh"
+    cp Scripts/fbp_push_or_rebase.sh "$d/"
     sed "$2" "$SRC" > "$m"
     if cmp -s "$SRC" "$m"; then
       fail "mutation '$1' changed nothing: it proves nothing"; return
@@ -179,4 +205,4 @@ if [ "$failed" -ne 0 ]; then
 fi
 
 echo
-echo "OK: sfl pull uses ff-only, stops with exit 3 on divergence, and sfl.sh is wired to it"
+echo "OK: sfl pull refuses a half-merged repo, uses ff-only, stops with exit 3 on divergence, and sfl.sh is wired to it"

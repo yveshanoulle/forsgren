@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# canon: test_summarize_gate_failure v3
+# canon: test_summarize_gate_failure v4
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 # Ported from another estate repository 2026-10-01 (forsgren#1), extended 2026-10-20 with case 6 (forsgren#243, start-of-line marker match); "here" in
 # the history below means another estate repository.
+# v4 (forsgren#689): the sites' v4 is this file's checks unchanged (cases 1-6
+# and the marker-anywhere mutation proof), the version line taken over as-is.
 #
 # Pins for Scripts/summarize_gate_failure.sh — unit 404, ported from
 # coachretreat-website (its unit 402), where another estate repository's gate-parity axis now

@@ -917,9 +917,14 @@ Nine PRE gates keep the CI honest:
   PRE, the build and POST in that order; `sfl.sh` and
   `Scripts/run_ci_phase.sh` read a row with the same rules; every script
   that no row names is a declared exemption with the runner it must still
-  be run by. It holds the gate-count ratchet: `MIN_GATES` is the number of
-  rows of the order file (n/a rows included), it may only go up, and a
-  self-proof removes one row and requires the count to fall under it.
+  be run by; `sfl.sh` runs the Node pin after the tool install and before
+  the npm install. It holds the gate-count ratchet: `MIN_GATES`, read from
+  `Scripts/gate_wiring_floor.txt` (a missing file or a value that is no
+  positive whole number is red), is the floor for the rows of the order file
+  (n/a rows included): below it is red, at it green, above it green with the
+  warning "Raise MIN_GATES from X to Y" as a warning annotation on the run's
+  summary page; it may only go up, and a self-proof shrinks the order file to
+  one row under it and requires a red.
 - **CI phase runner** (`Scripts/test_run_ci_phase.sh`, the estate canon
   `test_run_ci_phase v10` of `run_ci_phase v9`, whose canon home is forsgren
   since forsgren#646, decision #647 A):

@@ -54,7 +54,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 19 | zizmor | `check_zizmor.sh` | pre | required |
 | 20 | private-names secret sync self-test | `test_sync_private_names_secrets.sh` | pre | required |
 | 21 | private-names local file self-test | `test_ensure_private_names_file.sh` | pre | required |
-| 22 | sfl pull contract | `test_sfl_pull.sh` | pre | required, `test_sfl_pull v3` (the mutants sit beside a copy of `fbp_push_or_rebase.sh`, which `sfl_pull v2` sources) |
+| 22 | sfl pull contract | `test_sfl_pull.sh` | pre | required, `test_sfl_pull v5` (each mutant sits in its own folder beside a copy of `fbp_push_or_rebase.sh`, which `sfl_pull v2` sources) |
 | 160 | sfl pull rebase self-test | `test_sfl_pull_rebase.sh` | pre | required; ported from the estate canon (`test_sfl_pull_rebase v1`) on `lib_selftest.sh`: `sfl_pull.sh` (`sfl_pull v2`) in a temp bare remote and two clones: an unrelated incoming commit rebased with the staged change still staged, the unstaged one kept and no stash left; an incoming commit on the staged file or on the local commit's file stopped with exit 3, the file named, the local side untouched; 2 mutation proofs, each asserting the reason (forsgren#283, step 2 of 2); a half-merged repo (unmerged files, a leftover autostash entry, both) refused with exit 3 before any pull, a clean tree with an ordinary stash still pulled, 2 more mutation proofs (forsgren#603, an estate fix) |
 | 23 | npm manifest policy self-test | `test_check_guardrail_packages.sh` | pre | required, `test_check_guardrail_packages v1` |
 | 24 | npm manifest policy | `check_guardrail_packages.sh` | pre | required, `check_guardrail_packages v2` |
@@ -292,9 +292,11 @@ same case turns green with the exit code swallowed.
   written in it.
 - **A version line declares, a test shows.** Each gate's self-test, with
   mutation proofs in weakened copies, is what shows the behaviour.
-- **The gate count is a ratchet.** `MIN_GATES` in
-  `Scripts/test_gate_wiring.sh` equals the number of rows in the order file. It
-  goes up when a row lands and never goes down to clear a red.
+- **The gate count is a ratchet.** `MIN_GATES`, the one value line of
+  `Scripts/gate_wiring_floor.txt` that `Scripts/test_gate_wiring.sh` reads,
+  is the floor for the number of rows in the order file: fewer rows is red,
+  more is green with the warning "Raise MIN_GATES from X to Y". It goes up
+  when a row lands and never goes down to clear a red.
 
 ## The language gate (forsgren#220)
 
@@ -349,7 +351,7 @@ malformed row fails the step. Its self-test is the PRE row 124.
 
 ## The ratchet today
 
-`MIN_GATES` is 174 since the browser gate baseline choice self-test (forsgren#642; the steps from 162 are named in the comment above `MIN_GATES`). At 162 it equalled the 162 rows of the order file (158 with a
+`MIN_GATES` is 178 since the self-test skip of sfl and the self-tests' failure issue self-tests (forsgren#686); since forsgren#689 the value and the steps from 115 are in `Scripts/gate_wiring_floor.txt`. At 162 it equalled the 162 rows of the order file (158 with a
 script and 4 `n/a` rows; the pipe into grep -q gate and its self-test, forsgren#428,
 made 160, the Linux tool install self-test, forsgren#427, made 161, and the browser
 gate process self-test, forsgren#386, made 162). forsgren#215 brought it to 115 and the Go tool

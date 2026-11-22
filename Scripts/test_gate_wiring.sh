@@ -1,6 +1,31 @@
 #!/usr/bin/env bash
-# canon: test_gate_wiring v9
+# canon: test_gate_wiring v14
 # Scripts/test_gate_wiring.sh
+#
+# The sites' version notes, as they apply here (forsgren#689):
+# v14: MIN_GATES and the history of its raises live in the data file
+#   Scripts/gate_wiring_floor.txt, so this file carries no repository value; a
+#   missing file, no value, 0, a value that is no whole number or two value
+#   lines are red (fail closed); the verdict's cases read the floor from a
+#   file, with three more mutation proofs (part 1b).
+# v13: the gate count is red below MIN_GATES, green at it, and green above it
+#   with the warning "Raise MIN_GATES from X to Y" (a `⚠️ warn: ` line and a
+#   warning annotation on the CI run's summary page; sfl.sh has no warn row
+#   for a passing gate, so locally the line is in the gate's log); the
+#   removed-gate self-proof shrinks the order file to one row under the floor;
+#   twelve cases and ten mutation proofs (part 1b).
+# v12: a sites' sourced helper of their Dependabot merge policy self-test;
+#   forsgren has no such helper, nothing to take over.
+# v11: lib_isolation_local.sh is a sourced helper of the git sandbox
+#   isolation gate, which must source it: forsgren's arm since forsgren#569.
+# The sites' pins taken over besides: the Node pin in sfl's pre-flight (their
+# pin 1b, part 1c here). Their pin 1 (sfl.sh runs no gate script by name) is
+# Scripts/test_sfl_drives_from_order_file.sh's pin 2b here, one list instead of
+# two. Not taken over, because forsgren has no counterpart: their pin 7 (sfl.sh
+# runs the local private-names pre-flight; forsgren's FBP.sh runs it, the
+# ensure_private_names_file.sh arm of part 3), their pin 5 (a feta deploy
+# workflow keyed off Quality) and their build boundary, built site check and
+# CI exemption list arms (forsgren's own runner pins are parts 2 and 2b).
 
 set -euo pipefail
 
@@ -156,6 +181,33 @@ fi
 
 # --- 1b. THE GATE COUNT IS A RATCHET: gates go up, never down -----------------
 #
+# THE VERDICT (canon v13, the ruling on decision 81, taken over in forsgren#689):
+#   below MIN_GATES  red: a gate was removed;
+#   equal            green;
+#   above            green, with the warning "Raise MIN_GATES from X to Y",
+#                    Y the counted rows: in CI a warning annotation, which the
+#                    run's summary page lists (Scripts/run_ci_phase.sh echoes
+#                    every gate's output to the log), and a `⚠️ warn: ` line
+#                    in the gate's output. The warning never fails the run.
+#                    (sfl.sh's step table has no warn class for a gate that
+#                    passed, so locally the line is in the gate's log only:
+#                    the canon's "sfl warn row" does not exist in sfl.sh.)
+# Why an annotation and not a line this check appends to $GITHUB_STEP_SUMMARY:
+# the step summary isolation gate runs this check (it names the summary
+# renderers) with the summary pointed at a decoy that must stay empty, so a
+# line written here would turn that gate red exactly when this one warns.
+# Raising MIN_GATES to the counted rows is routine and belongs in the change
+# that adds the gates; lowering it needs an explicit yes. A MIN_GATES that is
+# not a positive whole number is red: a floor of 0 or of nothing measures
+# nothing.
+#
+# THE FLOOR FILE (canon v14, the 9 Nov part of the ruling on decision 81):
+# forsgren keeps its MIN_GATES, and the history of its raises, in
+# Scripts/gate_wiring_floor.txt, so this file carries no repository value. The
+# value is the one line of that file that is neither blank nor a comment,
+# spaces around it ignored. A missing file is red, and so is a value that is
+# no positive whole number: none, 0, text, or two value lines. It fails closed.
+#
 # Yves, 2026-08-31: "so that gates can not go down, only up". Same rule as the
 # coverage ratchet and the duplication ceiling: raise MIN_GATES whenever a row
 # lands, never lower it to make a red go away. It counts the runnable rows of
@@ -164,71 +216,226 @@ fi
 # keeps the count and passes; the estate's gate-parity axis catches that from
 # outside, because the removed one reappears as missing against the canon.
 #
-# New in forsgren with forsgren#215; set to the row count of that change
-# (115), plus the Go tool helper self-test of forsgren#216 (116).
-# Raised to 118 for the browser gate and its self-test (forsgren#205), and to
-# 119 for the live check's self-test (forsgren#205, step 2 of 2), and to 123
-# for the language gate (its self-test, the pages wrapper's self-test and the gate)
-# and the baseline report self-test (forsgren#220), and to 125 for the two
-# self-tests of the release building blocks (forsgren#221, step 1 of 2), and to
-# 131 for the five self-tests of the release scripts and the pin of the Release
-# workflow (forsgren#221, step 2 of 2), and to 132 for the self-test of
-# release_resume.sh (forsgren#221, the resume), and to 133 for the self-test of
-# release_token_expiry.sh (forsgren#221, step 4), and to 135 for the self-tests of
-# release_verify_pin.sh and release_metrics.sh (forsgren#221, step 5), and
-# to 138 for the self-test of the bump diff check (forsgren#230, step 1), and to
-# 140 for the self-tests of the short Quality runner and the pin of quality.yml's scope
-# (forsgren#230, step 2), and to 142 for the preview deploy's script self-test and
-# workflow pin (forsgren#222), and to 143 for the pre-check's self-test
-# (forsgren#231, step 1), and to 144 for the static block's self-test
-# (forsgren#231, step 2), and to 145 for the release pre-check's self-test
-# (forsgren#231, step 3), and to 148 for the Quality runner pins gate
-# (forsgren#240, step 1), and to 151 for the commit messages self-test
-# (forsgren#213), and to 152 for the self-test of release_verify_install.sh
-# (forsgren#237, step 5a), and to 153 for the self-test of release_agent_proofs.sh
-# (forsgren#237, step 5b), and down to 148 when the five self-tests of the
-# bump, commit, bump diff, short Quality and quality scope pins went with the
-# scripts they proved (forsgren#237, step 6), and up to 149 for the Dependabot
-# configuration self-test (forsgren#86), and up to 152 for the Quality job
-# layout pin and the self-test of the report merge (forsgren#259, step 2), and up
-# to 153 for the browser gate inputs self-test (forsgren#262, step 1 of 3), and 154
-# for the gate selection self-test (step 2 of 3), and 155 for the sfl gate skip
-# self-test (step 3 of 3), and 156 for the FBP push-or-rebase self-test
-# (forsgren#283, step 1 of 2), and 157 for the sfl pull rebase self-test
-# (forsgren#283, step 2 of 2), and 158 for the removed names gate that left the
-# release workflow pin (forsgren#263), and down to 157 for the precheck
-# self-test that went with the retired precheck.sh (forsgren#439), and up to 158
-# for the release check self-test (forsgren#445), and up to 160 for the pipe
-# into grep -q gate and its self-test (forsgren#428), up to 161 for the Linux
-# tool install self-test (forsgren#427), and up to 162 for the browser gate
-# process self-test split from the browser gate self-test (forsgren#386,
-# decision #411 A), and up to 163 for the parallel mutants library self-test
-# (forsgren#382), and up to 164 for the token expiry probe self-test
-# (forsgren#269), and up to 167 for the temp helper self-test, the bare mktemp
-# self-test and the bare mktemp gate (forsgren#612), and up to 168 for the tmp
-# failure stops self-test (forsgren#615), and up to 169 for the local hook
-# self-test (forsgren#290), and up to 170 for the FBP forwarder self-test (forsgren#627), and up to 171 for the TBD tables browser self-test (forsgren#626), and up to 173 for the default TBD fixture self-test and gate (forsgren#626), and up to 174 for the browser gate baseline choice self-test (forsgren#642), and down to 173 when the FBP forwarder self-test went with the forwarder it tested, and up to 175 for the Dependabot merge policy and pull-request comment self-tests (forsgren#664), and up to 176 for the reusable Dependabot merge policy workflow pin (forsgren#666), and up to 178 for the self-test skip of sfl and the self-tests' failure issue self-tests (forsgren#686).
-# The self-proof below removes one row and requires the count to fall under the
-# floor, so the floor has to track the current count exactly: a row cannot
-# land here without someone raising the ratchet on purpose.
-MIN_GATES=178
+# Until canon v13 the self-proof below removed one row and required the count
+# to fall under the floor, so the floor had to track the count exactly. Since
+# v13 it shrinks the file to one row under the floor, and a count above the
+# floor is green with the warning to raise it.
+GATE_FLOOR_FILE="Scripts/gate_wiring_floor.txt"
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
 }
 
+# The five functions between the FLOOR VERDICT markers are the verdict; the
+# mutation proofs below copy this block out of this file, change one thing and
+# run the cases against the copy.
+# FLOOR VERDICT BEGIN
+# gate_floor_verdict <counted> <floor> [<where>]: prints the verdict line, if
+# there is one, and fails only when the count is red. <where> names the floor
+# in the bad-floor line (default MIN_GATES).
+gate_floor_verdict() {
+  local counted="$1" floor="$2" where="${3:-MIN_GATES}"
+  if [[ ! "$floor" =~ ^[1-9][0-9]*$ ]]; then
+    echo "${where} is '${floor}', not a positive whole number — a floor that is missing, empty or 0 measures nothing"
+    return 1
+  fi
+  if [[ "$counted" -lt "$floor" ]]; then
+    echo "gate count fell to ${counted}, ratchet is ${floor} — a gate was removed. Restore it; lowering MIN_GATES needs an explicit yes, also when a gate was legitimately merged into another"
+    return 1
+  fi
+  if [[ "$counted" -gt "$floor" ]]; then
+    echo "Raise MIN_GATES from ${floor} to ${counted}"
+  fi
+  return 0
+}
+
+# gate_floor_warn <text>: the warning where each runner shows it: a
+# `⚠️ warn: ` line in the gate's output, and the `::warning` line, which the
+# CI runner (Scripts/run_ci_phase.sh echoes every gate's output) turns into an
+# annotation on the run's summary page.
+gate_floor_warn() {
+  echo "⚠️ warn: $1"
+  echo "::warning title=gate wiring::$1"
+}
+
+# gate_floor_check <counted> <floor> [<where>]: the verdict and its output. Red
+# below the floor and on a floor that is no positive whole number; a warning is
+# green.
+gate_floor_check() {
+  local verdict rc=0
+  verdict="$(gate_floor_verdict "$1" "$2" "${3:-MIN_GATES}")" || rc=$?
+  if [[ "$rc" -ne 0 ]]; then
+    echo "❌ FAIL: ${verdict}"
+    return 1
+  fi
+  [[ -n "$verdict" ]] || return 0
+  gate_floor_warn "$verdict"; return 0
+}
+
+# gate_floor_of <file>: prints the floor the file declares: its lines that are
+# neither blank nor a comment, spaces around each trimmed, joined by a space,
+# so two value lines print a value no floor check accepts. Prints nothing for
+# a file without a value line.
+gate_floor_of() {
+  sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' "$1" | { grep -v -e '^#' -e '^$' || true; } | paste -sd ' ' -
+}
+
+# gate_floor_from_file <counted> <file>: the verdict with the floor read from
+# the floor file; a missing file is red.
+gate_floor_from_file() {
+  if [[ ! -f "$2" ]]; then
+    echo "❌ FAIL: the floor file $2 is missing — MIN_GATES has no value, so the gate count measures nothing"; return 1
+  fi
+  gate_floor_check "$1" "$(gate_floor_of "$2")" "MIN_GATES in $2"
+}
+# FLOOR VERDICT END
+
 if [[ -f "$ORDER" ]]; then
   declared="$(gate_count_of "$ORDER")"
-  if [[ "$declared" -lt "$MIN_GATES" ]]; then
-    fail "gate count fell to ${declared}, ratchet is ${MIN_GATES} — a gate was removed. Restore it, or raise MIN_GATES only if a gate was legitimately merged into another"
+  gate_floor_from_file "$declared" "$GATE_FLOOR_FILE" || failed=1
+  MIN_GATES=""
+  if [[ -f "$GATE_FLOOR_FILE" ]]; then
+    MIN_GATES="$(gate_floor_of "$GATE_FLOOR_FILE")"
   fi
-  SHRUNK="$(tmp_file test_gate_wiring_shrunk)" || exit 1
-  grep -v '^#' "$ORDER" | grep . | tail -n +2 > "$SHRUNK"
-  if [[ "$(gate_count_of "$SHRUNK")" -ge "$MIN_GATES" ]]; then
-    fail "the ratchet cannot detect a removed gate — it is measuring nothing"
+
+  # Self-proof: the same verdict, against a copy of the order file shrunk to
+  # one row under the floor, MUST be red. Without this the ratchet would pass
+  # the moment it stopped reading the file, and could never be shown failing.
+  if [[ "$MIN_GATES" =~ ^[1-9][0-9]*$ && "$declared" -ge "$MIN_GATES" ]]; then
+    SHRUNK="$(tmp_file test_gate_wiring_shrunk)" || exit 1
+    grep -v '^#' "$ORDER" | grep . | tail -n +"$((declared - MIN_GATES + 2))" > "$SHRUNK"
+    if [[ "$(gate_count_of "$SHRUNK")" -ne "$((MIN_GATES - 1))" ]]; then
+      fail "the shrunk copy of ${ORDER} has $(gate_count_of "$SHRUNK") rows, not MIN_GATES - 1 = $((MIN_GATES - 1)) — the self-proof proves nothing"
+    elif gate_floor_verdict "$(gate_count_of "$SHRUNK")" "$MIN_GATES" > /dev/null; then
+      fail "the ratchet cannot detect a removed gate — it is measuring nothing"
+    fi
+    rm -f "$SHRUNK"
   fi
-  rm -f "$SHRUNK"
 fi
+
+# The verdict's cases (the ruling on decision 81, the floor in a data file
+# since v14): the floor is read from a floor file written for each case; below
+# is red, equal is green and silent, above is green with the warning carrying
+# the counted rows as the new floor, as a warn line and as an annotation;
+# comments, blank lines and spaces around the value are ignored; a missing
+# file, no value, 0, a value that is no whole number and two values are red.
+# floor_cases prints one line per case that went wrong and fails if one did; it
+# runs against whatever gate_floor_from_file is defined, so the mutation proofs
+# can run it against a changed copy.
+#
+# floor_case <label> <counted> <file text or MISSING> <expected status>
+#            <expected line or ->:
+#   one case; the file text is written with printf '%b' (so \n is a line
+#   break) to ${FLOOR_CASE_FILE}, which MISSING leaves absent; the expected
+#   line must be a whole line of the output, and `-` means the output must be
+#   empty.
+floor_case() {
+  local label="$1" counted="$2" text="$3" want_rc="$4" want_out="$5" out rc=0
+  rm -f "$FLOOR_CASE_FILE"
+  [[ "$text" == "MISSING" ]] || printf '%b' "$text" > "$FLOOR_CASE_FILE"
+  out="$(gate_floor_from_file "$counted" "$FLOOR_CASE_FILE")" || rc=$?
+  if [[ "$rc" -ne "$want_rc" ]]; then
+    echo "case ${label}: exit ${rc}, expected ${want_rc}. Output: ${out}"
+  elif [[ "$want_out" == "-" && -n "$out" ]]; then
+    echo "case ${label}: printed '${out}', expected nothing"
+  elif [[ "$want_out" != "-" ]] && ! grep -qxF -- "$want_out" <<< "$out"; then
+    echo "case ${label}: the output has no line '${want_out}'. Output: ${out}"
+  fi
+}
+
+floor_cases() {
+  local found f="$FLOOR_CASE_FILE"
+  local bad="not a positive whole number — a floor that is missing, empty or 0 measures nothing"
+  found="$(
+    floor_case "below (111 under 112)" 111 '112\n' 1 "❌ FAIL: gate count fell to 111, ratchet is 112 — a gate was removed. Restore it; lowering MIN_GATES needs an explicit yes, also when a gate was legitimately merged into another"
+    floor_case "equal (112 at 112)" 112 '112\n' 0 -
+    floor_case "above, the warn row (114 over 112)" 114 '112\n' 0 "⚠️ warn: Raise MIN_GATES from 112 to 114"
+    floor_case "above, the annotation (114 over 112)" 114 '112\n' 0 "::warning title=gate wiring::Raise MIN_GATES from 112 to 114"
+    floor_case "a documented file (comments, a blank line, spaces)" 112 '# the floor\n\n  112  \n# history\n' 0 -
+    floor_case "a documented file, below (111 under 112)" 111 '# the floor\n112\n' 1 "❌ FAIL: gate count fell to 111, ratchet is 112 — a gate was removed. Restore it; lowering MIN_GATES needs an explicit yes, also when a gate was legitimately merged into another"
+    floor_case "the floor file missing" 112 MISSING 1 "❌ FAIL: the floor file ${f} is missing — MIN_GATES has no value, so the gate count measures nothing"
+    floor_case "the floor file empty" 112 '' 1 "❌ FAIL: MIN_GATES in ${f} is '', ${bad}"
+    floor_case "the floor file only comments" 112 '# the floor\n\n' 1 "❌ FAIL: MIN_GATES in ${f} is '', ${bad}"
+    floor_case "floor 0" 112 '0\n' 1 "❌ FAIL: MIN_GATES in ${f} is '0', ${bad}"
+    floor_case "floor not a number" 112 'abc\n' 1 "❌ FAIL: MIN_GATES in ${f} is 'abc', ${bad}"
+    floor_case "two floors" 112 '112\n113\n' 1 "❌ FAIL: MIN_GATES in ${f} is '112 113', ${bad}"
+  )"
+  [[ -z "$found" ]] && return 0
+  echo "$found"
+  return 1
+}
+
+if ! is_mutation_rerun; then
+  floor_case_dir="$(tmp_dir test_gate_wiring_floor_cases)" || exit 1
+  FLOOR_CASE_FILE="${floor_case_dir}/gate_wiring_floor.txt"
+  if found="$(floor_cases)"; then
+    echo "  ok: the gate count verdict, the floor read from its file: below red, equal green, above green with the warning (warn line and annotation), a missing, empty, 0, non-numeric or doubled floor red"
+  else
+    while IFS= read -r line; do
+      fail "the gate count verdict: ${line}"
+    done <<< "$found"
+  fi
+
+  # Mutation proofs: each copy of the verdict changes one thing and the cases
+  # must go red on it.
+  SELF_FILE="Scripts/$(basename "$0")"
+  floor_tmp="$(tmp_dir test_gate_wiring_floor)" || exit 1
+  awk '/^# FLOOR VERDICT BEGIN$/ { on = 1 } on { print } /^# FLOOR VERDICT END$/ { on = 0 }' "$SELF_FILE" > "${floor_tmp}/verdict.sh"
+  [[ -s "${floor_tmp}/verdict.sh" ]] || fail "the FLOOR VERDICT block of ${SELF_FILE} is missing — the verdict's mutation proofs prove nothing"
+  floor_mutant() {
+    local name="$1" expr="$2"
+    sed -E "$expr" "${floor_tmp}/verdict.sh" > "${floor_tmp}/${name}.sh"
+    if cmp -s "${floor_tmp}/verdict.sh" "${floor_tmp}/${name}.sh"; then
+      fail "the ${name} mutation of the gate count verdict changed nothing — the sed no longer matches"
+    elif (
+      # shellcheck source=/dev/null # a mutated copy of the verdict above
+      source "${floor_tmp}/${name}.sh"
+      floor_cases > /dev/null
+    ); then
+      fail "a gate count verdict with the ${name} mutation passed every case — the cases do not guard it"
+    else
+      echo "  ok: the gate count verdict with the ${name} mutation is rejected"
+    fi
+  }
+  floor_mutant below_green 's/("[$]counted") -lt "[$]floor"/\1 -lt 0/'
+  floor_mutant equal_warned 's/("[$]counted") -gt ("[$]floor")/\1 -ge \2/'
+  floor_mutant silent_above 's/echo "Raise MIN_GATES from/: "Raise MIN_GATES from/'
+  floor_mutant wrong_new_floor 's/(from ([$][{]floor[}]) to )[$][{]counted[}]/\1\2/'
+  floor_mutant warning_fails 's/(gate_floor_warn "[$]verdict"); return 0/\1; return 1/'
+  floor_mutant no_annotation 's/echo ("::warning title=gate wiring::)[$]1"/: \1"/'
+  floor_mutant bad_floor_accepted 's/\^\[1-9\]\[0-9\]\*\$/^[0-9]*$/'
+  floor_mutant file_ignored 's/gate_floor_of "[$]2"/echo 112/'
+  floor_mutant missing_file_open 's/(so the gate count measures nothing"); return 1/\1; return 0/'
+  floor_mutant comments_counted "s/grep -v -e '\\^#' -e '\\^[$]'/cat/"
+  rm -rf "$floor_tmp" "$floor_case_dir"
+fi
+
+# --- 1c. THE NODE PIN IN SFL'S PRE-FLIGHT (the sites' pin 1b, forsgren#689) --
+#
+# The Node pin runs in sfl's pre-flight, after install_tools.sh (which may
+# install Node) and before npm_sync_install.sh (whose stamp records the Node
+# major). check_node_pin.sh is also a PRE row, but the pre-flight call is what
+# makes the install step see a wrong Node first, so it is pinned here.
+sfl_node_pin_problems() {
+  local file="$1" install pin sync
+  install="$(grep -nE '^\./Scripts/install_tools\.sh' "$file" | head -n 1 | cut -d: -f1 || true)"
+  pin="$(grep -nE '^\./Scripts/check_node_pin\.sh' "$file" | head -n 1 | cut -d: -f1 || true)"
+  sync="$(grep -nE '^\./Scripts/npm_sync_install\.sh' "$file" | head -n 1 | cut -d: -f1 || true)"
+  if [[ -z "$pin" ]]; then echo "sfl.sh never runs Scripts/check_node_pin.sh"; return; fi
+  if [[ -z "$install" || "$pin" -le "$install" ]]; then echo "sfl.sh runs check_node_pin.sh before install_tools.sh"; fi
+  if [[ -z "$sync" || "$pin" -ge "$sync" ]]; then echo "sfl.sh runs check_node_pin.sh after npm_sync_install.sh"; fi
+}
+problems="$(sfl_node_pin_problems "$SFL")"
+[[ -z "$problems" ]] || fail "sfl.sh's Node pin call is misplaced: ${problems}"
+_t="$(tmp_dir test_gate_wiring)" || exit 1
+sed -E 's#^\./Scripts/check_node_pin\.sh.*$#: skipped#' "$SFL" > "${_t}/nopin.sh"
+awk '/^\.\/Scripts\/check_node_pin\.sh/ { next } { print } /^\.\/Scripts\/npm_sync_install\.sh/ { print "./Scripts/check_node_pin.sh || exit 1" }' "$SFL" > "${_t}/late.sh"
+cmp -s "$SFL" "${_t}/nopin.sh" && fail "the no-node-pin mutation changed nothing — pin 1c matches something other than the call"
+grep -qF 'never runs Scripts/check_node_pin.sh' <<< "$(sfl_node_pin_problems "${_t}/nopin.sh")" \
+  || fail "an sfl.sh without the Node pin call was accepted — pin 1c does not guard it"
+grep -qF 'after npm_sync_install.sh' <<< "$(sfl_node_pin_problems "${_t}/late.sh")" \
+  || fail "an sfl.sh running the Node pin after the npm install was accepted — pin 1c does not guard the order"
+rm -rf "$_t"
 
 # --- 2. RUNNERS -------------------------------------------------------------
 #
