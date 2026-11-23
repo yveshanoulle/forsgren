@@ -43,17 +43,25 @@ func TestAServiceRowFollowsTheWorkingDay(t *testing.T) {
 	}
 }
 
-// TestAServiceDataKeepsEverySettingOfItsParent (forsgren#178): ofTask narrows
-// the deployments, the commits and the failure issues and nothing else, so
-// every other field of Data, a setting added later too, is the parent's.
-func TestAServiceDataKeepsEverySettingOfItsParent(t *testing.T) {
-	parent := Data{}
-	fields := reflect.ValueOf(&parent).Elem()
+// numberedData is a Data whose every int field, a setting added later too,
+// holds a number of its own: 7 plus the field's place.
+func numberedData() Data {
+	data := Data{}
+	fields := reflect.ValueOf(&data).Elem()
 	for i := range fields.NumField() {
 		if fields.Field(i).Kind() == reflect.Int {
 			fields.Field(i).SetInt(int64(7 + i))
 		}
 	}
+	return data
+}
+
+// TestAServiceDataKeepsEverySettingOfItsParent (forsgren#178): ofTask narrows
+// the deployments, the commits and the failure issues and nothing else, so
+// every other field of Data, a setting added later too, is the parent's.
+func TestAServiceDataKeepsEverySettingOfItsParent(t *testing.T) {
+	parent := numberedData()
+	fields := reflect.ValueOf(&parent).Elem()
 	child := reflect.ValueOf(parent.ofTask("acme/app", "deploy-api"))
 	for i := range fields.NumField() {
 		name := fields.Type().Field(i).Name

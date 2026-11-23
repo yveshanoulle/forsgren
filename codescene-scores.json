@@ -178,9 +178,9 @@
   },
   {
    "path": "internal/metrics/oftask_test.go",
-   "score": 9.92,
+   "score": 10.0,
    "checkedAt": "2026-11-23",
-   "minScore": 9.82
+   "minScore": 10.0
   },
   {
    "path": "internal/collect/report.go",
