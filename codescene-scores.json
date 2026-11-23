@@ -160,9 +160,9 @@
   },
   {
    "path": "internal/metrics/changefail_window_test.go",
-   "score": 9.68,
+   "score": 10.0,
    "checkedAt": "2026-11-23",
-   "minScore": 9.58
+   "minScore": 10.0
   },
   {
    "path": "internal/page/tbd_test.go",

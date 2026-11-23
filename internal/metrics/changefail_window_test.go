@@ -34,11 +34,13 @@ func TestChangeFailRatesCountsTheWindow(t *testing.T) {
 		{"120 days over 90", 120 * day, 90, 0, 0},
 		{"120 days over 180", 120 * day, 180, 4, 1},
 	}
+	// counted is what the window counted, to compare in one step.
+	type counted struct{ deployments, failed, failureIssues int }
 	for _, c := range cases {
 		got := ChangeFailRates(projects, Data{
 			Records: successesAgo(4, c.ago), Failures: []history.Failure{failureNumbered(1, c.ago)}, DoraDays: c.days,
 		}, now)[0]
-		if got.Deployments != c.deployments || got.Failed != c.bad || got.FailureIssues != c.bad {
+		if (counted{got.Deployments, got.Failed, got.FailureIssues}) != (counted{c.deployments, c.bad, c.bad}) {
 			t.Errorf("%s: want %d deployments and %d failed, got %+v", c.name, c.deployments, c.bad, got)
 		}
 	}
