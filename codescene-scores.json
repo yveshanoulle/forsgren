@@ -2806,9 +2806,9 @@
   },
   {
    "path": "cmd/forsgren/render_commitfiles_test.go",
-   "score": 9.68,
+   "score": 10.0,
    "checkedAt": "2026-11-23",
-   "minScore": 9.58
+   "minScore": 10.0
   },
   {
    "path": "internal/metrics/servicepaths.go",

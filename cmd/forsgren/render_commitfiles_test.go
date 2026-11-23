@@ -53,6 +53,13 @@ func webRow(t *testing.T, data string) metrics.TbdRow {
 	return metrics.TbdRow{}
 }
 
+// deployFigures are the figures of the Web row the commit files decide: the
+// commits timed and the two flags.
+type deployFigures struct {
+	timed                  int
+	reading, perRepository bool
+}
+
 // TestRenderReadsTheCommitFilesBesideTheHistory: with commit_files.csv beside
 // --data, the Web service counts the two commits that touch api/ (not the one
 // that changes web/y.go) and has nothing left to read.
@@ -60,9 +67,9 @@ func TestRenderReadsTheCommitFilesBesideTheHistory(t *testing.T) {
 	data := writeData(t, acmeHistory(), acmeCommits())
 	writeFilesOf(t, data)
 	row := webRow(t, data)
-	if row.Deploy.Commits != 2 || row.FilesReading || row.DeployPerRepository {
-		t.Errorf("want 2 commits timed and the files read, got %d (reading %v, per repository %v)",
-			row.Deploy.Commits, row.FilesReading, row.DeployPerRepository)
+	got := deployFigures{row.Deploy.Commits, row.FilesReading, row.DeployPerRepository}
+	if want := (deployFigures{timed: 2}); got != want {
+		t.Errorf("want 2 commits timed and the files read, got %+v", got)
 	}
 }
 
