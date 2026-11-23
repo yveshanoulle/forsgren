@@ -79,7 +79,7 @@ func acmeShop(d page.Data) page.Row { return d.Rows[0] }
 // wantLeftOut fails unless excluding lines from kept plus extra gives the
 // figure of kept alone: extra must change the figure without the exclusion,
 // or the test proves nothing.
-func wantLeftOut(t *testing.T, of figure, kept, extra stored, lines string) {
+func (kept stored) wantLeftOut(t *testing.T, of figure, extra stored, lines string) {
 	t.Helper()
 	want, _ := renderedData(t, "", kept)
 	counted, _ := renderedData(t, "", kept.plus(extra))
@@ -110,7 +110,7 @@ func TestExcludedDeploymentsLeaveDeploymentFrequency(t *testing.T) {
 	elsewhere := shipped(304, "acme/api", history.StateSuccess, "2026-09-23T10:00:00Z")
 	elsewhere.Task = uploadTask
 	kept := acmeStored().plus(stored{records: []history.Record{elsewhere}})
-	wantLeftOut(t, func(d page.Data) any { return acmeShop(d).Frequency }, kept, uploads(), allOfUploads)
+	kept.wantLeftOut(t, func(d page.Data) any { return acmeShop(d).Frequency }, uploads(), allOfUploads)
 }
 
 // uploadsWithCommits are two uploads in the DORA window with three commits
@@ -134,7 +134,7 @@ func uploadsWithCommits() stored {
 // are out of the lead time for changes; those of the other task stay.
 func TestExcludedDeploymentsLeaveLeadTime(t *testing.T) {
 	pinNow(t)
-	wantLeftOut(t, func(d page.Data) any { return acmeShop(d).LeadTime }, acmeStored(), uploadsWithCommits(), allOfUploads)
+	acmeStored().wantLeftOut(t, func(d page.Data) any { return acmeShop(d).LeadTime }, uploadsWithCommits(), allOfUploads)
 }
 
 // failedUpload is one failed upload in the DORA window.
@@ -147,7 +147,7 @@ func failedUpload() stored {
 // rate; the other task's failed deployment stays.
 func TestExcludedDeploymentsLeaveChangeFailRate(t *testing.T) {
 	pinNow(t)
-	wantLeftOut(t, func(d page.Data) any { return acmeShop(d).ChangeFail }, acmeStored(), failedUpload(), allOfUploads)
+	acmeStored().wantLeftOut(t, func(d page.Data) any { return acmeShop(d).ChangeFail }, failedUpload(), allOfUploads)
 }
 
 // recoveredUpload is a failed upload in the DORA window and the successful one
@@ -162,7 +162,7 @@ func recoveredUpload() stored {
 // the other task's open run of failures stays.
 func TestExcludedDeploymentsLeaveRecoveryTime(t *testing.T) {
 	pinNow(t)
-	wantLeftOut(t, func(d page.Data) any { return acmeShop(d).Recovery }, acmeStored(), recoveredUpload(), allOfUploads)
+	acmeStored().wantLeftOut(t, func(d page.Data) any { return acmeShop(d).Recovery }, recoveredUpload(), allOfUploads)
 }
 
 // TestBeforeKeepsTheLaterDeploymentsOfTheTask: with before, only the task's
@@ -180,8 +180,8 @@ func TestBeforeKeepsTheLaterDeploymentsOfTheTask(t *testing.T) {
 	if reflect.DeepEqual(acmeShop(alone).Frequency, acmeShop(withLater).Frequency) {
 		t.Fatal("want the later uploads to change the frequency, or this test proves nothing")
 	}
-	wantLeftOut(t, func(d page.Data) any { return []any{acmeShop(d).Row, d.History} }, acmeStored().plus(later),
-		earlier, lines)
+	acmeStored().plus(later).wantLeftOut(t, func(d page.Data) any { return []any{acmeShop(d).Row, d.History} }, earlier,
+		lines)
 }
 
 // TestAnExclusionOfAnUnknownTaskWarns: an exclusion whose task no stored
@@ -206,5 +206,5 @@ func TestAnExclusionOfAnUnknownTaskWarns(t *testing.T) {
 func TestExcludedDeploymentsLeaveHistory(t *testing.T) {
 	pinNow(t)
 	all := uploads().plus(failedUpload()).plus(recoveredUpload())
-	wantLeftOut(t, func(d page.Data) any { return d.History }, acmeStored(), all, allOfUploads)
+	acmeStored().wantLeftOut(t, func(d page.Data) any { return d.History }, all, allOfUploads)
 }
