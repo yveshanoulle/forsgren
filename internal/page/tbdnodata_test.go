@@ -39,7 +39,7 @@ func TestTbdRowWithoutDataIsOneSentenceAcrossTheColumns(t *testing.T) {
 		data := withoutData(c.all)
 		got := rendered(t, "tbd.html", data)
 		wantAll(t, name, got, noDataRow(c.columns, 30),
-			tbdRow(c.all, "Acme Shop", leadPair(c.all, "Acme Shop"), "3"))
+			tbdRow(data, "Acme Shop", leadPair(data, "Acme Shop"), "3"))
 		data.DoraDays = 90
 		wantAll(t, name+" 90", rendered(t, "tbd.html", data), noDataRow(c.columns, 90))
 	}

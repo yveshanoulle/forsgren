@@ -166,7 +166,7 @@
   },
   {
    "path": "internal/page/tbd_test.go",
-   "score": 9.68,
+   "score": 10.0,
    "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
@@ -2531,7 +2531,7 @@
   {
    "path": "internal/page/tbdnodata_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {

@@ -65,9 +65,9 @@ func integrationPart(t *testing.T, data Data) string {
 }
 
 // integrationRow is the row of project in the second table, cells as the
-// template writes them.
-func integrationRow(all bool, project string) string {
-	return "<th scope=\"row\">" + project + "</th>\n            " + tds(at(integrationCells[project], all)) + "\n"
+// template writes them with the figures data shows.
+func integrationRow(data Data, project string) string {
+	return "<th scope=\"row\">" + project + "</th>\n            " + tds(at(integrationCells[project], data)) + "\n"
 }
 
 // TestTheIntegrationTableIsASecondTableUnderItsOwnHeading: the h2 names the
@@ -117,9 +117,10 @@ func TestTheIntegrationTableHasTwoLevelHeadersWithAllTheFigures(t *testing.T) {
 // states across the columns, in both figure modes.
 func TestTheIntegrationTableShowsTheRowsOfEachProject(t *testing.T) {
 	for _, all := range []bool{false, true} {
-		part := integrationPart(t, inFigures(tbdData(), all))
+		data := inFigures(tbdData(), all)
+		part := integrationPart(t, data)
 		for _, project := range []string{"Acme Shop", "Acme Tools", "Acme Docs", "Acme Web"} {
-			wantAll(t, project, part, integrationRow(all, project))
+			wantAll(t, project, part, integrationRow(data, project))
 		}
 	}
 }

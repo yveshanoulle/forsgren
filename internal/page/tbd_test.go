@@ -250,9 +250,9 @@ var tbdBotLeadCells = map[string][2]string{
 }
 
 // leadPair is the PR Lead Time cells of project and the Bot PR Lead Time cells
-// beside them, for the figures.
-func leadPair(all bool, project string) string {
-	return at(tbdLeadCells[project], all) + " | " + at(tbdBotLeadCells[project], all)
+// beside them, for the figures data shows.
+func leadPair(data Data, project string) string {
+	return at(tbdLeadCells[project], data) + " | " + at(tbdBotLeadCells[project], data)
 }
 
 // tbdMainLeadCells are the Mainline Lead Time cells of tbdData's projects
@@ -266,19 +266,20 @@ var tbdMainLeadCells = map[string][2]string{
 	"Acme Web":   {"@1Pushes not collected yet", "@4Pushes not collected yet"},
 }
 
-// leadState is the pull requests state cell for the figures, of the PR Lead
-// Time and of the Bot PR Lead Time beside it: one column each, or three across
-// the group of all of them.
-func leadState(all bool, text string) string {
-	if all {
+// leadState is the pull requests state cell for the figures data shows, of the
+// PR Lead Time and of the Bot PR Lead Time beside it: one column each, or three
+// across the group of all of them.
+func leadState(data Data, text string) string {
+	if data.TbdAll() {
 		return "@4" + text + " | @4" + text
 	}
 	return "@1" + text + " | @1" + text
 }
 
-// at is the one of the two cells that the figures show.
-func at(cells [2]string, all bool) string {
-	if all {
+// at is the one of the two cells that shows the figures of data's key
+// tbd_figures.
+func at(cells [2]string, data Data) string {
+	if data.TbdAll() {
 		return cells[1]
 	}
 	return cells[0]
@@ -325,15 +326,15 @@ func notReadable() Data {
 }
 
 // tbdRow is the TBD page's row of project, as the template writes it with the
-// figures all or the median only: its Mainline Interval cells (tbdIntervalCells),
+// figures data shows, all or the median only: its Mainline Interval cells (tbdIntervalCells),
 // the cells of tbdTimeCells, its pull requests cells lead, the cells of
 // tbdCountCells and its Developers count (forsgren#397, step 5; order of
 // forsgren#418; forsgren#423).
-func tbdRow(all bool, project, lead, developers string) string {
-	return "<th scope=\"row\">" + project + "</th>\n            " + tds(at(tbdIntervalCells[project], all)) +
-		"\n            " + tds(at(tbdMainLeadCells[project], all)) +
-		"\n            " + tds(at(tbdTimeCells[project], all)) + "\n            " + tds(lead) + "\n            " +
-		tds(at(tbdDeployCells[project], all)) + "\n            " + tds(at(tbdCountCells[project], all)) +
+func tbdRow(data Data, project, lead, developers string) string {
+	return "<th scope=\"row\">" + project + "</th>\n            " + tds(at(tbdIntervalCells[project], data)) +
+		"\n            " + tds(at(tbdMainLeadCells[project], data)) +
+		"\n            " + tds(at(tbdTimeCells[project], data)) + "\n            " + tds(lead) + "\n            " +
+		tds(at(tbdDeployCells[project], data)) + "\n            " + tds(at(tbdCountCells[project], data)) +
 		"\n            " + tds(developers) + "\n"
 }
 
@@ -555,12 +556,13 @@ func TestTbdPageHasTwoLevelHeadersWithAllTheFigures(t *testing.T) {
 // included (forsgren#403). By default the median of each measure; the PR Lead
 // Time cell has no count, no cut count and no share, only its notes' markers.
 func TestTbdPageShowsTheRowsOfEachProject(t *testing.T) {
-	got := rendered(t, "tbd.html", tbdData())
+	data := tbdData()
+	got := rendered(t, "tbd.html", data)
 	wantAll(t, "tbd.html", got,
-		tbdRow(false, "Acme Shop", leadPair(false, "Acme Shop"), "3"),
-		tbdRow(false, "Acme Tools", leadPair(false, "Acme Tools"), "1"),
-		tbdRow(false, "Acme Docs", leadPair(false, "Acme Docs"), "1"),
-		tbdRow(false, "Acme Web", leadPair(false, "Acme Web"), "12"))
+		tbdRow(data, "Acme Shop", leadPair(data, "Acme Shop"), "3"),
+		tbdRow(data, "Acme Tools", leadPair(data, "Acme Tools"), "1"),
+		tbdRow(data, "Acme Docs", leadPair(data, "Acme Docs"), "1"),
+		tbdRow(data, "Acme Web", leadPair(data, "Acme Web"), "12"))
 	wantNone(t, "tbd.html", got, "pull requests merged within", "(1 cut)", "±")
 }
 
@@ -569,12 +571,13 @@ func TestTbdPageShowsTheRowsOfEachProject(t *testing.T) {
 // the note on the mean cell, the PR Lead Time like the others, without its
 // deviation, count, cut count and share.
 func TestTbdPageShowsAllTheFiguresOfEachProject(t *testing.T) {
-	got := rendered(t, "tbd.html", inFigures(tbdData(), true))
+	data := inFigures(tbdData(), true)
+	got := rendered(t, "tbd.html", data)
 	wantAll(t, "tbd.html", got,
-		tbdRow(true, "Acme Shop", leadPair(true, "Acme Shop"), "3"),
-		tbdRow(true, "Acme Tools", leadPair(true, "Acme Tools"), "1"),
-		tbdRow(true, "Acme Docs", leadPair(true, "Acme Docs"), "1"),
-		tbdRow(true, "Acme Web", leadPair(true, "Acme Web"), "12"))
+		tbdRow(data, "Acme Shop", leadPair(data, "Acme Shop"), "3"),
+		tbdRow(data, "Acme Tools", leadPair(data, "Acme Tools"), "1"),
+		tbdRow(data, "Acme Docs", leadPair(data, "Acme Docs"), "1"),
+		tbdRow(data, "Acme Web", leadPair(data, "Acme Web"), "12"))
 	wantNone(t, "tbd.html", got, "pull requests merged within", "(1 cut)", "±")
 }
 
@@ -595,17 +598,19 @@ func inFigures(data Data, all bool) Data {
 func TestTbdPageSaysThePullRequestsAreNotCollectedYet(t *testing.T) {
 	const notYet = "No pull requests have been collected yet"
 	for _, all := range []bool{false, true} {
-		state := leadState(all, notYet)
-		got := rendered(t, "tbd.html", inFigures(uncollected(), all))
-		wantAll(t, "uncollected", got, tbdRow(all, "Acme Shop", state, "3"),
-			tbdRow(all, "Acme Docs", state, "1"), tbdRow(all, "Acme Web", state, "12"))
-		noneInWindow := rendered(t, "tbd.html", inFigures(noPulls(), all))
+		data := inFigures(uncollected(), all)
+		state := leadState(data, notYet)
+		got := rendered(t, "tbd.html", data)
+		wantAll(t, "uncollected", got, tbdRow(data, "Acme Shop", state, "3"),
+			tbdRow(data, "Acme Docs", state, "1"), tbdRow(data, "Acme Web", state, "12"))
+		none := inFigures(noPulls(), all)
+		noneInWindow := rendered(t, "tbd.html", none)
 		wantNone(t, "collected, none in the window", noneInWindow, notYet)
 		dashes := noHumanPulls
 		if all {
 			dashes = "- | - | - | - | - | - | - | -"
 		}
-		wantAll(t, "collected, none in the window", noneInWindow, tbdRow(all, "Acme Docs", dashes, "1"))
+		wantAll(t, "collected, none in the window", noneInWindow, tbdRow(none, "Acme Docs", dashes, "1"))
 	}
 }
 
@@ -617,16 +622,17 @@ func TestTbdPageSaysThePullRequestsAreNotCollectedYet(t *testing.T) {
 func TestTbdPageSaysThePullRequestsAreNotReadable(t *testing.T) {
 	const refused, notYet = "Pull requests not readable", "No pull requests have been collected yet"
 	for _, all := range []bool{false, true} {
-		state := leadState(all, refused)
-		got := rendered(t, "tbd.html", inFigures(notReadable(), all))
-		wantAll(t, "not readable", got, tbdRow(all, "Acme Tools", state, "1"),
-			tbdRow(all, "Acme Docs", state, "1"),
-			tbdRow(all, "Acme Shop", leadPair(all, "Acme Shop"), "3"))
+		data := inFigures(notReadable(), all)
+		state := leadState(data, refused)
+		got := rendered(t, "tbd.html", data)
+		wantAll(t, "not readable", got, tbdRow(data, "Acme Tools", state, "1"),
+			tbdRow(data, "Acme Docs", state, "1"),
+			tbdRow(data, "Acme Shop", leadPair(data, "Acme Shop"), "3"))
 		uncollectedRefused := inFigures(notReadable(), all)
 		uncollectedRefused.PullsUncollected = true
 		got = rendered(t, "tbd.html", uncollectedRefused)
-		wantAll(t, "not collected yet", got, tbdRow(all, "Acme Docs", state, "1"),
-			tbdRow(all, "Acme Shop", leadState(all, notYet), "3"))
+		wantAll(t, "not collected yet", got, tbdRow(uncollectedRefused, "Acme Docs", state, "1"),
+			tbdRow(uncollectedRefused, "Acme Shop", leadState(uncollectedRefused, notYet), "3"))
 	}
 }
 
