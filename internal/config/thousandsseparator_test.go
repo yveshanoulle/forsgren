@@ -9,9 +9,9 @@ func TestThousandsSeparatorAcceptsItsFourValues(t *testing.T) {
 	for file, want := range map[string]string{"": "narrow_space", "thousands_separator:\n": "narrow_space",
 		"thousands_separator: narrow_space\n": "narrow_space", "thousands_separator: comma\n": "comma",
 		"thousands_separator: none\n": "none", "thousands_separator: period\ndecimal_separator: comma\n": "period"} {
-		got, err := parse([]byte(file + valid))
-		if err != nil || got.ThousandsSeparator != want || len(got.Rejected) != 0 {
-			t.Errorf("file %q: want %q and no rejection, got %q, %v, %v", file, want, got.ThousandsSeparator, got.Rejected, err)
+		pair, rejected, _ := separatorsOf(t, file)
+		if pair[0] != want || len(rejected) != 0 {
+			t.Errorf("file %q: want %q and no rejection, got %q, %v", file, want, pair[0], rejected)
 		}
 	}
 }
