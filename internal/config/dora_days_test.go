@@ -105,8 +105,11 @@ func TestRejectedHistoryDaysLeavesDoraDaysCheckedAgainstTheDefaultHistory(t *tes
 // is checked against 365 and fits.
 func TestHistoryDaysBelowTheMinimumLeavesTheWindowChecked(t *testing.T) {
 	got, err := parse([]byte("history_days: 7\ndora_days: 180\n" + valid))
-	if err != nil || got.DoraDays != 180 || got.HistoryDays != DefaultHistoryDays {
-		t.Fatalf("want history 365, window 180 and no error, got %d, %d, %v", got.HistoryDays, got.DoraDays, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.DoraDays != 180 || got.HistoryDays != DefaultHistoryDays {
+		t.Fatalf("want history 365 and window 180, got %d, %d", got.HistoryDays, got.DoraDays)
 	}
 	if len(got.Rejected) != 1 || got.Rejected[0].Key != "history_days" {
 		t.Errorf("want only history_days rejected, got %v", got.Rejected)
