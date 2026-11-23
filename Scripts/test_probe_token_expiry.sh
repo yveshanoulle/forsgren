@@ -13,7 +13,7 @@
 #   5. usage
 #   6. the workflow: workflow_dispatch only, no schedule (the estate dispatcher
 #      starts it, forsgren#616), contents: read, the
-#      two secrets in env, never FORSGREN_TOKEN, the artifact uploaded when the probe failed
+#      three secrets in env (REPORT_DISPATCH_TOKEN too, the report dispatch token), never FORSGREN_TOKEN, the artifact uploaded when the probe failed
 # Mutation proofs: an error line that exits 0; a missing header taken as an
 # error; a token on the command line.
 
@@ -59,11 +59,12 @@ reset() {
   : > "${TMP}/curl.log"
   answer rel-token 200 "2026-12-27 10:00:00 UTC"
   answer prev-token 200 "2027-01-05 00:00:00 UTC"
+  answer rep-token 200 "2027-10-31 12:00:00 UTC"
   answer fg-token 200 "2026-11-30 23:59:59 UTC"
 }
 probe() {
   PATH="${STUBS}:${PATH}" PROBE_CURL="${STUBS}/curl" STUB_LOG="${TMP}/curl.log" STUB_STATE="$STATE" \
-    FORSGREN_RELEASE_TOKEN="${REL-rel-token}" PREVIEW_DISPATCH_TOKEN="${PREV-prev-token}" FORSGREN_TOKEN="${FG-fg-token}" \
+    FORSGREN_RELEASE_TOKEN="${REL-rel-token}" PREVIEW_DISPATCH_TOKEN="${PREV-prev-token}" REPORT_DISPATCH_TOKEN="${REP-rep-token}" FORSGREN_TOKEN="${FG-fg-token}" \
     capture "${SCRIPT:-$PROBE}" "${TMP}/token-probed.tsv"
 }
 want_line() {
@@ -73,11 +74,12 @@ want_line() {
 # 1
 reset
 probe
-want_green "two dated tokens" "PREVIEW_DISPATCH_TOKEN"
+want_green "three dated tokens" "PREVIEW_DISPATCH_TOKEN"
 want_line "the header time is cut to the date" "FORSGREN_RELEASE_TOKEN${T}2026-12-27"
 want_line "second token" "PREVIEW_DISPATCH_TOKEN${T}2027-01-05"
+want_line "third token, the report dispatch" "REPORT_DISPATCH_TOKEN${T}2027-10-31"
 if grep -q "FORSGREN_TOKEN" "${TMP}/token-probed.tsv"; then fail "FORSGREN_TOKEN is probed: it lives in the installations, not in forsgren"; else echo "  ok: FORSGREN_TOKEN is not probed"; fi
-if [[ "$(grep -c . "${TMP}/token-probed.tsv")" == 2 ]]; then echo "  ok: one line per secret"; else fail "the file does not hold two lines"; fi
+if [[ "$(grep -c . "${TMP}/token-probed.tsv")" == 3 ]]; then echo "  ok: one line per secret"; else fail "the file does not hold three lines"; fi
 
 # 2
 reset
@@ -105,13 +107,13 @@ reset
 REL="" probe
 want_red "a secret not set" "❌ FORSGREN_RELEASE_TOKEN error: secret is not set"
 want_line "its line is written, not skipped" "FORSGREN_RELEASE_TOKEN${T}error: secret is not set"
-if [[ "$(grep -c . "${TMP}/curl.log")" == 1 ]]; then echo "  ok: no call without a token"; else fail "curl was called for an unset secret: $(cat "${TMP}/curl.log")"; fi
+if [[ "$(grep -c . "${TMP}/curl.log")" == 2 ]]; then echo "  ok: no call without a token"; else fail "curl was called for an unset secret: $(cat "${TMP}/curl.log")"; fi
 
 # 4
 reset
 probe
-if grep -qE 'rel-token|prev-token|fg-token' "${TMP}/curl.log"; then fail "a token is in the arguments of curl: $(cat "${TMP}/curl.log")"; else echo "  ok: no token in the arguments"; fi
-if grep -qE 'rel-token|prev-token|fg-token' <<< "$OUT"; then fail "a token is in the output"; else echo "  ok: no token in the output"; fi
+if grep -qE 'rel-token|prev-token|rep-token|fg-token' "${TMP}/curl.log"; then fail "a token is in the arguments of curl: $(cat "${TMP}/curl.log")"; else echo "  ok: no token in the arguments"; fi
+if grep -qE 'rel-token|prev-token|rep-token|fg-token' <<< "$OUT"; then fail "a token is in the output"; else echo "  ok: no token in the output"; fi
 
 # 5
 PATH="${STUBS}:${PATH}" capture "$PROBE"
@@ -126,11 +128,11 @@ else
   if [[ "$events" == "workflow_dispatch " ]]; then echo "  ok: workflow_dispatch only"; else fail "workflow triggers: ${events}"; fi
   if code "$WORKFLOW" | has -qE '^[[:space:]]*(schedule:|- cron:)'; then fail "the workflow carries a schedule or a cron entry"; else echo "  ok: no schedule"; fi
   if awk '/^permissions:/{getline; if ($0=="  contents: read") ok=1} END{exit !ok}' "$WORKFLOW" && ! code "$WORKFLOW" | has -qE ': write|write-all'; then echo "  ok: contents: read only"; else fail "workflow permissions are not contents: read alone"; fi
-  for s in FORSGREN_RELEASE_TOKEN PREVIEW_DISPATCH_TOKEN; do
+  for s in FORSGREN_RELEASE_TOKEN PREVIEW_DISPATCH_TOKEN REPORT_DISPATCH_TOKEN; do
     if code "$WORKFLOW" | has -qF "${s}: ${D}{{ secrets.${s} }}"; then echo "  ok: ${s} comes from the secret of that name"; else fail "the workflow does not pass ${s} from secrets.${s}"; fi
   done
-  if code "$WORKFLOW" | has -qF "secrets.FORSGREN_TOKEN"; then fail "the workflow passes FORSGREN_TOKEN: that secret lives in the installations, forsgren holds only two"; else echo "  ok: no third secret"; fi
-  if grep -qxF "NAMES=\"FORSGREN_RELEASE_TOKEN PREVIEW_DISPATCH_TOKEN\"" "$PROBE"; then echo "  ok: the script probes exactly the two secrets"; else fail "the script NAMES list is not exactly the two secrets"; fi
+  if code "$WORKFLOW" | has -qF "secrets.FORSGREN_TOKEN"; then fail "the workflow passes FORSGREN_TOKEN: that secret lives in the installations, forsgren holds only three"; else echo "  ok: no fourth secret"; fi
+  if grep -qxF "NAMES=\"FORSGREN_RELEASE_TOKEN PREVIEW_DISPATCH_TOKEN REPORT_DISPATCH_TOKEN\"" "$PROBE"; then echo "  ok: the script probes exactly the three secrets"; else fail "the script NAMES list is not exactly the three secrets"; fi
   if code "$WORKFLOW" | has -qF './Scripts/probe_token_expiry.sh token-probed.tsv'; then echo "  ok: the probe script writes token-probed.tsv"; else fail "the workflow does not run the script on token-probed.tsv"; fi
   if code "$WORKFLOW" | has -qF 'name: token-expiry-probe' && code "$WORKFLOW" | has -qF 'if: always()'; then echo "  ok: the artifact is uploaded even when the probe fails"; else fail "no always() upload of token-expiry-probe"; fi
   if code "$WORKFLOW" | has -qF 'persist-credentials: false'; then echo "  ok: checkout keeps no credentials"; else fail "checkout persists credentials"; fi
