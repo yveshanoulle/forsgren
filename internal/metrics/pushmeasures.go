@@ -189,22 +189,28 @@ func commitsOfPushes(index projectIndex, data Data, tips map[string]pushTime) ma
 		}
 		k := commitKey(pc.Repository, pc.SHA)
 		held, seen := commits[k]
-		commits[k] = held.merged(seen, i, pc, tip, pulled[k])
+		commits[k] = held.merged(seen, broughtCommit(i, pc, tip, pulled[k]))
 	}
 	return commits
 }
 
-// merged is the commit c brought by the push at tip to project, with what an
-// earlier push of it (held, when seen) said: its earliest push time, a pull
-// request's when any push of it was a merge or pulled says it is a pull
-// request's merge commit.
-func (c pushedCommit) merged(seen bool, project int, pc history.PushCommit, tip pushTime, pulled bool,
-) pushedCommit {
-	at := earlierOf(c.at, tip.at, seen)
-	return pushedCommit{mainArrival: mainArrival{project: project, at: at, authored: pc.AuthoredAt},
-		pull:    c.pull || tip.merge || pulled,
+// broughtCommit is the commit pc as the push at tip brought it to project:
+// timed at that push, a pull request's when the push was a merge or pulled
+// says it is a pull request's merge commit.
+func broughtCommit(project int, pc history.PushCommit, tip pushTime, pulled bool) pushedCommit {
+	return pushedCommit{mainArrival: mainArrival{project: project, at: tip.at, authored: pc.AuthoredAt},
+		pull:    tip.merge || pulled,
 		unknown: pc.Author == "" || strings.EqualFold(pc.Author, placeholderLogin),
 		bot:     strings.HasSuffix(pc.Author, botSuffix), author: pc.Author}
+}
+
+// merged is the commit as a later push brought it, with what an earlier push
+// of it (c, when seen) said: its earliest push time, and a pull request's
+// when any push of it was.
+func (c pushedCommit) merged(seen bool, brought pushedCommit) pushedCommit {
+	brought.at = earlierOf(c.at, brought.at, seen)
+	brought.pull = brought.pull || c.pull
+	return brought
 }
 
 // add counts the commit c in m.

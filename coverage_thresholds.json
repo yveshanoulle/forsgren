@@ -1254,6 +1254,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/mainlinelead.go:stillFilling": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/mainlinelead.go:markPullsFilling": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/mainlinelead.go:finish": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/pushmeasures.go:broughtCommit": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/pushmeasures.go:merged": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/tbdcells.go:BotCell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/developers.go:isPerson": 100.0,
