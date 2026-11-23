@@ -21,17 +21,34 @@ func TestReportBoundsAreTheRollingWindow(t *testing.T) {
 		180: time.Date(2026, 4, 29, 22, 29, 40, 0, time.UTC),
 	} {
 		start, end := ReportBounds(days, at)
-		if !start.Equal(want) || !end.Equal(at) || start.Location() != time.UTC || end.Location() != time.UTC {
+		if !isUTCInstant(start, want) || !isUTCInstant(end, at) {
 			t.Errorf("dora_days %d: want %v to %v in UTC, got %v to %v", days, want, at.UTC(), start, end)
 		}
 	}
+}
+
+// isUTCInstant reports whether got is the same instant as want and carries
+// the UTC location.
+func isUTCInstant(got, want time.Time) bool {
+	return got.Equal(want) && got.Location() == time.UTC
 }
 
 // TestReportBoundsHoldTheSameInstantsAsTheWindow: a time at the start is in
 // the window, one a second before is not, as window.holds counts.
 func TestReportBoundsHoldTheSameInstantsAsTheWindow(t *testing.T) {
 	start, end := ReportBounds(30, now)
-	if w := window(30); !w.holds(start, now) || w.holds(start.Add(-time.Second), now) || !w.holds(end, now) {
-		t.Errorf("want the window to hold %v to %v exactly", start, end)
+	w := window(30)
+	for _, c := range []struct {
+		name string
+		at   time.Time
+		held bool
+	}{
+		{"the start", start, true},
+		{"a second before the start", start.Add(-time.Second), false},
+		{"the end", end, true},
+	} {
+		if w.holds(c.at, now) != c.held {
+			t.Errorf("%s (%v): want held %v, window %v to %v", c.name, c.at, c.held, start, end)
+		}
 	}
 }
