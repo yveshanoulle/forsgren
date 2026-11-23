@@ -40,9 +40,9 @@
   },
   {
    "path": "internal/config/settings_test.go",
-   "score": 9.38,
+   "score": 10.0,
    "checkedAt": "2026-11-23",
-   "minScore": 9.28
+   "minScore": 10.0
   },
   {
    "path": "internal/installerdoc/agent_installer_test.go",

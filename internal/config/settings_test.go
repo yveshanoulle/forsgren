@@ -10,32 +10,9 @@ import (
 // only history_days has that key Set with its value, every other key unset
 // with its default, in the fixed order.
 func TestSettingsListsEveryKeyWithItsDefault(t *testing.T) {
-	wantSettings(t, "history_days: 30\n", []Setting{
-		{Key: "view", Value: "standard", Default: "standard"},
-		{Key: "sub_rows", Value: "true", Default: "true"},
-		{Key: "auto_update", Value: "false", Default: "false"},
-		{Key: "auto_update_level", Value: "major", Default: "major"},
-		{Key: "history_days", Value: "30", Default: "365", Set: true},
-		{Key: "history_chunk_days", Value: "100", Default: "100"},
-		{Key: "working_hours", Value: "8", Default: "8"},
-		{Key: "dora_days", Value: "30", Default: "30"},
-		{Key: "issues_page", Value: "true", Default: "true"},
-		{Key: "days_page", Value: "false", Default: "false"},
-		{Key: "numbers_scoring_page", Value: "unlisted", Default: "unlisted"},
-		{Key: "history_page", Value: "unlisted", Default: "unlisted"},
-		{Key: "tbd_page", Value: "true", Default: "true"},
-		{Key: "week_page", Value: "true", Default: "true"},
-		{Key: "week_commits", Value: "false", Default: "false"},
-		{Key: "data_page", Value: "true", Default: "true"},
-		{Key: "tbd_figures", Value: "median", Default: "median"},
-		{Key: "tbd_time_to_main", Value: "true", Default: "true"},
-		{Key: "tbd_pr_lead_time", Value: "true", Default: "true"},
-		{Key: "tbd_bot_pr_lead_time", Value: "true", Default: "true"},
-		{Key: "tbd_integration", Value: "true", Default: "true"},
-		{Key: "same_developer", Value: "[]", Default: "[]"},
-		{Key: "thousands_separator", Value: "narrow_space", Default: "narrow_space"},
-		{Key: "decimal_separator", Value: "point", Default: "point"},
-	})
+	wantSettings(t, "history_days: 30\n", defaultsWith(t,
+		Setting{Key: "history_days", Value: "30", Default: "365", Set: true},
+	))
 }
 
 // TestSettingsMarksEveryWrittenKeySet (forsgren#74): a file that writes all
@@ -175,15 +152,26 @@ func TestAnAliasInsideAValueShowsItsName(t *testing.T) {
 // accepted lists the default in force, as not written, with the value as
 // written and the reason; the other settings carry neither.
 func TestSettingsCarriesEachRejection(t *testing.T) {
-	wantSettings(t, "view: weekly\nhistory_days: 0\nworking_hours: 6\n", []Setting{
-		{Key: "view", Value: "standard", Default: "standard", Written: "weekly", Reason: "use standard, numbers or scoring"},
+	wantSettings(t, "view: weekly\nhistory_days: 0\nworking_hours: 6\n", defaultsWith(t,
+		Setting{Key: "view", Value: "standard", Default: "standard", Written: "weekly",
+			Reason: "use standard, numbers or scoring"},
+		Setting{Key: "history_days", Value: "365", Default: "365", Written: "0",
+			Reason: "use a whole number of days from 30 to 1825"},
+		Setting{Key: "working_hours", Value: "6", Default: "8", Set: true},
+	))
+}
+
+// unsetSettings are the settings of a file that writes no key: every key
+// unset with its default, in the fixed order.
+func unsetSettings() []Setting {
+	return []Setting{
+		{Key: "view", Value: "standard", Default: "standard"},
 		{Key: "sub_rows", Value: "true", Default: "true"},
 		{Key: "auto_update", Value: "false", Default: "false"},
 		{Key: "auto_update_level", Value: "major", Default: "major"},
-		{Key: "history_days", Value: "365", Default: "365", Written: "0",
-			Reason: "use a whole number of days from 30 to 1825"},
+		{Key: "history_days", Value: "365", Default: "365"},
 		{Key: "history_chunk_days", Value: "100", Default: "100"},
-		{Key: "working_hours", Value: "6", Default: "8", Set: true},
+		{Key: "working_hours", Value: "8", Default: "8"},
 		{Key: "dora_days", Value: "30", Default: "30"},
 		{Key: "issues_page", Value: "true", Default: "true"},
 		{Key: "days_page", Value: "false", Default: "false"},
@@ -201,7 +189,22 @@ func TestSettingsCarriesEachRejection(t *testing.T) {
 		{Key: "same_developer", Value: "[]", Default: "[]"},
 		{Key: "thousands_separator", Value: "narrow_space", Default: "narrow_space"},
 		{Key: "decimal_separator", Value: "point", Default: "point"},
-	})
+	}
+}
+
+// defaultsWith is unsetSettings with each of changed in the place of the
+// setting of its key; a key that is not a setting fails the test.
+func defaultsWith(t *testing.T, changed ...Setting) []Setting {
+	t.Helper()
+	settings := unsetSettings()
+	for _, c := range changed {
+		i := slices.IndexFunc(settings, func(s Setting) bool { return s.Key == c.Key })
+		if i < 0 {
+			t.Fatalf("no setting %q to change", c.Key)
+		}
+		settings[i] = c
+	}
+	return settings
 }
 
 // wantSettings wants the settings of the config the keys, then a valid
