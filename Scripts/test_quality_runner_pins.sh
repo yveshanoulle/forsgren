@@ -148,7 +148,8 @@ judge_event() {
 # forsgren#686: summary, isolation_1, isolation_2, browser_1 and browser_2 moved
 # to selftests.yml with selftest_linux (the lint and workflows jobs'
 # self-tests) and failure_issue (gh only); report is a job of both.
-LINUX_JOBS=(lint workflows report browser_3 selftest_linux summary isolation_1 isolation_2 browser_1 browser_2 failure_issue)
+# report_start (selftests.yml): sends the run's start with curl only.
+LINUX_JOBS=(lint workflows report browser_3 selftest_linux summary isolation_1 isolation_2 browser_1 browser_2 failure_issue report_start)
 # MACOS_SLOTS: GitHub's limit of macOS jobs running at once for the account
 # (pin 6, forsgren#447: measured, 5 started and the sixth waited).
 MACOS_SLOTS=5

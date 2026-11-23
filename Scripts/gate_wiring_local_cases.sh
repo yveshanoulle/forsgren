@@ -196,6 +196,19 @@ gate_wiring_local_script() {
       return 0
       ;;
 
+    # THE REPORT DISPATCH, not gates: selftests.yml sends its start (the
+    # report_start job) and its outcome (the report job's last step) to the
+    # maintainer's receiving repository with Scripts/dispatch_report.sh, the
+    # counts from Scripts/selftests_counts.sh. One self-test,
+    # Scripts/test_report_dispatch.sh, proves both and must be a row.
+    dispatch_report.sh|selftests_counts.sh)
+      runs_script ".github/workflows/selftests.yml" "$base" \
+        || fail "${base} reports a Self-tests run and selftests.yml never invokes it — the run would not be reported"
+      order_names "test_report_dispatch.sh" \
+        || fail "Scripts/test_report_dispatch.sh is not an order-file row — the report would go unproven"
+      return 0
+      ;;
+
     # PRESENTATION, not a gate (forsgren#8): the run's key numbers, rendered
     # above the gate report in CI's step summary from what the run wrote.
     # Same two requirements as the report renderer, for the same reason.
@@ -977,7 +990,7 @@ if ! is_mutation_rerun; then
       fi
     done < <(grep -v '^#' "$order" | awk -F'|' '$2 != "" && $2 != "n/a" { print $1 }')
     # selftests.yml, like quality.yml in pin 2, names no gate itself.
-    if grep -vE '^[[:space:]]*#' "$selftests" | grep -vE 'run_ci_phase\.sh|merge_quality_report\.sh|render_quality_report\.sh|open_selftests_failure_issue\.sh|install_tools(_linux)?\.sh|go_toolchain\.sh' \
+    if grep -vE '^[[:space:]]*#' "$selftests" | grep -vE 'run_ci_phase\.sh|merge_quality_report\.sh|render_quality_report\.sh|open_selftests_failure_issue\.sh|dispatch_report\.sh|selftests_counts\.sh|selftest_rows\.sh|install_tools(_linux)?\.sh|go_toolchain\.sh' \
       | has -qE '(^|[^A-Za-z0-9_./-])(\./)?Scripts/[A-Za-z0-9_]+\.sh'; then
       echo "selftests.yml names a gate itself; the order file and ${groups} decide which rows a job runs"
     fi

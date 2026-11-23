@@ -538,7 +538,9 @@ job_findings() {
   fi
   srep="${JOBS_TMP}/selftests_report.yml"
   job_of "$st" report > "$srep"
-  report_findings "$srep" "$st" "Self-tests" "$(job_ids "$st" | grep -vxE 'report|failure_issue' || true)"
+  # report_start sends the run's start (Scripts/dispatch_report.sh): no gate
+  # job, so the report neither needs nor judges it.
+  report_findings "$srep" "$st" "Self-tests" "$(job_ids "$st" | grep -vxE 'report|failure_issue|report_start' || true)"
 
   # pin 9
   fi_job="${JOBS_TMP}/failure_issue.yml"
@@ -693,7 +695,7 @@ SL_ROWS=('selftest_linux|actionlint self-test' 'selftest_linux|actionlint forsgr
   'selftest_linux|release precheck self-test' 'selftest_linux|community-files self-test'
   'selftest_linux|DCO sign-off self-test' 'selftest_linux|release plan self-test'
   'selftest_linux|release report self-test' 'selftest_linux|release check self-test'
-  'selftest_linux|release metrics self-test')
+  'selftest_linux|release metrics self-test' 'selftest_linux|report dispatch self-test')
 
 groups_findings() {
   local rows labels

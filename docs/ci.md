@@ -73,6 +73,18 @@ with `issues: write`; no label, so it never counts as a failure users hit). Its
 workflow's own jobs, and Quality's report does the same for its jobs, so
 neither lists the other's rows as unmeasured.
 
+A run can also be reported to a repository of the maintainer's, for a display
+this public repository cannot reach: the `report_start` job sends the start and
+the report job's last step the outcome, through `Scripts/dispatch_report.sh`, as
+a `repository_dispatch` with the event type `forsgren-report` and five string
+values (kind `selftests`, status, conclusion, tests and total). Tests is the
+number of rows `Scripts/selftest_rows.sh` lists that reported a pass or a
+failure, total every row it lists (`Scripts/selftests_counts.sh`, `XX` when
+unreadable). It needs the repository secret `REPORT_TARGET_REPO`
+(`owner/name`) and the secret `REPORT_DISPATCH_TOKEN`, a fine-grained token with
+Contents read and write on that repository only; without either nothing is sent,
+the step warns and the run stays green. Pinned by `Scripts/test_report_dispatch.sh`.
+
 Locally, `./sfl.sh` runs what Quality runs: it skips the rows
 `Scripts/selftest_rows.sh` lists (the rows of `selftests.yml`'s jobs, read from
 the same two files CI runs from), counts the steps it runs without them, and
@@ -129,6 +141,7 @@ workflows. The seconds are those of the green Quality run 44116366618 of
 | Self-tests | `summary` | Linux | `Scripts/required_tools_linux_gates.txt` | the step summary isolation gate (about 315 s) |
 | Self-tests | `browser_1`, `browser_2` | Linux | their own lists | the browser gate self-test, one shard each, with the fixture site self-test in `browser_1` and the process self-test in `browser_2` (about 495 and 405 s) |
 | Self-tests | `report`, `failure_issue` | Linux | none | the Self-tests report; the issue of a red run on `main` |
+| Self-tests | `report_start` | Linux | none | the start of the run, sent by `Scripts/dispatch_report.sh` when a receiver is set |
 
 **Why some jobs run on macOS.** The main job holds the secret scan (Homebrew's
 gitleaks) and the language gate (`sandbox-exec`, LanguageTool and its Java), and

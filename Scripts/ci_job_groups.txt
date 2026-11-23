@@ -257,3 +257,4 @@ selftest_linux|release plan self-test
 selftest_linux|release report self-test
 selftest_linux|release check self-test
 selftest_linux|release metrics self-test
+selftest_linux|report dispatch self-test

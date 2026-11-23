@@ -189,6 +189,7 @@ run report shows how many checks each of them ran.
 - merge quality report self-test (`Scripts/test_merge_quality_report.sh`, pre)
 - sfl self-test skip self-test (`Scripts/test_sfl_selftest_skip.sh`, pre)
 - self-tests failure issue self-test (`Scripts/test_selftests_failure_issue.sh`, pre)
+- report dispatch self-test (`Scripts/test_report_dispatch.sh`, pre)
 - step summary isolation (`Scripts/test_step_summary_isolation.sh`, pre)
 - git sandbox isolation self-test (`Scripts/test_git_sandbox_isolation.sh`, pre)
 - git sandbox isolation scope self-test (`Scripts/test_git_sandbox_isolation_scope.sh`, pre)

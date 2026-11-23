@@ -1001,6 +1001,10 @@ merge quality report self-test|Scripts/test_merge_quality_report.sh|pre|
 # stub gh.
 sfl self-test skip self-test|Scripts/test_sfl_selftest_skip.sh|pre|
 self-tests failure issue self-test|Scripts/test_selftests_failure_issue.sh|pre|
+# The run's start and outcome sent to the maintainer's receiving repository
+# (Scripts/dispatch_report.sh, the counts from Scripts/selftests_counts.sh),
+# against a stub curl.
+report dispatch self-test|Scripts/test_report_dispatch.sh|pre|
 #
 step summary isolation|Scripts/test_step_summary_isolation.sh|pre|
 git sandbox isolation self-test|Scripts/test_git_sandbox_isolation.sh|pre|

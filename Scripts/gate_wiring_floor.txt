@@ -61,5 +61,6 @@
 # failure stops self-test (forsgren#615), and up to 169 for the local hook
 # self-test (forsgren#290), and up to 170 for the FBP forwarder self-test (forsgren#627), and up to 171 for the TBD tables browser self-test (forsgren#626), and up to 173 for the default TBD fixture self-test and gate (forsgren#626), and up to 174 for the browser gate baseline choice self-test (forsgren#642), and down to 173 when the FBP forwarder self-test went with the forwarder it tested, and up to 175 for the Dependabot merge policy and pull-request comment self-tests (forsgren#664), and up to 176 for the reusable Dependabot merge policy workflow pin (forsgren#666), and up to 178 for the self-test skip of sfl and the self-tests' failure issue self-tests (forsgren#686).
 # Moved into this file at 178 (forsgren#689), the rows counted that day.
+# Up to 179 for the report dispatch self-test.
 
-178
+179

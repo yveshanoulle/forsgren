@@ -76,6 +76,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The start of the run sent to the maintainer's receiving repository
+  # (Scripts/dispatch_report.sh: kind selftests, in_progress, 0 of the rows
+  # Scripts/selftest_rows.sh lists), so a run is seen while it runs. Optional:
+  # without either of the secrets REPORT_TARGET_REPO and
+  # REPORT_DISPATCH_TOKEN it sends nothing and warns. Not a gate job: no
+  # self-test runs here, and the secrets reach this job's one step only.
+  # Scripts/test_report_dispatch.sh pins it.
+  report_start:
+    name: Report the start
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read   # the checkout of Scripts/dispatch_report.sh
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Report the start
+        shell: bash
+        env:
+          REPORT_TARGET_REPO: ${{ secrets.REPORT_TARGET_REPO }}
+          REPORT_DISPATCH_TOKEN: ${{ secrets.REPORT_DISPATCH_TOKEN }}
+        run: |
+          set -euo pipefail
+          labels="${RUNNER_TEMP}/selftest_rows.txt"
+          ./Scripts/selftest_rows.sh > "$labels"
+          counts="$(./Scripts/selftests_counts.sh "${RUNNER_TEMP}/no_rows_yet.md" "$labels")"
+          total="$(sed -n 's/^total=//p' <<< "$counts")"
+          ./Scripts/dispatch_report.sh selftests in_progress "" 0 "$total"
+
   # The self-tests of Quality's old quality_3 job and the browser gate inputs
   # self-test (Scripts/ci_job_groups.txt), on macos-latest as before: the same
   # setup as Quality's macOS jobs, step for step, whose comments are
@@ -782,6 +813,43 @@ jobs:
             "browser_1=$QS_BROWSER_1_RESULT" "browser_2=$QS_BROWSER_2_RESULT" || rc=$?
           exit "$rc"
 
+      # The end of the run sent to the maintainer's receiving repository
+      # (Scripts/dispatch_report.sh, kind selftests): completed, the run's
+      # status from every self-test job's result (merge_quality_report.sh
+      # status: cancelled, failure or success), tests = the self-test rows of
+      # Scripts/selftest_rows.sh that reported ✅ or ❌ in the merged rows,
+      # total = every row Scripts/selftest_rows.sh lists, the rows a full run
+      # executes (Scripts/selftests_counts.sh; XX when unreadable). Optional:
+      # without REPORT_TARGET_REPO or REPORT_DISPATCH_TOKEN it warns and stays
+      # green; a refused send is red.
+      - name: Report the outcome
+        if: always()
+        shell: bash
+        env:
+          QS_SELFTEST_MAC_1_RESULT: ${{ needs.selftest_mac_1.result }}
+          QS_SELFTEST_MAC_2_RESULT: ${{ needs.selftest_mac_2.result }}
+          QS_SELFTEST_LINUX_RESULT: ${{ needs.selftest_linux.result }}
+          QS_ISOLATION_1_RESULT: ${{ needs.isolation_1.result }}
+          QS_ISOLATION_2_RESULT: ${{ needs.isolation_2.result }}
+          QS_SUMMARY_RESULT: ${{ needs.summary.result }}
+          QS_BROWSER_1_RESULT: ${{ needs.browser_1.result }}
+          QS_BROWSER_2_RESULT: ${{ needs.browser_2.result }}
+          REPORT_TARGET_REPO: ${{ secrets.REPORT_TARGET_REPO }}
+          REPORT_DISPATCH_TOKEN: ${{ secrets.REPORT_DISPATCH_TOKEN }}
+        run: |
+          set -uo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          labels="${dir}/selftest_rows.txt"
+          ./Scripts/selftest_rows.sh > "$labels" || : > "$labels"
+          counts="$(./Scripts/selftests_counts.sh "${dir}/quality_rows.md" "$labels")"
+          tests="$(sed -n 's/^tests=//p' <<< "$counts")"
+          total="$(sed -n 's/^total=//p' <<< "$counts")"
+          conclusion="$(./Scripts/merge_quality_report.sh status \
+            "$QS_SELFTEST_MAC_1_RESULT" "$QS_SELFTEST_MAC_2_RESULT" "$QS_SELFTEST_LINUX_RESULT" \
+            "$QS_ISOLATION_1_RESULT" "$QS_ISOLATION_2_RESULT" "$QS_SUMMARY_RESULT" \
+            "$QS_BROWSER_1_RESULT" "$QS_BROWSER_2_RESULT")" || conclusion="failure"
+          ./Scripts/dispatch_report.sh selftests completed "$conclusion" "${tests:-XX}" "${total:-XX}"
+
   # A red run on main opens ONE issue (forsgren#686), named after the run, so
   # the red is seen although nothing waits on this workflow: a push to main
   # whose self-tests fail still releases and deploys on a green Quality. Only
@@ -794,7 +862,7 @@ jobs:
   # second one when the run is rerun. Every expression reaches it through env:.
   failure_issue:
     name: Failure issue
-    needs: [selftest_mac_1, selftest_mac_2, selftest_linux, isolation_1, isolation_2, summary, browser_1, browser_2, report]
+    needs: [report_start, selftest_mac_1, selftest_mac_2, selftest_linux, isolation_1, isolation_2, summary, browser_1, browser_2, report]
     if: failure() && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
