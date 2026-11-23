@@ -1,14 +1,12 @@
 package main
 
 import (
-	"io"
 	"path/filepath"
 	"testing"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
 	"github.com/yveshanoulle/forsgren/internal/history"
 	"github.com/yveshanoulle/forsgren/internal/metrics"
-	"github.com/yveshanoulle/forsgren/internal/page"
 )
 
 // The commit files reach the metrics (forsgren#496, step 4), read beside the
@@ -45,10 +43,7 @@ func writeFilesOf(t *testing.T, data string) {
 // webRow is the Web service row of the TBD page data of the history at data.
 func webRow(t *testing.T, data string) metrics.TbdRow {
 	t.Helper()
-	got, err := withHistory(page.Data{}, pathsProject(), data, renderNow, io.Discard)
-	if err != nil {
-		t.Fatal(err)
-	}
+	got := historyPageData(t, pathsProject(), data, renderNow)
 	for _, r := range got.TbdMetrics {
 		if r.Name == "Web" {
 			return r

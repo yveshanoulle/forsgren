@@ -1,13 +1,11 @@
 package main
 
 import (
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/yveshanoulle/forsgren/internal/metrics"
-	"github.com/yveshanoulle/forsgren/internal/page"
 )
 
 // The push files mark reaches the metrics (forsgren#589, step 6), read beside
@@ -20,10 +18,7 @@ const pushFilesFilledH = "# forsgren push files filled v1\nrepository,filled_at\
 // data.
 func webDataRow(t *testing.T, data string) metrics.DataRow {
 	t.Helper()
-	got, err := withHistory(page.Data{}, pathsProject(), data, renderNow, io.Discard)
-	if err != nil {
-		t.Fatal(err)
-	}
+	got := historyPageData(t, pathsProject(), data, renderNow)
 	for _, r := range got.DataStarts.Rows {
 		if r.Name == "Web" {
 			return r

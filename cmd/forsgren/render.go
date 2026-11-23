@@ -127,7 +127,11 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 	if o.data == "" {
 		return data, nil
 	}
-	return withHistory(data, cfg, o.data, at, stderr)
+	stored, err := loadHistory(cfg, o.data, stderr)
+	if err != nil {
+		return data, err
+	}
+	return withHistory(data, cfg, stored, at)
 }
 
 // pagesInMode are the pages whose key the config sets to mode, by page name:
@@ -163,32 +167,51 @@ func weekMode(cfg config.Config) config.PageMode {
 // (forsgren#76, forsgren#123, forsgren#128).
 const issueDays = 30
 
-// withHistory is data with what the history at path shows: the table's rows
-// and the rows of the days and issues pages (forsgren#89, forsgren#123),
-// from the issues file next to the history (data/issues.csv beside
-// data/deployments.csv), at the render time at; a warning goes to stderr.
-func withHistory(data page.Data, cfg config.Config, path string, at time.Time, stderr io.Writer) (page.Data, error) {
+// storedHistory is what the render reads from the history at path and the
+// files beside it before it fills the page: the metrics data (metricsDataOf)
+// and the issue events (issueEventsOf), with path for the files the page
+// reads later.
+type storedHistory struct {
+	path    string
+	metrics metrics.Data
+	events  []history.IssueEvent
+}
+
+// loadHistory reads the history at path and the files beside it for cfg;
+// a warning goes to stderr, and an unknown or malformed file fails the
+// render, naming the file.
+func loadHistory(cfg config.Config, path string, stderr io.Writer) (storedHistory, error) {
 	metricsData, err := metricsDataOf(cfg, path, stderr)
 	if err != nil {
-		return data, err
+		return storedHistory{}, err
 	}
+	events, err := issueEventsOf(path)
+	if err != nil {
+		return storedHistory{}, err
+	}
+	return storedHistory{path: path, metrics: metricsData, events: events}, nil
+}
+
+// withHistory is data with what the stored history shows: the table's rows
+// and the rows of the days and issues pages (forsgren#89, forsgren#123),
+// from the issues file next to the history (data/issues.csv beside
+// data/deployments.csv), at the render time at.
+func withHistory(data page.Data, cfg config.Config, stored storedHistory, at time.Time) (page.Data, error) {
+	metricsData, events := stored.metrics, stored.events
 	data.Rows = page.Table(metrics.Rows(cfg.Projects, metricsData, at))
 	data.History = metrics.History(cfg.Projects, metricsData, at, cfg.HistoryDays)
 	data.FirstDeployment, _ = metrics.FirstDeployment(cfg.Projects, metricsData)
-	data.PullsUncollected = absent(beside(path, collect.PullsFile))
+	data.PullsUncollected = absent(beside(stored.path, collect.PullsFile))
 	data.TbdMetrics = metrics.TbdRows(cfg.Projects, metricsData, at, cfg.SameDeveloper)
 	data.Week = metrics.WeekOf(cfg.Projects, metricsData, at)
-	events, err := issueEventsOf(path)
-	if err != nil {
-		return data, err
-	}
 	data.IssueDays = metrics.IssueDays(events, at, issueDays)
 	data.IssueRows = metrics.IssueRows(events, at)
 	data.DataStarts = metrics.DataStartsOf(cfg.Projects, metricsData, events, at)
-	if data, err = withFilesReadings(data, cfg, path); err != nil {
+	data, err := withFilesReadings(data, cfg, stored.path)
+	if err != nil {
 		return data, err
 	}
-	return withBugsCut(data, path)
+	return withBugsCut(data, stored.path)
 }
 
 // withFilesReadings is data with the projects whose commit files read is

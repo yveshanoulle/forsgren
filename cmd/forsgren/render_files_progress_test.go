@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/yveshanoulle/forsgren/internal/history"
 	"github.com/yveshanoulle/forsgren/internal/metrics"
-	"github.com/yveshanoulle/forsgren/internal/page"
 )
 
 // The commit files progress file reaches the Data page (forsgren#594, step 2),
@@ -21,10 +19,7 @@ const filesProgressH = "# forsgren commit files progress v1\nrepository,read,lef
 // filesReadings are the Data page's reads still going of the history at data.
 func filesReadings(t *testing.T, data string) []metrics.FilesReading {
 	t.Helper()
-	got, err := withHistory(page.Data{}, pathsProject(), data, renderNow, io.Discard)
-	if err != nil {
-		t.Fatal(err)
-	}
+	got := historyPageData(t, pathsProject(), data, renderNow)
 	return got.FilesReadings
 }
 
