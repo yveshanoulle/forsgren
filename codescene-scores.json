@@ -15,6 +15,12 @@
    "minScore": 9.0
   },
   {
+   "path": "internal/metrics/reportbounds_test.go",
+   "score": 9.24,
+   "checkedAt": "2026-11-23",
+   "minScore": 9.14
+  },
+  {
    "path": "internal/collect/cutshort_test.go",
    "score": 9.38,
    "checkedAt": "2026-10-23",
@@ -41,7 +47,7 @@
   {
    "path": "internal/config/settings_test.go",
    "score": 9.38,
-   "checkedAt": "2026-10-28",
+   "checkedAt": "2026-11-23",
    "minScore": 9.28
   },
   {
@@ -77,7 +83,7 @@
   {
    "path": "internal/metrics/pushmeasures.go",
    "score": 9.68,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-11-23",
    "minScore": 9.58
   },
   {
@@ -117,9 +123,63 @@
    "minScore": 9.58
   },
   {
+   "path": "cmd/forsgren/collect_warning_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-11-23",
+   "minScore": 9.58
+  },
+  {
+   "path": "cmd/forsgren/render.go",
+   "score": 9.68,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_exclude_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-11-23",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/config/dora_days_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-11-23",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/config/thousandsseparator_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-11-23",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/config/validate.go",
+   "score": 9.68,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/changefail_window_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-11-23",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/page/tbd_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/page/legend_history_test.go",
    "score": 9.92,
    "checkedAt": "2026-10-16",
+   "minScore": 9.82
+  },
+  {
+   "path": "internal/metrics/oftask_test.go",
+   "score": 9.92,
+   "checkedAt": "2026-11-23",
    "minScore": 9.82
   },
   {
@@ -219,12 +279,6 @@
    "minScore": 9.58
   },
   {
-   "path": "internal/config/validate.go",
-   "score": 10.0,
-   "checkedAt": "2026-10-28",
-   "minScore": 10.0
-  },
-  {
    "path": "internal/github/client_test.go",
    "score": 9.68,
    "checkedAt": "2026-10-25",
@@ -257,7 +311,7 @@
   {
    "path": "cmd/forsgren/summary_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
@@ -312,12 +366,6 @@
    "path": "cmd/forsgren/render_tbd_lead_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-26",
-   "minScore": 10.0
-  },
-  {
-   "path": "cmd/forsgren/render.go",
-   "score": 10.0,
-   "checkedAt": "2026-10-28",
    "minScore": 10.0
   },
   {
@@ -383,7 +431,7 @@
   {
    "path": "internal/config/config.go",
    "score": 10.0,
-   "checkedAt": "2026-10-28",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
@@ -567,12 +615,6 @@
    "minScore": 10.0
   },
   {
-   "path": "internal/metrics/legacyshare_test.go",
-   "score": 10.0,
-   "checkedAt": "2026-10-25",
-   "minScore": 10.0
-  },
-  {
    "path": "internal/github/closedpulls.go",
    "score": 10.0,
    "checkedAt": "2026-10-25",
@@ -600,12 +642,6 @@
    "path": "internal/metrics/lineage.go",
    "score": 10.0,
    "checkedAt": "2026-10-24",
-   "minScore": 10.0
-  },
-  {
-   "path": "internal/metrics/mainline_lineage_test.go",
-   "score": 10.0,
-   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -653,7 +689,7 @@
   {
    "path": "internal/page/page.go",
    "score": 10.0,
-   "checkedAt": "2026-10-29",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
@@ -671,7 +707,7 @@
   {
    "path": "internal/page/page_footer_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-29",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
@@ -689,7 +725,7 @@
   {
    "path": "internal/page/page_legend_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-29",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
@@ -1367,7 +1403,7 @@
   {
    "path": "internal/page/issues_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
@@ -1439,7 +1475,7 @@
   {
    "path": "cmd/forsgren/render_issues_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-14",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
@@ -1541,13 +1577,13 @@
   {
    "path": "internal/page/settings.go",
    "score": 10.0,
-   "checkedAt": "2026-10-28",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
    "path": "internal/page/settings_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-30",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
@@ -1805,7 +1841,7 @@
   {
    "path": "internal/config/accepted.go",
    "score": 10.0,
-   "checkedAt": "2026-10-28",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
@@ -1823,19 +1859,19 @@
   {
    "path": "internal/page/legend_tbd_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-30",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
    "path": "internal/config/switches.go",
    "score": 10.0,
-   "checkedAt": "2026-10-28",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
    "path": "internal/config/switches_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
@@ -1847,37 +1883,31 @@
   {
    "path": "cmd/forsgren/render_switches_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
    "path": "internal/page/tbdhidden_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
    "path": "internal/page/subrowshidden_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
    "path": "internal/page/tbdgroups.go",
    "score": 10.0,
-   "checkedAt": "2026-10-31",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
    "path": "internal/page/tbd.go",
    "score": 10.0,
-   "checkedAt": "2026-10-31",
-   "minScore": 10.0
-  },
-  {
-   "path": "internal/page/tbd_test.go",
-   "score": 10.0,
-   "checkedAt": "2026-10-29",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
@@ -1901,7 +1931,7 @@
   {
    "path": "internal/page/history_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-29",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
@@ -2207,7 +2237,7 @@
   {
    "path": "internal/page/development_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
@@ -2507,7 +2537,7 @@
   {
    "path": "internal/metrics/tbdrows.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
@@ -2597,7 +2627,7 @@
   {
    "path": "internal/page/legend_week_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-29",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
@@ -2609,19 +2639,19 @@
   {
    "path": "cmd/forsgren/render_pushes_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-30",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
    "path": "cmd/forsgren/render_push_files_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-30",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
    "path": "internal/page/tbdsubrows_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
@@ -2771,7 +2801,7 @@
   {
    "path": "cmd/forsgren/render_commitfiles_test.go",
    "score": 9.68,
-   "checkedAt": "2026-10-27",
+   "checkedAt": "2026-11-23",
    "minScore": 9.58
   },
   {
@@ -3113,7 +3143,7 @@
   {
    "path": "internal/page/legend_data_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-30",
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   },
   {
@@ -3216,6 +3246,378 @@
    "path": "cmd/forsgren/intconversion_check_test.go",
    "score": 10.0,
    "checkedAt": "2026-11-01",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/checkupdate_present_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/dependabot_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_dora_days_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_files_progress_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_thousands_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_warning_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_week_failed_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_weekend_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/renderexclude.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/commit_files_progress_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/filesprogress.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/withdrawn_window_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/exclude.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/exclude_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/dictionary/mainlineinterval_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/dictionary/weekdeployments_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/commitfilesprogress.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/commitfilesprogress_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/exclusions.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/exclusions_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/agent_delete_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/default_level_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/deployment_docs_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/deployment_help_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/docs_default_level_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/dora_days_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/hand_off_docs_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/ios_releases_docs_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/optional_level_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/same_developer_docs_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/update_wait_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/band_window_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/deviation_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/filesreading.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/filesreading_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/frequency_window_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/groupdigits_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/integration.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/integration_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/integrationcells.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/integrationcells_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/issuemonths_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/issueweeks_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/issueyears_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/leadtime_window_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/recovery_window_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/rework_window_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/weekdeploys_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/weekfailed_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/young_window_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/apca_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/figures_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/footer_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/legend_failed_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/legend_integration_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/legend_report_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/legend_window_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/legendlinks_everyday_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/numbers_scoring_window_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/renderblocking_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/settings_rejected_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/tbdintegration_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-11-23",
    "minScore": 10.0
   }
  ]
