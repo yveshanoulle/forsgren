@@ -282,15 +282,15 @@ type listedProject struct {
 	name string
 }
 
-// claimProject records the name of the project at 1-based position n, or
-// refuses it when an earlier project has it.
-func (seen *names) claimProject(n int, name string) error {
-	key := strings.ToLower(name)
+// claimProject records the name of the listed project, or refuses it when an
+// earlier project has it.
+func (seen *names) claimProject(p listedProject) error {
+	key := strings.ToLower(p.name)
 	if first, ok := seen.projects[key]; ok {
 		return fmt.Errorf("project %d %q: %w, the same as project %d %q (case is ignored)",
-			n, name, ErrDuplicateProject, first.n, first.name)
+			p.n, p.name, ErrDuplicateProject, first.n, first.name)
 	}
-	seen.projects[key] = listedProject{n: n, name: name}
+	seen.projects[key] = p
 	return nil
 }
 
@@ -310,7 +310,7 @@ func (p fileProject) toProject(n int, seen *names) (Project, error) {
 	if strings.TrimSpace(p.Name) == "" {
 		return Project{}, fmt.Errorf("project %d: %w", n, ErrProjectName)
 	}
-	if err := seen.claimProject(n, p.Name); err != nil {
+	if err := seen.claimProject(listedProject{n: n, name: p.Name}); err != nil {
 		return Project{}, err
 	}
 	if len(p.Repositories) == 0 {
