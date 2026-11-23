@@ -1191,14 +1191,19 @@ gate_wiring_local_proofs() {
 
   # Two more guard samples of the matcher self-proof: the call shape of the
   # report_ci_step.sh wrapper, which Scripts/lib_runs_script.sh still models.
-  matcher_accepts "guard" "a gate named after the -- of report_ci_step.sh" yml <<'SAMPLE'
+  # The samples spell the folder as @S@, which sed turns back into the real
+  # name, so the script references gate does not read the two made-up scripts
+  # as paths of this repository.
+  matcher_accepts "guard" "a gate named after the -- of report_ci_step.sh" yml < <(sed 's#@S@#Scripts#g' <<'SAMPLE'
         run: |
-          ./Scripts/report_ci_step.sh "probe" "$ROWS" "$DETAILS" -- ./Scripts/probe.sh
+          ./@S@/report_ci_step.sh "probe" "$ROWS" "$DETAILS" -- ./@S@/probe.sh
 SAMPLE
-  matcher_accepts "guard" "a gate named after -- on a continuation line" yml <<'SAMPLE'
+  )
+  matcher_accepts "guard" "a gate named after -- on a continuation line" yml < <(sed 's#@S@#Scripts#g' <<'SAMPLE'
         run: |
-          ./Scripts/report_ci_step.sh \
+          ./@S@/report_ci_step.sh \
             --heading "Probe" \
-            "probe" "$ROWS" "$DETAILS" -- ./Scripts/probe.sh "$GENERATED_SITE"
+            "probe" "$ROWS" "$DETAILS" -- ./@S@/probe.sh "$GENERATED_SITE"
 SAMPLE
+  )
 }
