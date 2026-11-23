@@ -118,9 +118,9 @@
   },
   {
    "path": "cmd/forsgren/collect_warning_test.go",
-   "score": 9.68,
+   "score": 10.0,
    "checkedAt": "2026-11-23",
-   "minScore": 9.58
+   "minScore": 10.0
   },
   {
    "path": "cmd/forsgren/render.go",
