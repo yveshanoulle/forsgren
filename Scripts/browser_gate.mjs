@@ -1,4 +1,5 @@
-// canon: browser_gate v22
+// canon: browser_gate v23
+// v23 (forsgren#710): a page whose renderer ends during its check is named at once, `FAIL: <variant> <page>: could not be checked: its renderer ended during the check (Page crashed!)`: the engine closes that page as soon as puppeteer reports the crash (the page's 'error' event), so every call pending on it fails then; before, nothing listened for it, and the pending call waited for puppeteer's protocol timeout (180 s) and failed naming only the timeout (`Runtime.callFunctionOn timed out`). A Chrome whose browser process ends still ends the run at once. The findings of a page that is checked, the baseline format and the exit statuses are unchanged.
 // v22 (forsgren#682): a signal during the launch no longer waits for the launch once Chrome's process is known from its spawn (v17): release() ends Chrome's group at once, removes the profile and exits 128 plus the signal number. Before, it waited for the launch, bounded at 30 s, so a launch that did not finish kept the run alive up to 30 s after the signal. A signal before the spawn is seen still waits for the launch, bounded as before. The findings, the baseline format and the exit statuses are unchanged.
 // v21 (forsgren#682): a Chrome that makes no code-sign clone folder at launch (Chrome 157.0.8103.52 on macOS) leaves nothing to remove: when no new folder appeared during the launch the gate says so on stderr in one line, `this Chrome made no code-sign clone (nothing to remove)`, instead of reporting a folder kept for the nightly cleanup; one new folder is removed as before, and more than one (or an unreadable parent) is kept with its reason as before. The findings, the baseline format and the exit statuses are unchanged.
 // v20 (forsgren#649): one helper, orTimeout, races a promise against a timer wherever the engine waited for something or a time limit (the paint wait, Chrome's stderr, Chrome's exit after a launch error, a folder removal, the launch at a signal, the browser's close); every limit, every outcome and every message is as in v19, and each timer is now cleared however the race ends, so none keeps node alive after a rejection either. The findings, the baseline format and the exit statuses are unchanged.
@@ -537,6 +538,10 @@ class PageCheck {
     // True while the delayed-delivery load runs (v7): its navigation request
     // asks the server for the pieces.
     this.pieced = false;
+    // Set once the page's renderer ended (v23): the reason for the finding and
+    // the close that ends the calls pending on the page.
+    this.crash = null;
+    this.closing = null;
   }
 
   // Excepted responses, once each: the page is loaded again to measure the CLS.
@@ -618,6 +623,17 @@ class PageCheck {
       }
       request.abort('blockedbyclient');
     });
+    page.on('error', (error) => this.rendererEnded(error));
+  }
+
+  // The page's renderer ended (v23): puppeteer says so only through the page's
+  // 'error' event, and a call pending on the page would wait for its protocol
+  // timeout (180 s). The page is closed at once, so those calls fail now, and
+  // the reason is kept for the finding.
+  rendererEnded(error) {
+    if (this.crash) return;
+    this.crash = `its renderer ended during the check (${error.message})`;
+    this.closing = this.page.close().catch(() => {});
   }
 
   // The overrides of a request to the site: on the delayed-delivery load, the
@@ -911,9 +927,9 @@ async function checkPage(browser, origin, variant, pagePath, exceptions, baselin
     await check.checkAxe();
     await check.checkSideways();
   } catch (error) {
-    check.find(`could not be checked: ${error.message}`);
+    check.find(`could not be checked: ${check.crash ?? error.message}`);
   }
-  await page.close();
+  await (check.closing ?? page.close());
   return check;
 }
 
