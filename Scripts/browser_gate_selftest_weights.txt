@@ -30,6 +30,7 @@ case_33 37
 case_34 37
 case_31 36
 case_32 36
+mutant_cr 31
 case_1 29
 case_23 25
 mutant_a 23
@@ -111,6 +112,7 @@ case_58a 1
 case_58b 1
 case_58c 1
 case_58d 1
+case_59 1
 case_49a 1
 case_49b 1
 case_49c 1

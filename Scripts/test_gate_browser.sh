@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v36
+# canon: test_gate_browser v37
+# v37 (forsgren#710): case 59, a page whose renderer is crashed during its check (Page.crash through the hook seam, once the page's own read of the shifts is pending) ends the run within 30 s with exit 1 and the named FAIL `could not be checked: its renderer ended during the check (Page crashed!)` (browser_gate v23); proof Cr, the engine without its listener for the page's 'error' event, is still running 30 s after the crash (it would wait for puppeteer's protocol timeout, 180 s), and is ended there
 # v36 (forsgren#694): the main Chrome of a signal case is the one with the pipe switch as well, past every shell or perl wrapper, read from whole command lines (chrome_main, here and in lib_gate_browser_selftest v3), never the listing's own grep, which names the profile path too and came first once the PIDs wrapped; case 53m pins it on a listing of the test, and proofs La and Lb, chrome_main without the pipe switch filter and without the wrapper filter, each take a wrong PID there
 # v35 (forsgren#682): case 53l, a fake Chrome that makes no code-sign clone folder at launch (as Chrome 157 does on macOS): the run passes with one note, 'this Chrome made no code-sign clone (nothing to remove)' (browser_gate v21), and no line about a folder kept for the nightly cleanup; case 53h also asserts that a Chrome that makes a clone folder gets no such note; case 52j, a SIGHUP to the wrapper during a launch that never finishes (a deaf Chrome, the pipe of 53f, up once its profile has Local State, SIG_UP_LOCAL_STATE) ends the run with exit 129, no Chrome and no profile, within 20 s: up to browser_gate v21 the engine waited for the launch, up to 30 s (browser_gate v22 ends Chrome's group at once); a signal case starts its command with SIGINT, SIGTERM and SIGHUP at their default, since a self-test run under nohup (as FBP is started) passed SIGHUP on ignored, the wrapper could not trap it, and 52d and 52j failed with no output
 # v34 (forsgren#674, step 2; the cases and proofs of a site's v33, site issue 94, with their ids): a gate that tests nothing is never green: cases 58a to 58d, a manifest with no page, one without requiredPages, a missing manifest and a named Chrome that does not exist, each exit 2 before anything is checked; case 55d, an engine that ends 0 after the launch without its OK line (no page checked) is red in the wrapper (gate_browser v7); proof V, the engine without its empty-manifest guard, prints an OK line for 0 pages; proof W, the wrapper without its OK-line check, turns case 55d green (its copy finds puppeteer-core through FORSGREN_NODE_ROOT, no link to node_modules)
@@ -158,6 +159,15 @@
 #   V. the engine without its empty-manifest guard: case 58a's fixture prints an
 #      OK line for 0 pages (the wrapper's OK-line check is the second guard);
 #   W. the wrapper without its OK-line check: case 55d turns green.
+# A page whose renderer ends during its check (forsgren#710): the hook seam
+# crashes the page's renderer (Page.crash) when the page says that the gate's
+# first read of the shifts is pending, an answer it never gives:
+#  59. the renderer crashed mid-check -> exit 1 within CRASH_BOUND (30 s) of the
+#      crash, `FAIL: light /: could not be checked: its renderer ended during
+#      the check (Page crashed!)`, never the protocol timeout (180 s)
+#   Cr. the engine without its listener for the page's 'error' event: case 59
+#      is still running 30 s after the crash, and is ended there (it would
+#      wait 180 s for the protocol timeout and name only that).
 # The exits (forsgren#381, site issue 34): Chrome closed and its profile folder
 # removed on every way out:
 #  52. SIGTERM, SIGINT, SIGHUP to the wrapper, SIGTERM to node (under the wrapper
@@ -271,9 +281,9 @@ done
 FIRST_CASES=(8 1 31 32 33 34 30 23 22
   2 3 4 5 6 7 9 10 11 12 13 14 16 17 18 24a 24b 24c 24d 24e 24f 25
   26 27 28 29 35a 35b 35c 35d 35e 35f 36a 36b 36c 37 38 38b 40 39a 39b
-  41 42 43 44 45 46 47 48 49a 49b 49c 49d 50 51 54 55 56 57 58a 58b 58c 58d)
+  41 42 43 44 45 46 47 48 49a 49b 49c 49d 50 51 54 55 56 57 58a 58b 58c 58d 59)
 SECOND_CASES=(19 20 21 55a 55b 55c 55d)
-SECOND_PROOFS=(a b c d e f g h i j k kslow l m n o p q t u y v w)
+SECOND_PROOFS=(a b c d e f g h i j k kslow l m n o p q t u y v w cr)
 SERIAL_CASES=(52h 52i 53j 53m 52a 52b 52c 52d 52e 52f 53 52g 52j 53d 53g 53h 53i 53l 54a 54b 54c 53e 53f)
 SERIAL_PROOFS=(r rb s x z dh la lb)
 # SHARD_FOLLOWERS: "<unit> <the cases and proofs that run in its shard>" (v30).
@@ -1188,6 +1198,99 @@ case_58d() {
   own_fixtures clean
   FORSGREN_CHROME="${TMP}/no-such-chrome" run_gate clean
   want_exit "58d: a named Chrome that does not exist (no browser to launch)" 2 "FORSGREN_CHROME does not exist"
+}
+
+# 59 (forsgren#710): a page whose renderer ends during its check is named at
+# once. Puppeteer reports a crashed renderer only through the page's 'error'
+# event; the browser lives on, so nothing else ends a call pending on that page
+# before puppeteer's protocol timeout (180 s). The fixture's read of the shifts
+# (window.__shifts, the gate's first evaluate on the loaded page) says so on the
+# console and never answers; the hook seam, called right after the launch, hears
+# that line on every page the gate opens and crashes the page's renderer
+# (Page.crash), so the crash comes while that read is pending, whatever the
+# machine's speed, and marks the moment (FORSGREN_TEST_READY_MARK). The run must
+# end within CRASH_BOUND of the mark, exit 1, with the named finding.
+# CRASH_BOUND is 30 s: the fixed engine ends a run of one page and one look a
+# few seconds after the crash (the page closed, the browser closed), so 30 s
+# leaves room for a loaded runner, and it is a sixth of the 180 s a run without
+# the listener waits, so the two never meet (proof Cr is ended at the bound).
+CRASH_JS='<script>(function () { var asked = false; var never = new Promise(function () {}); never.push = function () { return 0; }; Object.defineProperty(window, "__shifts", { configurable: true, get: function () { if (!asked) { asked = true; console.log("fixture: crash this renderer"); } return never; } }); })();</script>'
+make_site crashing "$(page '' "$CRASH_JS")"
+CRASH_SEAM="${TMP}/crash_seam.cjs"
+cat > "$CRASH_SEAM" << 'SEAM'
+const fs = require('node:fs');
+// The engine calls this with its browser right after the launch: every page it
+// opens from then on gets a console listener before the page is loaded, and
+// the page's line crashes that page's renderer once the mark is written.
+module.exports = (browser) => {
+  const newPage = browser.newPage.bind(browser);
+  browser.newPage = async (...args) => {
+    const page = await newPage(...args);
+    page.on('console', (message) => {
+      if (message.text() !== 'fixture: crash this renderer') return;
+      fs.writeFileSync(process.env.FORSGREN_TEST_READY_MARK, 'crashed\n');
+      page.createCDPSession().then((session) => session.send('Page.crash')).catch(() => {});
+    });
+    return page;
+  };
+};
+SEAM
+CRASH_BOUND=30
+CRASH_MARK_BOUND=60
+CRASH_FAIL="FAIL: light /: could not be checked: its renderer ended during the check (Page crashed!)"
+# crash_run <fixture-dir> <command...>: runs the command on the fixture with the
+# crash seam, its own TMPDIR (the profile folder, so whatever is left is found as
+# ours) and the short setting. Sets OUT, RC, CRASH_AFTER (the seconds from the
+# mark to the end) and CRASH_WHY: "" when the run ended within CRASH_BOUND of the
+# mark with exit 1 and CRASH_FAIL, else the reason. A run still going at the
+# bound is ended (SIGTERM, then SIGKILL 10 s later) and its Chrome with it.
+crash_run() {
+  local dir="$1" mark="${MUTANT_DIR}/crash.mark" root tmpd pid start
+  shift
+  root="${TMPDIR:-/tmp}"
+  root="${root%/}"
+  tmpd="$(mktemp -d "${root}/crash.XXXXXX")"
+  rm -f "$mark"
+  TMPDIR="$tmpd" FORSGREN_TEST_READY_MARK="$mark" FORSGREN_GATE_BROWSER_HOOK="$CRASH_SEAM" FORSGREN_CLS_LOADS="$SHORT_CLS_LOADS" FORSGREN_CLS_INTERVAL_MS="$SHORT_CLS_INTERVAL_MS" "$@" "${dir}/site" "${dir}/manifest.json" "${dir}/exceptions.txt" "${dir}/baseline.txt" "${dir}/variants.txt" > "${MUTANT_DIR}/crash.out" 2>&1 &
+  pid=$!
+  start=$SECONDS
+  while [[ ! -e "$mark" ]] && kill -0 "$pid" 2> /dev/null && (( SECONDS - start < CRASH_MARK_BOUND )); do sleep 0.1; done
+  CRASH_WHY=""
+  CRASH_AFTER=""
+  if [[ ! -e "$mark" ]]; then
+    CRASH_WHY="the seam never crashed the page's renderer (no mark within ${CRASH_MARK_BOUND} s of the start), so the case proves nothing"
+  else
+    start=$SECONDS
+    while kill -0 "$pid" 2> /dev/null && (( SECONDS - start < CRASH_BOUND )); do sleep 0.1; done
+    CRASH_AFTER=$((SECONDS - start))
+    if kill -0 "$pid" 2> /dev/null; then
+      CRASH_WHY="the gate was still running ${CRASH_BOUND} s after its page's renderer was crashed"
+    fi
+  fi
+  if kill -0 "$pid" 2> /dev/null; then
+    kill -TERM "$pid" 2> /dev/null || true
+    start=$SECONDS
+    while kill -0 "$pid" 2> /dev/null && (( SECONDS - start < 10 )); do sleep 0.1; done
+    kill -9 "$pid" 2> /dev/null || true
+  fi
+  wait "$pid" 2> /dev/null && RC=0 || RC=$?
+  OUT="$(cat "${MUTANT_DIR}/crash.out")"
+  pkill -9 -f -- "${tmpd}/browser-gate-" || true
+  rm -rf "$tmpd"
+  if [[ -z "$CRASH_WHY" && "$RC" -ne 1 ]]; then
+    CRASH_WHY="expected exit 1, got ${RC}"
+  elif [[ -z "$CRASH_WHY" ]] && ! grep -qF -- "$CRASH_FAIL" <<< "$OUT"; then
+    CRASH_WHY="the output does not say '${CRASH_FAIL}'"
+  fi
+}
+case_59() {
+  own_fixtures crashing
+  crash_run "${TMP}/crashing" "$GATE"
+  if [[ -n "$CRASH_WHY" ]]; then
+    fail "59: a page whose renderer is crashed during its check should end the run within ${CRASH_BOUND} s, exit 1, named: ${CRASH_WHY}. Output: ${OUT}"
+  else
+    echo "  ok: 59: a page whose renderer is crashed during its check ends the run ${CRASH_AFTER} s after the crash (bound ${CRASH_BOUND} s), exit 1, its renderer named"
+  fi
 }
 
 # The first batch: every plain case that needs nothing of another case
@@ -2410,6 +2513,22 @@ mutant_w() {
   fi
 }
 
+# Cr (forsgren#710): the engine without its listener for the page's 'error'
+# event -> case 59's call pending on the crashed page waits for puppeteer's
+# protocol timeout (180 s), so the run is still going CRASH_BOUND (30 s) after
+# the crash; crash_run ends it there, so the proof never waits the 180 s.
+stage cr crashing
+mutant_cr() {
+  if mutant_engine "s/page.on('error', /page.on('error-never', /"; then
+    crash_run "${TMP}/fx_cr" env FORSGREN_NODE_ROOT="$REPO_ROOT" node "$MUTANT_ENGINE"
+    if [[ "$CRASH_WHY" == "the gate was still running ${CRASH_BOUND} s after its page's renderer was crashed" ]]; then
+      echo "  ok: mutation proof Cr: without the listener for the page's 'error' event case 59 is still running ${CRASH_BOUND} s after the crash"
+    else
+      fail "mutation proof Cr: without the listener for the page's 'error' event case 59 should still run ${CRASH_BOUND} s after the crash, got '${CRASH_WHY}'. Output: ${OUT}"
+    fi
+  fi
+}
+
 # The second batch: the plain cases that waited for case 8's M, the exit cases
 # 55a to 55d, and the mutation proofs, side by side.
 PHASE_START=$SECONDS
@@ -2581,5 +2700,5 @@ if [[ -n "$SHARD_N" ]]; then
   selftest_end "the browser gate self-test (shard ${SHARD_N}/${SHARD_M}) failed" \
     "browser gate (shard ${SHARD_N}/${SHARD_M}): every case of the shard holds, $(grep -c '^mutant_' <<< "$RUN_IDS" || true) mutation proofs seen"
 else
-  selftest_end "the browser gate self-test failed" "browser gate: every case holds, thirty mutations seen"
+  selftest_end "the browser gate self-test failed" "browser gate: every case holds, thirty-one mutations seen"
 fi
