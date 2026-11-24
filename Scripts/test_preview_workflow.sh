@@ -218,7 +218,11 @@ mutant "an extra permission" "${P}"'s/^\(      contents: read.*\)$/\1\
 mutant "a cancelling group" "${P}"'s/cancel-in-progress: false/cancel-in-progress: true/' "concurrency: a run in flight"
 mutant "another group" "${P}"'s/group: preview-deploy/group: ci/' "concurrency: the group"
 mutant "an unpinned checkout" "${P}"'s/checkout@[0-9a-f]\{40\}/checkout@v7/' "pins: an action is not pinned"
-mutant "another commit of checkout" "${P}"'s/checkout@3d3c/checkout@3d3d/' "pin of checkout:"
+# The preview job's pin read from the workflow itself, so a Dependabot bump of
+# checkout leaves the mutation a real change (forsgren#717).
+job_of "$WORKFLOW" preview > "${TMP}/preview_job.yml"
+CHECKOUT_PIN="$(pin_of "${TMP}/preview_job.yml" checkout)"
+mutant "another commit of checkout" "${P}s/checkout@${CHECKOUT_PIN}/checkout@$(another_commit "$CHECKOUT_PIN")/" "pin of checkout:"
 mutant "a third action" "${P}"'s/^\(      - name: Start the preview deploy\)$/      - uses: actions\/cache@0000000000000000000000000000000000000000  # v1.0.0\
 \1/' "actions: want checkout only"
 mutant "persisted credentials" "${P}"'s/persist-credentials: false/persist-credentials: true/' "checkout: credentials are persisted"

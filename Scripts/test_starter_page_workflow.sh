@@ -229,7 +229,10 @@ mutant "no Pages permission" 's/pages: write/pages: read/' "deploy permissions:"
 mutant "write-all" 's/pages: write/write-all/' "permissions: write-all"
 mutant "a self-hosted runner" 's/runs-on: ubuntu-latest/runs-on: self-hosted/' "runs-on: every job"
 mutant "an unpinned checkout" 's/checkout@[0-9a-f]\{40\}/checkout@v7/' "pins: an action is not pinned"
-mutant "another commit of setup-go" 's/setup-go@b7ad/setup-go@b7ae/' "pin of setup-go:"
+# The pin read from the workflow itself, so a Dependabot bump of setup-go
+# leaves the mutation a real change (forsgren#717).
+SETUP_GO_PIN="$(pin_of "$WORKFLOW" setup-go)"
+mutant "another commit of setup-go" "s/setup-go@${SETUP_GO_PIN}/setup-go@$(another_commit "$SETUP_GO_PIN")/" "pin of setup-go:"
 mutant "persisted credentials" 's/persist-credentials: false/persist-credentials: true/' "checkout: credentials are persisted"
 mutant "another Go" "s/go-version: '${GO_VERSION}'/go-version: '1.26.0'/" "setup-go: not Go"
 mutant "a Go cache" 's/cache: false/cache: true/' "setup-go: a cache"

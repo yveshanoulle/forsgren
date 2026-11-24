@@ -75,3 +75,16 @@ line_of() {
 later() {
   [[ -n "$1" && -n "$2" && "$1" -gt "$2" ]]
 }
+
+# another_commit <commit>: the commit with its last digit changed, a
+# well-formed pin that is not the one given. A mutation proof of "another
+# commit of an action is caught" reads the pin from the file it mutates and
+# swaps it for this one, so the proof stays a real change after Dependabot
+# moves the pin (forsgren#717).
+another_commit() {
+  if [[ "${1: -1}" == 0 ]]; then
+    printf '%s1\n' "${1%?}"
+  else
+    printf '%s0\n' "${1%?}"
+  fi
+}

@@ -2245,8 +2245,11 @@ proves judge_setup_go "setup-go on another Go" "actions/setup-go installs Go '1.
 
 proves judge_checkout "no checkout pin" "not actions/checkout pinned by a full 40-digit commit" \
   's|actions/checkout@[0-9a-f]\{40\}  # v7.0.1|actions/checkout@v7|'
-proves judge_checkout "another checkout commit" "not at 3d3c42e5aac5ba805825da76410c181273ba90b1 as Quality's own checkout is" \
-  's|actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1|actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b2|'
+# The pin read from metrics.yml itself, so a Dependabot bump of checkout
+# leaves the mutation a real change (forsgren#717).
+CHECKOUT_PIN="$(sed -n 's/^[[:space:]-]*uses:[[:space:]]*actions\/checkout@\([0-9a-f]\{40\}\).*$/\1/p' "$WF" | head -1)"
+proves judge_checkout "another checkout commit" "not at ${CHECKOUT_PIN} as Quality's own checkout is" \
+  "s|actions/checkout@${CHECKOUT_PIN}|actions/checkout@$(another_commit "$CHECKOUT_PIN")|"
 proves judge_checkout "persist-credentials true" "does not set persist-credentials: false" \
   's/persist-credentials: false/persist-credentials: true/'
 proves judge_checkout "no checkout step" "has no step '${CHECKOUT_STEP}'" \

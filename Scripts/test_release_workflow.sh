@@ -352,7 +352,10 @@ mutant "no contents write" 's/^      contents: write /      contents: read /' "p
 mutant "a macOS runner" 's/runs-on: ubuntu-latest/runs-on: macos-latest/' "runs-on: want one job"
 mutant "a self-hosted runner" 's/runs-on: ubuntu-latest/runs-on: self-hosted/' "runs-on: want one job"
 mutant "an unpinned checkout" 's/checkout@[0-9a-f]\{40\}/checkout@v7/' "pins: an action is not pinned"
-mutant "another commit of setup-go" 's/setup-go@b7ad/setup-go@b7ae/' "pin of setup-go:"
+# The pin read from the workflow itself, so a Dependabot bump of setup-go
+# leaves the mutation a real change (forsgren#717).
+SETUP_GO_PIN="$(pin_of "$WORKFLOW" setup-go)"
+mutant "another commit of setup-go" "s/setup-go@${SETUP_GO_PIN}/setup-go@$(another_commit "$SETUP_GO_PIN")/" "pin of setup-go:"
 mutant "persisted credentials" 's/persist-credentials: false/persist-credentials: true/' "step 'Check out main'"
 mutant "a template expression in run" "s#^          ./Scripts/release_publish.sh free#          echo ${DOLLAR}{{ inputs.bump }}; ./Scripts/release_publish.sh free#" "injection:"
 mutant "no quality wait on main" 's/name: Quality is green on main/name: Quality on main/' "no step named 'Quality is green on main'"

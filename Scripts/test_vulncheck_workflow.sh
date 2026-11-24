@@ -170,7 +170,10 @@ mutant "a write permission" 's/^    runs-on: ubuntu-latest/    permissions:\
 mutant "a macOS runner" 's/runs-on: ubuntu-latest/runs-on: macos-latest/' "runs-on: want one job"
 mutant "a self-hosted runner" 's/runs-on: ubuntu-latest/runs-on: self-hosted/' "runs-on: want one job"
 mutant "an unpinned checkout" 's/checkout@[0-9a-f]\{40\}/checkout@v7/' "pins: an action is not pinned"
-mutant "another commit of setup-go" 's/setup-go@b7ad/setup-go@b7ae/' "pin of setup-go:"
+# The pin read from the workflow itself, so a Dependabot bump of setup-go
+# leaves the mutation a real change (forsgren#717).
+SETUP_GO_PIN="$(pin_of "$WORKFLOW" setup-go)"
+mutant "another commit of setup-go" "s/setup-go@${SETUP_GO_PIN}/setup-go@$(another_commit "$SETUP_GO_PIN")/" "pin of setup-go:"
 mutant "a third action" 's/^\(      - name: Scan for vulnerabilities\)$/      - uses: actions\/cache@0000000000000000000000000000000000000000  # v1.0.0\
 \1/' "actions: want checkout and setup-go only"
 mutant "persisted credentials" 's/persist-credentials: false/persist-credentials: true/' "checkout: credentials are persisted"
