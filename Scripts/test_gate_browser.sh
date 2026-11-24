@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # canon: test_gate_browser v38
+# forsgren#718 fixes in v38 (a site's CI red): proof U's mutant sent its pieces 0 ms apart, still one timer per piece, and on a busy machine (the proofs side by side, other Chromes) that timer fired late, the browser painted the first piece and the mutant was red (CLS 0.0041...); the mutant now sends the pieces with no pause at all (the timer line removed as well), and the proof runs with a seam that fires every 0 ms timer of the engine 150 ms late (LATE_TIMER_SEAM), so the busy machine is there on every run: main's mutant is red with it, every time, with the CI value
 # v38 (forsgren#715, CI red): case 59's seam ends the page's renderer with chrome://kill (the renderer exits at once, no crash dump) instead of Page.crash, whose crash dump a kernel core handler held back on GitHub's ubuntu-latest, so no crash was reported within 30 s there; the seam's answer is shown when the case is red. The helper of proofs La and Lb is mutant_chrome_main (was m53_mutant), so the mutation it applies runs inside a mutant_ function, as the parallel mutants self-test (h) holds
 # v37 (forsgren#710): case 59, a page whose renderer is crashed during its check (Page.crash through the hook seam, once the page's own read of the shifts is pending) ends the run within 30 s with exit 1 and the named FAIL `could not be checked: its renderer ended during the check (Page crashed!)` (browser_gate v23); proof Cr, the engine without its listener for the page's 'error' event, is still running 30 s after the crash (it would wait for puppeteer's protocol timeout, 180 s), and is ended there
 # v36 (forsgren#694): the main Chrome of a signal case is the one with the pipe switch as well, past every shell or perl wrapper, read from whole command lines (chrome_main, here and in lib_gate_browser_selftest v3), never the listing's own grep, which names the profile path too and came first once the PIDs wrapped; case 53m pins it on a listing of the test, and proofs La and Lb, chrome_main without the pipe switch filter and without the wrapper filter, each take a wrong PID there
@@ -146,7 +147,8 @@
 #  56. the hold pointing at an id the page lacks        -> green (the hold then
 #      lasts to the end of the parse)
 #   T. the delayed-delivery load removed: case 55 turns green;
-#   U. the pieces sent without the pause between them: case 55 turns green;
+#   U. the pieces sent without the pause between them: case 55 turns green,
+#      even when the engine's 0 ms timers fire late (a busy machine, forsgren#718);
 #   Y. the wait for the paint removed (forsgren#620): case 57 turns green.
 #  57. the same page with a main thread busy past all the pieces (a slow runner)
 #      -> red as 55: the server waits for the paint between pieces (browser_gate v8)
@@ -2485,11 +2487,22 @@ mutant_t() {
 
 # U: the pieces sent without the pause and without the wait for the paint ->
 # case 55 turns green: the pause and that wait are what let the browser paint
-# between two pieces.
+# between two pieces. Without the pause means no timer between the pieces at
+# all: a timer of 0 ms still lets the engine's other work run first, and on a
+# busy machine it fired late enough for a paint (forsgren#718, a site's CI
+# red: CLS 0.0041...). LATE_TIMER_SEAM is that busy machine on every run: each
+# 0 ms timer of the engine fires 150 ms (the real pause) late.
+LATE_TIMER_SEAM="${TMP}/late_timer_seam.cjs"
+cat > "$LATE_TIMER_SEAM" << 'SEAM'
+const later = globalThis.setTimeout;
+module.exports = () => {
+  globalThis.setTimeout = (fn, ms, ...rest) => later(fn, ms === 0 ? 150 : ms, ...rest);
+};
+SEAM
 stage u unheld
 mutant_u() {
-  if mutant_engine "s/^const DELIVERY_GAP_MS = .*/const DELIVERY_GAP_MS = 0;/;s/^      await delivery.settle();/      \/\/ kept/"; then
-    FORSGREN_CLS_LOADS="$SHORT_CLS_LOADS" FORSGREN_CLS_INTERVAL_MS="$SHORT_CLS_INTERVAL_MS" FORSGREN_NODE_ROOT="$REPO_ROOT" at_fixture "${TMP}/fx_u" node "$MUTANT_ENGINE"
+  if mutant_engine "s/^const DELIVERY_GAP_MS = .*/const DELIVERY_GAP_MS = 0;/;s/^      await new Promise((resolve) => setTimeout(resolve, DELIVERY_GAP_MS));/      \/\/ no pause/;s/^      await delivery.settle();/      \/\/ kept/"; then
+    FORSGREN_GATE_BROWSER_HOOK="$LATE_TIMER_SEAM" FORSGREN_CLS_LOADS="$SHORT_CLS_LOADS" FORSGREN_CLS_INTERVAL_MS="$SHORT_CLS_INTERVAL_MS" FORSGREN_NODE_ROOT="$REPO_ROOT" at_fixture "${TMP}/fx_u" node "$MUTANT_ENGINE"
     want_green "mutation proof U: pieces without a pause turn case 55 green" "CLS worst 0 "
   fi
 }
