@@ -5,7 +5,8 @@
 # maintainer's receiving repository as a repository_dispatch) and
 # Scripts/selftests_counts.sh (how many self-tests ran, of how many), the
 # two steps of .github/workflows/selftests.yml that run them, and the checks
-# step of .github/workflows/quality.yml's report job. forsgren's own.
+# step of .github/workflows/quality.yml's report job and its report_start
+# job. forsgren's own.
 # No network: a stub `curl` on PATH logs its arguments and stdin and answers
 # with STUB_STATUS (STUB_CURL_RC fails it like a connection error).
 #
@@ -34,7 +35,12 @@
 #       (kind, status, conclusion, checks)
 #   D10. refused, exit 2, curl never called: checks -1, 1.5, 01, XX, empty,
 #       eight digits, a leading space, an injection; checks on a run in
-#       progress; quality in progress, with five or three arguments
+#       progress; quality in progress with checks or a conclusion, quality
+#       completed with a bad conclusion, quality with five or two arguments
+#   D11. quality's start, quality in_progress "": the exact body of kind and
+#       status alone (no conclusion, no checks); quality's result without a
+#       count, quality completed <conclusion>: the exact body of kind, status
+#       and conclusion, cancelled among them
 # Workflow:
 #   W1. the report_start job: ubuntu-latest, no needs, contents: read, its
 #       step runs Scripts/dispatch_report.sh selftests in_progress with the
@@ -50,9 +56,17 @@
 #       run: line expands a ${{ }} expression of the two secrets
 #   W4. quality.yml's report job: its last step "Report the checks", if:
 #       always() and never on a pull request, checks from
-#       Scripts/render_quality_summary.sh --checks (a missing count exits 1,
-#       nothing sent), Scripts/dispatch_report.sh quality completed; the two
-#       secrets only as the env of that step, no run: line expands them
+#       Scripts/render_quality_summary.sh --checks, Scripts/dispatch_report.sh
+#       quality completed with them; a missing count sends the result without
+#       checks and exits 1; the conclusion from merge_quality_report.sh status
+#       (cancelled stays cancelled); the two secrets only as the env of that
+#       step and of the start step, no run: line expands them
+#   W5. quality.yml's report_start job: never on a pull request,
+#       ubuntu-latest, no needs, contents: read, its step runs
+#       Scripts/dispatch_report.sh quality in_progress "" with the two
+#       secrets in its env; the report job does not need it. Four workflow
+#       mutation proofs: the start on pull requests, the report job needing
+#       the start, the checks step not always, no result without a count
 # Mutation proofs (each copy lets through what the real script refuses):
 #   A. the tests check removed: a payload text is sent
 #   B. the token guard removed: curl is called with no token
@@ -61,7 +75,11 @@
 #   E. counts: any mark counted
 #   F. counts: unlisted labels counted
 #   G. the checks check removed: a payload text is sent as checks
-#   H. quality's completed-only check removed: quality in progress is sent
+#   H. the completed-only check of checks removed: quality in progress with
+#      checks is sent
+#   I. quality's start sends a conclusion: the body is not kind and status
+#      alone
+#   J. quality's no-count result sent with an empty checks value
 
 # The expected request texts and the mutation texts hold a literal $, so they stay in
 # single quotes.
@@ -264,14 +282,40 @@ send "$SCRIPT" selftests in_progress "" 0 2 5
 want_exit "D10 checks on a run in progress" 2 "only a completed run has checks"
 want_no_call "D10 checks on a run in progress"
 send "$SCRIPT" quality in_progress "" 5
-want_exit "D10 quality in progress" 2 "quality is only sent completed"
-want_no_call "D10 quality in progress"
+want_exit "D10 quality in progress with checks" 2 "only a completed run has checks"
+want_no_call "D10 quality in progress with checks"
+send "$SCRIPT" quality in_progress success
+want_exit "D10 quality in progress with a conclusion" 2 "a run in progress has no conclusion"
+want_no_call "D10 quality in progress with a conclusion"
+for c in "" timed_out skipped Success '1","x":"y'; do
+  send "$SCRIPT" quality completed "$c"
+  want_exit "D10 quality completed '${c}' without checks" 2 "::error::dispatch_report: conclusion"
+  want_no_call "D10 quality completed '${c}' without checks"
+  send "$SCRIPT" quality completed "$c" 3
+  want_exit "D10 quality completed '${c}' with checks" 2 "::error::dispatch_report: conclusion"
+  want_no_call "D10 quality completed '${c}' with checks"
+done
+send "$SCRIPT" quality queued ""
+want_exit "D10 quality queued" 2 "::error::dispatch_report: status"
+want_no_call "D10 quality queued"
 send "$SCRIPT" quality completed success 1 2
-want_exit "D10 quality with five arguments" 2 "quality takes four arguments"
+want_exit "D10 quality with five arguments" 2 "quality <status> <conclusion>, or four with <checks>"
 want_no_call "D10 quality with five arguments"
-send "$SCRIPT" quality completed success
-want_exit "D10 quality with three arguments" 2 "quality takes four arguments"
-want_no_call "D10 quality with three arguments"
+send "$SCRIPT" quality in_progress
+want_exit "D10 quality with two arguments" 2 "quality <status> <conclusion>, or four with <checks>"
+want_no_call "D10 quality with two arguments"
+
+# D11: quality's start, and its result without a count.
+send "$SCRIPT" quality in_progress ""
+want_green_ok "D11 quality's start is sent"
+want_logged "D11 the exact body of the start, kind and status alone" '{"event_type":"forsgren-report","client_payload":{"kind":"quality","status":"in_progress"}}'
+for c in success failure cancelled; do
+  send "$SCRIPT" quality completed "$c"
+  want_green_ok "D11 quality completed ${c} without a count is sent"
+  want_logged "D11 the exact body of ${c} without a count" "{\"event_type\":\"forsgren-report\",\"client_payload\":{\"kind\":\"quality\",\"status\":\"completed\",\"conclusion\":\"${c}\"}}"
+done
+send "$SCRIPT" quality completed cancelled 12
+want_logged "D11 cancelled with a count keeps it" '{"event_type":"forsgren-report","client_payload":{"kind":"quality","status":"completed","conclusion":"cancelled","checks":"12"}}'
 
 # ---- workflow ------------------------------------------------------------
 # job_of <job>: the lines of one job of the workflow.
@@ -336,12 +380,61 @@ if [[ "$q_last" == "      - name: Report the checks" ]]; then echo "  ok: W4 the
 want_in "W4 always, never on a pull request" "$QSTEP" "        if: always() && github.event_name != 'pull_request'"
 want_in "W4 the receiver secret in env" "$QSTEP" "          REPORT_TARGET_REPO: ${DOLLAR}{{ secrets.REPORT_TARGET_REPO }}"
 want_in "W4 the token secret in env" "$QSTEP" "          REPORT_DISPATCH_TOKEN: ${DOLLAR}{{ secrets.REPORT_DISPATCH_TOKEN }}"
-want_in "W4 the checks come from the summary's counter" "$QSTEP" '          if ! checks="$(./Scripts/render_quality_summary.sh --checks "${dir}/quality_rows.md" "${dir}/quality_details" "${dir}/quality_order.txt")"; then'
+want_in "W4 the checks come from the summary's counter" "$QSTEP" '          if checks="$(./Scripts/render_quality_summary.sh --checks "${dir}/quality_rows.md" "${dir}/quality_details" "${dir}/quality_order.txt")"; then'
+want_in "W4 the checks are sent as kind quality" "$QSTEP" '            ./Scripts/dispatch_report.sh quality completed "$conclusion" "$checks"'
+want_in "W4 without a count the result is sent without checks" "$QSTEP" '            ./Scripts/dispatch_report.sh quality completed "$conclusion" || true'
 want_in "W4 a missing count is red" "$QSTEP" '            exit 1'
-want_in "W4 the checks are sent as kind quality" "$QSTEP" '          ./Scripts/dispatch_report.sh quality completed "$conclusion" "$checks"'
+if code_of "$QSTEP" | has -E '^          conclusion="[$][(][.]/Scripts/merge_quality_report[.]sh status'; then
+  echo "  ok: W4 the conclusion comes from merge_quality_report.sh status"
+else
+  fail "W4 the conclusion is not taken from merge_quality_report.sh status"
+fi
+# cancelled stays distinct: the status the step sends for a cancelled job.
+q_status="$(Scripts/merge_quality_report.sh status success cancelled failure success success)"
+if [[ "$q_status" == "cancelled" ]]; then echo "  ok: W4 a cancelled job makes the status cancelled, not failure"; else fail "W4 a cancelled job gives the status '${q_status}'"; fi
+
+# W5: quality.yml's report_start job sends the Quality run's start.
+# w5_findings <quality.yml>: one line per finding of W5, and of W4's
+# always and no-count lines (the cancelled path); nothing when all hold.
+w5_findings() {
+  local wf="$1" start rep step
+  start="$(WORKFLOW="$wf" job_of report_start | grep -vE '^[[:space:]]*#')"
+  rep="$(WORKFLOW="$wf" job_of report | grep -vE '^[[:space:]]*#')"
+  step="$(awk '/^      - name: Report the checks$/ { on = 1 } on && /^      - / && !/Report the checks/ { on = 0 } on' <<< "$rep")"
+  has -qxF "    if: github.event_name != 'pull_request'" <<< "$start" || echo "W5 report_start runs on a pull request"
+  has -qxF "    runs-on: ubuntu-latest" <<< "$start" || echo "W5 report_start is not on ubuntu-latest"
+  has -qxF "      contents: read   # the checkout of Scripts/dispatch_report.sh" <<< "$start" || echo "W5 report_start does not read only"
+  if has -qE '^    needs:' <<< "$start"; then echo "W5 report_start waits for another job"; fi
+  has -qxF "          REPORT_TARGET_REPO: ${DOLLAR}{{ secrets.REPORT_TARGET_REPO }}" <<< "$start" || echo "W5 report_start lacks the receiver secret in env"
+  has -qxF "          REPORT_DISPATCH_TOKEN: ${DOLLAR}{{ secrets.REPORT_DISPATCH_TOKEN }}" <<< "$start" || echo "W5 report_start lacks the token secret in env"
+  has -qxF '          ./Scripts/dispatch_report.sh quality in_progress ""' <<< "$start" || echo "W5 report_start does not send quality in_progress"
+  if grep -E '^    needs:' <<< "$rep" | has -qF 'report_start'; then echo "W5 the report job needs report_start"; fi
+  has -qxF "        if: always() && github.event_name != 'pull_request'" <<< "$step" || echo "W4 the checks step is not always (a cancelled run would send nothing)"
+  has -qxF '            ./Scripts/dispatch_report.sh quality completed "$conclusion" || true' <<< "$step" || echo "W4 a run without a count does not send its result"
+}
+w5="$(w5_findings "$QWORKFLOW")"
+if [[ -z "$w5" ]]; then
+  echo "  ok: W5 report_start: never on a pull request, ubuntu-latest, reads only, waits for nothing, the two secrets in env, sends quality in_progress; the report job does not need it"
+  echo "  ok: W4 the checks step is always and sends the result without checks when there is no count"
+else
+  while IFS= read -r line; do fail "$line"; done <<< "$w5"
+fi
+# Workflow mutation proofs: each copy of quality.yml must give the named finding.
+wf_mutant() {
+  local why="$1" expr="$2" want="$3" copy="${TMP}/wfmut/quality.yml"
+  mkdir -p "${TMP}/wfmut"
+  sed "$expr" "$QWORKFLOW" > "$copy"
+  if cmp -s "$QWORKFLOW" "$copy"; then fail "workflow mutation ${why}: it changed nothing"; return; fi
+  if w5_findings "$copy" | has -qxF -- "$want"; then echo "  ok: workflow mutation ${why}: caught"; else fail "workflow mutation ${why}: not caught"; fi
+}
+wf_mutant "the start on pull requests" "/^    if: github.event_name != 'pull_request'\$/d" "W5 report_start runs on a pull request"
+wf_mutant "the report job needs the start" 's/^    needs: \[quality, quality_2, lint, browser_3, workflows\]$/    needs: [report_start, quality, quality_2, lint, browser_3, workflows]/' "W5 the report job needs report_start"
+wf_mutant "the checks step not always" "s/^        if: always() \&\& github.event_name != 'pull_request'\$/        if: success() \&\& github.event_name != 'pull_request'/" "W4 the checks step is not always (a cancelled run would send nothing)"
+wf_mutant "no result without a count" '/^            .\/Scripts\/dispatch_report.sh quality completed "\$conclusion" || true$/d' "W4 a run without a count does not send its result"
+QSTART="$(WORKFLOW="$QWORKFLOW" job_of report_start)"
 qn="$(code_of "$(cat "$QWORKFLOW")" | grep -cE 'secrets\.REPORT_(DISPATCH_TOKEN|TARGET_REPO)' || true)"
-qm="$(code_of "$QSTEP" | grep -cE "^          REPORT_(DISPATCH_TOKEN|TARGET_REPO): [$][{][{] secrets[.]REPORT_(DISPATCH_TOKEN|TARGET_REPO) [}][}]$" || true)"
-if [[ "$qn" == 2 && "$qm" == 2 ]]; then echo "  ok: W4 the two secrets are only the env of the checks step"; else fail "W4 the secrets appear ${qn} times in quality.yml, ${qm} as the env of the checks step"; fi
+qm="$({ code_of "$QSTEP"; code_of "$QSTART"; } | grep -cE "^          REPORT_(DISPATCH_TOKEN|TARGET_REPO): [$][{][{] secrets[.]REPORT_(DISPATCH_TOKEN|TARGET_REPO) [}][}]$" || true)"
+if [[ "$qn" == 4 && "$qm" == 4 ]]; then echo "  ok: W4/W5 the two secrets are only the env of the checks step and the start step"; else fail "W4/W5 the secrets appear ${qn} times in quality.yml, ${qm} as the env of the checks or start step"; fi
 if code_of "$(cat "$QWORKFLOW")" | grep -E 'dispatch_report|REPORT_' | grep -vE '^          REPORT_(TARGET_REPO|DISPATCH_TOKEN): ' | has -qF "${DOLLAR}{{"; then
   fail "W4 a run: line of quality.yml expands an expression of the report inputs"
 else
@@ -379,9 +472,17 @@ if selftest_mutant "$SCRIPT" "${M}/nochecks.sh" 's/\[\[ "\$has_checks" == "false
   send "${M}/nochecks.sh" quality completed success '1","x":"y'
   if [[ "$RC" -eq 0 && "$(calls)" == 1 ]]; then echo "  ok: mutation proof G: without the checks check a payload text is sent"; else fail "mutation proof G: the copy still refused (exit ${RC}). Output: $OUT"; fi
 fi
-if selftest_mutant "$SCRIPT" "${M}/qprogress.sh" 's/\[\[ "\$status" == "completed" \]\] || bad "quality/true || bad "quality/'; then
+if selftest_mutant "$SCRIPT" "${M}/qprogress.sh" 's/\[\[ "\$status" == "completed" \]\] || bad "only a completed run has checks/true || bad "only a completed run has checks/'; then
   send "${M}/qprogress.sh" quality in_progress "" 5
-  if [[ "$RC" -eq 0 && "$(calls)" == 1 ]]; then echo "  ok: mutation proof H: without quality's completed-only check a run in progress is sent"; else fail "mutation proof H: the copy still refused (exit ${RC}). Output: $OUT"; fi
+  if [[ "$RC" -eq 0 && "$(calls)" == 1 ]]; then echo "  ok: mutation proof H: without the completed-only check of checks a run in progress is sent with checks"; else fail "mutation proof H: the copy still refused (exit ${RC}). Output: $OUT"; fi
+fi
+if selftest_mutant "$SCRIPT" "${M}/qstart.sh" 's/if \[\[ "\$kind" == "quality" && "\$status" == "in_progress" \]\]; then/if false; then/'; then
+  send "${M}/qstart.sh" quality in_progress ""
+  if grep -qF '"client_payload":{"kind":"quality","status":"in_progress"}}' "$LOG"; then fail "mutation proof I: the copy still sends kind and status alone"; else echo "  ok: mutation proof I: a start with a conclusion is not the body D11 wants"; fi
+fi
+if selftest_mutant "$SCRIPT" "${M}/qnocount.sh" 's/  if \[\[ "\$has_checks" == "true" \]\]; then/  if true; then/'; then
+  send "${M}/qnocount.sh" quality completed cancelled
+  if grep -qF '"conclusion":"cancelled"}}' "$LOG"; then fail "mutation proof J: the copy still sends no checks key"; else echo "  ok: mutation proof J: an empty checks value is not the body D11 wants"; fi
 fi
 
-selftest_end "the report dispatch self-test found failures" "report dispatch (strict payload of five values, six with checks, or kind quality's four, 204 only, token only on stdin, skipped with a warning without receiver or token, counts from the listed rows, checks from the summary's counter, the two Self-tests steps and Quality's checks step; 8 mutation proofs)"
+selftest_end "the report dispatch self-test found failures" "report dispatch (strict payload of five values, six with checks, or kind quality's two to four, 204 only, token only on stdin, skipped with a warning without receiver or token, counts from the listed rows, checks from the summary's counter, the two Self-tests steps, Quality's start job and its checks step; 10 mutation proofs)"

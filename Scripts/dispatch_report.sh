@@ -9,10 +9,12 @@
 # stays green.
 #
 # Usage: Scripts/dispatch_report.sh selftests <status> <conclusion> <tests> <total> [<checks>]
-#        Scripts/dispatch_report.sh quality completed <conclusion> <checks>
+#        Scripts/dispatch_report.sh quality <status> <conclusion> [<checks>]
 #
 #   kind        what is reported: selftests (the Self-tests run) or quality
-#               (the Quality run's checks; only completed)
+#               (the Quality run: its start, quality in_progress "", and its
+#               result, quality completed <conclusion> with its checks, or
+#               without them when the run has no count)
 #   status      in_progress | completed
 #   conclusion  empty for in_progress; success | failure | cancelled for
 #               completed
@@ -22,7 +24,7 @@
 #               row (Scripts/render_quality_summary.sh --checks): 0, or 1 to
 #               7 digits without a leading zero. Never XX: a run without a
 #               count sends no checks (the receiver keeps its last value).
-#               Required for quality; for selftests only when completed.
+#               Only when completed.
 #   REPORT_TARGET_REPO     env: the receiving repository, owner/name (the
 #                          repository secret of that name, so the run log masks it). Not written in
 #                          this repository's code, so nothing here names it.
@@ -36,8 +38,10 @@
 # It POSTs repos/<target>/dispatches with
 #   {"event_type":"forsgren-report","client_payload":{"kind":...,"status":...,
 #    "conclusion":...,"tests":...,"total":...[,"checks":...]}}
-# or, for quality, {"kind":"quality","status":"completed","conclusion":...,
-# "checks":...} (every value a string; the receiver accepts nothing else) and
+# or, for quality, {"kind":"quality","status":"in_progress"} at the start (no
+# conclusion), {"kind":"quality","status":"completed","conclusion":...[,
+# "checks":...]} at the end (every value a string; the receiver accepts
+# nothing else) and
 # requires HTTP 204. The arguments are checked before anything is sent, so
 # the payload only ever holds these fixed shapes. The token goes to curl as a header
 # on stdin (-H @-), never in the arguments; --disable first.
@@ -64,16 +68,17 @@ kind="${1-}"
 [[ " ${KINDS} " == *" ${kind} "* && -n "$kind" ]] || bad "unknown kind '${kind}' (one of: ${KINDS})"
 tests=""; total=""; checks=""; has_checks=false
 if [[ "$kind" == "quality" ]]; then
-  [[ "$#" -eq 4 ]] || bad "quality takes four arguments: quality completed <conclusion> <checks>, got $#"
-  status="$2"; conclusion="$3"; checks="$4"; has_checks=true
-  [[ "$status" == "completed" ]] || bad "quality is only sent completed (got '${status}')"
+  [[ "$#" -eq 3 || "$#" -eq 4 ]] || bad "three arguments: quality <status> <conclusion>, or four with <checks>, got $#"
+  base=3
 else
   [[ "$#" -eq 5 || "$#" -eq 6 ]] || bad "five arguments: <kind> <status> <conclusion> <tests> <total>, or six with <checks>, got $#"
-  status="$2"; conclusion="$3"; tests="$4"; total="$5"
-  if [[ "$#" -eq 6 ]]; then
-    checks="$6"; has_checks=true
-    [[ "$status" == "completed" ]] || bad "only a completed run has checks (got '${status}')"
-  fi
+  base=5
+  tests="$4"; total="$5"
+fi
+status="$2"; conclusion="$3"
+if [[ "$#" -gt "$base" ]]; then
+  checks="${!#}"; has_checks=true
+  [[ "$status" == "completed" ]] || bad "only a completed run has checks (got '${status}')"
 fi
 case "$status" in
   in_progress)
@@ -103,9 +108,16 @@ fi
 [[ "$REPORT_TARGET_REPO" =~ ^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$ ]] \
   || bad "REPORT_TARGET_REPO is not owner/name"
 
-if [[ "$kind" == "quality" ]]; then
-  fields="$(printf '"kind":"%s","status":"%s","conclusion":"%s","checks":"%s"' "$kind" "$status" "$conclusion" "$checks")"
-  what="checks ${checks}"
+if [[ "$kind" == "quality" && "$status" == "in_progress" ]]; then
+  fields="$(printf '"kind":"%s","status":"%s"' "$kind" "$status")"
+  what="(start)"
+elif [[ "$kind" == "quality" ]]; then
+  fields="$(printf '"kind":"%s","status":"%s","conclusion":"%s"' "$kind" "$status" "$conclusion")"
+  what="(no checks count)"
+  if [[ "$has_checks" == "true" ]]; then
+    fields+="$(printf ',"checks":"%s"' "$checks")"
+    what="checks ${checks}"
+  fi
 else
   fields="$(printf '"kind":"%s","status":"%s","conclusion":"%s","tests":"%s","total":"%s"' "$kind" "$status" "$conclusion" "$tests" "$total")"
   what="${tests}/${total}"

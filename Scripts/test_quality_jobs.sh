@@ -56,7 +56,7 @@
 #   4. each job hands its rows over: an upload of quality-report-<job id>,
 #      `if: always()`, with a commit-pinned actions/upload-artifact
 #   5. each workflow's report job needs EVERY gate job of its workflow (not the
-#      preview, not the failure issue), `if: always()`, on ubuntu-latest,
+#      preview, not the failure issue, not report_start), `if: always()`, on ubuntu-latest,
 #      downloads every quality-report-* hand-over, cuts the order and group
 #      files to exactly its workflow's jobs with Scripts/merge_quality_report.sh
 #      view, merges, renders the gate table on that view and ends with the
@@ -526,11 +526,13 @@ job_findings() {
   # pin 5
   rep="${JOBS_TMP}/report.yml"
   job_of "$wf" report > "$rep"
-  report_findings "$rep" "$wf" "Quality" "$(job_ids "$wf" | grep -vxE 'report|preview' || true)"
+  # report_start sends the run's start (Scripts/dispatch_report.sh), as in
+  # Self-tests: no gate job, so the report neither needs nor judges it.
+  report_findings "$rep" "$wf" "Quality" "$(job_ids "$wf" | grep -vxE 'report|preview|report_start' || true)"
   if [[ -s "$rep" ]]; then
     code "$rep" | has -E 'QS_JOB_STATUS="?\$\(\./Scripts/merge_quality_report\.sh status' \
       || echo "report: QS_JOB_STATUS is not taken from Scripts/merge_quality_report.sh status of the jobs' results"
-    status_findings "$rep" "$(job_ids "$wf" | grep -vxE 'report|preview' || true)"
+    status_findings "$rep" "$(job_ids "$wf" | grep -vxE 'report|preview|report_start' || true)"
     code "$rep" | has -E '\./Scripts/render_quality_summary\.sh "[$]rows" "[$]details" "[$]order"' \
       || echo "report: the Quality report job does not render the summary on its view of the order file"
     code "$rep" | has -xF "          export QS_JOB_GROUPS=\"${DOLLAR}groups\"" \
@@ -1035,6 +1037,7 @@ mutant "a Quality job in Self-tests" 's/^  summary:$/  lint:/' "split: the Quali
 # The reports (pin 5).
 mutant "report not always" "${R}"'s/^    if: always()/    if: success()/' "report: the Quality report job is not if: always()"
 mutant "report on another runner" "${R}"'s/runs-on: ubuntu-latest/runs-on: macos-latest/' "report: the Quality report job is not on ubuntu-latest"
+mutant "report needing report_start" "${R}"'s/needs: \[quality, quality_2,/needs: [report_start, quality, quality_2,/' "report: report_start in the Quality report job's needs: is not a gate job"
 mutant "report without the merge" "${R}"'s#merge_quality_report.sh merge#merge_quality_report.sh combine#' "report: the Quality report job does not merge the hand-overs"
 mutant "report status not merged" "${R}"'s#merge_quality_report.sh status#merge_quality_report.sh state#' "report: QS_JOB_STATUS is not taken from"
 mutant "status without the lint result" "${R}"'s/ "[$]QS_LINT_RESULT"//' "report: the status call does not pass \"\$QS_LINT_RESULT\""

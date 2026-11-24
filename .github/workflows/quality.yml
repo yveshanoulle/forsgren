@@ -103,6 +103,37 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # The start of the run sent to the maintainer's receiving repository
+  # (Scripts/dispatch_report.sh: kind quality, in_progress, no conclusion and
+  # no checks), so a run is seen while it runs; the report job's last step
+  # sends its result. Never on a pull request, as that step. Its own job, as
+  # selftests.yml's report_start, not a step of a gate job: a refused send
+  # turns this job red and never skips a gate. Optional: without either of the
+  # secrets REPORT_TARGET_REPO and REPORT_DISPATCH_TOKEN it sends nothing and
+  # warns. Not a gate job: the report neither needs nor judges it, and the
+  # secrets reach this job's one step only. Scripts/test_report_dispatch.sh
+  # pins it.
+  report_start:
+    name: Report the start
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read   # the checkout of Scripts/dispatch_report.sh
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Report the start
+        shell: bash
+        env:
+          REPORT_TARGET_REPO: ${{ secrets.REPORT_TARGET_REPO }}
+          REPORT_DISPATCH_TOKEN: ${{ secrets.REPORT_DISPATCH_TOKEN }}
+        run: |
+          set -euo pipefail
+          ./Scripts/dispatch_report.sh quality in_progress ""
+
   quality:
     name: Quality gates
     runs-on: macos-latest
@@ -788,13 +819,16 @@ jobs:
             "browser_3=$QS_BROWSER_3_RESULT" "workflows=$QS_WORKFLOWS_RESULT" || rc=$?
           exit "$rc"
 
-      # The run's checks sent to the maintainer's receiving repository
-      # (Scripts/dispatch_report.sh, kind quality): completed, the run's status
-      # from the gate jobs' results (merge_quality_report.sh status), and
-      # checks = the number of the summary's Total checks row
+      # The run's result and checks sent to the maintainer's receiving
+      # repository (Scripts/dispatch_report.sh, kind quality): completed, the
+      # run's status from the gate jobs' results (merge_quality_report.sh
+      # status: cancelled when a job was cancelled, else failure or success),
+      # and checks = the number of the summary's Total checks row
       # (Scripts/render_quality_summary.sh --checks, the same counter). A run
-      # with no checks count (no PRE or no POST count) sends nothing, never a
-      # 0, and the step is red with the named error. Never on a pull request:
+      # with no checks count (no PRE or no POST count, as a cancelled run often
+      # has) sends its result without checks, never a 0, and the step is red
+      # with the named error. if: always(), so a cancelled run sends its
+      # cancelled too. Never on a pull request:
       # the number is main's (and a fork's run has no secret). Optional:
       # without REPORT_TARGET_REPO or REPORT_DISPATCH_TOKEN it warns and stays
       # green; a refused send is red. The two secrets are this step's env only.
@@ -814,11 +848,13 @@ jobs:
           dir="$(./Scripts/run_ci_phase.sh report-dir)"
           conclusion="$(./Scripts/merge_quality_report.sh status \
             "$QS_QUALITY_RESULT" "$QS_QUALITY_2_RESULT" "$QS_LINT_RESULT" "$QS_BROWSER_3_RESULT" "$QS_WORKFLOWS_RESULT")" || conclusion="failure"
-          if ! checks="$(./Scripts/render_quality_summary.sh --checks "${dir}/quality_rows.md" "${dir}/quality_details" "${dir}/quality_order.txt")"; then
-            echo "::error::the Quality run has no checks count (see the line above); nothing is sent"
+          if checks="$(./Scripts/render_quality_summary.sh --checks "${dir}/quality_rows.md" "${dir}/quality_details" "${dir}/quality_order.txt")"; then
+            ./Scripts/dispatch_report.sh quality completed "$conclusion" "$checks"
+          else
+            echo "::error::the Quality run has no checks count (see the line above); its result is sent without checks"
+            ./Scripts/dispatch_report.sh quality completed "$conclusion" || true
             exit 1
           fi
-          ./Scripts/dispatch_report.sh quality completed "$conclusion" "$checks"
 
   # Starts the preview deploy (forsgren#222), only after every gate job
   # succeeded for this very commit, so a pushed commit that fails Quality
@@ -830,8 +866,8 @@ jobs:
   # This job only starts it: Scripts/dispatch_preview.sh POSTs a
   # workflow_dispatch and requires HTTP 204; any other answer fails the run.
   #
-  # needs: every other job (quality, quality_2, lint, browser_3, workflows and
-  # report; the self-tests run in selftests.yml since forsgren#686 and hold the
+  # needs: every other job (report_start, quality, quality_2, lint, browser_3,
+  # workflows and report; the self-tests run in selftests.yml since forsgren#686 and hold the
   # preview back no more, as they hold no release back), no
   # `if: always()`: a failed,
   # cancelled or skipped gate job skips this one. The condition keeps it off
@@ -845,7 +881,7 @@ jobs:
   # Scripts/test_preview_workflow.sh pins this job.
   preview:
     name: Start the preview deploy
-    needs: [quality, quality_2, lint, browser_3, workflows, report]
+    needs: [report_start, quality, quality_2, lint, browser_3, workflows, report]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: macos-latest
     permissions:

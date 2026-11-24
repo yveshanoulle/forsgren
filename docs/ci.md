@@ -81,9 +81,12 @@ values (kind `selftests`, status, conclusion, tests and total). Tests is the
 number of rows `Scripts/selftest_rows.sh` lists that reported a pass or a
 failure, total every row it lists (`Scripts/selftests_counts.sh`, `XX` when
 unreadable). The outcome also carries `checks`, the number of the run's Total
-checks row, and Quality's report job sends its own as kind `quality` (status
-completed, conclusion and checks; never on a pull request). A run without a
-checks count sends none, never a 0, and its step is red with the named error.
+checks row. Quality reports itself the same way as kind `quality`, never on a
+pull request: its `report_start` job sends the start (status `in_progress`
+alone), and its report job's last step the result (status completed, the
+conclusion, `cancelled` when a job was cancelled, and its checks). A run
+without a checks count sends its result without checks, never a 0, and its
+step is red with the named error.
 It needs the repository secret `REPORT_TARGET_REPO`
 (`owner/name`) and the secret `REPORT_DISPATCH_TOKEN`, a fine-grained token with
 Contents read and write on that repository only; without either nothing is sent,
@@ -137,6 +140,7 @@ workflows. The seconds are those of the green Quality run 44116366618 of
 | Quality | `lint` (Lint gates) | Linux | `Scripts/required_tools_linux.txt` | actionlint, shellcheck, yamllint, zizmor, Go lint and the Go test duplication gate (about 50 s) |
 | Quality | `workflows` (Workflow gates) | Linux | `Scripts/required_tools_linux_gates.txt` | the workflow pins and gate wiring, go mod tidy, sfl drives from the order file (about 380 s, the quality jobs pin 265 of it) |
 | Quality | `browser_3` (Browser gates) | Linux | `Scripts/required_tools_browser_3_gates.txt` | the browser gate and the fixture-site gate, after its own site build (about 250 s) |
+| Quality | `report_start` | Linux | none | the start of the run, sent by `Scripts/dispatch_report.sh` when a receiver is set (never on a pull request) |
 | Quality | `report`, `preview` | Linux, macOS | none | the Quality report; the preview deploy, after every job |
 | Self-tests | `selftest_mac_1` | macOS | `Scripts/required_tools_selftest_mac_1_gates.txt` | the self-tests of the old `quality_3` job and the browser gate inputs self-test (about 360 s) |
 | Self-tests | `selftest_mac_2` | macOS | `Scripts/required_tools_selftest_mac_2_gates.txt` | the self-tests of the main job and the rest of `quality_2`'s (about 405 s) |

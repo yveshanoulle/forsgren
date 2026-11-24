@@ -199,8 +199,8 @@ gate_wiring_local_script() {
     # THE REPORT DISPATCH, not gates: selftests.yml sends its start (the
     # report_start job) and its outcome (the report job's last step) to the
     # maintainer's receiving repository with Scripts/dispatch_report.sh, the
-    # counts from Scripts/selftests_counts.sh (quality.yml's report job sends
-    # its checks with it too). One self-test,
+    # counts from Scripts/selftests_counts.sh (quality.yml's report_start job
+    # sends its start and its report job its result with it too). One self-test,
     # Scripts/test_report_dispatch.sh, proves both and must be a row.
     dispatch_report.sh|selftests_counts.sh)
       runs_script ".github/workflows/selftests.yml" "$base" \
