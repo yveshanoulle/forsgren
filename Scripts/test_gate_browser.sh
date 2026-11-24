@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v37
+# canon: test_gate_browser v38
+# v38 (forsgren#715, CI red): case 59's seam ends the page's renderer with chrome://kill (the renderer exits at once, no crash dump) instead of Page.crash, whose crash dump a kernel core handler held back on GitHub's ubuntu-latest, so no crash was reported within 30 s there; the seam's answer is shown when the case is red. The helper of proofs La and Lb is mutant_chrome_main (was m53_mutant), so the mutation it applies runs inside a mutant_ function, as the parallel mutants self-test (h) holds
 # v37 (forsgren#710): case 59, a page whose renderer is crashed during its check (Page.crash through the hook seam, once the page's own read of the shifts is pending) ends the run within 30 s with exit 1 and the named FAIL `could not be checked: its renderer ended during the check (Page crashed!)` (browser_gate v23); proof Cr, the engine without its listener for the page's 'error' event, is still running 30 s after the crash (it would wait for puppeteer's protocol timeout, 180 s), and is ended there
 # v36 (forsgren#694): the main Chrome of a signal case is the one with the pipe switch as well, past every shell or perl wrapper, read from whole command lines (chrome_main, here and in lib_gate_browser_selftest v3), never the listing's own grep, which names the profile path too and came first once the PIDs wrapped; case 53m pins it on a listing of the test, and proofs La and Lb, chrome_main without the pipe switch filter and without the wrapper filter, each take a wrong PID there
 # v35 (forsgren#682): case 53l, a fake Chrome that makes no code-sign clone folder at launch (as Chrome 157 does on macOS): the run passes with one note, 'this Chrome made no code-sign clone (nothing to remove)' (browser_gate v21), and no line about a folder kept for the nightly cleanup; case 53h also asserts that a Chrome that makes a clone folder gets no such note; case 52j, a SIGHUP to the wrapper during a launch that never finishes (a deaf Chrome, the pipe of 53f, up once its profile has Local State, SIG_UP_LOCAL_STATE) ends the run with exit 129, no Chrome and no profile, within 20 s: up to browser_gate v21 the engine waited for the launch, up to 30 s (browser_gate v22 ends Chrome's group at once); a signal case starts its command with SIGINT, SIGTERM and SIGHUP at their default, since a self-test run under nohup (as FBP is started) passed SIGHUP on ignored, the wrapper could not trap it, and 52d and 52j failed with no output
@@ -160,8 +161,8 @@
 #      OK line for 0 pages (the wrapper's OK-line check is the second guard);
 #   W. the wrapper without its OK-line check: case 55d turns green.
 # A page whose renderer ends during its check (forsgren#710): the hook seam
-# crashes the page's renderer (Page.crash) when the page says that the gate's
-# first read of the shifts is pending, an answer it never gives:
+# ends the page's renderer (chrome://kill, v38) when the page says that the
+# gate's first read of the shifts is pending, an answer it never gives:
 #  59. the renderer crashed mid-check -> exit 1 within CRASH_BOUND (30 s) of the
 #      crash, `FAIL: light /: could not be checked: its renderer ended during
 #      the check (Page crashed!)`, never the protocol timeout (180 s)
@@ -1206,9 +1207,20 @@ case_58d() {
 # before puppeteer's protocol timeout (180 s). The fixture's read of the shifts
 # (window.__shifts, the gate's first evaluate on the loaded page) says so on the
 # console and never answers; the hook seam, called right after the launch, hears
-# that line on every page the gate opens and crashes the page's renderer
-# (Page.crash), so the crash comes while that read is pending, whatever the
-# machine's speed, and marks the moment (FORSGREN_TEST_READY_MARK). The run must
+# that line on every page the gate opens and ends the page's renderer, so the
+# end comes while that read is pending, whatever the machine's speed, and marks
+# the moment (FORSGREN_TEST_READY_MARK). v38 (forsgren#715): the seam navigates
+# the page to chrome://kill, which Chrome hands to the page's own renderer, and
+# the renderer exits at once (exit 1, no crash dump), which puppeteer reports
+# as the same 'error' event, `Page crashed!`. Up to v37 it sent Page.crash,
+# which crashes the renderer through the crash dump: on a machine whose kernel
+# pipes a core dump to a handler (core_pattern `|...`, as on GitHub's
+# ubuntu-latest), the renderer stays in its dump until the handler is done,
+# Chrome sees no crash meanwhile, and the case was still running 30 s after
+# the mark on CI (runs 45322691882, 45326188397) while it passed locally; a
+# core handler that holds the pipe 20 s holds the 'error' event back as long
+# for Page.crash and not at all for chrome://kill. The seam writes what the
+# navigation answered next to the mark, and a red case shows it. The run must
 # end within CRASH_BOUND of the mark, exit 1, with the named finding.
 # CRASH_BOUND is 30 s: the fixed engine ends a run of one page and one look a
 # few seconds after the crash (the page closed, the browser closed), so 30 s
@@ -1221,7 +1233,9 @@ cat > "$CRASH_SEAM" << 'SEAM'
 const fs = require('node:fs');
 // The engine calls this with its browser right after the launch: every page it
 // opens from then on gets a console listener before the page is loaded, and
-// the page's line crashes that page's renderer once the mark is written.
+// the page's line ends that page's renderer (chrome://kill: it exits at once,
+// no crash dump) once the mark is written; what the navigation answered goes
+// to <mark>.seam.
 module.exports = (browser) => {
   const newPage = browser.newPage.bind(browser);
   browser.newPage = async (...args) => {
@@ -1229,7 +1243,10 @@ module.exports = (browser) => {
     page.on('console', (message) => {
       if (message.text() !== 'fixture: crash this renderer') return;
       fs.writeFileSync(process.env.FORSGREN_TEST_READY_MARK, 'crashed\n');
-      page.createCDPSession().then((session) => session.send('Page.crash')).catch(() => {});
+      const said = (line) => fs.appendFileSync(`${process.env.FORSGREN_TEST_READY_MARK}.seam`, `${line}\n`);
+      page.createCDPSession()
+        .then((session) => session.send('Page.navigate', { url: 'chrome://kill' }))
+        .then((answer) => said(`chrome://kill answered ${JSON.stringify(answer)}`), (error) => said(`chrome://kill failed: ${error.message}`));
     });
     return page;
   };
@@ -1250,7 +1267,7 @@ crash_run() {
   root="${TMPDIR:-/tmp}"
   root="${root%/}"
   tmpd="$(mktemp -d "${root}/crash.XXXXXX")"
-  rm -f "$mark"
+  rm -f "$mark" "${mark}.seam"
   TMPDIR="$tmpd" FORSGREN_TEST_READY_MARK="$mark" FORSGREN_GATE_BROWSER_HOOK="$CRASH_SEAM" FORSGREN_CLS_LOADS="$SHORT_CLS_LOADS" FORSGREN_CLS_INTERVAL_MS="$SHORT_CLS_INTERVAL_MS" "$@" "${dir}/site" "${dir}/manifest.json" "${dir}/exceptions.txt" "${dir}/baseline.txt" "${dir}/variants.txt" > "${MUTANT_DIR}/crash.out" 2>&1 &
   pid=$!
   start=$SECONDS
@@ -1275,6 +1292,7 @@ crash_run() {
   fi
   wait "$pid" 2> /dev/null && RC=0 || RC=$?
   OUT="$(cat "${MUTANT_DIR}/crash.out")"
+  CRASH_SEAM_SAID="$(cat "${mark}.seam" 2> /dev/null || echo 'nothing')"
   pkill -9 -f -- "${tmpd}/browser-gate-" || true
   rm -rf "$tmpd"
   if [[ -z "$CRASH_WHY" && "$RC" -ne 1 ]]; then
@@ -1287,7 +1305,7 @@ case_59() {
   own_fixtures crashing
   crash_run "${TMP}/crashing" "$GATE"
   if [[ -n "$CRASH_WHY" ]]; then
-    fail "59: a page whose renderer is crashed during its check should end the run within ${CRASH_BOUND} s, exit 1, named: ${CRASH_WHY}. Output: ${OUT}"
+    fail "59: a page whose renderer is crashed during its check should end the run within ${CRASH_BOUND} s, exit 1, named: ${CRASH_WHY}. The seam: ${CRASH_SEAM_SAID}. Output: ${OUT}"
   else
     echo "  ok: 59: a page whose renderer is crashed during its check ends the run ${CRASH_AFTER} s after the crash (bound ${CRASH_BOUND} s), exit 1, its renderer named"
   fi
@@ -1340,10 +1358,12 @@ m53_why() {
     echo "with the listing's own readers before Chrome, the main Chrome should be 99973 and its pipe's node 99911, got '${main}' and '${parent}'"
   fi
 }
-# m53_mutant <sed-expression>: chrome_main as this run defines it (the library's,
-# or this file's own without the library) with the expression applied, defined
-# in the proof's subshell; fails (returns 1) when the mutation changed nothing.
-m53_mutant() {
+# mutant_chrome_main <sed-expression>: chrome_main as this run defines it (the
+# library's, or this file's own without the library) with the expression
+# applied, defined in the proof's subshell; fails (returns 1) when the mutation
+# changed nothing. A proofs' helper like mutant_engine, so the mutation it applies
+# runs in a mutant_ function, as the parallel mutants self-test (h) holds.
+mutant_chrome_main() {
   local from="$0"
   LAP=$SECONDS
   if [[ "$GATE_BROWSER_LIB" -eq 1 ]]; then
@@ -2651,7 +2671,7 @@ mutant_dh() {
 # the listing's own grep (311), which names the profile path and has no --type=.
 mutant_la() {
   local why
-  if m53_mutant "s/ | { grep -F -e ' --remote-debugging-pipe' || true; }//"; then
+  if mutant_chrome_main "s/ | { grep -F -e ' --remote-debugging-pipe' || true; }//"; then
     why="$(m53_why)"
     if [[ "$why" == *"got '311'"* ]]; then
       echo "  ok: mutation proof La: without the pipe switch filter case 53m takes the listing's own grep for Chrome"
@@ -2665,7 +2685,7 @@ mutant_la() {
 # 53m takes the shell wrapper (313), which carries Chrome's arguments.
 mutant_lb() {
   local why
-  if m53_mutant "s/ | { grep -v -E '[^']*(bash|perl|sh) ' || true; }//"; then
+  if mutant_chrome_main "s/ | { grep -v -E '[^']*(bash|perl|sh) ' || true; }//"; then
     why="$(m53_why)"
     if [[ "$why" == *"got '313'"* ]]; then
       echo "  ok: mutation proof Lb: without the wrapper filter case 53m takes the shell wrapper for Chrome"
