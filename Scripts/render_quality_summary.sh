@@ -60,22 +60,45 @@
 # case lines are in a format the grammar does not know is named, not
 # counted silently.
 #
-# Usage: Scripts/render_quality_summary.sh <rows-file> <details-dir> [order-file]
+# Usage: Scripts/render_quality_summary.sh [--selftests] [--checks]
+#          <rows-file> <details-dir> [order-file]
 #   Either path may be empty or missing (the job stopped before quality.yml's
 #   Start report step); the block still renders.
+#   --selftests  the Self-tests view (selftests.yml's report job, forsgren's
+#                own): the block is the Total checks row alone, counted by
+#                the same case_counts over the self-test rows of the order
+#                file the view was cut to. The self-test rows are not split
+#                into PRE and POST, so its total needs at least one row that
+#                reported, not a count of both phases; Quality's view keeps
+#                its guard (no PRE or no POST count: no total).
+#   --checks     print only the number of checks that ran (passed + failed,
+#                the number of the Total checks cell) for a report dispatch
+#                (Scripts/dispatch_report.sh). A total that does not exist
+#                is a named ::error:: on stderr and exit 1, never a 0.
 #
 # Writes Markdown to stdout and exits 0 on whatever it is given, as the
 # report renderer does: a summary that fails turns a run's page red for a
 # reason unrelated to what it reports. `set -uo pipefail` and not -e for
-# that reason.
+# that reason. --checks is the one exception: its number feeds a report, so
+# a number that does not exist fails.
 # Fixture: Scripts/test_render_quality_summary.sh.
 
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
+VIEW="quality"
+CHECKS_ONLY=false
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --selftests) VIEW="selftests"; shift ;;
+    --checks) CHECKS_ONLY=true; shift ;;
+    *) break ;;
+  esac
+done
+
 if [ "$#" -lt 2 ]; then
-  echo "usage: render_quality_summary.sh <rows-file> <details-dir> [order-file]" >&2
+  echo "usage: render_quality_summary.sh [--selftests] [--checks] <rows-file> <details-dir> [order-file]" >&2
   exit 64
 fi
 
@@ -191,8 +214,9 @@ not_run_reason() {
 }
 
 # phase_counts <phase>: `P F S` (passed, failed, skipped), counted from
-# the rows against the order file's declared rows of that phase; nothing
-# when no gate of the phase reported.
+# the rows against the order file's declared rows of that phase (`*`: of
+# every phase, the Self-tests view); nothing when no gate of the phase
+# reported.
 phase_counts() {
   local counts
   # LC_ALL=C: macOS awk compares strings with strcoll, and in a UTF-8 locale
@@ -200,7 +224,7 @@ phase_counts() {
   counts="$(LC_ALL=C awk -F'|' -v phase="$1" '
     FNR == NR {
       if ($0 ~ /^#/ || $1 == "" || $2 == "n/a") next
-      if ($3 == phase) { declared++; in_phase[$1] = 1 }
+      if (phase == "*" || $3 == phase) { declared++; in_phase[$1] = 1 }
       next
     }
     ($1 in in_phase) && !($1 in seen) {
@@ -221,6 +245,7 @@ if [ -z "$rows_file" ] || [ ! -f "$rows_file" ]; then rows_file=/dev/null; fi
 
 pre_counts="$(phase_counts pre)"
 post_counts="$(phase_counts post)"
+all_counts="$(phase_counts '*')"
 
 # phase_cell <phase> <counts>: the phase's counts, or — with why it has none.
 phase_cell() {
@@ -357,15 +382,40 @@ while IFS='|' read -r label mark; do
   checks_failed=$((checks_failed + cf))
 done <<< "$(reported_rows)"
 
-total_cell() {
-  local absent="" ps qs skipped
-  [ -n "$pre_counts" ] || absent="the PRE gates"
-  [ -n "$post_counts" ] || absent="${absent:+${absent} and }the POST gates"
-  [ -z "$absent" ] || { missing "no total: ${absent} have no count"; return; }
-  printf '%d passed · %d failed' "$checks_passed" "$checks_failed"
+# total_absent: the part of the run that has no count, so no total exists;
+# empty when it does. Quality's view needs a count of both phases; the
+# Self-tests view, whose rows are not split into phases, one row that
+# reported.
+total_absent() {
+  local absent=""
+  if [ "$VIEW" = "selftests" ]; then
+    [ -n "$all_counts" ] || absent="the self-test rows"
+  else
+    [ -n "$pre_counts" ] || absent="the PRE gates"
+    [ -n "$post_counts" ] || absent="${absent:+${absent} and }the POST gates"
+  fi
+  printf '%s' "$absent"
+}
+
+# total_skipped: the declared gates of the view that never reported.
+total_skipped() {
+  local ps qs
+  if [ "$VIEW" = "selftests" ]; then
+    read -r _ _ ps <<< "$all_counts"
+    printf '%d' "$ps"
+    return
+  fi
   read -r _ _ ps <<< "$pre_counts"
   read -r _ _ qs <<< "$post_counts"
-  skipped=$((ps + qs))
+  printf '%d' "$((ps + qs))"
+}
+
+total_cell() {
+  local absent skipped
+  absent="$(total_absent)"
+  [ -z "$absent" ] || { missing "no total: ${absent} have no count"; return; }
+  printf '%d passed · %d failed' "$checks_passed" "$checks_failed"
+  skipped="$(total_skipped)"
   if [ "$skipped" -eq 1 ]; then
     printf ' · 1 gate skipped, its checks not counted'
   elif [ "$skipped" -gt 1 ]; then
@@ -377,6 +427,29 @@ total_cell() {
     printf ' · ⚠️ case lines in an unknown format in %d gates (%s), not counted' "$unknown_gates" "$unknown_labels"
   fi
 }
+
+# --checks: the number of the Total checks cell for a report dispatch, or a
+# named failure; never a 0 for a total that does not exist.
+if [ "$CHECKS_ONLY" = "true" ]; then
+  checks_absent="$(total_absent)"
+  if [ -n "$checks_absent" ]; then
+    echo "::error::render_quality_summary: no checks count: ${checks_absent} have no count (the ${VIEW} view); nothing to report, and never a 0" >&2
+    exit 1
+  fi
+  echo "$((checks_passed + checks_failed))"
+  exit 0
+fi
+
+# The Self-tests view: its Total checks row alone.
+if [ "$VIEW" = "selftests" ]; then
+  echo "## Run summary"
+  echo ""
+  echo "| | |"
+  echo "|---|---|"
+  echo "| Total checks | $(total_cell) |"
+  echo ""
+  exit 0
+fi
 
 # --- Go coverage and floors to raise ------------------------------------------
 cov_file="$(details_of "Go coverage")"

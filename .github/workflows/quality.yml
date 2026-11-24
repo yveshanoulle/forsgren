@@ -788,6 +788,38 @@ jobs:
             "browser_3=$QS_BROWSER_3_RESULT" "workflows=$QS_WORKFLOWS_RESULT" || rc=$?
           exit "$rc"
 
+      # The run's checks sent to the maintainer's receiving repository
+      # (Scripts/dispatch_report.sh, kind quality): completed, the run's status
+      # from the gate jobs' results (merge_quality_report.sh status), and
+      # checks = the number of the summary's Total checks row
+      # (Scripts/render_quality_summary.sh --checks, the same counter). A run
+      # with no checks count (no PRE or no POST count) sends nothing, never a
+      # 0, and the step is red with the named error. Never on a pull request:
+      # the number is main's (and a fork's run has no secret). Optional:
+      # without REPORT_TARGET_REPO or REPORT_DISPATCH_TOKEN it warns and stays
+      # green; a refused send is red. The two secrets are this step's env only.
+      - name: Report the checks
+        if: always() && github.event_name != 'pull_request'
+        shell: bash
+        env:
+          QS_QUALITY_RESULT: ${{ needs.quality.result }}
+          QS_QUALITY_2_RESULT: ${{ needs.quality_2.result }}
+          QS_LINT_RESULT: ${{ needs.lint.result }}
+          QS_BROWSER_3_RESULT: ${{ needs.browser_3.result }}
+          QS_WORKFLOWS_RESULT: ${{ needs.workflows.result }}
+          REPORT_TARGET_REPO: ${{ secrets.REPORT_TARGET_REPO }}
+          REPORT_DISPATCH_TOKEN: ${{ secrets.REPORT_DISPATCH_TOKEN }}
+        run: |
+          set -uo pipefail
+          dir="$(./Scripts/run_ci_phase.sh report-dir)"
+          conclusion="$(./Scripts/merge_quality_report.sh status \
+            "$QS_QUALITY_RESULT" "$QS_QUALITY_2_RESULT" "$QS_LINT_RESULT" "$QS_BROWSER_3_RESULT" "$QS_WORKFLOWS_RESULT")" || conclusion="failure"
+          if ! checks="$(./Scripts/render_quality_summary.sh --checks "${dir}/quality_rows.md" "${dir}/quality_details" "${dir}/quality_order.txt")"; then
+            echo "::error::the Quality run has no checks count (see the line above); nothing is sent"
+            exit 1
+          fi
+          ./Scripts/dispatch_report.sh quality completed "$conclusion" "$checks"
+
   # Starts the preview deploy (forsgren#222), only after every gate job
   # succeeded for this very commit, so a pushed commit that fails Quality
   # never reaches the preview site (Yves's ruling). The preview shows what the

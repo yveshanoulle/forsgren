@@ -80,7 +80,11 @@ a `repository_dispatch` with the event type `forsgren-report` and five string
 values (kind `selftests`, status, conclusion, tests and total). Tests is the
 number of rows `Scripts/selftest_rows.sh` lists that reported a pass or a
 failure, total every row it lists (`Scripts/selftests_counts.sh`, `XX` when
-unreadable). It needs the repository secret `REPORT_TARGET_REPO`
+unreadable). The outcome also carries `checks`, the number of the run's Total
+checks row, and Quality's report job sends its own as kind `quality` (status
+completed, conclusion and checks; never on a pull request). A run without a
+checks count sends none, never a 0, and its step is red with the named error.
+It needs the repository secret `REPORT_TARGET_REPO`
 (`owner/name`) and the secret `REPORT_DISPATCH_TOKEN`, a fine-grained token with
 Contents read and write on that repository only; without either nothing is sent,
 the step warns and the run stays green. Pinned by `Scripts/test_report_dispatch.sh`.
@@ -643,7 +647,13 @@ grammar, written out in the renderer: a closing verdict (`OK: …`,
 makes the total `—` naming it, never a partial sum; a gate that never
 reported is named as skipped, and a gate whose case lines are in a format
 the grammar does not know is named rather than counted silently. Adding a
-self-test or a case raises the number.
+self-test or a case raises the number. The Self-tests run's summary has its
+own Total checks row, the same counter over its self-test rows
+(`render_quality_summary.sh --selftests`): those rows are not split into PRE
+and POST, so its total needs one row that reported, while Quality's keeps
+needing both phases. `--checks` prints the number alone (passed and failed)
+for the report dispatch below, and fails with a named error, never a 0, when
+the total does not exist.
 
 **From a red CI row to a local run.** A CI row carries the label sfl prints,
 and the order file names the script and phase behind it:

@@ -8,14 +8,21 @@
 # token it sends nothing, says so in one ::warning:: and exits 0, so the run
 # stays green.
 #
-# Usage: Scripts/dispatch_report.sh <kind> <status> <conclusion> <tests> <total>
+# Usage: Scripts/dispatch_report.sh selftests <status> <conclusion> <tests> <total> [<checks>]
+#        Scripts/dispatch_report.sh quality completed <conclusion> <checks>
 #
-#   kind        what is reported, one of: selftests
+#   kind        what is reported: selftests (the Self-tests run) or quality
+#               (the Quality run's checks; only completed)
 #   status      in_progress | completed
 #   conclusion  empty for in_progress; success | failure | cancelled for
 #               completed
-#   tests       digits (at most 6) or XX (unknown)
-#   total       digits (at most 6) or XX (unknown)
+#   tests       digits (at most 6) or XX (unknown); selftests only
+#   total       digits (at most 6) or XX (unknown); selftests only
+#   checks      the checks that ran, the number of the run's Total checks
+#               row (Scripts/render_quality_summary.sh --checks): 0, or 1 to
+#               7 digits without a leading zero. Never XX: a run without a
+#               count sends no checks (the receiver keeps its last value).
+#               Required for quality; for selftests only when completed.
 #   REPORT_TARGET_REPO     env: the receiving repository, owner/name (the
 #                          repository secret of that name, so the run log masks it). Not written in
 #                          this repository's code, so nothing here names it.
@@ -28,10 +35,11 @@
 #
 # It POSTs repos/<target>/dispatches with
 #   {"event_type":"forsgren-report","client_payload":{"kind":...,"status":...,
-#    "conclusion":...,"tests":...,"total":...}}
-# (every value a string; the receiver accepts nothing else) and requires
-# HTTP 204. The arguments are checked before anything is sent, so the payload
-# only ever holds these five fixed shapes. The token goes to curl as a header
+#    "conclusion":...,"tests":...,"total":...[,"checks":...]}}
+# or, for quality, {"kind":"quality","status":"completed","conclusion":...,
+# "checks":...} (every value a string; the receiver accepts nothing else) and
+# requires HTTP 204. The arguments are checked before anything is sent, so
+# the payload only ever holds these fixed shapes. The token goes to curl as a header
 # on stdin (-H @-), never in the arguments; --disable first.
 #
 # Exit 0 sent (204), or skipped (no receiver or no token: one ::warning::).
@@ -45,17 +53,28 @@ set -euo pipefail
 set +x
 
 EVENT_TYPE="forsgren-report"
-KINDS="selftests"
+KINDS="selftests quality"
 
 bad() {
   echo "::error::dispatch_report: $1"
   exit 2
 }
 
-[[ "$#" -eq 5 ]] || bad "five arguments: <kind> <status> <conclusion> <tests> <total>, got $#"
-kind="$1"; status="$2"; conclusion="$3"; tests="$4"; total="$5"
-
+kind="${1-}"
 [[ " ${KINDS} " == *" ${kind} "* && -n "$kind" ]] || bad "unknown kind '${kind}' (one of: ${KINDS})"
+tests=""; total=""; checks=""; has_checks=false
+if [[ "$kind" == "quality" ]]; then
+  [[ "$#" -eq 4 ]] || bad "quality takes four arguments: quality completed <conclusion> <checks>, got $#"
+  status="$2"; conclusion="$3"; checks="$4"; has_checks=true
+  [[ "$status" == "completed" ]] || bad "quality is only sent completed (got '${status}')"
+else
+  [[ "$#" -eq 5 || "$#" -eq 6 ]] || bad "five arguments: <kind> <status> <conclusion> <tests> <total>, or six with <checks>, got $#"
+  status="$2"; conclusion="$3"; tests="$4"; total="$5"
+  if [[ "$#" -eq 6 ]]; then
+    checks="$6"; has_checks=true
+    [[ "$status" == "completed" ]] || bad "only a completed run has checks (got '${status}')"
+  fi
+fi
 case "$status" in
   in_progress)
     [[ -z "$conclusion" ]] || bad "a run in progress has no conclusion (got '${conclusion}')" ;;
@@ -66,8 +85,12 @@ case "$status" in
     esac ;;
   *) bad "status '${status}' (in_progress or completed)" ;;
 esac
-[[ "$tests" =~ ^([0-9]{1,6}|XX)$ ]] || bad "tests '${tests}' (digits or XX)"
-[[ "$total" =~ ^([0-9]{1,6}|XX)$ ]] || bad "total '${total}' (digits or XX)"
+if [[ "$kind" == "selftests" ]]; then
+  [[ "$tests" =~ ^([0-9]{1,6}|XX)$ ]] || bad "tests '${tests}' (digits or XX)"
+  [[ "$total" =~ ^([0-9]{1,6}|XX)$ ]] || bad "total '${total}' (digits or XX)"
+fi
+[[ "$has_checks" == "false" || "$checks" =~ ^(0|[1-9][0-9]{0,6})$ ]] \
+  || bad "checks '${checks}' (0, or 1 to 7 digits without a leading zero; never XX)"
 
 if [[ -z "${REPORT_TARGET_REPO:-}" ]]; then
   echo "::warning::dispatch_report: the secret REPORT_TARGET_REPO is not set; the ${kind} outcome was not sent"
@@ -80,8 +103,18 @@ fi
 [[ "$REPORT_TARGET_REPO" =~ ^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$ ]] \
   || bad "REPORT_TARGET_REPO is not owner/name"
 
-body="$(printf '{"event_type":"%s","client_payload":{"kind":"%s","status":"%s","conclusion":"%s","tests":"%s","total":"%s"}}' \
-  "$EVENT_TYPE" "$kind" "$status" "$conclusion" "$tests" "$total")"
+if [[ "$kind" == "quality" ]]; then
+  fields="$(printf '"kind":"%s","status":"%s","conclusion":"%s","checks":"%s"' "$kind" "$status" "$conclusion" "$checks")"
+  what="checks ${checks}"
+else
+  fields="$(printf '"kind":"%s","status":"%s","conclusion":"%s","tests":"%s","total":"%s"' "$kind" "$status" "$conclusion" "$tests" "$total")"
+  what="${tests}/${total}"
+  if [[ "$has_checks" == "true" ]]; then
+    fields+="$(printf ',"checks":"%s"' "$checks")"
+    what+=", checks ${checks}"
+  fi
+fi
+body="$(printf '{"event_type":"%s","client_payload":{%s}}' "$EVENT_TYPE" "$fields")"
 url="https://api.github.com/repos/${REPORT_TARGET_REPO}/dispatches"
 
 rc=0
@@ -101,4 +134,4 @@ if [[ "$code" != "204" ]]; then
   echo "::error::dispatch_report: GitHub answered status ${code}, not 204; the ${kind} outcome was not sent"
   exit 1
 fi
-echo "OK: ${kind} ${status} ${conclusion:-(running)} ${tests}/${total} sent (status 204)"
+echo "OK: ${kind} ${status} ${conclusion:-(running)} ${what} sent (status 204)"

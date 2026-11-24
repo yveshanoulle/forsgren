@@ -805,6 +805,7 @@ jobs:
           ./Scripts/merge_quality_report.sh view Scripts/ci_job_groups.txt Scripts/gate_report_order.txt "$groups" "$order" \
             selftest_mac_1 selftest_mac_2 selftest_linux isolation_1 isolation_2 summary browser_1 browser_2 || rc=$?
           ./Scripts/merge_quality_report.sh merge "$art" "$rows" "$details" || rc=$?
+          ./Scripts/render_quality_summary.sh --selftests "$rows" "$details" "$order" >> "$GITHUB_STEP_SUMMARY" || rc=$?
           ./Scripts/render_quality_report.sh "$rows" "$details" "$order" >> "$GITHUB_STEP_SUMMARY" || rc=$?
           ./Scripts/merge_quality_report.sh verdict \
             "selftest_mac_1=$QS_SELFTEST_MAC_1_RESULT" "selftest_mac_2=$QS_SELFTEST_MAC_2_RESULT" \
@@ -819,9 +820,13 @@ jobs:
       # status: cancelled, failure or success), tests = the self-test rows of
       # Scripts/selftest_rows.sh that reported ✅ or ❌ in the merged rows,
       # total = every row Scripts/selftest_rows.sh lists, the rows a full run
-      # executes (Scripts/selftests_counts.sh; XX when unreadable). Optional:
-      # without REPORT_TARGET_REPO or REPORT_DISPATCH_TOKEN it warns and stays
-      # green; a refused send is red.
+      # executes (Scripts/selftests_counts.sh; XX when unreadable), and checks =
+      # the number of the summary's Total checks row (the same counter as
+      # Quality's, Scripts/render_quality_summary.sh --selftests --checks). A
+      # run with no checks count sends its outcome without checks, never a 0,
+      # and the step is red with the named error. Optional: without
+      # REPORT_TARGET_REPO or REPORT_DISPATCH_TOKEN it warns and stays green; a
+      # refused send is red.
       - name: Report the outcome
         if: always()
         shell: bash
@@ -848,7 +853,13 @@ jobs:
             "$QS_SELFTEST_MAC_1_RESULT" "$QS_SELFTEST_MAC_2_RESULT" "$QS_SELFTEST_LINUX_RESULT" \
             "$QS_ISOLATION_1_RESULT" "$QS_ISOLATION_2_RESULT" "$QS_SUMMARY_RESULT" \
             "$QS_BROWSER_1_RESULT" "$QS_BROWSER_2_RESULT")" || conclusion="failure"
-          ./Scripts/dispatch_report.sh selftests completed "$conclusion" "${tests:-XX}" "${total:-XX}"
+          if checks="$(./Scripts/render_quality_summary.sh --selftests --checks "${dir}/quality_rows.md" "${dir}/quality_details" "${dir}/selftests_order.txt")"; then
+            ./Scripts/dispatch_report.sh selftests completed "$conclusion" "${tests:-XX}" "${total:-XX}" "$checks"
+          else
+            echo "::error::the Self-tests run has no checks count (see the line above); its outcome is sent without checks"
+            ./Scripts/dispatch_report.sh selftests completed "$conclusion" "${tests:-XX}" "${total:-XX}" || true
+            exit 1
+          fi
 
   # A red run on main opens ONE issue (forsgren#686), named after the run, so
   # the red is seen although nothing waits on this workflow: a push to main

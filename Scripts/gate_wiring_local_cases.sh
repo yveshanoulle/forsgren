@@ -199,7 +199,8 @@ gate_wiring_local_script() {
     # THE REPORT DISPATCH, not gates: selftests.yml sends its start (the
     # report_start job) and its outcome (the report job's last step) to the
     # maintainer's receiving repository with Scripts/dispatch_report.sh, the
-    # counts from Scripts/selftests_counts.sh. One self-test,
+    # counts from Scripts/selftests_counts.sh (quality.yml's report job sends
+    # its checks with it too). One self-test,
     # Scripts/test_report_dispatch.sh, proves both and must be a row.
     dispatch_report.sh|selftests_counts.sh)
       runs_script ".github/workflows/selftests.yml" "$base" \
@@ -990,7 +991,7 @@ if ! is_mutation_rerun; then
       fi
     done < <(grep -v '^#' "$order" | awk -F'|' '$2 != "" && $2 != "n/a" { print $1 }')
     # selftests.yml, like quality.yml in pin 2, names no gate itself.
-    if grep -vE '^[[:space:]]*#' "$selftests" | grep -vE 'run_ci_phase\.sh|merge_quality_report\.sh|render_quality_report\.sh|open_selftests_failure_issue\.sh|dispatch_report\.sh|selftests_counts\.sh|selftest_rows\.sh|install_tools(_linux)?\.sh|go_toolchain\.sh' \
+    if grep -vE '^[[:space:]]*#' "$selftests" | grep -vE 'run_ci_phase\.sh|merge_quality_report\.sh|render_quality_report\.sh|render_quality_summary\.sh|open_selftests_failure_issue\.sh|dispatch_report\.sh|selftests_counts\.sh|selftest_rows\.sh|install_tools(_linux)?\.sh|go_toolchain\.sh' \
       | has -qE '(^|[^A-Za-z0-9_./-])(\./)?Scripts/[A-Za-z0-9_]+\.sh'; then
       echo "selftests.yml names a gate itself; the order file and ${groups} decide which rows a job runs"
     fi
@@ -1083,9 +1084,9 @@ gate_wiring_local_proofs() {
     "render_quality_report.sh renders CI's step summary and" \
     "a quality.yml whose render_quality_report.sh call is a comment"
 
-  # quality.yml: the summary call becomes a comment (forsgren#8).
+  # quality.yml: the summary calls become comments (forsgren#8; the checks step's too).
   mutation_proof GATE_WIRING_CI_OVERRIDE "Scripts/render_quality_summary.sh" \
-    's|^([[:space:]]*)(\./Scripts/render_quality_summary\.sh)|\1# \2|' \
+    's|^([[:space:]]*)(\./Scripts/render_quality_summary\.sh)|\1# \2|; s|^([[:space:]]*)(if ! checks="\$\(\./Scripts/render_quality_summary\.sh)|\1# \2|' \
     "render_quality_summary.sh renders the run summary" \
     "a quality.yml whose render_quality_summary.sh call is a comment"
 

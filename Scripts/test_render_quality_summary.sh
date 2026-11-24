@@ -41,6 +41,16 @@
 #      red list, with the red phase steps; a cancelled or skipped job is
 #      named as such, never as red; a run where every job and phase is
 #      green keeps its line
+#  11. the Self-tests view and the checks count of the report dispatch:
+#      --selftests renders the Total checks row of
+#      self-test rows that are not split into PRE and POST, with the same
+#      counter, naming a row that never reported; with no row reported it
+#      shows — with why. Quality's view of the same rows keeps its guard (no
+#      POST count: no total). --checks prints the number of the Total cell
+#      (passed + failed) and exits 0; with no total it exits 1 with a named
+#      ::error:: and prints no number, in either view. MUTATION PROOFS: a
+#      renderer whose --checks ignores a missing part, or whose Self-tests
+#      view drops its no-row guard, is red for its own case's reason.
 #
 # The renderer is presentation, so like Scripts/render_quality_report.sh it
 # must exit 0 on whatever it is given: a summary step that fails turns a
@@ -387,6 +397,49 @@ want_said "a skipped job is named as skipped, not as red" \
   "**❌ Failed** — every phase ran; isolation job skipped."
 want_absent "a skipped job is never named as red" "red in: isolation job"
 
+# --- 11. the Self-tests view and the checks count -----------------------------
+# Three self-test rows, all pre, no post row: s_one green with three case
+# lines, s_two red with one passed and one failed, s_three never reported.
+ST_ORDER="${TMP}/st_order.txt"
+printf '%s\n' "# comment" "s_one self-test|Scripts/s_one.sh|pre|" \
+  "s_two self-test|Scripts/s_two.sh|pre|" "s_three self-test|Scripts/s_three.sh|pre|" > "$ST_ORDER"
+mkdir -p "${TMP}/st"
+printf 's_one self-test|✅\ns_two self-test|❌\n' > "${TMP}/st/rows.md"
+details_file "${TMP}/st/details" "s_one_self_test" "  ok: one" "  ok: two" "  ok: three" "" "OK: s_one holds"
+details_file "${TMP}/st/details" "s_two_self_test" "  ok: one" "❌ FAIL: two is red" "" \
+  "❌ FAIL: s_two self-test (see the FAIL lines above)"
+reset_env
+capture "$RENDER" --selftests "${TMP}/st/rows.md" "${TMP}/st/details" "$ST_ORDER"
+want_rc "the Self-tests view renders and exits 0" 0
+want_row "the Self-tests view counts its rows with the same counter, naming a row that never reported" \
+  "| Total checks | 4 passed · 1 failed · 1 gate skipped, its checks not counted |"
+want_absent "the Self-tests view is the Total checks row alone" "| PRE gates |"
+capture "$RENDER" "${TMP}/st/rows.md" "${TMP}/st/details" "$ST_ORDER"
+want_row "Quality's view of the same rows keeps its guard" \
+  "| Total checks | — (no total: the POST gates have no count) |"
+capture "$RENDER" --selftests "${TMP}/st/none.md" "${TMP}/st/details" "$ST_ORDER"
+want_rc "the Self-tests view with no row reported renders and exits 0" 0
+want_row "the Self-tests view with no row reported shows — with why" \
+  "| Total checks | — (no total: the self-test rows have no count) |"
+capture "$RENDER" --selftests --checks "${TMP}/st/rows.md" "${TMP}/st/details" "$ST_ORDER"
+if [[ "$RC" -eq 0 && "$OUT" == "5" ]]; then echo "  ok: --checks of the Self-tests view prints 5 (passed + failed)"; else fail "--checks of the Self-tests view: exit ${RC}, output '${OUT}'"; fi
+capture "$RENDER" --checks "${TMP}/green/rows.md" "${TMP}/green/details" "$ORDER"
+if [[ "$RC" -eq 0 && "$OUT" == "24" ]]; then echo "  ok: --checks of a green Quality run prints its Total checks, 24"; else fail "--checks of a green Quality run: exit ${RC}, output '${OUT}'"; fi
+checks_case="--checks of a Quality run without a POST count fails, named, with no number"
+capture "$RENDER" --checks "${TMP}/red_pre/rows.md" "${TMP}/red_pre/details" "$ORDER"
+if [[ "$RC" -eq 1 ]] && grep -qxF "::error::render_quality_summary: no checks count: the POST gates have no count (the quality view); nothing to report, and never a 0" <<< "$OUT" \
+  && ! grep -qE '^[0-9]+$' <<< "$OUT"; then
+  echo "  ok: ${checks_case}"
+else
+  fail "${checks_case}: exit ${RC}, output '${OUT}'"
+fi
+capture "$RENDER" --selftests --checks "${TMP}/st/none.md" "${TMP}/st/details" "$ST_ORDER"
+if [[ "$RC" -eq 1 ]] && grep -qF "no checks count: the self-test rows have no count (the selftests view)" <<< "$OUT"; then
+  echo "  ok: --checks of the Self-tests view with no row reported fails, named"
+else
+  fail "--checks of the Self-tests view with no row reported: exit ${RC}, output '${OUT}'"
+fi
+
 # --- 9. MUTATION PROOFS -------------------------------------------------------
 # The renderer with every missing-input reason replaced by a 0: the shape
 # this self-test exists to refuse. Re-run against it, this self-test must be
@@ -459,6 +512,21 @@ if [[ -z "${QS_SELFTEST_RENDER_OVERRIDE:-}" ]]; then
     want_red "a renderer that names the jobs in another order is caught" \
       "FAIL: a browser and isolation red names both jobs, in a stable order: the output does not say"
   fi
+  # --checks that ignores a missing part prints a partial
+  # number. Red for case 11's Quality --checks reason.
+  checksmut="${TMP}/checksmut/render_quality_summary.sh"
+  if selftest_mutant "$RENDER" "$checksmut" "s|if \\[ -n \"\\\$checks_absent\" \\]; then|if false; then|"; then
+    capture env QS_SELFTEST_RENDER_OVERRIDE="$checksmut" "$0"
+    want_red "a renderer whose --checks ignores a missing part is caught" "FAIL: ${checks_case}:"
+  fi
+  # The Self-tests view without its no-row guard: 0 passed · 0 failed, as if
+  # measured. Red for case 11's no-row reason.
+  stguard="${TMP}/stguard/render_quality_summary.sh"
+  if selftest_mutant "$RENDER" "$stguard" "/\\[ -n \"\\\$all_counts\" \\] || absent=/d"; then
+    capture env QS_SELFTEST_RENDER_OVERRIDE="$stguard" "$0"
+    want_red "a Self-tests view without its no-row guard is caught" \
+      "FAIL: the Self-tests view with no row reported shows — with why: no row"
+  fi
   # forsgren#288: each older proof is met only by its own case's failure.
   # The unguarded mutant breaks case 8 alone, the partial mutant case 2's
   # Totals alone (the zero mutant breaks case 2 too, and the verdicts
@@ -474,4 +542,4 @@ if [[ -z "${QS_SELFTEST_RENDER_OVERRIDE:-}" ]]; then
 fi
 
 selftest_end "quality-run summary self-test" \
-  "quality-run summary (green, red PRE, cancelled, setup-stopped, red-gate and pull-request runs; red, cancelled and skipped gate jobs named in the status; Total checks counts every case line once, never a verdict, and names an unknown case-line format and a part it is missing; a missing input shows — with its reason, never 0)"
+  "quality-run summary (green, red PRE, cancelled, setup-stopped, red-gate and pull-request runs; red, cancelled and skipped gate jobs named in the status; Total checks counts every case line once, never a verdict, and names an unknown case-line format and a part it is missing; a missing input shows — with its reason, never 0; the Self-tests view and the --checks count, which fails named rather than print 0)"
