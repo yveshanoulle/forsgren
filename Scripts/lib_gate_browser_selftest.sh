@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: lib_gate_browser_selftest v2
+# canon: lib_gate_browser_selftest v3
+# v3 (forsgren#694): chrome_main takes the main Chrome by its pipe switch as well, past every shell or perl wrapper, from a listing of whole command lines (ps -ww), never the listing's own grep, whose line also names the profile path and came first once the PIDs wrapped
 # v2 (forsgren#630): the wait for a signal case's Chrome on the signal itself, its pipe's other end closed or still held, within named bounds (wait_chrome_gone, chrome_alive_why), and the stall of proof R (stall_chrome, stall_why)
 # Scripts/lib_gate_browser_selftest.sh
 #
@@ -101,11 +102,24 @@ stall_why() {
   fi
 }
 
-# chrome_main <tmpd>: the PID of the main Chrome process of the case (the one
-# without --type=), empty when it is gone. chrome_parent <tmpd>: its parent, the
-# node process that launched it and holds the other end of its pipe.
+# chrome_main <tmpd>: the PID of the main Chrome process of the case, empty when
+# it is gone: the one with the pipe switch and without --type=, past every shell
+# or perl wrapper that carries the same arguments before its exec. chrome_parent
+# <tmpd>: its parent, the node process that launched it and holds the other end
+# of its pipe.
+#
+# The pipe switch is what tells Chrome from the listing's own readers (v3,
+# forsgren#694): the grep that looks for the profile path is itself in the
+# listing with that path on its command line and no --type=, and so is a pkill
+# or pgrep of the case running at that moment. The listing is in PID order, so
+# the first such line was Chrome only while Chrome's PID was the lower one; once
+# the PIDs wrapped (Chrome 99973, the grep a few hundred), the grep came first,
+# its PID was taken for Chrome's, it had ended by the time its parent was asked,
+# and the pipe's node was "not found". None of those readers carries both the
+# profile path and the pipe switch. -ww keeps every command line whole, so the
+# switch is never cut off a long one (case 53m of the browser gate self-test).
 chrome_main() {
-  { ps -A -o pid=,command= || true; } | { grep -F -e "--user-data-dir=${1}/browser-gate-" || true; } | { grep -v -F -e ' --type=' || true; } | awk 'NR == 1 {print $1}'
+  { ps -A -ww -o pid=,command= || true; } | { grep -F -e "--user-data-dir=${1}/browser-gate-" || true; } | { grep -F -e ' --remote-debugging-pipe' || true; } | { grep -v -F -e ' --type=' || true; } | { grep -v -E '^ *[0-9]+ [^ ]*(bash|perl|sh) ' || true; } | awk 'NR == 1 {print $1}'
 }
 chrome_parent() {
   local main

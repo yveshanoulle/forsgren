@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v35
+# canon: test_gate_browser v36
+# v36 (forsgren#694): the main Chrome of a signal case is the one with the pipe switch as well, past every shell or perl wrapper, read from whole command lines (chrome_main, here and in lib_gate_browser_selftest v3), never the listing's own grep, which names the profile path too and came first once the PIDs wrapped; case 53m pins it on a listing of the test, and proofs La and Lb, chrome_main without the pipe switch filter and without the wrapper filter, each take a wrong PID there
 # v35 (forsgren#682): case 53l, a fake Chrome that makes no code-sign clone folder at launch (as Chrome 157 does on macOS): the run passes with one note, 'this Chrome made no code-sign clone (nothing to remove)' (browser_gate v21), and no line about a folder kept for the nightly cleanup; case 53h also asserts that a Chrome that makes a clone folder gets no such note; case 52j, a SIGHUP to the wrapper during a launch that never finishes (a deaf Chrome, the pipe of 53f, up once its profile has Local State, SIG_UP_LOCAL_STATE) ends the run with exit 129, no Chrome and no profile, within 20 s: up to browser_gate v21 the engine waited for the launch, up to 30 s (browser_gate v22 ends Chrome's group at once); a signal case starts its command with SIGINT, SIGTERM and SIGHUP at their default, since a self-test run under nohup (as FBP is started) passed SIGHUP on ignored, the wrapper could not trap it, and 52d and 52j failed with no output
 # v34 (forsgren#674, step 2; the cases and proofs of a site's v33, site issue 94, with their ids): a gate that tests nothing is never green: cases 58a to 58d, a manifest with no page, one without requiredPages, a missing manifest and a named Chrome that does not exist, each exit 2 before anything is checked; case 55d, an engine that ends 0 after the launch without its OK line (no page checked) is red in the wrapper (gate_browser v7); proof V, the engine without its empty-manifest guard, prints an OK line for 0 pages; proof W, the wrapper without its OK-line check, turns case 55d green (its copy finds puppeteer-core through FORSGREN_NODE_ROOT, no link to node_modules)
 # v33 (forsgren#660, the owner's ruling, option A): the real-Chrome signal cases run with Chrome's code-sign clone off (--disable-features=MacAppCodeSignClone, merged into the one --disable-features Chrome is given, through the wrapper chrome_no_clone.sh) and the engine looks at an empty folder of the case, so they no longer read the folder every Chrome on the machine shares: a clone folder of anyone else cannot change their verdict. closed_verdict asserts instead that the clone is off for this Chrome: its own command line has one --disable-features naming the feature and no --enable-features naming it, and the installed Chrome still knows the feature; a missing, overridden or unknown flag is a reason, never a return to the shared folder. Case 53g keeps its clone assertions on a parent of the test; 53h and 53i are unchanged; case 53j pins the check
@@ -183,6 +184,9 @@
 #      FORSGREN_GATE_PS_LISTING of browser_gate v12)
 #  53l (forsgren#682). A Chrome that makes no clone folder at launch: nothing
 #      to remove, one note on stderr, no kept folder reported (browser_gate v21)
+#  53m (forsgren#694). The main Chrome and its pipe's node found on a listing
+#      where the listing's own grep, a pkill and a shell wrapper come first, as
+#      after the PIDs wrapped (v36)
 #  53e (site issue 60). A loaded machine slows only the gate (browser_gate v12's
 #      FORSGREN_GATE_BROWSER_HOOK); a killed Chrome still ends the run at once;
 #      the kill waits for the seam's mark of the end of the launch (v25)
@@ -202,11 +206,15 @@
 #   Dh. (the process self-test's proof D up to its v4; D here is the baseline
 #      selector) the engine not hearing Chrome's process end during the launch:
 #      case 53f still runs 10 s after the kill (v29).
+#   La. chrome_main without its pipe switch filter: case 53m takes the
+#      listing's own grep for Chrome (v36, forsgren#694);
+#   Lb. chrome_main without its shell and perl wrapper filter: case 53m takes
+#      the wrapper for Chrome (v36).
 # SHARDS (v30, forsgren#641). `--shard N/M` (1 <= N <= M) runs the units dealt to
 # shard N: each plain case and each side-by-side proof is a unit, except 19, 20,
 # 21 and proof B, which follow case 8 (they compare with the CLS it measures);
-# the cases of SERIAL_CASES with their proofs R, Rb, S, X, Z and Dh are one unit,
-# `serial`. The units are dealt as Scripts/lib_isolation_shard.sh deals the
+# the cases of SERIAL_CASES with their proofs R, Rb, S, X, Z, Dh, La and Lb are
+# one unit, `serial`. The units are dealt as Scripts/lib_isolation_shard.sh deals the
 # isolation self-tests: by their seconds (Scripts/browser_gate_selftest_weights.txt),
 # the heaviest first, each to the shard that weighs least so far, so every case
 # runs in exactly one shard, the shards weigh about the same and a new case lands
@@ -266,8 +274,8 @@ FIRST_CASES=(8 1 31 32 33 34 30 23 22
   41 42 43 44 45 46 47 48 49a 49b 49c 49d 50 51 54 55 56 57 58a 58b 58c 58d)
 SECOND_CASES=(19 20 21 55a 55b 55c 55d)
 SECOND_PROOFS=(a b c d e f g h i j k kslow l m n o p q t u y v w)
-SERIAL_CASES=(52h 52i 53j 52a 52b 52c 52d 52e 52f 53 52g 52j 53d 53g 53h 53i 53l 54a 54b 54c 53e 53f)
-SERIAL_PROOFS=(r rb s x z dh)
+SERIAL_CASES=(52h 52i 53j 53m 52a 52b 52c 52d 52e 52f 53 52g 52j 53d 53g 53h 53i 53l 54a 54b 54c 53e 53f)
+SERIAL_PROOFS=(r rb s x z dh la lb)
 # SHARD_FOLLOWERS: "<unit> <the cases and proofs that run in its shard>" (v30).
 SHARD_FOLLOWERS=("case_8 case_19 case_20 case_21 mutant_b")
 
@@ -436,11 +444,13 @@ HTML
     printf 'light|scheme:light\n' > "$dir/variants.txt"
   }
   # The wait for a signal case's Chrome and the stall of proof R (v27, forsgren#630).
-  # chrome_main <tmpd>: the PID of the main Chrome process of the case (the one
-  # without --type=), empty when it is gone. chrome_parent <tmpd>: its parent, the
-  # node process that launched it and holds the other end of its pipe.
+  # chrome_main <tmpd>: the PID of the main Chrome process of the case, empty when
+  # it is gone: the one with the pipe switch and without --type=, past every shell
+  # or perl wrapper (v36: never the listing's own grep, see the library).
+  # chrome_parent <tmpd>: its parent, the node process that launched it and holds
+  # the other end of its pipe.
   chrome_main() {
-    { ps -A -o pid=,command= || true; } | { grep -F -e "--user-data-dir=${1}/browser-gate-" || true; } | { grep -v -F -e ' --type=' || true; } | awk 'NR == 1 {print $1}'
+    { ps -A -ww -o pid=,command= || true; } | { grep -F -e "--user-data-dir=${1}/browser-gate-" || true; } | { grep -F -e ' --remote-debugging-pipe' || true; } | { grep -v -F -e ' --type=' || true; } | { grep -v -E '^ *[0-9]+ [^ ]*(bash|perl|sh) ' || true; } | awk 'NR == 1 {print $1}'
   }
   chrome_parent() {
     local main
@@ -1198,6 +1208,53 @@ if runs case_8 && [[ -z "$CLS_M" ]]; then
   CLS_M=0.05
 fi
 
+# 53m (forsgren#694): the main Chrome and its pipe's node, without a browser,
+# on a listing in PID order after the PIDs wrapped: the reader of the listing (a
+# grep of the profile path), a pkill of the case and a shell wrapper come before
+# Chrome, so the first line that names the profile and has no --type= is the
+# grep's, as it was when a signal case found no pipe node. ps answers from the
+# listing; any other process is gone, as the grep was when its parent was asked.
+M53_DIR="/t/sig_m53.ab12cd/browser-gate-ef34"
+M53_LISTING="  202 /a/Chrome Helper (Renderer) --type=renderer --user-data-dir=${M53_DIR} --remote-debugging-pipe
+  311 grep -F -e --user-data-dir=${M53_DIR%/*}/browser-gate-
+  312 pkill -CONT -f -- --user-data-dir=${M53_DIR%/*}/browser-gate-
+  313 /bin/bash /x/chrome_wrap.sh --remote-debugging-pipe --user-data-dir=${M53_DIR}
+99973 /a/Chrome --disable-features=Translate --remote-debugging-pipe --user-data-dir=${M53_DIR}"
+m53_ps() {
+  if [[ "$1" == "-A" ]]; then
+    printf '%s\n' "$M53_LISTING"
+  elif [[ "${*: -1}" == "99973" ]]; then
+    echo " 99911"
+  fi
+}
+# m53_why: "" when chrome_main and chrome_parent, as defined in this shell, find
+# Chrome (99973) and its pipe's node (99911) on the listing, else the reason.
+m53_why() {
+  local main parent
+  main="$(ps() { m53_ps "$@"; }; chrome_main "${M53_DIR%/*}")"
+  parent="$(ps() { m53_ps "$@"; }; chrome_parent "${M53_DIR%/*}")"
+  if [[ "$main" != "99973" || "$parent" != "99911" ]]; then
+    echo "with the listing's own readers before Chrome, the main Chrome should be 99973 and its pipe's node 99911, got '${main}' and '${parent}'"
+  fi
+}
+# m53_mutant <sed-expression>: chrome_main as this run defines it (the library's,
+# or this file's own without the library) with the expression applied, defined
+# in the proof's subshell; fails (returns 1) when the mutation changed nothing.
+m53_mutant() {
+  local from="$0"
+  LAP=$SECONDS
+  if [[ "$GATE_BROWSER_LIB" -eq 1 ]]; then
+    from="${REPO_ROOT}/Scripts/lib_gate_browser_selftest.sh"
+  fi
+  awk '/^ *chrome_main\(\) \{$/ {on = 1} on {print} on && /^ *\}$/ {exit}' "$from" > "${MUTANT_DIR}/chrome_main.sh"
+  if selftest_mutant "${MUTANT_DIR}/chrome_main.sh" "${MUTANT_DIR}/chrome_main_mutant.sh" "$1"; then
+    # shellcheck source=/dev/null
+    source "${MUTANT_DIR}/chrome_main_mutant.sh"
+  else
+    return 1
+  fi
+}
+
 # SERIAL_CASES: the cases that still run one after the other, on a machine with no
 # other case of this self-test running, after the first batch and before the
 # second (forsgren#632). Each has its reason:
@@ -1210,15 +1267,17 @@ fi
 #    with the signal cases;
 #  - 52h, 52i, 53j: no browser and under a second, so nothing to win, and they
 #    swap the CLONE_PARENT and SIG_ globals the signal cases read;
+#  - 53m: no browser and under a second; it checks chrome_main, which the
+#    signal cases use, and its proofs La and Lb run with them (v36);
 #  - 53f: a kill and timing case (Chrome killed during the launch, the end
 #    timed within 10 s), as 53e;
-#  - R, Rb, S, X, Z, Dh (SERIAL_PROOFS): the mutation proofs of those cases (R
-#    and Rb wait for a stalled Chrome, forsgren#630), each started alone and
-#    collected before the next, below.
+#  - R, Rb, S, X, Z, Dh, La, Lb (SERIAL_PROOFS): the mutation proofs of those
+#    cases (R and Rb wait for a stalled Chrome, forsgren#630), each started
+#    alone and collected before the next, below.
 # They are one unit of a shard (v30): serial_cases runs them, written inline as
 # before, and the proofs R to Dh run in the same shard.
 serial_cases() {
-echo "browser gate self-test: one after the other (SERIAL_CASES): ${SERIAL_CASES[*]}, then the proofs R Rb S X Z Dh"
+echo "browser gate self-test: one after the other (SERIAL_CASES): ${SERIAL_CASES[*]}, then the proofs R Rb S X Z Dh La Lb"
 PHASE_START=$SECONDS
 
 # The exits (see the header): the signal and kill cases of the sites' line.
@@ -1599,6 +1658,14 @@ elif [[ "$verdict_feature" != "not known" ]]; then
   fail "53j: closed_verdict did not go red on a feature Chrome does not know (got '${verdict_feature}')"
 else
   echo "  ok: 53j: a missing, repeated or overridden flag and an unknown feature each fail closed_verdict"
+fi
+
+# 53m (forsgren#694): see m53_why above.
+why="$(m53_why)"
+if [[ -n "$why" ]]; then
+  fail "53m: ${why}"
+else
+  echo "  ok: 53m: the main Chrome and its pipe's node are found past the listing's own readers after the PIDs wrapped"
 fi
 
 signal_case term_wrapper self TERM "$GATE"
@@ -2461,6 +2528,34 @@ mutant_dh() {
   fi
 }
 
+# La (forsgren#694): chrome_main without its pipe switch filter -> case 53m takes
+# the listing's own grep (311), which names the profile path and has no --type=.
+mutant_la() {
+  local why
+  if m53_mutant "s/ | { grep -F -e ' --remote-debugging-pipe' || true; }//"; then
+    why="$(m53_why)"
+    if [[ "$why" == *"got '311'"* ]]; then
+      echo "  ok: mutation proof La: without the pipe switch filter case 53m takes the listing's own grep for Chrome"
+    else
+      fail "mutation proof La: without the pipe switch filter case 53m should take the listing's own grep (311) for Chrome, got '${why}'"
+    fi
+  fi
+}
+
+# Lb (forsgren#694): chrome_main without its shell and perl wrapper filter -> case
+# 53m takes the shell wrapper (313), which carries Chrome's arguments.
+mutant_lb() {
+  local why
+  if m53_mutant "s/ | { grep -v -E '[^']*(bash|perl|sh) ' || true; }//"; then
+    why="$(m53_why)"
+    if [[ "$why" == *"got '313'"* ]]; then
+      echo "  ok: mutation proof Lb: without the wrapper filter case 53m takes the shell wrapper for Chrome"
+    else
+      fail "mutation proof Lb: without the wrapper filter case 53m should take the shell wrapper (313) for Chrome, got '${why}'"
+    fi
+  fi
+}
+
 PHASE_START=$SECONDS
 for proof in "${SERIAL_PROOFS[@]}"; do
   if runs "mutant_${proof}"; then
@@ -2468,7 +2563,7 @@ for proof in "${SERIAL_PROOFS[@]}"; do
     mutants_wait
   fi
 done
-echo "browser gate self-test: the proofs R, Rb, S, X, Z and Dh, one after the other: $((SECONDS - PHASE_START)) s"
+echo "browser gate self-test: the proofs R, Rb, S, X, Z, Dh, La and Lb, one after the other: $((SECONDS - PHASE_START)) s"
 
 # Every case_ function is in a phase list and, when this run holds it, was
 # started: a case written and never started would pass unseen.
@@ -2486,5 +2581,5 @@ if [[ -n "$SHARD_N" ]]; then
   selftest_end "the browser gate self-test (shard ${SHARD_N}/${SHARD_M}) failed" \
     "browser gate (shard ${SHARD_N}/${SHARD_M}): every case of the shard holds, $(grep -c '^mutant_' <<< "$RUN_IDS" || true) mutation proofs seen"
 else
-  selftest_end "the browser gate self-test failed" "browser gate: every case holds, twenty-eight mutations seen"
+  selftest_end "the browser gate self-test failed" "browser gate: every case holds, thirty mutations seen"
 fi
