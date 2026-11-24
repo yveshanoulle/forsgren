@@ -1084,9 +1084,10 @@ gate_wiring_local_proofs() {
     "render_quality_report.sh renders CI's step summary and" \
     "a quality.yml whose render_quality_report.sh call is a comment"
 
-  # quality.yml: the summary calls become comments (forsgren#8; the checks step's too).
+  # quality.yml: the summary calls become comments (forsgren#8; the checks step's too,
+  # whose call is the condition of an `if checks=...` or `if ! checks=...`).
   mutation_proof GATE_WIRING_CI_OVERRIDE "Scripts/render_quality_summary.sh" \
-    's|^([[:space:]]*)(\./Scripts/render_quality_summary\.sh)|\1# \2|; s|^([[:space:]]*)(if ! checks="\$\(\./Scripts/render_quality_summary\.sh)|\1# \2|' \
+    's|^([[:space:]]*)(\./Scripts/render_quality_summary\.sh)|\1# \2|; s|^([[:space:]]*)(if (! )?checks="\$\(\./Scripts/render_quality_summary\.sh)|\1# \2|' \
     "render_quality_summary.sh renders the run summary" \
     "a quality.yml whose render_quality_summary.sh call is a comment"
 
