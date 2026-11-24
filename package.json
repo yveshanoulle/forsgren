@@ -3,7 +3,7 @@
   "private": true,
   "license": "EUPL-1.2",
   "devDependencies": {
-    "axe-core": "4.14.0",
+    "axe-core": "4.14.1",
     "htmlhint": "1.9.2",
     "jscpd": "5.4.3",
     "puppeteer-core": "25.17.0",
