@@ -128,10 +128,11 @@ echo "$*" >> "$D/calls.log"
 [ "$1" = api ] && [ "$#" -eq 2 ] || { echo "fake gh: unexpected call: $*" >&2; exit 64; }
 case "$2" in
   */pulls/*/files*) kind=files ;;
+  */pulls/*/commits\?*) kind=commit ;;
   */pulls/*) kind=pr ;;
-  */commits/*) kind=commit ;;
   */actions/runs*) kind=runs ;;
-  */compare/*) kind=compare ;;
+  */compare/main...*) kind=compare ;;
+  */compare/*) kind=contained ;;
   *) echo "fake gh: unexpected path $2" >&2; exit 64 ;;
 esac
 n=$(($(cat "$D/count.$kind" 2> /dev/null || echo 0) + 1))
@@ -173,11 +174,14 @@ fixture() {
   jq -n --arg sha "$SHA" --arg ref "$branch" '{number: 7, title: "bump dependencies", state: "open",
     user: {login: "dependabot[bot]"}, head: {sha: $sha, ref: $ref, repo: {full_name: "owner/repo"}}, base: {ref: "main", repo: {default_branch: "main"}},
     mergeable: true, mergeable_state: "clean", body: "Dependabot pull request"}' > "$d/pr.json"
-  jq -n --arg msg "$(message "$@")" '{commit: {message: $msg}}' > "$d/commit.json"
+  # The pull request's commits (pulls/<n>/commits): one, Dependabot's, the head.
+  jq -n --arg msg "$(message "$@")" --arg sha "$SHA" --arg old "$OLD" '[{sha: $sha, author: {login: "dependabot[bot]"},
+    committer: {login: "web-flow"}, parents: [{sha: $old}], commit: {message: $msg, verification: {verified: true}}}]' > "$d/commit.json"
   jq -n --arg sha "$SHA" '{workflow_runs: [
     {id: 11, name: "Quality", path: ".github/workflows/quality.yml", head_sha: $sha, status: "completed", conclusion: "success"},
     {id: 12, name: "DCO", path: ".github/workflows/dco.yml", head_sha: $sha, status: "completed", conclusion: "success"}]}' > "$d/runs.json"
   echo '{"behind_by": 0, "ahead_by": 1}' > "$d/compare.json"
+  echo '{"behind_by": 0, "ahead_by": 3}' > "$d/contained.json"
 }
 ACTIONS_BRANCH=dependabot/github_actions/actions/checkout-7.0.2
 NPM_BRANCH=dependabot/npm_and_yarn/npm-tooling-0123456789
@@ -385,22 +389,22 @@ new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
 echo '{"status": "diverged"}' > "$d/compare.json"
 expect "$d" 1 "compare answer has no behind_by" "6. a compare answer without behind_by is not eligible"
 new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
-edit "$d/commit.json" '.commit.message = "bump actions/checkout from 7.0.1 to 7.0.2"'
+edit "$d/commit.json" '.[0].commit.message = "bump actions/checkout from 7.0.1 to 7.0.2"'
 expect "$d" 1 "commit metadata unreadable: no updated-dependencies block" "6. a commit message without metadata is not eligible"
 new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
-edit "$d/commit.json" '.commit.message |= sub("\n\\.\\.\\.\n\nSigned-off-by: [^\n]*"; "")'
+edit "$d/commit.json" '.[0].commit.message |= sub("\n\\.\\.\\.\n\nSigned-off-by: [^\n]*"; "")'
 expect "$d" 1 "commit metadata unreadable: updated-dependencies block not closed" "6. an unclosed metadata block is not eligible"
 new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
-edit "$d/commit.json" '.commit.message |= sub("  update-type"; "update-type")'
+edit "$d/commit.json" '.[0].commit.message |= sub("  update-type"; "update-type")'
 expect "$d" 1 "commit metadata unreadable: line not understood" "6. a metadata line it does not understand is not eligible"
 new_case "$NPM_BRANCH" "$NPM_DEV_PATCH" "jscpd|direct:development|semver-patch|5.4.2|5.4.3"
-edit "$d/commit.json" '.commit.message |= sub("  dependency-type: direct:development\n  update-type: version-update:semver-patch\n\\.\\.\\."; "dependency-type: x\n...")'
+edit "$d/commit.json" '.[0].commit.message |= sub("  dependency-type: direct:development\n  update-type: version-update:semver-patch\n\\.\\.\\."; "dependency-type: x\n...")'
 expect "$d" 1 "commit metadata unreadable: line not understood: dependency-type: x" "6. a bad line in the last member of a group is not eligible"
 new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
-edit "$d/commit.json" '.commit.message += "\nupdated-dependencies:\n- dependency-name: x\n  update-type: version-update:semver-patch\n...\n"'
+edit "$d/commit.json" '.[0].commit.message += "\nupdated-dependencies:\n- dependency-name: x\n  update-type: version-update:semver-patch\n...\n"'
 expect "$d" 1 "commit metadata unreadable: more than one updated-dependencies block" "6. two metadata blocks are not eligible"
 new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
-edit "$d/commit.json" '.commit.message |= sub("  update-type: [^\n]*\n"; "")'
+edit "$d/commit.json" '.[0].commit.message |= sub("  update-type: [^\n]*\n"; "")'
 expect "$d" 1 "no update-type" "6. a member without update-type is not eligible"
 new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
 edit "$d/pr.json" '.head.sha = "main"'
@@ -587,7 +591,7 @@ deny_case "$ACTIONS_BRANCH" "$SETUP_NODE_MINOR"
 touch "$d/fail.files"
 expect "$d" 1 "GitHub API read failed: GET pulls/7/files?per_page=100" "12. a failing read of the pull request's files is not eligible"
 deny_case "$FORSGREN_BRANCH" "$FORSGREN_MINOR"
-edit "$d/commit.json" '.commit.message |= sub("  update-type"; "update-type")'
+edit "$d/commit.json" '.[0].commit.message |= sub("  update-type"; "update-type")'
 workflow_files "$d" "$SETUP_NODE_MINOR"
 expect "$d" 1 "commit metadata unreadable: line not understood" "12. with deny rules, metadata it cannot read is not eligible (fail closed)"
 
@@ -850,6 +854,113 @@ policy_mutant() {
     if [[ "$RC" -eq 0 ]]; then echo "  ok: mutation proof: $4 is caught"; else fail "mutation proof: $4 is not caught (the mutant exits ${RC}). Output: ${OUT}"; fi
   fi
 }
+
+# The metadata commit (pulls/<n>/commits): the newest Dependabot commit of
+# the pull request, not its head commit; a merge of main on top (GitHub's
+# "Update branch") is accepted, any other commit blocks.
+MD_DEP=eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+MD_BASE=ffffffffffffffffffffffffffffffffffffffff
+MD_MUTANTS=""
+IFS= read -r -d '' MD_MUTANTS <<'MUTANTS_END' || true
+m1	s/ && contained "\$second"; then/; then/
+m2	s/block "commit \$sha (author/: "/
+m3	s/\[ "\$verified" = true \]/true/
+m4	s/\[ "\$committer" = web-flow \]/true/
+m5	s/block "commit metadata unreadable: no Dependabot commit/: "/
+m6	s/if ! jq -e --arg h/if false \&\& jq -e --arg h/
+m7	s/if \[ "\$n" -ge 100 \]/if false/
+m8	s/meta="\$i"$/[ "\$meta" -ge 0 ] || meta="\$i"/
+MUTANTS_END
+mdx() { awk -F'\t' -v k="$1" '$1 == k { sub(/^[^\t]*\t/, ""); print; exit }' <<<"$MD_MUTANTS"; }
+
+# md_on_top <case dir> <author> <parents json>: Dependabot's commit becomes
+# MD_DEP and a commit by <author> with those parents goes on top as the head.
+md_on_top() {
+  edit "$1/commit.json" "(.[0].sha = \"$MD_DEP\") | . + [{sha: \"$SHA\", author: {login: \"$2\"}, committer: {login: \"web-flow\"},
+    parents: $3, commit: {message: \"Merge branch 'main' into $ACTIONS_BRANCH\", verification: {verified: true}}}]"
+}
+MD_MERGE="[{\"sha\": \"$MD_DEP\"}, {\"sha\": \"$MD_BASE\"}]"
+
+echo "Metadata commit (pulls/<n>/commits):"
+new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
+md_on_top "$d" someone "$MD_MERGE"
+expect "$d" 0 "Decision: ELIGIBLE" "Dependabot's commit with an update-branch merge of main on top is eligible"
+if grep -qxF -- "- Metadata commit: $MD_DEP" "$d/out.txt" && grep -qxF -- "- Head commit: $SHA" "$d/out.txt" &&
+  grep -qxF "api repos/owner/repo/compare/$MD_BASE...main" "$d/calls.log"; then
+  echo "  ok: the record names the head and the metadata commit, and the merge parent is checked against main"
+else
+  fail "the merge case lacks the metadata commit or the parent check: $(cat "$d/out.txt")"
+fi
+new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
+md_on_top "$d" someone "$MD_MERGE"
+echo '{"behind_by": 2, "ahead_by": 1}' >"$d/contained.json"
+expect "$d" 1 "commit $SHA (author someone, committer web-flow, verified true, 2 parent(s)) is neither Dependabot's nor a merge of main" "a merge of a commit main does not contain is not eligible"
+MD_MERGE_OTHER="$d"
+new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
+md_on_top "$d" someone "[{\"sha\": \"$MD_DEP\"}]"
+expect "$d" 1 "commit $SHA (author someone, committer web-flow, verified true, 1 parent(s)) is neither Dependabot's nor a merge of main" "a person's commit on top of Dependabot's is not eligible"
+MD_EXTRA="$d"
+new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
+md_on_top "$d" "dependabot[bot]" "[{\"sha\": \"$MD_DEP\"}]"
+edit "$d/commit.json" '(.[1].commit.message = .[0].commit.message) | (.[0].commit.message = "bump dependencies")'
+expect "$d" 0 "Decision: ELIGIBLE" "a newer Dependabot commit is the metadata commit, not an older one"
+MD_NEWER="$d"
+new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
+md_on_top "$d" someone "$MD_MERGE"
+touch "$d/fail.contained"
+expect "$d" 1 "GitHub API read failed: GET compare/$MD_BASE...main" "a failing read of the merge parent's compare is not eligible"
+new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
+edit "$d/commit.json" '.[0].commit.verification.verified = false'
+expect "$d" 1 "commit $SHA (author dependabot[bot], committer web-flow, verified false, 1 parent(s)) is neither Dependabot's" "an unverified commit in Dependabot's name is not eligible"
+MD_UNVERIFIED="$d"
+new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
+edit "$d/commit.json" '.[0].committer.login = "someone"'
+expect "$d" 1 "commit $SHA (author dependabot[bot], committer someone," "a commit in Dependabot's name not committed by GitHub is not eligible"
+MD_NOT_WEB_FLOW="$d"
+new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
+edit "$d/commit.json" "(.[0].author.login = \"someone\") | (.[0].parents += [{sha: \"$MD_BASE\"}])"
+expect "$d" 1 "commit metadata unreadable: no Dependabot commit (author dependabot[bot], committer web-flow, verified) in the pull request" "a pull request with no Dependabot commit is not eligible"
+MD_NO_DEPENDABOT="$d"
+new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
+md_on_top "$d" someone "$MD_MERGE"
+edit "$d/commit.json" '.[0].commit.message = "bump actions/checkout from 7.0.1 to 7.0.2"'
+expect "$d" 1 "commit metadata unreadable: no updated-dependencies block" "a Dependabot commit without metadata under a merge is not eligible"
+new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
+edit "$d/commit.json" ".[0].sha = \"$OLD\""
+expect "$d" 1 "head commit $SHA is not among the pull request's commits (it moved)" "a head missing from the commit list is not eligible"
+MD_HEAD_NOT_LISTED="$d"
+new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
+edit "$d/commit.json" "[range(99) as \$i | .[0] | .sha = (\$i | tostring | (\"0\" * (40 - length)) + .)] + ."
+expect "$d" 1 "pull request lists 100 commits, the most one read returns: the list may be cut" "a commit list of 100 (maybe cut) is not eligible"
+MD_CUT="$d"
+new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
+echo '{"message": "Not Found"}' >"$d/commit.json"
+expect "$d" 1 "pull request commits answer is not a list" "a commits answer that is not a list is not eligible"
+new_case "$ACTIONS_BRANCH" "$ACTIONS_PATCH"
+echo '[]' >"$d/commit.json"
+expect "$d" 1 "pull request lists no commit" "an empty commit list is not eligible"
+
+md_proof() { policy_mutant "md_$2" "$(mdx "$2")" "$3" "$1"; }
+md_proof "a merge of any commit accepted" m1 "$MD_MERGE_OTHER"
+md_proof "any commit on top of Dependabot's accepted" m2 "$MD_EXTRA"
+md_proof "an unverified commit taken as Dependabot's" m3 "$MD_UNVERIFIED"
+md_proof "any committer for Dependabot's commit accepted" m4 "$MD_NOT_WEB_FLOW"
+md_proof "a pull request without a Dependabot commit accepted" m5 "$MD_NO_DEPENDABOT"
+md_proof "a head missing from the commit list accepted" m6 "$MD_HEAD_NOT_LISTED"
+md_proof "a commit list that may be cut accepted" m7 "$MD_CUT"
+# The other way round: a policy that reads the oldest Dependabot commit must
+# turn the newer-commit case not eligible (the older one has no metadata).
+if selftest_mutant "$POLICY" "${TMP}/mut/md8/Scripts/dependabot_merge_policy.sh" "$(mdx m8)"; then
+  SCRIPT="${TMP}/mut/md8/Scripts/dependabot_merge_policy.sh"
+  rm -f "$MD_NEWER"/count.*
+  run_policy "$MD_NEWER"
+  unset SCRIPT
+  if [[ "$RC" -eq 1 ]] && grep -qF "commit metadata unreadable: no updated-dependencies block" <<< "$OUT"; then
+    echo "  ok: mutation proof: a policy that reads the oldest Dependabot commit is caught"
+  else
+    fail "mutation proof: a policy that reads the oldest Dependabot commit is not caught (the mutant exits ${RC}). Output: ${OUT}"
+  fi
+fi
 policy_mutant status "s/\\[ \"\\${D}status\" = completed \\] \\&\\& \\[ \"\\${D}conclusion\" = success \\] ||/true ||/" "$FAILED_CASE" "a check not completed with success taken as green"
 policy_mutant allowed 's/^  return 1$/  return 0/' "$DEV_MINOR_CASE" "every update allowed"
 policy_mutant name "s/{ \\[ -z \"\\${D}name\" \\] || \\[ \"\\${D}name\" = \"\\${D}4\" \\]; }/true/" "$DEV_MINOR_CASE" "a rule that names a dependency allowing every dependency"

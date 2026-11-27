@@ -10,8 +10,13 @@
 #     dependabot/<ecosystem>/... of this repository (a head repository that
 #     is another one, or unknown because it was deleted, blocks), and its
 #     head is the commit the workflow run was for, when that is given;
-#   - every dependency in the updated-dependencies block of the head commit's
-#     message is allowed by .github/dependabot-merge.conf (a grouped pull
+#   - its commits are Dependabot's own (author dependabot[bot], committed by
+#     GitHub with a verified signature) and, on top of them, nothing but
+#     merges of the base branch (GitHub's "Update branch"); any other commit
+#     blocks, named;
+#   - every dependency in the updated-dependencies block of the newest
+#     Dependabot commit's message (not the head commit's: a merge on top has
+#     none) is allowed by .github/dependabot-merge.conf (a grouped pull
 #     request only if every member is; a rule that names a dependency allows
 #     that dependency only), and no member matches a deny rule of the config,
 #     whatever the allow rules say (forsgren#668);
@@ -31,7 +36,8 @@
 # config, never in this file.
 #
 # Prints the record (repository, pull request, dependencies old -> new, head
-# commit, checks, reasons, decision) and appends it to $GITHUB_STEP_SUMMARY
+# commit, the metadata commit when that is another one, checks, reasons,
+# decision) and appends it to $GITHUB_STEP_SUMMARY
 # when that is set.
 # Run:  GITHUB_REPOSITORY=owner/name Scripts/dependabot_merge_policy.sh <number>
 # Exit: 0 eligible, 1 not eligible, 2 usage error.
@@ -71,6 +77,7 @@ DEPS=()
 CHECKS=()
 TITLE="?"
 HEAD_SHA="?"
+META_SHA="?"
 COMPLETE=0
 READS=0
 block() { REASONS+=("$1"); }
@@ -92,6 +99,7 @@ finish() {
     echo "- Repository: $REPO"
     echo "- Pull request: #$PR $TITLE"
     echo "- Head commit: $HEAD_SHA"
+    [ "$META_SHA" = "?" ] || [ "$META_SHA" = "$HEAD_SHA" ] || echo "- Metadata commit: $META_SHA"
     echo
     echo "Dependencies:"
     printf -- '- %s\n' "${DEPS[@]}"
@@ -317,12 +325,90 @@ denied() {
   return 1
 }
 
+# contained <commit>: 0 when the default branch contains the commit (compare
+# <commit>...<default branch> is behind by 0); 1, blocking when the answer
+# cannot be read, otherwise.
+contained() {
+  local behind
+  api "compare/$1...$DEFAULT_BRANCH" "$WORK/contained.json" || return 1
+  behind="$(field "$WORK/contained.json" .behind_by)"
+  if ! [[ "$behind" =~ ^[0-9]+$ ]]; then
+    block "compare answer for merge parent $1 has no behind_by"
+    return 1
+  fi
+  [ "$behind" -eq 0 ]
+}
+
+# metadata_commit: writes the message of the commit that carries Dependabot's
+# metadata to $WORK/message and its id to META_SHA; blocks and returns 1 when
+# there is none or the pull request holds another commit. The head commit is
+# not always Dependabot's: GitHub's "Update branch" (or a merge of the base
+# branch) puts a merge commit on top, which carries no metadata. So it reads
+# the pull request's commits (pulls/<n>/commits, one page of 100, so a list of
+# 100 may be cut and blocks) and accepts two kinds only:
+#   - Dependabot's own: author dependabot[bot], committer web-flow (GitHub),
+#     verified signature, one parent;
+#   - a merge of the base branch: exactly two parents, the second one a commit
+#     the default branch contains.
+# Any other commit (a person's or an agent's change) blocks, named. The newest
+# Dependabot commit is the metadata commit. The head commit must be in the
+# list (the pull request did not move between the reads). The changed-files
+# and version checks still read the pull request's whole diff.
+metadata_commit() {
+  local f="$WORK/commits.json" n i sha author committer verified parents second foreign=0 meta=-1
+  api "pulls/$PR/commits?per_page=100" "$f" || return 1
+  n="$(jq -r 'if type == "array" then length else "none" end' "$f" 2>/dev/null || echo none)"
+  case "$n" in
+    none)
+      block "pull request commits answer is not a list"
+      return 1
+      ;;
+    0)
+      block "pull request lists no commit"
+      return 1
+      ;;
+  esac
+  if [ "$n" -ge 100 ]; then
+    block "pull request lists $n commits, the most one read returns: the list may be cut"
+    return 1
+  fi
+  if ! jq -e --arg h "$HEAD_SHA" 'any(.[]; .sha == $h)' "$f" >/dev/null 2>&1; then
+    block "head commit $HEAD_SHA is not among the pull request's commits (it moved)"
+    return 1
+  fi
+  for ((i = 0; i < n; i++)); do
+    sha="$(field "$f" ".[$i].sha")"
+    author="$(field "$f" ".[$i].author.login")"
+    committer="$(field "$f" ".[$i].committer.login")"
+    verified="$(field "$f" ".[$i].commit.verification.verified")"
+    parents="$(field "$f" ".[$i].parents | length")"
+    second="$(field "$f" ".[$i].parents[1].sha")"
+    if ! [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+      block "pull request commit $((i + 1)) has no commit id ('$sha')"
+      foreign=1
+    elif [ "$author" = "$AUTHOR" ] && [ "$committer" = web-flow ] && [ "$verified" = true ] && [ "$parents" = 1 ]; then
+      meta="$i"
+    elif [ "$parents" = 2 ] && [[ "$second" =~ ^[0-9a-f]{40}$ ]] && contained "$second"; then
+      :
+    else
+      block "commit $sha (author $author, committer $committer, verified $verified, $parents parent(s)) is neither Dependabot's nor a merge of $DEFAULT_BRANCH"
+      foreign=1
+    fi
+  done
+  [ "$foreign" -eq 0 ] || return 1
+  if [ "$meta" -lt 0 ]; then
+    block "commit metadata unreadable: no Dependabot commit (author $AUTHOR, committer web-flow, verified) in the pull request"
+    return 1
+  fi
+  META_SHA="$(field "$f" ".[$meta].sha")"
+  # The metadata comes from the commit message only.
+  jq -r ".[$meta].commit.message // empty" "$f" >"$WORK/message"
+}
+
 check_dependencies() {
   local parsed name type upd ver change
-  api "commits/$HEAD_SHA" "$WORK/commit.json" || return
-  # The metadata comes from the commit message only; the title and body only
-  # add the old versions to the record.
-  jq -r '.commit.message // empty' "$WORK/commit.json" >"$WORK/message"
+  metadata_commit || return
+  # The title and body only add the old versions to the record.
   {
     cat "$WORK/message"
     jq -r '.title // empty, .body // empty' "$WORK/pr.json"
