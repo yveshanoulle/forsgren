@@ -377,6 +377,18 @@ the Lint gates job would have no way to install a tool"
       return 0
       ;;
 
+    # SOURCED HELPER, not a gate (estate issue 899): sha256_of, sha256sum or
+    # shasum, whichever the machine has (Git for Windows has no shasum). Its
+    # test is Scripts/test_npm_sync_install.sh (cases 12 to 15), an order row.
+    #
+    # The consumer must source it: npm_sync_install.sh, sfl's pre-flight, takes
+    # the lockfile hash of its stamp from it.
+    lib_sha256.sh)
+      runs_script "Scripts/npm_sync_install.sh" "$base" \
+        || fail "${base} holds sha256_of and Scripts/npm_sync_install.sh never sources it — that script would take its sha256 some other way, and shasum is missing on Git for Windows"
+      return 0
+      ;;
+
     # SOURCED HELPER, not a gate (forsgren#1, ladder step 24): the harness of
     # forsgren's own self-tests. Every self-test that calls selftest_begin
     # is its test, and must source it; one that stopped would die at its

@@ -41,6 +41,11 @@ fail_now() {
   exit 1
 }
 
+# The sha256 helper: sha256sum or shasum, whichever this
+# machine has; Git for Windows has no shasum. Sourced before the cd below.
+# shellcheck source=Scripts/lib_sha256.sh
+source Scripts/lib_sha256.sh || fail_now "cannot read Scripts/lib_sha256.sh"
+
 DIR="${1:-.}"
 cd "$DIR" || fail_now "directory not found: ${DIR}"
 
@@ -48,8 +53,7 @@ STAMP_FILE="node_modules/.package-lock.sha256"
 
 [ -f package-lock.json ] || fail_now "package-lock.json is missing — npm ci has nothing to install"
 
-lock_hash="$(shasum -a 256 package-lock.json | awk '{ print $1 }')"
-[ -n "$lock_hash" ] || fail_now "could not hash package-lock.json"
+lock_hash="$(sha256_of package-lock.json)" || fail_now "could not hash package-lock.json (see above)"
 
 node_version="$(node --version 2>/dev/null || true)"
 node_major="${node_version#v}"
