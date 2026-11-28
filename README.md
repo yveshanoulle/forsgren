@@ -130,7 +130,8 @@ is open source, under EUPL-1.2 (see Licence).
 forsgren is licensed under the European Union Public Licence v. 1.2
 (EUPL-1.2): see [LICENSE](LICENSE). Contributions are accepted under the
 same licence, with a Developer Certificate of Origin sign-off on every
-commit and no CLA: see [CONTRIBUTING.md](CONTRIBUTING.md).
+commit by a person and no CLA; a registered automation identity is exempt
+and signs nothing: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Security
 
