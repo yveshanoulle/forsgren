@@ -410,6 +410,7 @@ step summary isolation|in|Scripts/dco_push_check.sh
 step summary isolation|in|Scripts/dependabot_pr_comment.sh
 step summary isolation|in|Scripts/dco_push_commits.sh
 step summary isolation|in|Scripts/ensure_private_names_file.sh
+step summary isolation|in|Scripts/fbp_agent.sh
 step summary isolation|in|Scripts/fbp_agent_friend.sh
 step summary isolation|in|Scripts/fbp_push_or_rebase.sh
 step summary isolation|in|Scripts/fix_source_css.sh
@@ -451,6 +452,7 @@ step summary isolation|in|Scripts/test_exit_trap_completion_behaviour.sh
 step summary isolation|in|Scripts/test_fbp_aborted.sh
 step summary isolation|in|Scripts/test_fbp_build_pagecount.sh
 step summary isolation|in|Scripts/test_fbp_commit_message.sh
+step summary isolation|in|Scripts/test_fbp_no_push.sh
 step summary isolation|in|Scripts/test_fix_source_css.sh
 step summary isolation|in|Scripts/test_gate_browser_baseline.sh
 step summary isolation|in|Scripts/test_gate_browser_process.sh

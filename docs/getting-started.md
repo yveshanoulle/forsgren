@@ -47,7 +47,7 @@ FBP.sh is the full build and push script. In order, it does this:
 2. It runs the PRE gates (`./sfl.sh pre`).
 3. It builds the site.
 4. It runs the POST gates (`./sfl.sh post`) on the built site.
-5. It commits with a sign-off, and pushes only when everything is green.
+5. It commits with your sign-off, and pushes only when everything is green.
 
 Good to know:
 
@@ -83,8 +83,9 @@ reproduces it locally.
 
 Open an issue first for anything larger than a typo.
 Then send a pull request against `main`.
-Every commit needs a `Signed-off-by` line; `./FBP.sh` adds it
-([CONTRIBUTING.md](../CONTRIBUTING.md) explains the Developer Certificate of Origin).
+Every commit by a person needs a `Signed-off-by` line; `./FBP.sh` adds it
+([CONTRIBUTING.md](../CONTRIBUTING.md) explains the Developer Certificate of Origin,
+and why the commits of a registered automation identity carry none).
 
 A maintainer must approve the workflow run of a pull request from outside.
 A fork gets a read-only token and no secrets.

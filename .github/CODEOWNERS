@@ -1,0 +1,13 @@
+# The files that decide which commits need a DCO sign-off (forsgren#725): the
+# list of exempt automation identities, the check that reads it, the workflow
+# that runs it, and this file. A pull request that changes one of them asks
+# the maintainer's review; it is required once a ruleset on main demands a
+# review from code owners (a repository setting, see CONTRIBUTING.md).
+/.github/CODEOWNERS                    @yveshanoulle
+/.github/dco-exempt-identities.conf    @yveshanoulle
+/.github/workflows/dco.yml             @yveshanoulle
+/Scripts/check_dco.sh                  @yveshanoulle
+/Scripts/dco_push_check.sh             @yveshanoulle
+/Scripts/dco_push_commits.sh           @yveshanoulle
+/Scripts/dco_pr_commits.sh             @yveshanoulle
+/Scripts/lib_dco_api.sh                @yveshanoulle

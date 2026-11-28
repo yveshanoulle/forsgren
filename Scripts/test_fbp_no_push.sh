@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_fbp_no_push v5
+# canon: test_fbp_no_push v6
 # Scripts/test_fbp_no_push.sh
 #
 # Self-test for the --no-push flag of the repository's FBP script.
@@ -27,6 +27,15 @@
 #   8. fbp_agent_friend.sh hands the flag on to the script untouched
 #   9. genericity: a script copy with an invented extra helper call still runs
 #      under --no-push, the helper stubbed and its call recorded
+#  10. fbp_agent.sh hands the identity of the repository's LOCAL git config on
+#      as author AND committer (not the inherited one), with the flag and the
+#      message untouched; --identity replaces it; no local identity stops
+#  11. fbp_agent.sh refuses a bot identity unless the local credential helpers
+#      start with the reset and name the App helper: no fallback login
+#  12. fbp_agent.sh --print-identity prints author, committer and the push
+#      helper, runs nothing and writes no git config
+#  13. mutation proof: a wrapper without the bot rule runs for a bot that has
+#      no App helper, so case 11 holds BECAUSE of the rule
 # Mutation proofs: a copy of the script that ignores the flag (pushes anyway)
 # must fail case 1, so case 1 holds BECAUSE the flag is honoured; a stub
 # generator that skips a parsed helper name must fail case 9 with the helper
@@ -281,6 +290,111 @@ if [[ "$SCEN_OK" -eq 1 ]]; then
   echo "  ok: an extra helper call in the script is stubbed, run and recorded"
 else
   fail "a script calling an extra helper did not run under --no-push with the helper stubbed and recorded (exit ${RC}). Output: ${OUT}"
+fi
+
+# --- 10 to 13. fbp_agent.sh: the identity of the local git config, no fallback login
+AGENT_SRC="$(pwd)/Scripts/fbp_agent.sh"
+HELPER_KEY="credential.https://github.com.helper"
+BOT_NAME="example-agent[bot]"
+BOT_EMAIL="1+example-agent[bot]@users.noreply.github.com"
+BOT_WHO="WHO:${BOT_NAME} <${BOT_EMAIL}>|${BOT_NAME} <${BOT_EMAIL}>"
+
+# agent_sandbox <name> <wrapper> [name email [helper...]]: a repository with a
+# copy of the wrapper, a fake FBP.sh that prints RAN, its arguments and the
+# author and committer it was handed, and, when given, a local identity and
+# the local credential helpers in that order. Sets AG to its path.
+agent_sandbox() {
+  AG="${TMP}/agent-$1"
+  mkdir -p "${AG}/Scripts"
+  git -C "$AG" init -q -b main
+  cp "$2" "${AG}/Scripts/fbp_agent.sh"
+  # The fake's own text: the quoted delimiter keeps every $ for the run.
+  cat > "${AG}/${FBP}" <<'FAKE_FBP'
+#!/usr/bin/env bash
+echo RAN
+printf 'ARG:%s\n' "$@"
+echo "WHO:$GIT_AUTHOR_NAME <$GIT_AUTHOR_EMAIL>|$GIT_COMMITTER_NAME <$GIT_COMMITTER_EMAIL>"
+FAKE_FBP
+  chmod +x "${AG}/Scripts/fbp_agent.sh" "${AG}/${FBP}"
+  [[ $# -ge 4 ]] || return 0
+  git -C "$AG" config --local user.name "$3"
+  git -C "$AG" config --local user.email "$4"
+  shift 4
+  local helper
+  for helper in "$@"; do
+    git -C "$AG" config --local --add "$HELPER_KEY" "$helper"
+  done
+}
+
+# agent_run <args...>: runs the wrapper copy of the last agent_sandbox; its
+# output in OUT, its exit status in RC.
+agent_run() {
+  OUT="$("${AG}/Scripts/fbp_agent.sh" "$@" 2>&1)" && RC=0 || RC=$?
+}
+
+# agent_want <case> <exit> <ran|held> [text]: the last agent_run exited <exit>,
+# the fake FBP.sh ran (ran) or did not (held), and a line of the output is
+# exactly <text> when given.
+agent_want() {
+  local ran=held
+  if grep -qxF "RAN" <<< "$OUT"; then ran=ran; fi
+  if [[ "$RC" -eq "$2" && "$ran" == "$3" ]] && { [[ -z "${4:-}" ]] || grep -qxF -- "$4" <<< "$OUT"; }; then
+    echo "  ok: $1"
+  else
+    fail "$1: wanted exit $2 and FBP ${3}${4:+, with the line: $4}; got exit ${RC} and FBP ${ran}. Output: ${OUT}"
+  fi
+}
+
+if [[ -f "$AGENT_SRC" ]]; then
+  # --- 10. the local identity becomes author AND committer, arguments pass through
+  agent_sandbox person "$AGENT_SRC" "Local Person" "local@example.invalid"
+  agent_run --no-push "a message"
+  agent_want "fbp_agent.sh hands the local identity on as author and committer, not the inherited one" 0 ran "WHO:Local Person <local@example.invalid>|Local Person <local@example.invalid>"
+  if grep -qxF "ARG:--no-push" <<< "$OUT" && grep -qxF "ARG:a message" <<< "$OUT"; then
+    echo "  ok: fbp_agent.sh passes --no-push and the message through"
+  else
+    fail "fbp_agent.sh did not hand --no-push and the message on. Output: ${OUT}"
+  fi
+  agent_run --identity "Other Agent <other@example.invalid>" "a message"
+  agent_want "fbp_agent.sh --identity replaces the local identity for author and committer" 0 ran "WHO:Other Agent <other@example.invalid>|Other Agent <other@example.invalid>"
+  agent_run --identity "no-email" "a message"
+  agent_want "fbp_agent.sh rejects an --identity without <email>" 2 held
+  agent_sandbox nobody "$AGENT_SRC"
+  agent_run "a message"
+  agent_want "fbp_agent.sh stops without a local identity (it takes no global one)" 1 held
+
+  # --- 11. a bot identity runs only with the reset plus the App credential helper
+  agent_sandbox bot-bare "$AGENT_SRC" "$BOT_NAME" "$BOT_EMAIL"
+  agent_run "a message"
+  agent_want "a bot identity without any local credential helper is refused" 1 held
+  holds "the refusal says there is no fallback login" "the refusal does not say 'no fallback login'. Output: ${OUT}" grep -qF "no fallback login" <<< "$OUT"
+  agent_sandbox bot-noreset "$AGENT_SRC" "$BOT_NAME" "$BOT_EMAIL" "!/opt/tools/git-credential-app.sh example-agent"
+  agent_run "a message"
+  agent_want "a bot identity whose helpers do not start with the reset is refused (an inherited login could answer first)" 1 held
+  agent_sandbox bot-other "$AGENT_SRC" "$BOT_NAME" "$BOT_EMAIL" "" "!/opt/tools/some-other-helper.sh"
+  agent_run "a message"
+  agent_want "a bot identity with the reset but another helper is refused" 1 held
+  agent_sandbox bot-app "$AGENT_SRC" "$BOT_NAME" "$BOT_EMAIL" "" "!/opt/tools/git-credential-app.sh example-agent"
+  agent_run --no-push "a message"
+  agent_want "a bot identity with the reset and the App helper runs as the bot, author and committer" 0 ran "$BOT_WHO"
+
+  # --- 12. --print-identity prints and runs nothing
+  agent_run --print-identity
+  agent_want "--print-identity names the author and does not run FBP" 0 held "author:    ${BOT_NAME} <${BOT_EMAIL}>"
+  agent_want "--print-identity names the committer" 0 held "committer: ${BOT_NAME} <${BOT_EMAIL}>"
+  agent_want "--print-identity names the helper the push goes through" 0 held "push via:  !/opt/tools/git-credential-app.sh example-agent"
+  holds "fbp_agent.sh wrote nothing to the local git config" "fbp_agent.sh changed the repository's git config" \
+    test "$(git -C "$AG" config --local --get-all "$HELPER_KEY" | wc -l | tr -d ' ')" = 2
+
+  # --- 13. mutation proof: a wrapper without the bot rule lets the bare bot through
+  AGENT_MUT="${TMP}/mutant_fbp_agent.sh"
+  if selftest_mutant "$AGENT_SRC" "$AGENT_MUT" 's/^  \*"\[bot\]@users\.noreply\.github\.com")$/  *"[never]@example.invalid")/'; then
+    agent_sandbox bot-mutant "$AGENT_MUT" "$BOT_NAME" "$BOT_EMAIL"
+    agent_run "a message"
+    agent_want "mutation proof: a wrapper without the bot rule runs FBP for a bot with no App helper, so case 11 holds because of the rule" 0 ran "$BOT_WHO"
+  fi
+else
+  echo "  skipped: Scripts/fbp_agent.sh not in this repository"
 fi
 
 # --- Mutation proof: a script that ignores the flag is caught

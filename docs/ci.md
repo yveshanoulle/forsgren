@@ -732,24 +732,49 @@ email with exactly that trailer line, name and email as written, passes.
 That sign-off with any other author, or that author with any other
 sign-off, is held to the rule; the pair is data in one place in the
 script. Merge commits get no
-exception. Bots are (ruled 2026-10-02, for Dependabot's security updates): a
-commit is exempt, named as such, when GitHub links it to an account of type
-`Bot` and that bot opened the pull request (`pull_request.user`, passed
-through `env:`). Never on the commit's author email, which anyone can write,
-nor on the linked account alone, which GitHub derives from that email. The job never checks out the pull request's code: it reads the
+exception. Registered automation identities are (forsgren#725; before it,
+ruled 2026-10-02, any Bot account that opened the pull request): a sign-off
+is a person's certificate, so the commit of a GitHub App's bot account
+carries none and is exempt, named as such, which is not a certification by
+that account. A commit is exempt only when its author email is the noreply
+address of an identity in `.github/dco-exempt-identities.conf` (numeric
+account id and login, both) and GitHub authenticated that same account as
+the one that opened the pull request (`pull_request.user`) or pushed to
+`main` (the push event's `sender`, the payload's, so a re-run by someone
+else changes nothing), type, login and id passed through `env:`; in a pull
+request the commit must also be linked to that account. Never on the
+commit's author name or email alone, which anyone can write, nor on the
+linked account alone, which GitHub derives from that email: a person who
+pushes a commit that names a listed identity is the authenticated account,
+and the commit is red, signed off or not. Red too: a bot's noreply author
+that is not exempt (an unlisted bot, another account id under a listed
+login), whether it signs off or not, an exempt commit that carries a
+`Signed-off-by` (Dependabot's own line, the signer pair's, aside), and a
+list with a line that is not `<id>|<login>[bot]`. The list is never read
+from the change judged: the pull request job checks it out at the base
+commit, and for a push by a Bot account `Scripts/dco_push_check.sh` reads
+it through the API at `before`
+(`GET /repos/{repo}/contents/.github/dco-exempt-identities.conf?ref=<before>`),
+red when it cannot be read; a person's push reads no list and exempts
+nothing. The check cannot see who pushed a commit into a pull request's
+branch: the opener's branch takes write access to this repository.
+`.github/CODEOWNERS` names the maintainer for the list, the DCO scripts and
+the workflow; who may push to `main` is a repository setting. The job never checks out the pull request's code: it reads the
 commit list through the API (`gh api`, the pull request number passed
 through `env:`, never as `${{ }}` inside `run:`), and checks out only
-`Scripts/check_dco.sh`, at the pull request's base commit, so a pull
-request cannot change the check that judges it. A pull request can still
+`Scripts/check_dco.sh`, its helpers and the list, at the pull request's
+base commit, so a pull request cannot change the check that judges it nor
+list its own author. A pull request can still
 change `dco.yml` itself, which GitHub reads from the pull request: the
 review of such a change is the guard there. On a push, the job checks out
 the pushed commit with its history and `Scripts/dco_push_commits.sh` lists
 only the pushed range, `before..after` (the two shas through `env:`),
 oldest first, in the check's input lines; a push that creates a branch is
 checked on its head commit, and a range with no commit in it is red, never
-an empty pass. Commits of an earlier push are not judged again. A push names
-no account and no one opened it, so no commit of a push is exempt as a bot's,
-a direct push included. A pull request merged with GitHub's merge button
+an empty pass. Commits of an earlier push are not judged again. A push by a
+person exempts no commit, whatever author the commit names; a push by a
+registered automation identity exempts that identity's own commits and no
+others. A pull request merged with GitHub's merge button
 lands its commits and a merge commit on `main` (forsgren#267), so
 `Scripts/dco_push_check.sh` first asks the API which pull requests each
 pushed commit belongs to (`GET /repos/{repo}/commits/{sha}/pulls`, `gh api`,
@@ -778,7 +803,10 @@ own. The check does not run in `sfl` or Quality, since it judges the
 commits a pull request or a push brings; its
 self-test does (**DCO sign-off self-test**, `Scripts/test_check_dco.sh`,
 offline, with mutation proofs for the last-paragraph rule, the email
-comparison, the account-type rule and the opener comparison, two for
+comparison, each condition of the exemption (the list, the authenticated
+account, the linked account, no sign-off on an exempt commit, no pass by
+signing off for a bot's author, the list read as it was before the push),
+the impersonation cases among them, two for
 the signer pair (without it the pair is red; widened to any bot's noreply
 author, another bot's commit is green), a
 throwaway repository for the push listing, and a stub `gh` for the push

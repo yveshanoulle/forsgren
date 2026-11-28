@@ -627,6 +627,20 @@ the Lint gates job would have no way to install a tool"
       return 0
       ;;
 
+    # HAND-RUN BY THE AGENT, never by sfl or a workflow: the successor of
+    # fbp_agent_friend.sh above, the same thin exec wrapper around FBP.sh,
+    # with the identity of the agent's GitHub App taken from the local git
+    # config. CLAUDE.md declares it, and cases 10 to 13 of
+    # Scripts/test_fbp_no_push.sh are its test (identity handed on, a bot
+    # without the App credential helper refused).
+    fbp_agent.sh)
+      grep -qF 'Scripts/fbp_agent.sh' CLAUDE.md \
+        || fail "${base} is run by hand and CLAUDE.md no longer declares it — an undeclared script nobody runs is a file, not a tool"
+      grep -qF 'Scripts/fbp_agent.sh' Scripts/test_fbp_no_push.sh \
+        || fail "${base} is run by hand and Scripts/test_fbp_no_push.sh no longer tests it — its no-fallback rule would be unproven"
+      return 0
+      ;;
+
     # HAND-RUN, not a gate (forsgren#52): run by hand to sync the private-names
     # list into the FORSGREN_PRIVATE_NAMES Actions and Dependabot secrets. No
     # runner invokes it (it needs the maintainer's gh login), so it must carry

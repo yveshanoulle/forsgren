@@ -760,7 +760,10 @@ workflow triggers|Scripts/check_workflow_triggers.sh|pre|
 # GitHub-hosted runner (Scripts/test_gate_wiring.sh declares
 # it as an exemption with that runner, and requires this self-test). Only
 # its self-test has a row: it is offline, so it runs in pre with the other
-# repository-source rows.
+# repository-source rows. forsgren#725: the exemption of the registered
+# automation identities (.github/dco-exempt-identities.conf) is decided
+# there too, from the account GitHub authenticated for the pull request or
+# the push; the self-test holds the impersonation cases.
 DCO sign-off self-test|Scripts/test_check_dco.sh|pre|
 #
 # The metrics workflow (forsgren#4, walking skeleton step 2 of #3). Not

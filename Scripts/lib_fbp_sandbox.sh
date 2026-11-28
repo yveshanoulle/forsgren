@@ -205,6 +205,14 @@ FBP_SANDBOX_SFL_LOG_SELFTESTS=""
 FBP_SANDBOX_GIT_NAME=""
 FBP_SANDBOX_GIT_EMAIL=""
 
+# forsgren#725 (no sign-off for a registered automation identity): one more
+# seam, for case 5 of Scripts/test_fbp_commit_message.sh, set and reset the
+# same way.
+#   FBP_SANDBOX_EXEMPT_LIST: when non-empty, this text is written to
+#     .github/dco-exempt-identities.conf in the sandbox, the list FBP.sh
+#     reads to tell whether the identity it commits under gets a sign-off.
+FBP_SANDBOX_EXEMPT_LIST=""
+
 # Every sandbox this run created, so an interrupted or failing fixture
 # leaves none behind in the temp directory. fbp_sandbox_run deletes each one
 # itself as soon as it has read its results; the traps remove whatever is
@@ -477,6 +485,10 @@ fbp_sandbox_run() {
     fbp_sandbox_write_sfl
     if [ -n "$FBP_SANDBOX_LOCAL_HOOK" ]; then
       printf '%s\n' "$FBP_SANDBOX_LOCAL_HOOK" > .fbp-local.sh
+    fi
+    if [ -n "$FBP_SANDBOX_EXEMPT_LIST" ]; then
+      mkdir -p .github
+      printf '%s\n' "$FBP_SANDBOX_EXEMPT_LIST" > .github/dco-exempt-identities.conf
     fi
     mkdir -p Scripts
     if [ -n "$FBP_SANDBOX_ORDER_FILE" ]; then

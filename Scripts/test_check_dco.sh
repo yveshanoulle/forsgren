@@ -34,14 +34,15 @@
 #  11. a line not in the commit shape              -> red, malformed
 #  12. a missing input file                        -> exit 2, never 0
 #  13. the commits on stdin                        -> green
-# The bot exemption (ruled by Yves 2026-10-02: Dependabot's commits carry no
-# Signed-off-by). A commit is exempt only on what GitHub asserts and no
-# contributor writes: its linked account is of type Bot AND is the account
-# that opened the pull request. A commit's author email, name and message
-# are the contributor's to write, and GitHub links a commit to an account by
-# its author email, so the linked account alone is not enough:
-#  14. an unsigned commit by the Bot account that
-#      opened the pull request                     -> green, the commit named
+# The exemption (forsgren#725; before it, ruled 2026-10-02, any Bot account
+# that opened the pull request). A commit is exempt only when its author is
+# an identity of the list of exempt automation identities AND GitHub
+# authenticated that same account, id and login, as the one that opened the
+# pull request or pushed to main. A commit's author email, name and message
+# are its maker's to write, and GitHub links a commit to an account by its
+# author email, so neither is proof:
+#  14. an unsigned commit by the listed Bot account
+#      that opened the pull request                -> green, the commit named
 #                                                     as exempt
 #  15. a bot-looking email, linked to a User       -> red
 #  16. a bot-looking email, linked to no account   -> red
@@ -53,7 +54,8 @@
 #  20. the opening bot's unsigned commit and an
 #      unsigned human commit                       -> red, naming the human
 #                                                     commit alone
-#  21. an opener not in the <type>:<login> shape   -> red
+#  21. an account not in the <type>:<login>[:<id>]
+#      shape                                       -> red
 #  22. an author account not in the shape          -> red, malformed
 # The one signer pair (forsgren#676, option A): GitHub records a Dependabot
 # squash merge as authored by Dependabot's noreply email, while Dependabot
@@ -94,6 +96,36 @@
 #      call that answers is asked once (forsgren#287)
 #  40. a mixed push                                   -> the direct commit alone named
 #  41. no commit, a malformed line, a wrong call      -> red
+# Registered automation identities (forsgren#725), a made-up agent with the
+# id 4242 in a made-up list:
+#  42. the agent pushed its own unsigned commit       -> green, exempt, said
+#  43. IMPERSONATION: a person pushed a commit that
+#      names the agent as its author, unsigned        -> red
+#  43b. the same, pushed by another listed identity   -> red
+#  43c. the same, signed off under the agent's email  -> red
+#  43d. the same in a pull request the person opened,
+#       GitHub linking the commit to the agent        -> red
+#  44. an identity that is not in the list pushed its
+#      own commit, unsigned or signed off             -> red
+#  44c. the agent's login under another account id    -> red
+#  45. the agent's own commit WITH a sign-off         -> red
+#  45b. Dependabot's commit with the sign-off line
+#       GitHub's service writes, in its pull request  -> green, exempt
+#  45c. Dependabot's commit with any other sign-off   -> red
+#  46. the agent pushed a person's commit: unsigned   -> red, that commit
+#      alone; signed off -> green
+#  47. no list, a list that is not there, a malformed
+#      line, a person in the list, an account without
+#      its id, an unknown role                        -> red
+#  48. the push check reads the list as it was BEFORE the push, through the
+#      API, and only for a Bot's push; a list changed in the same push is
+#      not honoured; a list that cannot be read is red
+#  49. the workflow hands over the authenticated account and the base list
+# One mutation proof per condition of the exemption: resting on the listed
+# author email alone (43 and 17 green), without the pusher comparison (43b),
+# without the list (44), without the linked account (15), without the
+# actor (10b), with a sign-off allowed on an exempt commit (45) or on an
+# unlisted bot's (43c), and with the list read from the pushed tree (48b).
 # One mutation proof per condition (the DCO run's success, merged, this
 # repository, membership, committer, verification, second parent, committer
 # email, a failed call not an exit): without it its case is green, so the
@@ -103,11 +135,7 @@
 # paragraph after the subject as trailers must turn green, so case 4 is red
 # BECAUSE only the last paragraph counts; case 7 against a copy that skips
 # the email comparison must turn green, so case 7 is red BECAUSE the emails
-# differ; case 15 against a copy that exempts by the author email instead
-# of by the account must turn green, so case 15 is red BECAUSE the account
-# is a User; case 17 against a copy that does not compare the account with
-# the opener must turn green, so case 17 is red BECAUSE a User opened the
-# pull request.
+# differ.
 
 set -euo pipefail
 
@@ -205,38 +233,43 @@ want_rc "12. exits 2 on a missing input file, never 0" 2
 capture bash -c "\"$CHECK\" < \"$TMP/one.txt\""
 want_green "13. the commits on stdin" "every one signed off"
 
-# --- The bot exemption.
+# --- The exemption. The list is made up but for Dependabot's line, which is
+# GitHub's own account; the agent is an invented GitHub App's bot.
 DEPENDABOT="Bot:dependabot[bot]"
+DEPENDABOT_ACTOR="Bot:dependabot[bot]:49699333"
 BOT_EMAIL="49699333+dependabot[bot]@users.noreply.github.com"
 BUMP=$'Bump example-lib from 1.0.0 to 1.0.1\n\nBumps example-lib from 1.0.0 to 1.0.1.'
+LIST="$TMP/list.conf"
+printf '%s\n' '# made-up list' '' '49699333|dependabot[bot]' '4242|example-agent[bot]' > "$LIST"
+MALLORY="User:mallory-example:99"
 
 commit 141414141414eeee "$BOT_EMAIL" "$BUMP" "$DEPENDABOT" > "$TMP/bot.txt"
-capture "$CHECK" "$TMP/bot.txt" "$DEPENDABOT"
-want_green "14. an unsigned commit by the Bot account that opened the pull request" "commit 141414141414 (Bump example-lib from 1.0.0 to 1.0.1) is exempt: authored by the bot account dependabot[bot], which opened this pull request"
+capture "$CHECK" "$TMP/bot.txt" "$DEPENDABOT_ACTOR" "$LIST"
+want_green "14. an unsigned commit by the listed Bot account that opened the pull request" "commit 141414141414 (Bump example-lib from 1.0.0 to 1.0.1) is exempt: authored by the registered automation identity dependabot[bot], which opened this pull request"
 
 commit 151515151515ffff "$BOT_EMAIL" "$BUMP" "User:mallory-example" > "$TMP/spoof-user.txt"
-capture "$CHECK" "$TMP/spoof-user.txt" "$DEPENDABOT"
+capture "$CHECK" "$TMP/spoof-user.txt" "$DEPENDABOT_ACTOR" "$LIST"
 want_red "15. a bot-looking email linked to a User account" "commit 151515151515 (Bump example-lib from 1.0.0 to 1.0.1) has no Signed-off-by trailer"
 
 commit 161616161616aaaa "$BOT_EMAIL" "$BUMP" > "$TMP/spoof-none.txt"
-capture "$CHECK" "$TMP/spoof-none.txt" "$DEPENDABOT"
+capture "$CHECK" "$TMP/spoof-none.txt" "$DEPENDABOT_ACTOR" "$LIST"
 want_red "16. a bot-looking email linked to no account" "commit 161616161616 (Bump example-lib from 1.0.0 to 1.0.1) has no Signed-off-by trailer"
 
 commit 171717171717bbbb "$BOT_EMAIL" "$BUMP" "$DEPENDABOT" > "$TMP/spoof-opener.txt"
-capture "$CHECK" "$TMP/spoof-opener.txt" "User:mallory-example"
+capture "$CHECK" "$TMP/spoof-opener.txt" "$MALLORY" "$LIST"
 want_red "17. linked to a Bot account, in a pull request a User opened" "commit 171717171717 (Bump example-lib from 1.0.0 to 1.0.1) has no Signed-off-by trailer"
 
-capture "$CHECK" "$TMP/spoof-opener.txt" "Bot:renovate[bot]"
+capture "$CHECK" "$TMP/spoof-opener.txt" "Bot:renovate[bot]:12345678" "$LIST"
 want_red "18. linked to a Bot account, in a pull request another Bot opened" "commit 171717171717 (Bump example-lib from 1.0.0 to 1.0.1) has no Signed-off-by trailer"
 
-capture "$CHECK" "$TMP/spoof-opener.txt"
+capture "$CHECK" "$TMP/spoof-opener.txt" "" "$LIST"
 want_red "19. linked to a Bot account, no opener given" "commit 171717171717 (Bump example-lib from 1.0.0 to 1.0.1) has no Signed-off-by trailer"
 
 {
   commit 202020202020cccc "$BOT_EMAIL" "$BUMP" "$DEPENDABOT"
   commit 212121212121dddd bo@example.org "$UNSIGNED" "User:bo-example"
 } > "$TMP/mixed.txt"
-capture "$CHECK" "$TMP/mixed.txt" "$DEPENDABOT"
+capture "$CHECK" "$TMP/mixed.txt" "$DEPENDABOT_ACTOR" "$LIST"
 want_red "20. the opening bot's unsigned commit and an unsigned human commit" "commit 212121212121 (Tidy the template) has no Signed-off-by trailer"
 if grep 'FAIL' <<< "$OUT" | has -q '202020202020'; then
   fail "20. a FAIL line names the bot's exempt commit too. Output: ${OUT}"
@@ -244,11 +277,11 @@ else
   echo "  ok: 20. only the human commit is named as a failure"
 fi
 
-capture "$CHECK" "$TMP/bot.txt" "dependabot[bot]"
-want_red "21. an opener not in the <type>:<login> shape" "the pull request opener is not <type>:<login>"
+capture "$CHECK" "$TMP/bot.txt" "dependabot[bot]" "$LIST"
+want_red "21. an account not in the <type>:<login>[:<id>] shape" "is not <type>:<login>[:<id>]"
 
 printf '%s %s %s %s\n' 222222222222eeee 'Bot:dependabot[bot]x' "$(b64 "$BOT_EMAIL")" "$(b64 "$BUMP")" > "$TMP/badaccount.txt"
-capture "$CHECK" "$TMP/badaccount.txt" "$DEPENDABOT"
+capture "$CHECK" "$TMP/badaccount.txt" "$DEPENDABOT_ACTOR" "$LIST"
 want_red "22. an author account not in the shape" "malformed line 1"
 
 # --- The one signer pair (forsgren#676). The messages end as Dependabot's
@@ -623,6 +656,269 @@ want_red "41b. a line not in the commit shape reaches the check" "malformed line
 capture ./Scripts/dco_push_check.sh acme/app
 want_red "41c. a wrong call is an error" "usage"
 
+# --- Registered automation identities (forsgren#725). The agent is a made-up
+# GitHub App's bot, id 4242, in the made-up list above; the commits are a
+# push's (account -), judged with the account that pushed.
+AGENT="Bot:example-agent[bot]:4242"
+AGENT_EMAIL="4242+example-agent[bot]@users.noreply.github.com"
+AGENT_MSG=$'Add the weekly view\n\nThe view reads the history file.'
+AGENT_SUBJECT="Add the weekly view"
+NOT_EXEMPT="its author is an automation identity that is not exempt here"
+
+commit 424242424242aaaa "$AGENT_EMAIL" "$AGENT_MSG" > "$TMP/agent.txt"
+capture "$CHECK" "$TMP/agent.txt" "$AGENT" "$LIST" pusher
+want_green "42. the listed agent pushed its own unsigned commit" "commit 424242424242 (${AGENT_SUBJECT}) is exempt: authored by the registered automation identity example-agent[bot], which pushed it"
+want_said "42. and the verdict says an exemption, not a sign-off" "1 by a registered automation identity that GitHub authenticated, exempt"
+
+capture "$CHECK" "$TMP/agent.txt" "$MALLORY" "$LIST" pusher
+want_red "43. impersonation: a person pushed a commit that names the listed agent as its author" "commit 424242424242 (${AGENT_SUBJECT}) has no Signed-off-by trailer, and ${NOT_EXEMPT}"
+if grep -q 'is exempt' <<< "$OUT"; then
+  fail "43. the impersonating commit is named as exempt. Output: ${OUT}"
+else
+  echo "  ok: 43. the impersonating commit is not named as exempt"
+fi
+
+capture "$CHECK" "$TMP/agent.txt" "$DEPENDABOT_ACTOR" "$LIST" pusher
+want_red "43b. impersonation: another listed identity pushed the agent's commit" "commit 424242424242 (${AGENT_SUBJECT}) has no Signed-off-by trailer, and ${NOT_EXEMPT}"
+
+AGENT_SIGNED="${AGENT_MSG}"$'\n\n'"Signed-off-by: example-agent[bot] <${AGENT_EMAIL}>"
+commit 434343434343cccc "$AGENT_EMAIL" "$AGENT_SIGNED" > "$TMP/agent-signed.txt"
+capture "$CHECK" "$TMP/agent-signed.txt" "$MALLORY" "$LIST" pusher
+want_red "43c. impersonation, signed off under the agent's own email" "commit 434343434343 (${AGENT_SUBJECT}) is signed off by an automation identity, which certifies nothing"
+
+commit 434343434343dddd "$AGENT_EMAIL" "$AGENT_MSG" "Bot:example-agent[bot]" > "$TMP/agent-pull.txt"
+capture "$CHECK" "$TMP/agent-pull.txt" "$MALLORY" "$LIST" opener
+want_red "43d. impersonation in a pull request a person opened, the commit linked to the agent's account" "commit 434343434343 (${AGENT_SUBJECT}) has no Signed-off-by trailer, and ${NOT_EXEMPT}"
+capture "$CHECK" "$TMP/agent-pull.txt" "$AGENT" "$LIST" opener
+want_green "43e. the same commit in a pull request the agent opened" "is exempt: authored by the registered automation identity example-agent[bot], which opened this pull request"
+
+UNKNOWN="Bot:unknown-agent[bot]:777"
+UNKNOWN_EMAIL="777+unknown-agent[bot]@users.noreply.github.com"
+commit 444444444444aaaa "$UNKNOWN_EMAIL" "$AGENT_MSG" > "$TMP/unknown.txt"
+capture "$CHECK" "$TMP/unknown.txt" "$UNKNOWN" "$LIST" pusher
+want_red "44. an identity that is not in the list pushed its own unsigned commit" "commit 444444444444 (${AGENT_SUBJECT}) has no Signed-off-by trailer, and ${NOT_EXEMPT}"
+commit 444444444444bbbb "$UNKNOWN_EMAIL" "${AGENT_MSG}"$'\n\n'"Signed-off-by: unknown-agent[bot] <${UNKNOWN_EMAIL}>" > "$TMP/unknown-signed.txt"
+capture "$CHECK" "$TMP/unknown-signed.txt" "$UNKNOWN" "$LIST" pusher
+want_red "44b. an identity that is not in the list does not pass by signing off" "commit 444444444444 (${AGENT_SUBJECT}) is signed off by an automation identity, which certifies nothing"
+commit 444444444444cccc "5555+example-agent[bot]@users.noreply.github.com" "$AGENT_MSG" > "$TMP/agent-otherid.txt"
+capture "$CHECK" "$TMP/agent-otherid.txt" "Bot:example-agent[bot]:5555" "$LIST" pusher
+want_red "44c. the listed agent's login under another account id is not the listed identity" "commit 444444444444 (${AGENT_SUBJECT}) has no Signed-off-by trailer, and ${NOT_EXEMPT}"
+
+capture "$CHECK" "$TMP/agent-signed.txt" "$AGENT" "$LIST" pusher
+want_red "45. the listed agent's own commit with a sign-off" "commit 434343434343 (${AGENT_SUBJECT}) is by the automation identity example-agent[bot] and carries a Signed-off-by trailer"
+commit 454545454545aaaa "$AGENT_EMAIL" "${AGENT_MSG}"$'\n\n'"Signed-off-by: Ada Example <ada@example.org>" > "$TMP/agent-signed-person.txt"
+capture "$CHECK" "$TMP/agent-signed-person.txt" "$AGENT" "$LIST" pusher
+want_red "45a. the listed agent's own commit with a person's sign-off" "carries a Signed-off-by trailer"
+
+commit 454545454545bbbb "$BOT_EMAIL" "$(pair_msg "$PAIR_SIGNOFF")" "$DEPENDABOT" > "$TMP/dependabot-own.txt"
+capture "$CHECK" "$TMP/dependabot-own.txt" "$DEPENDABOT_ACTOR" "$LIST"
+want_green "45b. Dependabot's commit with the sign-off line GitHub's service writes, in its own pull request" "commit 454545454545 (Bump example-lib from 1.0.0 to 1.0.1) is exempt"
+commit 454545454545cccc "$BOT_EMAIL" "$(pair_msg "Signed-off-by: dependabot[bot] <${BOT_EMAIL}>")" "$DEPENDABOT" > "$TMP/dependabot-self.txt"
+capture "$CHECK" "$TMP/dependabot-self.txt" "$DEPENDABOT_ACTOR" "$LIST"
+want_red "45c. Dependabot's commit with any other sign-off than that line" "carries a Signed-off-by trailer"
+
+{
+  commit 464646464646aaaa "$AGENT_EMAIL" "$AGENT_MSG"
+  commit 464646464646bbbb bo@example.org "$UNSIGNED"
+} > "$TMP/agent-mixed.txt"
+capture "$CHECK" "$TMP/agent-mixed.txt" "$AGENT" "$LIST" pusher
+want_red "46. the agent pushed a person's unsigned commit with its own" "commit 464646464646 (Tidy the template) has no Signed-off-by trailer — add one"
+if grep 'FAIL' <<< "$OUT" | has -q "${AGENT_SUBJECT}"; then
+  fail "46. a FAIL line names the agent's exempt commit too. Output: ${OUT}"
+else
+  echo "  ok: 46. only the person's commit is named as a failure"
+fi
+{
+  commit 464646464646aaaa "$AGENT_EMAIL" "$AGENT_MSG"
+  commit 464646464646cccc ada@example.org "$SIGNED_A"
+} > "$TMP/agent-mixed-signed.txt"
+capture "$CHECK" "$TMP/agent-mixed-signed.txt" "$AGENT" "$LIST" pusher
+want_green "46b. the agent pushed a person's signed-off commit with its own" "2 commit(s): 1 signed off by its author, 1 by a registered automation identity"
+
+capture "$CHECK" "$TMP/agent.txt" "$AGENT"
+want_red "47. no list: nobody is exempt" "${NOT_EXEMPT}"
+capture "$CHECK" "$TMP/agent.txt" "$AGENT" "$TMP/no-such-list.conf" pusher
+want_red "47a. a list that is not there: nobody is exempt" "${NOT_EXEMPT}"
+printf '%s\n' '# a list' '4242|example-agent[bot]' '4242 example-agent[bot]' > "$TMP/list-malformed.conf"
+capture "$CHECK" "$TMP/agent.txt" "$AGENT" "$TMP/list-malformed.conf" pusher
+want_red "47b. a malformed line turns the whole list red, the good line above it included" "line 3 of the list of exempt automation identities is not <id>|<login>[bot]"
+printf '%s\n' '99|mallory-example' > "$TMP/list-person.conf"
+commit 474747474747aaaa "99+mallory-example@users.noreply.github.com" "$UNSIGNED" > "$TMP/person.txt"
+capture "$CHECK" "$TMP/person.txt" "$MALLORY" "$TMP/list-person.conf" pusher
+want_red "47c. a person cannot be listed: the line is malformed" "line 1 of the list of exempt automation identities is not <id>|<login>[bot]"
+capture "$CHECK" "$TMP/agent.txt" "Bot:example-agent[bot]" "$LIST" pusher
+want_red "47d. an account without its id is not the listed identity" "${NOT_EXEMPT}"
+capture "$CHECK" "$TMP/agent.txt" "$AGENT" "$LIST" author
+want_red "47e. an unknown role" "the account's role is neither opener nor pusher"
+capture "$CHECK" "$TMP/one.txt" "$MALLORY" .github/dco-exempt-identities.conf pusher
+want_green "47f. this repository's own list is one the check can read" "every one signed off"
+
+# 48: the push check hands the pusher and the list on. The list is the one
+# the API answers for the sha main was at BEFORE the push, base64 as the
+# contents API gives it; the pushed tree's own file is never read.
+APP_AGENT="a9e27a9e27a9e27a9e27a9e27a9e27a9e27a9e27"
+APP_BEFORE="bef02ebef02ebef02ebef02ebef02ebef02ebef0"
+LIST_CALL="repos/acme/app/contents/.github/dco-exempt-identities.conf?ref=${APP_BEFORE}"
+# push_check_as <commits-file> <pusher> <before> [script]
+push_check_as() {
+  if [[ -n "${4:-}" ]]; then
+    "$4" acme/app "$1" "$2" "$3"
+  else
+    ./Scripts/dco_push_check.sh acme/app "$1" "$2" "$3"
+  fi
+}
+# fx_agent_push [list file]: a direct push of the agent's one commit, and
+# the list as it was at APP_BEFORE; with no file, no list is there.
+fx_agent_push() {
+  fx_merged_pull
+  fx_put "repos/acme/app/commits/${APP_AGENT}/pulls" "[]"
+  if [[ -n "${1:-}" ]]; then
+    fx_put "$LIST_CALL" "{\"content\":\"$(base64 < "$1" | tr -d '\n')\"}"
+  fi
+}
+commit "$APP_AGENT" "$AGENT_EMAIL" "$AGENT_MSG" > "$TMP/push-agent.txt"
+printf '%s\n' '49699333|dependabot[bot]' > "$TMP/list-before.conf"
+
+fx_agent_push "$LIST"
+capture push_check_as "$TMP/push-agent.txt" "$AGENT" "$APP_BEFORE"
+want_green "48. the listed agent's direct push of its own unsigned commit" "commit a9e27a9e27a9 (${AGENT_SUBJECT}) is exempt: authored by the registered automation identity example-agent[bot], which pushed it"
+if [[ "$(calls "$LIST_CALL")" -eq 1 ]]; then
+  echo "  ok: 48. the list was asked for once, at the sha main was at before the push"
+else
+  fail "48. the list was not asked for at the sha before the push. Calls: $(cat "$FX/.calls" 2>/dev/null)"
+fi
+
+fx_agent_push "$LIST"
+capture push_check_as "$TMP/push-agent.txt" "$MALLORY" "$APP_BEFORE"
+want_red "48a. impersonation on a push: a person pushed the agent's commit" "commit a9e27a9e27a9 (${AGENT_SUBJECT}) has no Signed-off-by trailer, and ${NOT_EXEMPT}"
+if [[ "$(calls "$LIST_CALL")" -eq 0 ]]; then
+  echo "  ok: 48a. a person's push never asks for the list"
+else
+  fail "48a. a person's push asked for the list. Calls: $(cat "$FX/.calls" 2>/dev/null)"
+fi
+capture push_check "$TMP/push-agent.txt"
+want_red "48a. the agent's commit with no pusher given" "${NOT_EXEMPT}"
+
+# 48b: the push adds the agent to the list. A copy of the push check stands
+# in a tree whose own list (the pushed one) names the agent, while the list
+# before the push does not: not honoured.
+PUSHED="$TMP/pushed-tree"
+mkdir -p "$PUSHED/Scripts" "$PUSHED/.github"
+cp Scripts/dco_push_check.sh Scripts/lib_dco_api.sh "$PUSHED/Scripts/"
+cp "$LIST" "$PUSHED/.github/dco-exempt-identities.conf"
+fx_agent_push "$TMP/list-before.conf"
+capture push_check_as "$TMP/push-agent.txt" "$AGENT" "$APP_BEFORE" "$PUSHED/Scripts/dco_push_check.sh"
+want_red "48b. a push that adds its own pusher to the list is judged with the list as it was" "commit a9e27a9e27a9 (${AGENT_SUBJECT}) has no Signed-off-by trailer, and ${NOT_EXEMPT}"
+# The sed script is script source, read from a quoted here-doc so nothing
+# in it is expanded here; with read, not a command substitution, whose
+# parser in an older bash stops on the odd number of quotes.
+IFS= read -r PUSHED_LIST_SED <<'SED'
+s/^\( *\)listed="[$](api .*$/\1listed="$(base64 < "$LIST_PATH")" || exit 1/
+SED
+if selftest_mutant ./Scripts/dco_push_check.sh "$PUSHED/Scripts/mutant_push_check.sh" "$PUSHED_LIST_SED"; then
+  capture push_check_as "$TMP/push-agent.txt" "$AGENT" "$APP_BEFORE" "$PUSHED/Scripts/mutant_push_check.sh"
+  if [[ "$RC" -eq 0 ]]; then
+    echo "  ok: mutation proof: reading the list from the pushed tree, case 48b is green, so it is red because the list is read as it was before the push"
+  else
+    fail "mutation proof: a push check that reads the pushed tree's list is still red on case 48b (exit ${RC}) — the case is red for another reason. Output: ${OUT}"
+  fi
+fi
+
+fx_agent_push
+capture push_check_as "$TMP/push-agent.txt" "$AGENT" "$APP_BEFORE"
+want_red "48c. a list that cannot be read is red, never an empty list" "the GitHub API call for the list of exempt automation identities before the push failed: gh: Not Found (HTTP 404)"
+fx_agent_push "$LIST"
+capture push_check_as "$TMP/push-agent.txt" "$AGENT" "$ZEROS"
+want_red "48d. an all-zero before names no list to read" "the push names no commit main was at before it"
+fx_agent_push
+fx_put "$LIST_CALL" '{"content":"***"}'
+capture push_check_as "$TMP/push-agent.txt" "$AGENT" "$APP_BEFORE"
+want_red "48e. a list that does not decode is red" "does not decode"
+capture push_check_as "$TMP/push-agent.txt" "example-agent[bot]" "$APP_BEFORE"
+want_red "48f. a pusher not in the <type>:<login>:<id> shape" "the pusher is not <type>:<login>:<id>"
+capture push_check_as "$TMP/push-agent.txt" "Bot:example-agent[bot]" "$APP_BEFORE"
+want_red "48g. a pusher without its id" "the pusher is not <type>:<login>:<id>"
+
+# 49: the workflow hands the check what GitHub authenticated, and the list
+# of the base: the opener and the sender with their ids, the before sha, and
+# the list in the checkout of the base commit.
+WF=".github/workflows/dco.yml"
+# wf_has <case> <fixed text>: a line of the workflow holds it.
+wf_has() {
+  if grep -qF -- "$2" "$WF"; then
+    echo "  ok: 49. $1"
+  else
+    fail "49. $1: ${WF} has no line with: $2"
+  fi
+}
+wf_has "the opener is the pull request's user, with its id" "PR_OPENER: \${{ github.event.pull_request.user.type }}:\${{ github.event.pull_request.user.login }}:\${{ github.event.pull_request.user.id }}"
+wf_has "the pull request is judged with the list in the checkout" "./Scripts/check_dco.sh \"\$commits\" \"\$PR_OPENER\" .github/dco-exempt-identities.conf opener"
+wf_has "that checkout is the base commit's" "ref: \${{ github.event.pull_request.base.sha }}"
+wf_has "the pusher is the push event's sender, with its id" "PUSHER: \${{ github.event.sender.type }}:\${{ github.event.sender.login }}:\${{ github.event.sender.id }}"
+wf_has "the push check gets the pusher and the sha before the push" "./Scripts/dco_push_check.sh \"\$REPO\" \"\$commits\" \"\$PUSHER\" \"\$BEFORE\""
+if [[ "$(grep -cE '^[[:space:]]+\.github/dco-exempt-identities\.conf$' "$WF")" -eq 1 ]]; then
+  echo "  ok: 49. the DCO job's sparse checkout holds the list"
+else
+  fail "49. ${WF} does not check the list out in the DCO job — a pull request would be judged with no list"
+fi
+if grep -q 'pull_request_target' <<< "$(grep -v '^[[:space:]]*#' "$WF")"; then
+  fail "49. ${WF} triggers on pull_request_target — the checkout would no longer be the guard"
+else
+  echo "  ok: 49. no pull_request_target trigger"
+fi
+
+# Mutation proofs for the exemption (forsgren#725): each rewrites one
+# condition of exempt_identity, or one of the two sign-off refusals, by its
+# exact text; [$] matches a dollar sign, so nothing here reads as an
+# expansion. The mutant must turn green on the case its condition reddens.
+# exempt_mutant <name> <sed expression> <commits file> <account> <role> <ok text> <fail text>
+exempt_mutant() {
+  local mutant="$TMP/mutant-$1/Scripts/check_dco.sh"
+  if selftest_mutant "$CHECK" "$mutant" "$2"; then
+    capture "$mutant" "$3" "$4" "$LIST" "$5"
+    if [[ "$RC" -eq 0 ]]; then
+      echo "  ok: mutation proof: $6"
+    else
+      fail "mutation proof: $7 (exit ${RC}) — the case is red for another reason. Output: ${OUT}"
+    fi
+  fi
+}
+NO_ACTOR='s/^  \[ -n "[$]actor_email" \] || return 1$/  :/'
+NO_LISTED='s/^  grep -qxF -- "[$]email" <<< "[$]listed_emails" || return 1$/  :/'
+NO_SAME='s/^  \[ "[$]email" = "[$]actor_email" \] || return 1$/  :/'
+NO_LINKED='s/^  \[ "[$]ROLE" = "pusher" \] || \[ "[$]account" = "Bot:[$]{actor_login}" \] || return 1$/  :/'
+
+exempt_mutant byemail "${NO_ACTOR};${NO_SAME};${NO_LINKED}" "$TMP/agent.txt" "$MALLORY" pusher \
+  "exempting by the listed author email alone, case 43 is green, so the impersonation is red because GitHub authenticated someone else" \
+  "a check that exempts by the listed author email alone is still red on case 43"
+capture "$TMP/mutant-byemail/Scripts/check_dco.sh" "$TMP/spoof-opener.txt" "$MALLORY" "$LIST"
+if [[ "$RC" -eq 0 ]]; then
+  echo "  ok: mutation proof: exempting by the listed author email alone, case 17 is green, so it is red because a User opened the pull request"
+else
+  fail "mutation proof: a check that exempts by the listed author email alone is still red on case 17 (exit ${RC}) — case 17 is red for another reason. Output: ${OUT}"
+fi
+exempt_mutant same "$NO_SAME" "$TMP/agent.txt" "$DEPENDABOT_ACTOR" pusher \
+  "without the comparison of the author with the authenticated account, case 43b is green, so it is red because another identity pushed" \
+  "a check that takes any listed pusher for any listed author is still red on case 43b"
+exempt_mutant listed "$NO_LISTED" "$TMP/unknown.txt" "$UNKNOWN" pusher \
+  "without the list, case 44 is green, so it is red because the identity is not listed" \
+  "a check that exempts any bot that pushed its own commit is still red on case 44"
+exempt_mutant linked "$NO_LINKED" "$TMP/spoof-user.txt" "$DEPENDABOT_ACTOR" opener \
+  "without the linked account, case 15 is green, so it is red because its account is a User" \
+  "a check that ignores the linked account is still red on case 15"
+commit 101010101010eeee "" "$UNSIGNED" > "$TMP/noauthor-unsigned.txt"
+capture "$CHECK" "$TMP/noauthor-unsigned.txt" "" "$LIST" pusher
+want_red "10b. an unsigned commit with no author email, in a push with no account" "commit 101010101010 (Tidy the template) has no author email"
+exempt_mutant actor "$NO_ACTOR" "$TMP/noauthor-unsigned.txt" "" pusher \
+  "without the authenticated account, case 10b is green, so a commit with no author email is not exempt because no account was authenticated" \
+  "a check that needs no authenticated account is still red on case 10b"
+exempt_mutant signoff 's/^\( *\)if \[ -n "[$]signoffs" \] && ! platform_signoff; then$/\1if false; then/' "$TMP/agent-signed.txt" "$AGENT" pusher \
+  "allowing a sign-off on an exempt commit, case 45 is green, so it is red because an automation identity signed off" \
+  "a check that allows a sign-off on an exempt commit is still red on case 45"
+exempt_mutant botsigned 's/^\( *\)if bot_author && ! platform_signoff; then$/\1if false; then/' "$TMP/agent-signed.txt" "$MALLORY" pusher \
+  "letting any author pass by signing off, case 43c is green, so it is red because the author is an automation identity" \
+  "a check that lets a bot's noreply author pass by signing off is still red on case 43c"
+
 # Mutation proof for case 4: a copy of the check whose trailer block starts
 # right after the subject, not at the last paragraph, must be green on it.
 # The mutant cds to its own dir's parent; give it the same layout.
@@ -648,26 +944,12 @@ if selftest_mutant "$CHECK" "$MUTANT" 's/if (tolower(email) == tolower(author)) 
   fi
 fi
 
-# Mutation proof for case 15: a copy of the check that exempts a commit by
-# its bot-looking author email, as a check resting on what a contributor
-# writes would, must be green on it. Both proofs rewrite the exemption
-# line of Scripts/check_dco.sh by its exact text; [$] matches its dollar
-# signs, and \2 (the one captured) writes the mutant's, so no expression
-# here reads as a shell expansion.
-MUTANT="$TMP/mutant-byemail/Scripts/check_dco.sh"
-if selftest_mutant "$CHECK" "$MUTANT" 's/^\( *\)if \[ "\([$]\)account" = "Bot:[$]{opener_login}" \] && \[ "[$]opener" = "Bot:[$]{opener_login}" \]; then$/\1if [[ "\2email" == *"[bot]@users.noreply.github.com" ]]; then/'; then
-  capture "$MUTANT" "$TMP/spoof-user.txt" "$DEPENDABOT"
-  if [[ "$RC" -eq 0 ]]; then
-    echo "  ok: mutation proof: exempting by the author email, case 15 is green, so it is red because its account is a User, whatever its email says"
-  else
-    fail "mutation proof: a check that exempts by the author email is still red on case 15 (exit ${RC}) — case 15 is red for another reason. Output: ${OUT}"
-  fi
-fi
-
 # Mutation proofs for the signer pair (forsgren#676): a copy of the check
 # without the pair line must be red on case 22a, so 22a is green BECAUSE of
 # the pair; and a copy whose pair takes any bot's noreply author must be
-# green on case 22b, so 22b catches a pair widened to every bot.
+# green on case 22b, so 22b catches a pair widened to every bot. Since
+# forsgren#725 a bot's noreply author does not pass by a sign-off either,
+# the pair's aside, so that mutant widens the pair in both places.
 PAIR_LINE='s|^\( *\)if (author == pair_author && trailer == pair_signoff) matched = 1$|'
 MUTANT="$TMP/mutant-nopair/Scripts/check_dco.sh"
 if selftest_mutant "$CHECK" "$MUTANT" "${PAIR_LINE}"'\1matched = matched|'; then
@@ -679,24 +961,15 @@ if selftest_mutant "$CHECK" "$MUTANT" "${PAIR_LINE}"'\1matched = matched|'; then
   fi
 fi
 MUTANT="$TMP/mutant-anybot/Scripts/check_dco.sh"
-if selftest_mutant "$CHECK" "$MUTANT" "${PAIR_LINE}"'\1if (author ~ /\\[bot\\]@users\\.noreply\\.github\\.com$/ \&\& trailer == pair_signoff) matched = 1|'; then
+IFS= read -r ANY_AUTHOR_SED <<'SED'
+s/^  \[ "[$]email" = "[$]SIGNER_PAIR_AUTHOR" \] && \[ "[$]signoffs" = "[$]SIGNER_PAIR_SIGNOFF" \]$/  [ "$signoffs" = "$SIGNER_PAIR_SIGNOFF" ]/
+SED
+if selftest_mutant "$CHECK" "$MUTANT" "${PAIR_LINE}"'\1if (author ~ /\\[bot\\]@users\\.noreply\\.github\\.com$/ \&\& trailer == pair_signoff) matched = 1|;'"${ANY_AUTHOR_SED}"; then
   capture "$MUTANT" "$TMP/pair-otherbot.txt"
   if [[ "$RC" -eq 0 ]]; then
     echo "  ok: mutation proof: a pair widened to any bot's noreply author is green on case 22b, so case 22b catches the widening"
   else
     fail "mutation proof: a pair widened to any bot's noreply author is still red on case 22b (exit ${RC}) — case 22b does not catch the widening. Output: ${OUT}"
-  fi
-fi
-
-# Mutation proof for case 17: a copy of the check that takes any Bot
-# account, whoever opened the pull request, must be green on it.
-MUTANT="$TMP/mutant-opener/Scripts/check_dco.sh"
-if selftest_mutant "$CHECK" "$MUTANT" 's/^\( *\)if \[ "\([$]\)account" = "Bot:[$]{opener_login}" \] && \[ "[$]opener" = "Bot:[$]{opener_login}" \]; then$/\1if [ "\2{account%%:*}" = "Bot" ]; then/'; then
-  capture "$MUTANT" "$TMP/spoof-opener.txt" "User:mallory-example"
-  if [[ "$RC" -eq 0 ]]; then
-    echo "  ok: mutation proof: without the opener comparison, case 17 is green, so it is red because a User opened the pull request"
-  else
-    fail "mutation proof: a check that takes any Bot account is still red on case 17 (exit ${RC}) — case 17 is red for another reason. Output: ${OUT}"
   fi
 fi
 
@@ -788,5 +1061,5 @@ if selftest_lib_mutant ./Scripts/dco_push_check.sh ./Scripts/lib_dco_api.sh "$TM
     "the GitHub API call for the pull requests of commit d1d1d1d1d1d1 failed: unexpected end of JSON input"
 fi
 
-selftest_end "the DCO check does not hold every commit to a Signed-off-by trailer from its author, or exempts a commit on anything but the Bot account that opened the pull request, or does not judge a push as the push check says" \
-  "DCO check is green on commits signed off by their authors (any case, among other trailers, CRLF), red naming the unsigned commit alone, on no commit, on a Signed-off-by in the body, mid-line or as the subject, on a sign-off by someone else (no email printed), on no author email and on a malformed line, exits 2 on a missing file, reads stdin, exempts only the unsigned commits of the Bot account that opened the pull request (never by a bot-looking email, for a User or no account, another opener or none), names the human commit alone in a mixed pull request, takes Dependabot's sign-off for its squash-merge author and no other pair, and its last-paragraph rule, email comparison, account rule and opener comparison are what redden cases 4, 7, 15 and 17, and the signer pair what greens case 22a"
+selftest_end "the DCO check does not hold every commit to a Signed-off-by trailer from its author, or exempts a commit on anything but a listed automation identity that GitHub authenticated as its pusher or its pull request's opener, or lets an automation identity pass by signing off, or does not judge a push as the push check says" \
+  "DCO check is green on commits signed off by their authors (any case, among other trailers, CRLF), red naming the unsigned commit alone, on no commit, on a Signed-off-by in the body, mid-line or as the subject, on a sign-off by someone else (no email printed), on no author email and on a malformed line, exits 2 on a missing file, reads stdin, exempts only the unsigned commits of a listed automation identity that GitHub authenticated as the pusher or the pull request's opener (never by a bot-looking email, for a User or no account, another opener or pusher, an unlisted identity, another id, or with a sign-off), is red on an impersonated agent and on a list changed in the same push, names the human commit alone in a mixed pull request or push, takes Dependabot's sign-off for its squash-merge author and no other pair, and its last-paragraph rule, email comparison and each condition of the exemption are what redden their cases, and the signer pair what greens case 22a"

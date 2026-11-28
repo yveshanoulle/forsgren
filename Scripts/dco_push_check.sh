@@ -22,12 +22,26 @@
 #   - it is the merge commit GitHub made for that pull request: committed by
 #     GitHub's web-flow account, verified by GitHub, its second parent the
 #     pull request's head sha. Exempt.
-# Every other commit goes to Scripts/check_dco.sh, the strict rule unchanged:
-# a direct push gains no exemption; a commit of a merged pull request whose
+# Every other commit goes to Scripts/check_dco.sh, the rule unchanged: a
+# direct push by a person gains no exemption; a commit of a merged pull request whose
 # DCO run failed or is missing, of a pull request that is not merged or is
 # another repository's, a squash or rebase commit (not one of the pull
 # request's commits), and a merge commit not made by GitHub, not verified or
 # with another second parent, are judged strictly.
+#
+# The pusher (forsgren#725). The one exemption of Scripts/check_dco.sh needs
+# the account GitHub authenticated for the push and the list of exempt
+# automation identities. The workflow hands over the push event's sender,
+# <type>:<login>:<id>, and the sha main was at before the push. When the
+# sender is a Bot account, the list is read through the API AT THAT SHA
+# (GET /repos/{repo}/contents/.github/dco-exempt-identities.conf?ref=<before>),
+# never from the pushed tree: a push that adds an identity to the list is
+# judged with the list as it was, so no push can exempt itself. A list that
+# cannot be read (a failed call, no such file at that sha, an all-zero
+# before) is red, never an empty list quietly: the commits of a Bot's push
+# are not judged against a guess. For a person's push nothing is read, and
+# no commit of it is exempt.
+#
 # A failed API call is asked once more after a short pause (forsgren#287,
 # Scripts/lib_dco_api.sh): one that answers then goes on with one warning
 # naming the first failure; a second failure is red naming both reasons,
@@ -44,7 +58,9 @@
 # gh), DCO_CHECK the strict check (default Scripts/check_dco.sh),
 # DCO_RETRY_PAUSE the seconds before the retry of a failed call (default 5).
 #
-# Usage: Scripts/dco_push_check.sh <owner/repo> <commits-file>
+# Usage: Scripts/dco_push_check.sh <owner/repo> <commits-file> [<pusher> <before>]
+#   pusher: <type>:<login>:<id>, the push event's sender; before: the sha
+#   main was at. Without them no commit is exempt as an automation identity's.
 # Exit: check_dco.sh's status for the commits not already judged; 0 when
 # every commit was already judged; 1 on a wrong call, a failed API call or no
 # commit; 2 the input file missing. Fixture: Scripts/test_check_dco.sh (gh
@@ -54,12 +70,19 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-if [ "$#" -ne 2 ]; then
-  echo "❌ FAIL: usage: Scripts/dco_push_check.sh <owner/repo> <commits-file>"
+if [ "$#" -ne 2 ] && [ "$#" -ne 4 ]; then
+  echo "❌ FAIL: usage: Scripts/dco_push_check.sh <owner/repo> <commits-file> [<pusher> <before>]"
   exit 1
 fi
 REPO="$1"
 INPUT="$2"
+PUSHER="${3:-}"
+BEFORE="${4:-}"
+LIST_PATH=".github/dco-exempt-identities.conf"
+if [ -n "$PUSHER" ] && ! [[ "$PUSHER" =~ ^[A-Za-z]+:[A-Za-z0-9-]+(\[bot\])?:[0-9]+$ ]]; then
+  echo "❌ FAIL: DCO: the pusher is not <type>:<login>:<id> — no commit can be judged against it"
+  exit 1
+fi
 if ! [[ "$REPO" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
   echo "❌ FAIL: DCO: the repository is not <owner>/<name> — no commit can be looked up"
   exit 1
@@ -188,8 +211,30 @@ while IFS= read -r row || [ -n "$row" ]; do
   esac
 done < "$INPUT"
 
+# pusher_list: writes the list of exempt automation identities as it was at
+# BEFORE to $WORK/list. Only a Bot's push asks for it. The mutation proof in
+# Scripts/test_check_dco.sh rewrites the `listed="$(api` line by its start:
+# keep the call on that one line.
+pusher_list() {
+  local listed
+  if ! [[ "$BEFORE" =~ ^[0-9a-f]{40,64}$ ]] || [[ "$BEFORE" =~ ^0+$ ]]; then
+    echo "❌ FAIL: DCO: the push names no commit main was at before it, so the list of exempt automation identities cannot be read as it was — the commits of ${PUSHER%:*} are not judged against a guess"
+    exit 1
+  fi
+  listed="$(api "the list of exempt automation identities before the push" "repos/${REPO}/contents/${LIST_PATH}?ref=${BEFORE}" --jq '.content')" || exit 1
+  if ! printf '%s' "$listed" | base64 -d > "$WORK/list" 2> /dev/null; then
+    echo "❌ FAIL: DCO: the list of exempt automation identities before the push does not decode — the commits of ${PUSHER%:*} are not judged against a guess"
+    exit 1
+  fi
+}
+
 if [ -s "$WORK/remaining" ] || [ "$total" -eq 0 ]; then
-  "$CHECK" "$WORK/remaining"
+  if [[ "$PUSHER" == Bot:* ]]; then
+    pusher_list
+    "$CHECK" "$WORK/remaining" "$PUSHER" "$WORK/list" pusher
+  else
+    "$CHECK" "$WORK/remaining"
+  fi
   exit $?
 fi
 echo "✅ DCO: ${total} commit(s), none judged again here: ${judged} by the DCO run of the merged pull request they belong to, ${exempt} the merge commit GitHub made for one"

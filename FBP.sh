@@ -121,7 +121,7 @@ fi
 # never holds the name or the message. FBP.sh adds only
 # fixed text of its own to the message ('*** RED ****') and the committer's
 # Signed-off-by trailer (forsgren#671; `git commit --signoff` added the same
-# before), so this one check of the given message is also the check of what
+# before; none for a registered automation identity, forsgren#725), so this one check of the given message is also the check of what
 # `git commit` receives. With no
 # list the check passes; --no-commit with no message has nothing to check.
 if [ -n "$COMMIT_MSG" ]; then
@@ -710,11 +710,44 @@ fbp_signoff_trailer() {
   printf 'Signed-off-by: %s' "${BASH_REMATCH[1]}"
 }
 
+# fbp_exempt_identity — forsgren#725: status 0 when this run commits as an
+# automation identity listed in .github/dco-exempt-identities.conf: author
+# AND committer email (git var, so GIT_AUTHOR_* and GIT_COMMITTER_* first, as
+# Scripts/fbp_agent.sh exports them) are the noreply address of one line,
+# <id>+<login>@users.noreply.github.com. Such a commit gets NO sign-off: a
+# Signed-off-by is a person's certificate and an automation identity
+# certifies nothing (CONTRIBUTING.md, Automation identities). This reads the
+# local file and the local identity, both of which anyone can write: it only
+# decides what FBP.sh writes. Whether the commit is exempt is decided by the
+# DCO workflow, from the account GitHub authenticated for the push; a person
+# who commits under a listed identity gets a commit that check turns red.
+# Every other identity, people and unlisted bots alike, is signed off as ever.
+fbp_exempt_identity() {
+  local list=".github/dco-exempt-identities.conf" author committer entry
+  local pattern='^.+ <([^<>]*)> [0-9]+ [-+][0-9]{4}$'
+  [ -f "$list" ] || return 1
+  author="$(git var GIT_AUTHOR_IDENT)" || return 1
+  [[ "$author" =~ $pattern ]] || return 1
+  author="${BASH_REMATCH[1]}"
+  committer="$(git var GIT_COMMITTER_IDENT)" || return 1
+  [[ "$committer" =~ $pattern ]] || return 1
+  committer="${BASH_REMATCH[1]}"
+  [ "$author" = "$committer" ] || return 1
+  while IFS= read -r entry || [ -n "$entry" ]; do
+    [[ "$entry" =~ ^([0-9]+)\|([A-Za-z0-9-]+\[bot\])$ ]] || continue
+    if [ "$author" = "${BASH_REMATCH[1]}+${BASH_REMATCH[2]}@users.noreply.github.com" ]; then
+      return 0
+    fi
+  done < "$list"
+  return 1
+}
+
 # fbp_commit_message <subject> <message> <trailer> — forsgren#671: prints
 # the commit message: <subject> and a blank line when <subject> is not empty
 # (the RED subject), <message> unchanged but for trailing newlines, a blank
 # line and <trailer> as the last paragraph, unless <message> already ends in
-# that exact trailer outside its first paragraph. Built here, not with
+# that exact trailer outside its first paragraph; with an empty <trailer>
+# (forsgren#725, an exempt automation identity) nothing is added. Built here, not with
 # `git commit --signoff -m ... -m ...`: --signoff treats trailing lines that
 # start with core.commentChar ('#', as in "#670 (1/1): ...") as comment
 # lines and puts the trailer above them, where the DCO check reads no
@@ -727,10 +760,12 @@ fbp_commit_message() {
   if [ -n "$1" ]; then
     message="${1}"$'\n\n'"${message}"
   fi
-  case "$message" in
-    *$'\n\n'"$trailer" | *$'\n\n'*$'\n'"$trailer") ;;
-    *) message="${message}"$'\n\n'"${trailer}" ;;
-  esac
+  if [ -n "$trailer" ]; then
+    case "$message" in
+      *$'\n\n'"$trailer" | *$'\n\n'*$'\n'"$trailer") ;;
+      *) message="${message}"$'\n\n'"${trailer}" ;;
+    esac
+  fi
   printf '%s' "$message"
 }
 
@@ -772,11 +807,19 @@ else
       # paragraph. The trailer is the committer identity's: whoever runs
       # FBP.sh, or agent-Friend under Scripts/fbp_agent_friend.sh. The RED
       # commit too, since it is pushed later, under its green successor.
+      # forsgren#725: every commit by a person. A run under an automation
+      # identity of .github/dco-exempt-identities.conf (Scripts/fbp_agent.sh)
+      # commits WITHOUT the trailer, the RED commit too: that identity
+      # certifies nothing, and the DCO check is red on its sign-off.
       # forsgren#671: FBP.sh builds the whole message (fbp_commit_message)
       # and commits it verbatim, so no commit.cleanup setting strips a line
       # that starts with '#'.
       # Scripts/test_fbp_commit_message.sh, case 5, pins both.
       SIGNOFF="$(fbp_signoff_trailer)"
+      if fbp_exempt_identity; then
+        SIGNOFF=""
+        echo "No Signed-off-by: this run commits as a registered automation identity, which certifies nothing (CONTRIBUTING.md, Automation identities)."
+      fi
       if $FAILED; then
         COMMIT_TEXT="$(fbp_commit_message "*** RED ****" "$COMMIT_MSG" "$SIGNOFF")"
       else

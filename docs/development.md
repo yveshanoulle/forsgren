@@ -46,17 +46,26 @@ only.
 `./FBP.sh --no-push "<message>"` runs the same and commits, but does not push;
 it is for changes that only touch FBP.sh, sfl.sh, local-only scripts or their
 self-tests. It cannot be combined with `--no-commit`.
-Every commit it makes, green or `*** RED ****`, is signed off: FBP.sh
+Every commit it makes for a person, green or `*** RED ****`, is signed off: FBP.sh
 builds the message itself, the `*** RED ****` subject and a blank line for
 a red run, your message unchanged, a blank line and a `Signed-off-by:`
 trailer for the committer identity as the last paragraph, yours from
-`user.name` and `user.email`, or agent-Friend's under
-`Scripts/fbp_agent_friend.sh`, and commits it verbatim (forsgren#671:
+`user.name` and `user.email` (agent-Friend's under the older
+`Scripts/fbp_agent_friend.sh`), and commits it verbatim (forsgren#671:
 `git commit --signoff` puts the trailer above a message that starts with
 `#`, such as an issue number). That is the Developer
 Certificate of Origin sign-off the DCO check on pull requests and on every
 push to `main` asks for (see [CI](ci.md) and
 [CONTRIBUTING.md](../CONTRIBUTING.md)).
+A run under a registered automation identity is the one exception
+(forsgren#725): when author and committer are an identity of
+`.github/dco-exempt-identities.conf`, as under `Scripts/fbp_agent.sh` with
+the bot of the agent's GitHub App, the commit gets no `Signed-off-by`, the
+`*** RED ****` one included, and the run says so. An automation identity
+certifies nothing; its commits are exempt, not signed off. FBP.sh decides
+that from the local list and the local identity, which proves nothing: the
+DCO workflow decides, from the account GitHub authenticated for the push
+(see [Automation identities](../CONTRIBUTING.md#automation-identities)).
 
 A push refused because the remote moved during the run (a pull request merged
 while the gates ran) no longer ends the run (forsgren#283, step 1 of 2,
@@ -405,7 +414,9 @@ broken runner cannot report green:
   blocks a secret-class commit with the right hint, signs off its green and
   `*** RED ****` commits as the identity that ran it, the trailer the last
   paragraph also for a message that starts with `#` (forsgren#671; a
-  commit that then passes `Scripts/check_dco.sh`), refuses a message that names a private
+  commit that then passes `Scripts/check_dco.sh`), leaves the sign-off off
+  for an identity of the list of exempt automation identities and for no
+  other bot (forsgren#725, cases 5.i to 5.m, with a mutation proof), refuses a message that names a private
   name before any gate runs, hands the message to the private-names gate on
   stdin (`--message -`), never prints back an argument that starts like a
   flag, and fails the build row

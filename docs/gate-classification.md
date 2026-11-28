@@ -87,7 +87,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 50 | html duplication, generated page | `check_html_dupl_site.sh` | post | required |
 | 51 | golden-pages self-test | `test_check_golden_pages.sh` | pre | required |
 | 52 | golden pages | `check_golden_pages.sh` | pre | required |
-| 53 | FBP --no-push self-test | `test_fbp_no_push.sh` | pre | required, `test_fbp_no_push v5` |
+| 53 | FBP --no-push self-test | `test_fbp_no_push.sh` | pre | required, `test_fbp_no_push v6` (v6: cases 10 to 13 pin `fbp_agent.sh`, the agent's own identity from the local git config and no fallback login) |
 | 159 | FBP push-or-rebase self-test | `test_fbp_push_or_rebase.sh` | pre | required; ported from the estate canon (`test_fbp_push_or_rebase v2`), forsgren's form: a copy of the real `FBP.sh` with `fbp_push_or_rebase.sh` (`fbp_push_or_rebase v3`) in a throwaway repository whose bare origin moves during the run: unrelated incoming file rebased, signed off and pushed with the ⚠️ row, same file stopped with the local commit untouched, nothing incoming, another refusal, moved again, moved every time (3 pushes); 1 mutation proof (forsgren#283, step 1 of 2) |
 | 159a | temp helper self-test | `test_lib_tmp.sh` | pre | required, `test_lib_tmp v2`; ported from the estate canon (forsgren#612): `tmp_dir` and `tmp_file` of `lib_tmp.sh` (`lib_tmp v2`) make `<name>.XXXXXX` directly in TMPDIR, one slash after a TMPDIR that ends in one, and refuse an empty name or a slash (exit 2); 3 mutation proofs (the TMPDIR prefix dropped lands in the macOS per-user folder, the slash refusal dropped escapes TMPDIR, the trailing slash kept doubles it). Proof A needs macOS, so the row stays in the main job |
 | 159b | bare mktemp self-test | `test_check_bare_mktemp.sh` | pre | required, `test_check_bare_mktemp v2`; ported from the estate canon (forsgren#612): synthetic repositories for every bare form (no template, `-d`, `-t`, `-p`, a template without a path), a workflow, an extension-less script, an untracked file, two calls on one line, the templated forms and the helper green, an ignored file green, an empty tree red, the exemption list fail closed, and this repository green; 6 mutation proofs |
@@ -161,7 +161,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 112 | npm lockfile sync | `check_npm_lock_sync.sh` | pre | required, `check_npm_lock_sync v1` |
 | 113 | workflow-triggers self-test | `test_check_workflow_triggers.sh` | pre | required, `test_check_workflow_triggers v3` (forsgren#645: the job-level guard's red-first cases, the accepted and unsafe guard forms, needs:, steps-only and reusable workflows, 9 v3 mutation proofs each asserting its reason) |
 | 114 | workflow triggers | `check_workflow_triggers.sh` | pre | required, `check_workflow_triggers v3` (forsgren#645: on `pull_request` a job off GitHub-hosted runners is allowed behind an accepted job-level guard against a fork's pull request, no exception row; the grammar is in the script's header) |
-| 115 | DCO sign-off self-test | `test_check_dco.sh` | pre | required |
+| 115 | DCO sign-off self-test | `test_check_dco.sh` | pre | required; since forsgren#725 also the exemption of registered automation identities: a listed identity that GitHub authenticated as the pusher or the pull request's opener is exempt, an impersonated one, an unlisted bot, a bot's sign-off and a list changed in the same push are red, one mutation proof per condition |
 | 116 | metrics workflow | `test_metrics_workflow.sh` | pre | required |
 | 117 | auto-update workflow | `test_auto_update_workflow.sh` | pre | required |
 | 118 | starter page workflow | `test_starter_page_workflow.sh` | pre | required |
@@ -248,7 +248,10 @@ ruling; a missing file is exit 2.
   steps with their own self-tests in the order file (`install_tools`,
   `npm_sync_install`, `sfl_pull`).
 - **DCO sign-off**: `.github/workflows/dco.yml` on pull requests and pushes
-  to main, with its self-test in the order file.
+  to main, with its self-test in the order file. It is the one place that
+  knows the account GitHub authenticated, so it alone decides the exemption
+  of a registered automation identity (forsgren#725); FBP.sh only leaves
+  the sign-off off locally.
 - **Private names in commit messages** (forsgren#213): the second job of
   `.github/workflows/dco.yml`, `Scripts/check_commit_messages.sh`, with its
   self-test in the order file.

@@ -643,6 +643,113 @@ SED
   fi
 fi
 
+# forsgren#725, cases i to m: a run under a registered automation identity
+# commits WITHOUT a sign-off. A Signed-off-by is a person's certificate; an
+# automation identity certifies nothing, and the DCO check is red on its
+# sign-off. FBP.sh decides from the list in the checkout and the identity it
+# was handed, which is no proof of anything: the DCO check decides, from the
+# account GitHub authenticated for the push. Every name and number is made up.
+#   i. a green run under an identity of the list   -> the message unchanged,
+#                                                     no Signed-off-by
+#   j. that commit, the DCO check told the identity
+#      itself pushed it                            -> green, exempt
+#   k. the same commit, a person pushed it         -> red: FBP.sh's choice
+#                                                     exempts nothing
+#   l. a RED run under that identity               -> the RED subject and the
+#                                                     message, no Signed-off-by
+#   m. a bot identity that is NOT in the list      -> signed off as ever
+# Mutation proof: a FBP.sh that never asks the list signs case i's commit
+# off, and the DCO check is red on that sign-off.
+AGENT_NAME="example-agent[bot]"
+AGENT_EMAIL="4242+example-agent[bot]@users.noreply.github.com"
+AGENT_LIST=$'# made-up identities\n4242|example-agent[bot]'
+AGENT_PUSHER="Bot:example-agent[bot]:4242"
+
+# dco_verdict_pushed <pusher> — as dco_verdict, with the account that pushed
+# and the list AGENT_LIST, as Scripts/dco_push_check.sh hands them over.
+dco_verdict_pushed() {
+  local input list
+  if ! fbp_sandbox_new_dir; then
+    fail "DCO verdict: mktemp -d gave no directory for the check's input"
+    return 1
+  fi
+  input="${FBP_SANDBOX_NEW_DIR}/commits.txt"
+  list="${FBP_SANDBOX_NEW_DIR}/list.conf"
+  printf '%s\n' "$AGENT_LIST" > "$list"
+  printf '%s - %s %s\n' "$COMMIT_SHA" \
+    "$(printf '%s' "$COMMIT_AUTHOR" | base64 | tr -d '\n')" \
+    "$(printf '%s' "$COMMIT_MSG" | base64 | tr -d '\n')" > "$input"
+  DCO_RC=0
+  DCO_OUT="$("${ROOT}/Scripts/check_dco.sh" "$input" "$1" "$list" pusher 2>&1)" || DCO_RC=$?
+}
+
+if FBP_SANDBOX_EXEMPT_LIST="$AGENT_LIST" FBP_SANDBOX_GIT_NAME="$AGENT_NAME" FBP_SANDBOX_GIT_EMAIL="$AGENT_EMAIL" \
+    run_fbp "5.i: an agent's green commit"; then
+  if [ -z "$COMMIT_SHA" ]; then
+    fail "5.i. the run under a registered automation identity made no commit. Output: ${OUT}"
+  else
+    exact_message_case "5.i. a registered automation identity's commit is the message alone, with no Signed-off-by" "5.i: an agent's green commit"
+    if grep -Fq "No Signed-off-by: this run commits as a registered automation identity" <<< "$OUT"; then
+      echo "  ok: 5.i. and the run says why it did not sign off"
+    else
+      fail "5.i. the run does not say that it left the sign-off off. Output: ${OUT}"
+    fi
+    if dco_verdict_pushed "$AGENT_PUSHER"; then
+      if [ "$DCO_RC" -eq 0 ] && grep -Fq "is exempt: authored by the registered automation identity example-agent[bot], which pushed it" <<< "$DCO_OUT"; then
+        echo "  ok: 5.j. the DCO check, told that identity pushed it, names the commit as exempt"
+      else
+        fail "5.j. the DCO check does not exempt the commit the identity itself pushed (exit ${DCO_RC}): ${DCO_OUT}"
+      fi
+    fi
+    if dco_verdict_pushed "User:mallory-example:99"; then
+      if [ "$DCO_RC" -ne 0 ] && grep -Fq "its author is an automation identity that is not exempt here" <<< "$DCO_OUT"; then
+        echo "  ok: 5.k. the same commit pushed by a person is red: what FBP.sh decides locally exempts nothing"
+      else
+        fail "5.k. the DCO check did not turn red on a registered identity's commit that a person pushed (exit ${DCO_RC}): ${DCO_OUT}"
+      fi
+    fi
+  fi
+fi
+
+if FBP_SANDBOX_EXEMPT_LIST="$AGENT_LIST" FBP_SANDBOX_GIT_NAME="$AGENT_NAME" FBP_SANDBOX_GIT_EMAIL="$AGENT_EMAIL" \
+    FBP_SANDBOX_SFL_PRE_RC=1 FBP_SANDBOX_SFL_PRE_OUTPUT=$'Errors:\n  gofmt ❌\n' \
+    run_fbp "5.l: an agent's red commit"; then
+  exact_message_case "5.l. a registered automation identity's *** RED **** commit carries no Signed-off-by either" $'*** RED ****\n\n5.l: an agent\'s red commit'
+  if [ -z "$COMMIT_SHA" ]; then
+    fail "5.l. the red run under a registered automation identity made no commit. Output: ${OUT}"
+  fi
+fi
+
+if FBP_SANDBOX_EXEMPT_LIST="$AGENT_LIST" FBP_SANDBOX_GIT_NAME="other-agent[bot]" FBP_SANDBOX_GIT_EMAIL="4242+other-agent[bot]@users.noreply.github.com" \
+    run_fbp "5.m: an unlisted bot's commit"; then
+  signed_off_case "5.m. a bot identity that is not in the list is signed off as every other identity" "Signed-off-by: other-agent[bot] <4242+other-agent[bot]@users.noreply.github.com>"
+fi
+
+if ! fbp_sandbox_new_dir; then
+  fail "mutation proof (exempt identity): mktemp -d gave no directory, so case 5.i was not seen failing"
+else
+  exempt_mutant="${FBP_SANDBOX_NEW_DIR}/FBP.sh"
+  sed 's/^\( *\)if fbp_exempt_identity; then$/\1if false; then/' "$FBP_SANDBOX_FBP" > "$exempt_mutant"
+  chmod +x "$exempt_mutant"
+  if cmp -s "$FBP_SANDBOX_FBP" "$exempt_mutant"; then
+    fail "mutation proof (exempt identity): the mutation changed nothing in ${FBP_SANDBOX_FBP} — FBP.sh has no line 'if fbp_exempt_identity; then', so this proof proves nothing"
+  elif FBP_SANDBOX_FBP_OVERRIDE="$exempt_mutant" FBP_SANDBOX_EXEMPT_LIST="$AGENT_LIST" FBP_SANDBOX_GIT_NAME="$AGENT_NAME" FBP_SANDBOX_GIT_EMAIL="$AGENT_EMAIL" \
+      run_fbp "5.i: an agent's green commit"; then
+    if [ -n "$COMMIT_SHA" ] && grep -Fq "Signed-off-by: ${AGENT_NAME} <${AGENT_EMAIL}>" <<< "$COMMIT_MSG"; then
+      echo "  ok: mutation proof: a FBP.sh that never asks the list signs the automation identity's commit off, so case 5.i has no sign-off because of the list"
+      if dco_verdict_pushed "$AGENT_PUSHER"; then
+        if [ "$DCO_RC" -ne 0 ] && grep -Fq "carries a Signed-off-by trailer" <<< "$DCO_OUT"; then
+          echo "  ok: mutation proof: the DCO check is red on that sign-off by an automation identity"
+        else
+          fail "mutation proof (exempt identity): the DCO check did not reject the automation identity's sign-off (exit ${DCO_RC}): ${DCO_OUT}"
+        fi
+      fi
+    else
+      fail "mutation proof (exempt identity): a FBP.sh that never asks the list still made a commit without the identity's sign-off — case 5.i does not prove the list decides. Message: ${COMMIT_MSG}. Output: ${OUT}"
+    fi
+  fi
+fi
+
 # ---------------------------------------------------------------------------
 # Case 6: forsgren#52 review R3 — a commit message that names a private name
 # must not be committed. The gate checks files and paths; FBP.sh used to

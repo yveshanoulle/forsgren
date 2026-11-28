@@ -5,15 +5,20 @@
 # see CONTRIBUTING.md). On every pull request, and on every push to main
 # (forsgren#81: we never use pull requests, so main's commits were never
 # checked), every commit in it must carry
-# a Signed-off-by trailer from its author, except the commits of the Bot
-# account that opened it (Dependabot's, ruled by Yves 2026-10-02: GitHub's
-# account type and the pull request's opener, never a commit's author
-# email); Scripts/check_dco.sh decides, and
+# a Signed-off-by trailer from its author, except the commits of a
+# registered automation identity (forsgren#725): an account listed in
+# .github/dco-exempt-identities.conf that GitHub authenticated as the one
+# that opened the pull request or pushed to main, never a commit's author
+# name or email. Such a commit carries no sign-off: an exemption, not a
+# certification. Scripts/check_dco.sh decides, and
 # Scripts/test_check_dco.sh proves it in sfl and Quality on every run.
+# The list is never read from the change judged: a pull request gets the
+# base commit's file (the checkout below), a push the file of the commit
+# main was at before it (Scripts/dco_push_check.sh, through the API).
 #
 # On a push the commits are those of before..after, listed from git by
 # Scripts/dco_push_commits.sh (a new branch: its head commit; an empty range
-# is red), with no account and so no bot exemption. Commits of an earlier
+# is red); the account is the push event's sender. Commits of an earlier
 # push are not judged again. Merging a pull request on GitHub puts its
 # commits and a merge commit on main (forsgren#267, decision #268):
 # Scripts/dco_push_check.sh asks the API which pull requests each pushed
@@ -46,7 +51,7 @@ on:
     branches: ["main"]
 
 permissions:
-  contents: read        # the checkout of Scripts/check_dco.sh at the base commit
+  contents: read        # the checkout of Scripts/check_dco.sh at the base commit; the list of exempt identities before a push
   pull-requests: read   # the pull request's commit list; the pull requests of a pushed commit
   checks: read          # a merged pull request's DCO check run (Scripts/dco_push_check.sh)
 
@@ -76,6 +81,7 @@ jobs:
             Scripts/dco_push_commits.sh
             Scripts/dco_pr_commits.sh
             Scripts/lib_dco_api.sh
+            .github/dco-exempt-identities.conf
           sparse-checkout-cone-mode: false
 
       # One line per commit, <sha> <author account> <base64 author email>
@@ -83,9 +89,13 @@ jobs:
       # header), listed by Scripts/dco_pr_commits.sh (forsgren#213: the second
       # job lists them the same way). The account is <type>:<login> of the
       # GitHub account the commit is linked to (.author, null: -); the opener
-      # is the account that opened the pull request. The list API returns at
-      # most 250 commits; a pull request longer than that is checked on its
-      # first 250.
+      # is the account that opened the pull request, with its numeric id, and
+      # the list of exempt automation identities is the base commit's (the
+      # checkout above), so a pull request cannot list itself. The list API
+      # returns at most 250 commits; a pull request longer than that is
+      # checked on its first 250. A base commit from before forsgren#725 has
+      # no list and the check of that time, which reads <type>:<login>: it
+      # judges the pull request by its own rule, as it would have then.
       - name: Check every commit is signed off by its author
         if: ${{ github.event_name == 'pull_request' }}
         shell: bash
@@ -93,19 +103,28 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_OPENER: ${{ github.event.pull_request.user.type }}:${{ github.event.pull_request.user.login }}
+          PR_OPENER: ${{ github.event.pull_request.user.type }}:${{ github.event.pull_request.user.login }}:${{ github.event.pull_request.user.id }}
         run: |
           set -euo pipefail
           commits="${RUNNER_TEMP}/dco_commits.txt"
           ./Scripts/dco_pr_commits.sh "$REPO" "$PR_NUMBER" > "$commits"
-          ./Scripts/check_dco.sh "$commits" "$PR_OPENER"
+          if [ -f .github/dco-exempt-identities.conf ]; then
+            ./Scripts/check_dco.sh "$commits" "$PR_OPENER" .github/dco-exempt-identities.conf opener
+          else
+            ./Scripts/check_dco.sh "$commits" "${PR_OPENER%:*}"
+          fi
 
       # A push to main: the commits of before..after, from git (fetch-depth
       # 0 above), with the same check, except that a commit of a merged pull
       # request whose own DCO run succeeded is not judged again and GitHub's
       # merge commit for it is exempt (Scripts/dco_push_check.sh, which reads
-      # the API with the job token). The token, the repository and the two
-      # shas reach the shell through env:, never as ${{ }} inside run:.
+      # the API with the job token). The pusher is the push event's sender,
+      # the account GitHub authenticated for this push, with its numeric id
+      # (the payload's, so a re-run by someone else does not change it); a
+      # registered automation identity's own commits are exempt only when it
+      # is that sender, and the list is read as it was at BEFORE. The token,
+      # the repository, the pusher and the two shas reach the shell through
+      # env:, never as ${{ }} inside run:.
       - name: Check every pushed commit is signed off by its author
         if: ${{ github.event_name == 'push' }}
         shell: bash
@@ -114,11 +133,12 @@ jobs:
           REPO: ${{ github.repository }}
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.event.after }}
+          PUSHER: ${{ github.event.sender.type }}:${{ github.event.sender.login }}:${{ github.event.sender.id }}
         run: |
           set -euo pipefail
           commits="${RUNNER_TEMP}/dco_push_commits.txt"
           ./Scripts/dco_push_commits.sh "$BEFORE" "$AFTER" > "$commits"
-          ./Scripts/dco_push_check.sh "$REPO" "$commits"
+          ./Scripts/dco_push_check.sh "$REPO" "$commits" "$PUSHER" "$BEFORE"
 
   # The private names in commit messages (forsgren#213). This repository is
   # public and a commit message is published with the commit; FBP.sh refuses a

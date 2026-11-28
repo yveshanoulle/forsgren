@@ -261,8 +261,8 @@ By making a contribution to this project, I certify that:
     this project or the open source license(s) involved.
 ```
 
-You certify this by adding a `Signed-off-by` line to every commit, with
-your real name and an email address you can be reached at:
+You certify this, as a person, by adding a `Signed-off-by` line to every
+commit, with your real name and an email address you can be reached at:
 
 ```
 Signed-off-by: Name <email>
@@ -296,14 +296,10 @@ own sign-off). Either half with anything else is held to the rule above.
 
 Merge commits are held to the same rule (`git merge --signoff`).
 
-Bots are exempt: a commit with no sign-off passes, and the check names it
-as exempt, when GitHub links it to an account of type Bot (Dependabot and
-other GitHub Apps) and that same bot opened the pull request. The check
-decides on what GitHub reports, the account type and who opened the pull
-request, never on a commit's author name or email: anyone can write a
-bot's address into a commit. Your own commit in a bot's pull request is
-held to the rule. A push to `main` has no one who opened it, so no commit
-of a push is exempt as a bot's.
+Commits by a registered automation identity are exempt, and carry no
+sign-off: see [Automation identities](#automation-identities) below. Your
+own commit is held to the rule wherever it lands, in a bot's pull request
+and in a push by an automation identity too.
 
 A pull request merged with GitHub's merge button (a Dependabot pull request,
 say) is judged once, by its own DCO run, not again on the push to `main`:
@@ -317,3 +313,79 @@ failed, a squash or rebase commit, a merge commit made any other way. A
 failed lookup is red, never a pass. To fix a red check, sign the
 commits off and force-push the branch: `git commit --amend -s` for the
 last commit, `git rebase --signoff main` for all of them.
+
+### Automation identities
+
+The sign-off is a person's declaration: the Developer Certificate of Origin
+says "I certify". Some commits here are not made by a person. A dependency
+update service opens pull requests, and the maintainer's coding agent
+commits under its own account, the bot account of a GitHub App. Such an
+automation identity can declare nothing, and a person's sign-off written on
+its commit would claim a certification nobody gave.
+
+So the two kinds of contribution are held to different rules:
+
+- **A person's commit** needs a valid `Signed-off-by` from its author,
+  always, whoever pushes it and wherever it lands. Nothing below relaxes
+  that.
+- **A registered automation identity's commit** carries **no**
+  `Signed-off-by` and is exempt from the check, which names it as exempt.
+  This is an explicit exemption from the sign-off. It is not a
+  certification by the identity, and it says nothing about who answers for
+  the change: the maintainer who runs the identity and accepts its work
+  does.
+
+Which identities are registered is in
+[.github/dco-exempt-identities.conf](.github/dco-exempt-identities.conf),
+one per line, by GitHub's numeric account id and its login (the login can
+be registered again by someone else, the id cannot; both must match). Only
+a GitHub App's bot account can be listed.
+
+Being listed is not enough, because a commit's author name and email are
+text its maker chooses: anyone can write a listed identity's address into a
+commit, and GitHub then even shows that commit under the identity's
+account. The check therefore exempts a commit only when all of these hold:
+
+- its author is a listed identity (the noreply address GitHub gives that
+  account, `<id>+<login>@users.noreply.github.com`);
+- GitHub itself authenticated that same account as the one that brought
+  the commit: the account that **pushed** it to `main`, or the account that
+  **opened** the pull request. That is the push event's sender and the
+  pull request's opener as GitHub reports them, which takes the GitHub
+  App's own key and is nothing a commit can say about itself;
+- in a pull request, GitHub also links the commit to that account.
+
+Everything else fails closed, and the check is red:
+
+- a commit that names a listed identity as its author but was pushed by
+  someone else, or sits in a pull request someone else opened: an
+  impersonation, red whether it is signed off or not;
+- a commit by a bot account that is not listed, signed off or not;
+- a listed identity's own commit that carries a `Signed-off-by`. One line
+  is left alone: `Signed-off-by: dependabot[bot] <support@github.com>`,
+  which GitHub's dependency update service writes on its own commits and
+  nobody here controls;
+- a list with a line the check cannot read.
+
+One thing the check cannot see is who pushed a commit into the branch of a
+pull request. Only the listed account and people with write access to this
+repository can push to the branch of a pull request that account opened.
+
+The list is protected in three ways. The check never reads it from the
+change it judges: a pull request is judged with the list of its base
+commit, and a push with the list as it was before that push, so a change
+cannot register its own author, and a change to the list counts from the
+next push on. The files that decide this (the list, the check's scripts and
+the workflow) have the maintainer as their owner in
+[.github/CODEOWNERS](.github/CODEOWNERS). And who may change them is who
+may push to `main`. That is a setting of the repository, not a file, and
+the maintainer's to keep: a ruleset on `main` that lets only the maintainer
+and the registered identities push, and that asks a code owner's review for
+a pull request.
+
+Locally, `./FBP.sh` leaves the sign-off off when it commits under a listed
+identity (the maintainer's agent runs it through `Scripts/fbp_agent.sh`),
+and signs off for everyone else. That is a convenience only: it reads the
+list and the git identity of the checkout, both of which anyone can
+write. The DCO workflow is the authority. A person who commits under a
+listed identity gets an unsigned commit that the workflow turns red.
